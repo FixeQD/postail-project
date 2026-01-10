@@ -1,6 +1,9 @@
 {
 	"name": "postail-project",
 	"private": true,
+	"license": "MIT",
+	"description": "Modern, privacy-focused multiplatform mail client built with Tauri and React.",
+	"author": "FixeQD",
 	"version": "0.1.0",
 	"type": "module",
 	"scripts": {

@@ -1,8 +1,8 @@
 [package]
 name = "postail-project"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Secure Tauri backend for Postail"
+authors = ["FixeQD"]
 edition = "2021"
 
 [lib]
