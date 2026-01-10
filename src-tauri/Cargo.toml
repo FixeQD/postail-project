@@ -5,12 +5,7 @@ description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [lib]
-# The `_lib` suffix may seem redundant but it is necessary
-# to make the lib name unique and wouldn't conflict with the bin name.
-# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "postail_project_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
@@ -24,3 +19,33 @@ tauri-plugin-os = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+# Security
+aes-gcm = "0.10"
+argon2 = "0.5"
+keyring = { version = "3", features = ["sync-secret-service", "vendored"] }
+zeroize = { version = "1", features = ["derive"] }
+rand = "0.8"
+thiserror = "2"
+dirs = "5"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# TPM support (Linux)
+[target.'cfg(target_os = "linux")'.dependencies]
+tss-esapi = { version = "7", optional = true }
+
+# TPM support (Windows)
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Security_Tpm",
+    "Win32_Security_Cryptography",
+    "Win32_Foundation",
+], optional = true }
+
+[dev-dependencies]
+tempfile = "3"
+
+[features]
+default = []
+tpm = ["tss-esapi", "windows"]
