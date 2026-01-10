@@ -1,6 +1,24 @@
+import { useState, useEffect } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { platform } from '@tauri-apps/plugin-os'
 
 export function TitleBar() {
+	const [isMobile, setIsMobile] = useState<boolean | null>(null)
+
+	useEffect(() => {
+		try {
+			const p = platform()
+			setIsMobile(p === 'android' || p === 'ios')
+		} catch {
+			const ua = navigator.userAgent.toLowerCase()
+			setIsMobile(/android|iphone|ipad|ipod|mobile/i.test(ua))
+		}
+	}, [])
+
+	if (isMobile === null || isMobile) {
+		return null
+	}
+
 	const appWindow = getCurrentWindow()
 
 	const minimize = () => appWindow.minimize()
