@@ -4,7 +4,7 @@
 - [x] 2 — Security Core
     - Master_K (32B), OS Keyring, TPM (feature-gated), Argon2 fallback, AES-256-GCM, zeroize, tests
 
-- [ ] 3 — Account Management
+- [x] 3 — Account Management
     - DB, OAuth flow (local server + PKCE), encrypted creds storage, account metadata
 
 - [ ] 4 — IMAP Basic (headers only)
