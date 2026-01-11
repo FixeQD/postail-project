@@ -31,7 +31,10 @@ fn master_key_from_bytes_valid() {
 fn master_key_from_bytes_invalid_length() {
     let bytes = [0u8; 16];
     let result = MasterKey::from_bytes(&bytes);
-    assert!(matches!(result, Err(SecurityError::InvalidKeyLength { .. })));
+    assert!(matches!(
+        result,
+        Err(SecurityError::InvalidKeyLength { .. })
+    ));
 }
 
 #[test]
@@ -239,4 +242,17 @@ fn passphrase_builder_works() {
 
     let decrypted = manager.decrypt(&encrypted).unwrap();
     assert_eq!(decrypted, b"hello");
+}
+
+pub fn test_manager() -> SecurityManager {
+    use std::env::temp_dir;
+
+    let temp_path = temp_dir().join("test_postail_key");
+    let store = Argon2Store::new(temp_path, "test_passphrase".to_string());
+    let mut manager = SecurityManager::with_store(Arc::new(store), StorageTier::Passphrase);
+    // Initialize with fixed key for tests
+    let fixed_key = MasterKey::from_bytes(&[0u8; 32]).unwrap();
+    manager.initialize_with_key(fixed_key).unwrap();
+    manager.unlock().unwrap();
+    manager
 }
