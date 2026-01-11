@@ -1,12 +1,45 @@
+pub mod db;
 pub mod oauth;
 pub mod security;
 
+use lazy_static::lazy_static;
+use rusqlite::Connection;
+use std::sync::{Arc, Mutex};
 use tauri::Emitter;
+
+use crate::db::{
+    add_account as db_add_account, init_db, list_accounts as db_list_accounts,
+    remove_account as db_remove_account, AccountInput, AccountMeta,
+};
+use crate::security::SecurityManager;
+
+lazy_static! {
+    static ref DB_CONN: Arc<Mutex<Connection>> = Arc::new(Mutex::new(init_db().unwrap()));
+    static ref SECURITY: SecurityManager = SecurityManager::new().unwrap();
+}
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
+}
+
+#[tauri::command]
+fn add_account(input: AccountInput) -> Result<AccountMeta, String> {
+    let conn = DB_CONN.lock().unwrap();
+    db_add_account(&*conn, input, &SECURITY).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_accounts() -> Result<Vec<AccountMeta>, String> {
+    let conn = DB_CONN.lock().unwrap();
+    db_list_accounts(&*conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn remove_account(id: String) -> Result<(), String> {
+    let conn = DB_CONN.lock().unwrap();
+    db_remove_account(&*conn, &id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -38,7 +71,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             start_oauth_flow,
-            complete_oauth_flow
+            complete_oauth_flow,
+            add_account,
+            list_accounts,
+            remove_account
         ])
         .register_uri_scheme_protocol("postail", |app, request| {
             if request.uri().path() == "/oauth/callback" {

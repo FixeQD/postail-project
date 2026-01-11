@@ -35,6 +35,11 @@ rand = "0.8"
 thiserror = "2"
 dirs = "5"
 
+# Database
+rusqlite = { version = "0.32", features = ["bundled", "unlock_notify"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
+
 # Async runtime
 tokio = { version = "1", features = ["full"] }
 
