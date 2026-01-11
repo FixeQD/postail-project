@@ -24,30 +24,35 @@ pub struct OAuthConfig {
 
 impl Provider {
     pub fn config(&self) -> Result<OAuthConfig, Box<dyn std::error::Error>> {
-        match self {
-            Provider::Gmail => {
-                let client_id =
-                    option_env!("GMAIL_CLIENT_ID").ok_or("OAuth not implemented for Gmail.")?;
-                Ok(OAuthConfig {
-                    client_id: client_id.to_string(),
-                    auth_url: "https://accounts.google.com/o/oauth2/v2/auth".to_string(),
-                    token_url: "https://oauth2.googleapis.com/token".to_string(),
-                    scope: "https://mail.google.com/".to_string(), // Full access for IMAP/SMTP
-                    redirect_uri: "postail://oauth/callback".to_string(),
-                })
-            }
-            Provider::Outlook => {
-                let client_id =
-                    option_env!("OUTLOOK_CLIENT_ID").ok_or("OAuth not implemented for Outlook.")?;
-                Ok(OAuthConfig {
-                    client_id: client_id.to_string(),
-                    auth_url: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize".to_string(),
-                    token_url: "https://login.microsoftonline.com/common/oauth2/v2.0/token".to_string(),
-                    scope: "https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/SMTP.Send".to_string(),
-                    redirect_uri: "postail://oauth/callback".to_string(),
-                })
-            }
-        }
+        let provider_name = match self {
+            Provider::Gmail => "Gmail",
+            Provider::Outlook => "Outlook",
+        };
+        let client_id_env = match self {
+            Provider::Gmail => option_env!("GMAIL_CLIENT_ID"),
+            Provider::Outlook => option_env!("OUTLOOK_CLIENT_ID"),
+        };
+        let client_id =
+            client_id_env.ok_or_else(|| format!("OAuth not implemented for {}.", provider_name))?;
+        let (auth_url, token_url, scope) = match self {
+            Provider::Gmail => (
+                "https://accounts.google.com/o/oauth2/v2/auth",
+                "https://oauth2.googleapis.com/token",
+                "https://mail.google.com/",
+            ),
+            Provider::Outlook => (
+                "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+                "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+                "https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/SMTP.Send",
+            ),
+        };
+        Ok(OAuthConfig {
+            client_id: client_id.to_string(),
+            auth_url: auth_url.to_string(),
+            token_url: token_url.to_string(),
+            scope: scope.to_string(),
+            redirect_uri: "postail://oauth/callback".to_string(),
+        })
     }
 }
 
