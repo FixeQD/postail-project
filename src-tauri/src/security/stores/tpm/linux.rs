@@ -6,11 +6,10 @@ use tss_esapi::{
     interface_types::{
         algorithm::{HashingAlgorithm, PublicAlgorithm},
         resource_handles::Hierarchy,
-        session_handles::AuthSession,
     },
     structures::{
-        CreatePrimaryKeyResult, Data, Digest, MaxBuffer, Public, PublicBuilder,
-        SymmetricDefinitionObject,
+        CreatePrimaryKeyResult, Digest, MaxBuffer, Public, PublicBuilder,
+        PublicKeyedHashParameters, SensitiveData, SymmetricDefinition, SymmetricDefinitionObject,
     },
     tcti_ldr::{DeviceConfig, TctiNameConf},
     Context,
@@ -40,9 +39,9 @@ impl LinuxTpmStore {
         #[cfg(feature = "tpm")]
         {
             let tcti = if std::path::Path::new("/dev/tpmrm0").exists() {
-                TctiNameConf::Device(DeviceConfig::from("/dev/tpmrm0"))
+                TctiNameConf::Device(DeviceConfig::Path(std::path::PathBuf::from("/dev/tpmrm0")))
             } else if std::path::Path::new("/dev/tpm0").exists() {
-                TctiNameConf::Device(DeviceConfig::from("/dev/tpm0"))
+                TctiNameConf::Device(DeviceConfig::Path(std::path::PathBuf::from("/dev/tpm0")))
             } else {
                 TctiNameConf::Tabrmd(Default::default())
             };
@@ -73,7 +72,7 @@ impl LinuxTpmStore {
                 None,
                 None,
                 SessionType::Hmac,
-                SymmetricDefinitionObject::AES_256_CFB,
+                SymmetricDefinition::AES_256_CFB,
                 HashingAlgorithm::Sha256,
             )
             .map_err(|e| SecurityError::Tpm(e.to_string()))?
@@ -124,7 +123,7 @@ impl LinuxTpmStore {
                 None,
                 None,
                 SessionType::Hmac,
-                SymmetricDefinitionObject::AES_256_CFB,
+                SymmetricDefinition::AES_256_CFB,
                 HashingAlgorithm::Sha256,
             )
             .map_err(|e| SecurityError::Tpm(e.to_string()))?
@@ -141,35 +140,25 @@ impl LinuxTpmStore {
                     .build()
                     .map_err(|e| SecurityError::Tpm(e.to_string()))?,
             )
-            .with_keyed_hash_parameters(tss_esapi::structures::KeyedHashParameters::new(
+            .with_keyed_hash_parameters(PublicKeyedHashParameters::new(
                 tss_esapi::structures::KeyedHashScheme::Null,
             ))
             .with_keyed_hash_unique_identifier(Digest::default())
             .build()
             .map_err(|e| SecurityError::Tpm(e.to_string()))?;
 
-        let sensitive_data =
-            MaxBuffer::try_from(data.to_vec()).map_err(|e| SecurityError::Tpm(e.to_string()))?;
+        let sensitive_data = SensitiveData::try_from(data.to_vec())
+            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
 
         let result = ctx
             .execute_with_session(Some(session), |ctx| {
-                ctx.create(
-                    primary,
-                    seal_public,
-                    None,
-                    Some(sensitive_data.into()),
-                    None,
-                    None,
-                )
+                ctx.create(primary, seal_public, None, Some(sensitive_data), None, None)
             })
             .map_err(|e| SecurityError::Tpm(e.to_string()))?;
 
         let mut blob = Vec::new();
         let priv_bytes = result.out_private.to_vec();
-        let pub_bytes: Vec<u8> = result
-            .out_public
-            .try_into()
-            .map_err(|e: tss_esapi::Error| SecurityError::Tpm(e.to_string()))?;
+        let pub_bytes = result.out_public.serialize();
 
         blob.extend_from_slice(&(priv_bytes.len() as u32).to_le_bytes());
         blob.extend_from_slice(&priv_bytes);
@@ -207,7 +196,8 @@ impl LinuxTpmStore {
 
         let private = tss_esapi::structures::Private::try_from(priv_bytes.to_vec())
             .map_err(|e| SecurityError::Tpm(e.to_string()))?;
-        let public = Public::try_from(pub_bytes).map_err(|e| SecurityError::Tpm(e.to_string()))?;
+        let public =
+            Public::deserialize(&pub_bytes).map_err(|e| SecurityError::Tpm(e.to_string()))?;
 
         let session = ctx
             .start_auth_session(
@@ -215,7 +205,7 @@ impl LinuxTpmStore {
                 None,
                 None,
                 SessionType::Hmac,
-                SymmetricDefinitionObject::AES_256_CFB,
+                SymmetricDefinition::AES_256_CFB,
                 HashingAlgorithm::Sha256,
             )
             .map_err(|e| SecurityError::Tpm(e.to_string()))?

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { platform } from '@tauri-apps/plugin-os'
+import { Mail } from 'lucide-react'
 
 export function TitleBar() {
 	const [isMobile, setIsMobile] = useState<boolean | null>(null)
@@ -28,10 +29,11 @@ export function TitleBar() {
 
 	return (
 		<div
-			className='flex h-10 shrink-0 items-center justify-between border-b border-gray-800 bg-gray-950 select-none'
+			className='flex h-10 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-950 select-none'
 			onMouseDown={startDrag}>
-			<div className='flex items-center gap-2 px-4'>
-				<span className='text-sm font-medium tracking-wide text-gray-200'>Postail</span>
+			<div className='flex items-center gap-2 px-3'>
+				<Mail className='h-5 w-5 text-slate-500' />
+				<span className='text-sm font-medium tracking-wide text-slate-300'>Postail</span>
 			</div>
 
 			<div className='flex h-full'>
@@ -42,7 +44,7 @@ export function TitleBar() {
 						minimize()
 					}}
 					onMouseDown={(e) => e.stopPropagation()}
-					className='flex h-full w-12 items-center justify-center text-gray-400 transition-colors duration-150 hover:bg-gray-800 hover:text-gray-200'>
+					className='flex h-full w-12 items-center justify-center text-slate-400 transition-colors duration-150 hover:bg-slate-800 hover:text-slate-200'>
 					<svg className='h-4 w-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
 						<path
 							strokeLinecap='round'
@@ -60,7 +62,7 @@ export function TitleBar() {
 						toggleMaximize()
 					}}
 					onMouseDown={(e) => e.stopPropagation()}
-					className='flex h-full w-12 items-center justify-center text-gray-400 transition-colors duration-150 hover:bg-gray-800 hover:text-gray-200'>
+					className='flex h-full w-12 items-center justify-center text-slate-400 transition-colors duration-150 hover:bg-slate-800 hover:text-slate-200'>
 					<svg
 						className='h-3.5 w-3.5'
 						fill='none'
@@ -77,7 +79,7 @@ export function TitleBar() {
 						close()
 					}}
 					onMouseDown={(e) => e.stopPropagation()}
-					className='flex h-full w-12 items-center justify-center text-gray-400 transition-colors duration-150 hover:bg-red-600 hover:text-white'>
+					className='flex h-full w-12 items-center justify-center text-slate-400 transition-colors duration-150 hover:bg-red-600 hover:text-white'>
 					<svg className='h-4 w-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
 						<path
 							strokeLinecap='round'

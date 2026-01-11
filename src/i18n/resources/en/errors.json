@@ -1,0 +1,18 @@
+{
+	"network": {
+		"title": "Network Error",
+		"description": "Please check your internet connection and try again"
+	},
+	"auth": {
+		"title": "Authentication Failed",
+		"description": "Please check your credentials and try again"
+	},
+	"security": {
+		"title": "Security Error",
+		"description": "Failed to initialize security module"
+	},
+	"unknown": {
+		"title": "Unexpected Error",
+		"description": "An unknown error occurred. Please try again"
+	}
+}

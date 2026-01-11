@@ -1,0 +1,24 @@
+{
+	"app": {
+		"name": "Postail",
+		"tagline": "Secure email client for the modern era"
+	},
+	"actions": {
+		"start": "Get Started",
+		"next": "Next",
+		"back": "Back",
+		"cancel": "Cancel",
+		"save": "Save",
+		"continue": "Continue",
+		"retry": "Retry",
+		"close": "Close"
+	},
+	"status": {
+		"loading": "Loading...",
+		"success": "Success",
+		"error": "Error",
+		"available": "Available",
+		"unavailable": "Unavailable",
+		"recommended": "Recommended"
+	}
+}

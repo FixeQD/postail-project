@@ -1,0 +1,38 @@
+{
+	"title": "Add Email Account",
+	"subtitle": "Connect your email provider to get started",
+	"providers": {
+		"gmail": {
+			"title": "Gmail",
+			"description": "Connect your Google account",
+			"button": "Add Gmail Account"
+		},
+		"outlook": {
+			"title": "Outlook",
+			"description": "Connect your Microsoft account",
+			"button": "Add Outlook Account"
+		},
+		"imap": {
+			"title": "IMAP/SMTP",
+			"description": "Advanced manual configuration",
+			"button": "Add IMAP Account"
+		}
+	},
+	"oauth": {
+		"title": "Connecting to {{provider}}",
+		"subtitle": "Opening browser for authentication...",
+		"success": "Successfully connected to {{provider}}",
+		"error": "Failed to connect to {{provider}}",
+		"cancelled": "Authentication was cancelled",
+		"instructions": "After authorizing in your browser, copy the authorization code and paste it here:",
+		"codePlaceholder": "Paste authorization code here",
+		"submit": "Complete Setup"
+	},
+	"list": {
+		"title": "Your Accounts",
+		"empty": "No accounts configured yet",
+		"add": "Add Another Account",
+		"remove": "Remove Account",
+		"removeConfirm": "Are you sure you want to remove this account?"
+	}
+}

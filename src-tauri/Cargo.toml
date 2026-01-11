@@ -42,6 +42,8 @@ uuid = { version = "1", features = ["v4"] }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
+portpicker = "0.1.1"
+tiny_http = "0.12.0"
 
 # TPM support (Linux)
 [target.'cfg(target_os = "linux")'.dependencies]

@@ -45,6 +45,7 @@ pub enum Credentials {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AccountInput {
     pub name: String,
+    pub email: String,
     pub auth_type: String, // "password" or "oauth2"
     pub imap_config: ImapConfig,
     pub smtp_config: SmtpConfig,
@@ -104,14 +105,7 @@ pub fn add_account(
     security: &SecurityManager,
 ) -> Result<AccountMeta, DBError> {
     let id = Uuid::new_v4().to_string();
-    let email = match &input.credentials {
-        Credentials::Password(p) => p.username.clone(),
-        Credentials::OAuth(_) => {
-            // For OAuth, email from tokens? Assume provided or derive later
-            // For now, placeholder
-            "oauth@example.com".to_string()
-        }
-    };
+    let email = input.email.clone();
     let provider_type = match input.auth_type.as_str() {
         "oauth2" => {
             // Assume from input, "gmail" or "outlook"
@@ -120,7 +114,9 @@ pub fn add_account(
         _ => "generic".to_string(),
     };
     let creds_json = serde_json::to_string(&input.credentials).unwrap();
-    let encrypted = security.encrypt(creds_json.as_bytes()).unwrap();
+    let encrypted = security
+        .encrypt(creds_json.as_bytes())
+        .map_err(|e| DBError::Security(e))?;
     let creds_path = save_creds_blob(&id, &encrypted)?;
     let encryption_mode = "aes-gcm".to_string(); // TODO: from security
     let created_at = Utc::now();

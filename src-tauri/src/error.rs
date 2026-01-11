@@ -70,6 +70,9 @@ pub enum DBError {
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+
+    #[error("Security error: {0}")]
+    Security(#[from] SecurityError),
 }
 
 pub type Result<T> = std::result::Result<T, SecurityError>;

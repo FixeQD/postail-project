@@ -8,6 +8,14 @@ use std::sync::Mutex;
 use url::Url;
 
 use crate::error::OAuthError;
+use crate::globals;
+
+fn get_client_secret(provider: &Provider) -> Option<String> {
+    match provider {
+        Provider::Gmail => option_env!("GMAIL_CLIENT_SECRET").map(|s| s.to_string()),
+        Provider::Outlook => option_env!("OUTLOOK_CLIENT_SECRET").map(|s| s.to_string()),
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Provider {
@@ -41,7 +49,7 @@ impl Provider {
             Provider::Gmail => (
                 "https://accounts.google.com/o/oauth2/v2/auth",
                 "https://oauth2.googleapis.com/token",
-                "https://mail.google.com/",
+                "https://mail.google.com/ https://www.googleapis.com/auth/userinfo.email",
             ),
             Provider::Outlook => (
                 "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
@@ -49,12 +57,18 @@ impl Provider {
                 "https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/SMTP.Send",
             ),
         };
+
+        let port = globals::get_oauth_port();
+        if port == 0 {
+            panic!("OAuth port is not set");
+        }
+
         Ok(OAuthConfig {
             client_id: client_id.to_string(),
             auth_url: auth_url.to_string(),
             token_url: token_url.to_string(),
             scope: scope.to_string(),
-            redirect_uri: "postail://oauth/callback".to_string(),
+            redirect_uri: format!("http://localhost:{}/oauth/callback", port),
         })
     }
 }
@@ -131,7 +145,10 @@ pub fn start_oauth_flow(provider: Provider) -> Result<String, OAuthError> {
     Ok(auth_url)
 }
 
-pub async fn complete_oauth_flow(code: String, state: String) -> Result<OAuthTokens, OAuthError> {
+pub async fn complete_oauth_flow(
+    code: String,
+    state: String,
+) -> Result<(Provider, OAuthTokens), OAuthError> {
     let (provider, pkce) = PENDING_FLOWS
         .lock()
         .unwrap()
@@ -141,13 +158,17 @@ pub async fn complete_oauth_flow(code: String, state: String) -> Result<OAuthTok
     let config = provider.config()?;
     let client = Client::new();
 
-    let params = [
-        ("client_id", config.client_id.as_str()),
-        ("code", &code),
-        ("grant_type", "authorization_code"),
-        ("redirect_uri", config.redirect_uri.as_str()),
-        ("code_verifier", &pkce.code_verifier),
+    let mut params = vec![
+        ("client_id", config.client_id.clone()),
+        ("code", code.clone()),
+        ("grant_type", "authorization_code".to_string()),
+        ("redirect_uri", config.redirect_uri.clone()),
+        ("code_verifier", pkce.code_verifier.clone()),
     ];
+
+    if let Some(client_secret) = get_client_secret(&provider) {
+        params.push(("client_secret", client_secret));
+    }
 
     let response = client.post(&config.token_url).form(&params).send().await?;
 
@@ -161,7 +182,7 @@ pub async fn complete_oauth_flow(code: String, state: String) -> Result<OAuthTok
     if tokens.refresh_token.is_none() {
         return Err(OAuthError::NoRefreshToken);
     }
-    Ok(tokens)
+    Ok((provider, tokens))
 }
 
 pub async fn refresh_access_token(
