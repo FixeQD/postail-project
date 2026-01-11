@@ -156,5 +156,31 @@ pub async fn complete_oauth_flow(
     }
 
     let tokens: OAuthTokens = response.json().await?;
+    if tokens.refresh_token.is_none() {
+        return Err("Refresh token required for auto re-auth".into());
+    }
+    Ok(tokens)
+}
+
+pub async fn refresh_access_token(
+    provider: Provider,
+    refresh_token: String,
+) -> Result<OAuthTokens, Box<dyn std::error::Error>> {
+    let config = provider.config()?;
+    let client = Client::new();
+
+    let params = [
+        ("client_id", config.client_id.as_str()),
+        ("refresh_token", &refresh_token),
+        ("grant_type", "refresh_token"),
+    ];
+
+    let response = client.post(&config.token_url).form(&params).send().await?;
+
+    if !response.status().is_success() {
+        return Err(format!("Token refresh failed: {}", response.status()).into());
+    }
+
+    let tokens: OAuthTokens = response.json().await?;
     Ok(tokens)
 }
