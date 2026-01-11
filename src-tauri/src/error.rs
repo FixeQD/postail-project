@@ -39,4 +39,37 @@ pub enum SecurityError {
     Io(#[from] std::io::Error),
 }
 
+#[derive(Debug, Error)]
+pub enum OAuthError {
+    #[error("OAuth not implemented for {provider}")]
+    NotImplemented { provider: String },
+
+    #[error("Invalid or expired state")]
+    InvalidState,
+
+    #[error("Token exchange failed: {status}")]
+    TokenExchangeFailed { status: String },
+
+    #[error("Provider did not return a refresh_token. Cannot create persistent account.")]
+    NoRefreshToken,
+
+    #[error("Token refresh failed: {status}")]
+    TokenRefreshFailed { status: String },
+
+    #[error("HTTP error: {0}")]
+    Http(#[from] reqwest::Error),
+
+    #[error("URL parse error: {0}")]
+    UrlParse(#[from] url::ParseError),
+}
+
+#[derive(Debug, Error)]
+pub enum DBError {
+    #[error("SQLite error: {0}")]
+    Sqlite(#[from] rusqlite::Error),
+
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+}
+
 pub type Result<T> = std::result::Result<T, SecurityError>;

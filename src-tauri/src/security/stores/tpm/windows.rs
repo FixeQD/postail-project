@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use crate::security::error::{Result, SecurityError};
+use crate::error::{Result, SecurityError};
 use crate::security::master_key::MasterKey;
 use crate::security::stores::SecretStore;
 
@@ -28,24 +28,24 @@ impl WindowsTpmStore {
 
     #[cfg(all(target_os = "windows", feature = "tpm"))]
     fn seal_with_tpm(&self, data: &[u8]) -> Result<Vec<u8>> {
+        use windows::core::PCWSTR;
         use windows::Win32::Security::Cryptography::{
             NCryptCreateProtectionDescriptor, NCryptProtectSecret, NCryptUnprotectSecret,
-            NCRYPT_DESCRIPTOR_HANDLE, NCRYPT_MACHINE_KEY_FLAG,
-            NCRYPT_SILENT_FLAG, NCRYPT_PROTECT_TO_LOCAL_SYSTEM,
+            NCRYPT_DESCRIPTOR_HANDLE, NCRYPT_MACHINE_KEY_FLAG, NCRYPT_PROTECT_TO_LOCAL_SYSTEM,
+            NCRYPT_SILENT_FLAG,
         };
-        use windows::core::PCWSTR;
 
         let descriptor_string: Vec<u16> = "LOCAL=user\0".encode_utf16().collect();
 
         unsafe {
             let mut descriptor_handle: NCRYPT_DESCRIPTOR_HANDLE = std::mem::zeroed();
-            
+
             let result = NCryptCreateProtectionDescriptor(
                 PCWSTR(descriptor_string.as_ptr()),
                 0,
                 &mut descriptor_handle,
             );
-            
+
             if result.is_err() {
                 return Err(SecurityError::Tpm(format!(
                     "NCryptCreateProtectionDescriptor failed: {:?}",
@@ -74,11 +74,12 @@ impl WindowsTpmStore {
                 )));
             }
 
-            let sealed = std::slice::from_raw_parts(protected_blob, protected_size as usize).to_vec();
-            
-            windows::Win32::System::Memory::LocalFree(
-                windows::Win32::Foundation::HLOCAL(protected_blob as *mut _)
-            );
+            let sealed =
+                std::slice::from_raw_parts(protected_blob, protected_size as usize).to_vec();
+
+            windows::Win32::System::Memory::LocalFree(windows::Win32::Foundation::HLOCAL(
+                protected_blob as *mut _,
+            ));
 
             Ok(sealed)
         }
@@ -86,9 +87,7 @@ impl WindowsTpmStore {
 
     #[cfg(all(target_os = "windows", feature = "tpm"))]
     fn unseal_with_tpm(&self, sealed: &[u8]) -> Result<Vec<u8>> {
-        use windows::Win32::Security::Cryptography::{
-            NCryptUnprotectSecret, NCRYPT_SILENT_FLAG,
-        };
+        use windows::Win32::Security::Cryptography::{NCryptUnprotectSecret, NCRYPT_SILENT_FLAG};
 
         unsafe {
             let mut unprotected_blob: *mut u8 = std::ptr::null_mut();
@@ -112,11 +111,12 @@ impl WindowsTpmStore {
                 )));
             }
 
-            let unsealed = std::slice::from_raw_parts(unprotected_blob, unprotected_size as usize).to_vec();
-            
-            windows::Win32::System::Memory::LocalFree(
-                windows::Win32::Foundation::HLOCAL(unprotected_blob as *mut _)
-            );
+            let unsealed =
+                std::slice::from_raw_parts(unprotected_blob, unprotected_size as usize).to_vec();
+
+            windows::Win32::System::Memory::LocalFree(windows::Win32::Foundation::HLOCAL(
+                unprotected_blob as *mut _,
+            ));
 
             Ok(unsealed)
         }
@@ -133,7 +133,7 @@ impl WindowsTpmStore {
                 std::mem::size_of::<TBS_DEVICE_INFO>() as u32,
                 &mut device_info as *mut _ as *mut _,
             );
-            
+
             result.is_ok() && device_info.tpmVersion != 0
         }
     }

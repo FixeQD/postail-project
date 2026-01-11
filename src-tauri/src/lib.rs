@@ -1,4 +1,5 @@
 pub mod db;
+pub mod error;
 pub mod oauth;
 pub mod security;
 
@@ -11,6 +12,7 @@ use crate::db::{
     add_account as db_add_account, init_db, list_accounts as db_list_accounts,
     remove_account as db_remove_account, AccountInput, AccountMeta,
 };
+use crate::error::{DBError, OAuthError};
 use crate::security::SecurityManager;
 
 lazy_static! {

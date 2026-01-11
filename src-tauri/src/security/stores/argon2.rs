@@ -7,8 +7,8 @@ use argon2::{
 };
 use zeroize::Zeroize;
 
+use crate::error::{Result, SecurityError};
 use crate::security::crypto::{decrypt_with_key, encrypt_with_key};
-use crate::security::error::{Result, SecurityError};
 use crate::security::master_key::{MasterKey, MASTER_KEY_LENGTH};
 use crate::security::stores::SecretStore;
 

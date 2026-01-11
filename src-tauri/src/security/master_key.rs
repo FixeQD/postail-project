@@ -1,7 +1,7 @@
 use rand::RngCore;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use crate::security::error::{Result, SecurityError};
+use crate::error::{Result, SecurityError};
 
 pub const MASTER_KEY_LENGTH: usize = 32;
 

@@ -19,7 +19,7 @@ use tss_esapi::{
 use std::fs;
 use std::path::PathBuf;
 
-use crate::security::error::{Result, SecurityError};
+use crate::error::{Result, SecurityError};
 use crate::security::master_key::MasterKey;
 use crate::security::stores::SecretStore;
 
@@ -153,7 +153,14 @@ impl LinuxTpmStore {
 
         let result = ctx
             .execute_with_session(Some(session), |ctx| {
-                ctx.create(primary, seal_public, None, Some(sensitive_data.into()), None, None)
+                ctx.create(
+                    primary,
+                    seal_public,
+                    None,
+                    Some(sensitive_data.into()),
+                    None,
+                    None,
+                )
             })
             .map_err(|e| SecurityError::Tpm(e.to_string()))?;
 
@@ -185,9 +192,12 @@ impl LinuxTpmStore {
 
         let priv_bytes = &blob[4..4 + priv_len];
         let pub_offset = 4 + priv_len;
-        let pub_len =
-            u32::from_le_bytes([blob[pub_offset], blob[pub_offset + 1], blob[pub_offset + 2], blob[pub_offset + 3]])
-                as usize;
+        let pub_len = u32::from_le_bytes([
+            blob[pub_offset],
+            blob[pub_offset + 1],
+            blob[pub_offset + 2],
+            blob[pub_offset + 3],
+        ]) as usize;
 
         if blob.len() < pub_offset + 4 + pub_len {
             return Err(SecurityError::Tpm("corrupted sealed blob".into()));
@@ -197,8 +207,7 @@ impl LinuxTpmStore {
 
         let private = tss_esapi::structures::Private::try_from(priv_bytes.to_vec())
             .map_err(|e| SecurityError::Tpm(e.to_string()))?;
-        let public =
-            Public::try_from(pub_bytes).map_err(|e| SecurityError::Tpm(e.to_string()))?;
+        let public = Public::try_from(pub_bytes).map_err(|e| SecurityError::Tpm(e.to_string()))?;
 
         let session = ctx
             .start_auth_session(

@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use crate::error::{Result, SecurityError};
 use crate::security::crypto::{decrypt_with_key, encrypt_with_key, Crypto};
-use crate::security::error::{Result, SecurityError};
 use crate::security::master_key::MasterKey;
 use crate::security::stores::keyring::KeyringStore;
 use crate::security::stores::tpm::get_tpm_store;

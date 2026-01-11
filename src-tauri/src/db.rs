@@ -5,6 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 use uuid::Uuid;
 
+use crate::error::DBError;
 use crate::security::SecurityManager;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -101,7 +102,7 @@ pub fn add_account(
     conn: &Connection,
     input: AccountInput,
     security: &SecurityManager,
-) -> Result<AccountMeta, Box<dyn std::error::Error>> {
+) -> Result<AccountMeta, DBError> {
     let id = Uuid::new_v4().to_string();
     let email = match &input.credentials {
         Credentials::Password(p) => p.username.clone(),
@@ -162,7 +163,7 @@ pub fn add_account(
     })
 }
 
-pub fn list_accounts(conn: &Connection) -> Result<Vec<AccountMeta>, Box<dyn std::error::Error>> {
+pub fn list_accounts(conn: &Connection) -> Result<Vec<AccountMeta>, DBError> {
     let mut stmt = conn.prepare(
         "SELECT id, name, email, provider_type, auth_type, imap_host, imap_port, imap_tls, smtp_host, smtp_port, smtp_tls, encryption_mode, created_at FROM accounts",
     )?;
@@ -184,10 +185,10 @@ pub fn list_accounts(conn: &Connection) -> Result<Vec<AccountMeta>, Box<dyn std:
         })
     })?;
     let accounts: Result<Vec<AccountMeta>, _> = accounts_iter.collect();
-    accounts.map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
+    accounts.map_err(DBError::Sqlite)
 }
 
-pub fn remove_account(conn: &Connection, id: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn remove_account(conn: &Connection, id: &str) -> Result<(), DBError> {
     // First, get creds_path and delete file
     let mut stmt = conn.prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")?;
     let creds_path: Option<String> = stmt.query_row([id], |row| row.get(0)).ok();
@@ -198,7 +199,7 @@ pub fn remove_account(conn: &Connection, id: &str) -> Result<(), Box<dyn std::er
     Ok(())
 }
 
-fn save_creds_blob(id: &str, data: &[u8]) -> Result<String, Box<dyn std::error::Error>> {
+fn save_creds_blob(id: &str, data: &[u8]) -> Result<String, DBError> {
     let dir = dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("postail")

@@ -7,6 +7,8 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use url::Url;
 
+use crate::error::OAuthError;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Provider {
     Gmail,
@@ -23,7 +25,7 @@ pub struct OAuthConfig {
 }
 
 impl Provider {
-    pub fn config(&self) -> Result<OAuthConfig, Box<dyn std::error::Error>> {
+    pub fn config(&self) -> Result<OAuthConfig, OAuthError> {
         let provider_name = match self {
             Provider::Gmail => "Gmail",
             Provider::Outlook => "Outlook",
@@ -32,8 +34,9 @@ impl Provider {
             Provider::Gmail => option_env!("GMAIL_CLIENT_ID"),
             Provider::Outlook => option_env!("OUTLOOK_CLIENT_ID"),
         };
-        let client_id =
-            client_id_env.ok_or_else(|| format!("OAuth not implemented for {}.", provider_name))?;
+        let client_id = client_id_env.ok_or(OAuthError::NotImplemented {
+            provider: provider_name.to_string(),
+        })?;
         let (auth_url, token_url, scope) = match self {
             Provider::Gmail => (
                 "https://accounts.google.com/o/oauth2/v2/auth",
@@ -103,7 +106,7 @@ lazy_static::lazy_static! {
     static ref PENDING_FLOWS: Mutex<HashMap<String, (Provider, PkceData)>> = Mutex::new(HashMap::new());
 }
 
-pub fn start_oauth_flow(provider: Provider) -> Result<String, Box<dyn std::error::Error>> {
+pub fn start_oauth_flow(provider: Provider) -> Result<String, OAuthError> {
     let config = provider.config()?;
     let pkce = PkceData::generate();
 
@@ -128,15 +131,12 @@ pub fn start_oauth_flow(provider: Provider) -> Result<String, Box<dyn std::error
     Ok(auth_url)
 }
 
-pub async fn complete_oauth_flow(
-    code: String,
-    state: String,
-) -> Result<OAuthTokens, Box<dyn std::error::Error>> {
+pub async fn complete_oauth_flow(code: String, state: String) -> Result<OAuthTokens, OAuthError> {
     let (provider, pkce) = PENDING_FLOWS
         .lock()
         .unwrap()
         .remove(&state)
-        .ok_or("Invalid or expired state")?;
+        .ok_or(OAuthError::InvalidState)?;
 
     let config = provider.config()?;
     let client = Client::new();
@@ -152,12 +152,14 @@ pub async fn complete_oauth_flow(
     let response = client.post(&config.token_url).form(&params).send().await?;
 
     if !response.status().is_success() {
-        return Err(format!("Token exchange failed: {}", response.status()).into());
+        return Err(OAuthError::TokenExchangeFailed {
+            status: response.status().to_string(),
+        });
     }
 
     let tokens: OAuthTokens = response.json().await?;
     if tokens.refresh_token.is_none() {
-        return Err("Refresh token required for auto re-auth".into());
+        return Err(OAuthError::NoRefreshToken);
     }
     Ok(tokens)
 }
@@ -165,7 +167,7 @@ pub async fn complete_oauth_flow(
 pub async fn refresh_access_token(
     provider: Provider,
     refresh_token: String,
-) -> Result<OAuthTokens, Box<dyn std::error::Error>> {
+) -> Result<OAuthTokens, OAuthError> {
     let config = provider.config()?;
     let client = Client::new();
 
@@ -178,7 +180,9 @@ pub async fn refresh_access_token(
     let response = client.post(&config.token_url).form(&params).send().await?;
 
     if !response.status().is_success() {
-        return Err(format!("Token refresh failed: {}", response.status()).into());
+        return Err(OAuthError::TokenRefreshFailed {
+            status: response.status().to_string(),
+        });
     }
 
     let tokens: OAuthTokens = response.json().await?;

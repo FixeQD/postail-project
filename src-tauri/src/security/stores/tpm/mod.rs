@@ -4,7 +4,7 @@ pub mod linux;
 #[cfg(target_os = "windows")]
 pub mod windows;
 
-use crate::security::error::{Result, SecurityError};
+use crate::error::{Result, SecurityError};
 use crate::security::master_key::MasterKey;
 use crate::security::stores::SecretStore;
 

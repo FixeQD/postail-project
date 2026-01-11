@@ -1,4 +1,4 @@
-use crate::security::error::Result;
+use crate::error::Result;
 use crate::security::master_key::MasterKey;
 
 pub mod argon2;

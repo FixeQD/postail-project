@@ -1,6 +1,6 @@
 use keyring::Entry;
 
-use crate::security::error::{Result, SecurityError};
+use crate::error::{Result, SecurityError};
 use crate::security::master_key::MasterKey;
 use crate::security::stores::SecretStore;
 
@@ -19,8 +19,8 @@ impl KeyringStore {
     }
 
     pub fn with_user(user: &str) -> Result<Self> {
-        let entry = Entry::new(SERVICE_NAME, user)
-            .map_err(|e| SecurityError::Keyring(e.to_string()))?;
+        let entry =
+            Entry::new(SERVICE_NAME, user).map_err(|e| SecurityError::Keyring(e.to_string()))?;
         Ok(Self { entry })
     }
 }
@@ -41,25 +41,20 @@ impl SecretStore for KeyringStore {
     }
 
     fn retrieve(&self) -> Result<MasterKey> {
-        let hex_key = self
-            .entry
-            .get_password()
-            .map_err(|e| match e {
-                keyring::Error::NoEntry => SecurityError::MasterKeyNotFound,
-                _ => SecurityError::Keyring(e.to_string()),
-            })?;
+        let hex_key = self.entry.get_password().map_err(|e| match e {
+            keyring::Error::NoEntry => SecurityError::MasterKeyNotFound,
+            _ => SecurityError::Keyring(e.to_string()),
+        })?;
 
         let bytes = hex_decode(&hex_key)?;
         MasterKey::from_bytes(&bytes)
     }
 
     fn delete(&self) -> Result<()> {
-        self.entry
-            .delete_credential()
-            .map_err(|e| match e {
-                keyring::Error::NoEntry => SecurityError::MasterKeyNotFound,
-                _ => SecurityError::Keyring(e.to_string()),
-            })?;
+        self.entry.delete_credential().map_err(|e| match e {
+            keyring::Error::NoEntry => SecurityError::MasterKeyNotFound,
+            _ => SecurityError::Keyring(e.to_string()),
+        })?;
         Ok(())
     }
 
