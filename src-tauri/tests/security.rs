@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
+use postail_project_lib::error::SecurityError;
 use postail_project_lib::security::{
     crypto::{decrypt_with_key, encrypt_with_key},
-    error::SecurityError,
     manager::{PassphraseSecurityBuilder, SecurityManager},
     master_key::{MasterKey, MASTER_KEY_LENGTH},
     stores::{argon2::Argon2Store, SecretStore, StorageTier},
