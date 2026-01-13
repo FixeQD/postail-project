@@ -127,6 +127,44 @@ impl SecurityManager {
             .as_ref()
             .ok_or(SecurityError::MasterKeyNotFound)
     }
+
+    pub fn encrypt_with_passphrase(&self, plaintext: &[u8], passphrase: &str) -> Result<Vec<u8>> {
+        use crate::security::master_key::MasterKey;
+        use argon2::Argon2;
+
+        let mut derived_key = [0u8; 32];
+        let argon2 = Argon2::default();
+        argon2
+            .hash_password_into(passphrase.as_bytes(), &mut derived_key)
+            .map_err(|_| SecurityError::KeyDerivation("Failed to derive key".to_string()))?;
+
+        let master_key =
+            MasterKey::from_bytes(&derived_key).map_err(|e| SecurityError::InvalidKeyLength {
+                expected: 32,
+                got: e.len(),
+            })?;
+
+        encrypt_with_key(&master_key, plaintext)
+    }
+
+    pub fn decrypt_with_passphrase(&self, ciphertext: &[u8], passphrase: &str) -> Result<Vec<u8>> {
+        use crate::security::master_key::MasterKey;
+        use argon2::Argon2;
+
+        let mut derived_key = [0u8; 32];
+        let argon2 = Argon2::default();
+        argon2
+            .hash_password_into(passphrase.as_bytes(), &mut derived_key)
+            .map_err(|_| SecurityError::KeyDerivation("Failed to derive key".to_string()))?;
+
+        let master_key =
+            MasterKey::from_bytes(&derived_key).map_err(|e| SecurityError::InvalidKeyLength {
+                expected: 32,
+                got: e.len(),
+            })?;
+
+        decrypt_with_key(&master_key, ciphertext)
+    }
 }
 
 pub struct PassphraseSecurityBuilder {

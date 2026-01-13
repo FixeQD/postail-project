@@ -186,3 +186,165 @@ pub fn test_manager() -> SecurityManager {
     manager.unlock().unwrap();
     manager
 }
+
+#[test]
+fn test_fts_search() {
+    use crate::db::{escape_fts_query, init_db, search_messages, upsert_message};
+
+    let conn = init_db().unwrap();
+    let security = test_manager();
+
+    let account_id = "test-account-fts";
+    let mailbox = "INBOX";
+    let uid1 = 1;
+    let uid2 = 2;
+
+    let created_at = Utc::now();
+    upsert_message(
+        &conn,
+        account_id,
+        mailbox,
+        uid1,
+        Some("msg1@example.com"),
+        created_at,
+        Some("sender1@example.com"),
+        Some("recipient@example.com"),
+        Some("Test subject with keyword"),
+        Some("Body text with searchable content"),
+        Some(r#"["\Seen", "\Flagged"]"#),
+        Some("structure"),
+    )
+    .unwrap();
+
+    upsert_message(
+        &conn,
+        account_id,
+        mailbox,
+        uid2,
+        Some("msg2@example.com"),
+        created_at,
+        Some("sender2@example.com"),
+        Some("recipient@example.com"),
+        Some("Another subject"),
+        Some("Different body content"),
+        Some(r#"["\Seen"]"#),
+        Some("structure"),
+    )
+    .unwrap();
+
+    let results = search_messages(&conn, Some(account_id), Some(mailbox), "keyword", 10).unwrap();
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(
+        results[0].subject,
+        Some("Test subject with keyword".to_string())
+    );
+
+    let escaped = escape_fts_query("test -query");
+    assert!(escaped.contains(r"\-"));
+}
+
+#[test]
+fn test_uidvalidity_mismatch() {
+    use crate::db::{check_uidvalidity, init_db, upsert_mailbox};
+
+    let conn = init_db().unwrap();
+    let security = test_manager();
+    let account_id = "test-account-uid";
+    let mailbox = "INBOX";
+
+    upsert_mailbox(
+        &conn,
+        account_id,
+        &crate::db::Mailbox {
+            name: mailbox.to_string(),
+            uid_validity: Some(1),
+            highest_modseq: None,
+            last_synced_uid: None,
+        },
+    )
+    .unwrap();
+
+    let should_resync = check_uidvalidity(&conn, account_id, mailbox, 2).unwrap();
+    assert!(should_resync);
+
+    let should_resync2 = check_uidvalidity(&conn, account_id, mailbox, 2).unwrap();
+    assert!(!should_resync2);
+}
+
+#[test]
+fn test_concurrent_access() {
+    use crate::db::{
+        add_account, init_db, list_accounts, AccountInput, Credentials, ImapConfig,
+        PasswordCredentials, SmtpConfig,
+    };
+    use std::sync::{Arc, Mutex};
+    use std::thread;
+
+    let conn = Arc::new(Mutex::new(init_db().unwrap()));
+    let security = Arc::new(Mutex::new(test_manager()));
+
+    let mut handles = vec![];
+
+    for i in 0..5 {
+        let conn_clone = Arc::clone(&conn);
+        let security_clone = Arc::clone(&security);
+
+        handles.push(thread::spawn(move || {
+            let input = AccountInput {
+                name: format!("Concurrent Account {}", i),
+                auth_type: "password".to_string(),
+                imap_config: ImapConfig {
+                    host: format!("imap{}.com", i),
+                    port: 993,
+                    tls: true,
+                },
+                smtp_config: SmtpConfig {
+                    host: format!("smtp{}.com", i),
+                    port: 587,
+                    tls: true,
+                },
+                credentials: Credentials::Password(PasswordCredentials {
+                    username: format!("user{}@example.com", i),
+                    password: format!("pass{}", i),
+                }),
+            };
+
+            let conn_guard = conn_clone.lock().unwrap();
+            let security_guard = security_clone.lock().unwrap();
+            add_account(&*conn_guard, input, &*security_guard).unwrap();
+        }));
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    let conn_guard = conn.lock().unwrap();
+    let accounts = list_accounts(&*conn_guard).unwrap();
+    assert_eq!(accounts.len(), 5);
+}
+
+#[test]
+fn test_calculate_backoff() {
+    use crate::db::calculate_backoff;
+
+    let backoff1 = calculate_backoff(0);
+    assert!(backoff1 > 0);
+
+    let backoff2 = calculate_backoff(1);
+    assert!(backoff2 > backoff1);
+
+    let backoff3 = calculate_backoff(10);
+    assert!(backoff3 > 0);
+}
+
+#[test]
+fn test_attachment_cache_path() {
+    use crate::db::get_attachment_cache_path;
+
+    let path = get_attachment_cache_path(12345, "1.1");
+    assert!(path.to_string_lossy().contains("attachments"));
+    let prefix = path.file_name().unwrap().to_string_lossy();
+    assert!(prefix.contains("123451.1"));
+}

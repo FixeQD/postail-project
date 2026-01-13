@@ -16,4 +16,3 @@ pub fn set_oauth_port(port: u16) {
 pub fn get_oauth_port() -> u16 {
     *OAUTH_PORT.lock().unwrap()
 }
-
