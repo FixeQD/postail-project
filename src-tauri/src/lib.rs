@@ -1,18 +1,25 @@
 pub mod db;
 pub mod error;
 pub mod globals;
+pub mod imap;
 pub mod oauth;
 pub mod protocol;
 pub mod security;
+pub mod smtp;
 pub mod utils;
 
 use crate::db::{
-    add_account as db_add_account, init_db, list_accounts as db_list_accounts,
-    remove_account as db_remove_account, AccountInput, AccountMeta, Credentials, ImapConfig,
-    OAuthCredentials, SmtpConfig,
+    add_account as db_add_account, enqueue_message as db_enqueue_message,
+    fetch_headers as db_fetch_headers, fetch_mailboxes as db_fetch_mailboxes,
+    fetch_message_full as db_fetch_message_full, init_db, list_accounts as db_list_accounts,
+    list_outbox as db_list_outbox, remove_account as db_remove_account, AccountInput, AccountMeta,
+    Credentials, ImapConfig, MailHeader, Mailbox, MessageFull, OAuthCredentials, OutboxItem,
+    SmtpConfig, SyncStatusEnum,
 };
+use crate::imap::ImapManager;
 use crate::security::stores::SecretStore;
 use crate::security::SecurityManager;
+use crate::smtp::SmtpManager;
 use lazy_static::lazy_static;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
@@ -21,6 +28,14 @@ lazy_static! {
     static ref DB_CONN: Arc<Mutex<Connection>> = Arc::new(Mutex::new(init_db().unwrap()));
     static ref SECURITY: Arc<Mutex<SecurityManager>> =
         Arc::new(Mutex::new(SecurityManager::new().unwrap()));
+    static ref IMAP_MANAGER: Arc<Mutex<ImapManager>> = Arc::new(Mutex::new(ImapManager::new(
+        Arc::clone(&DB_CONN),
+        Arc::clone(&SECURITY),
+    )));
+    static ref SMTP_MANAGER: Arc<Mutex<SmtpManager>> = Arc::new(Mutex::new(SmtpManager::new(
+        Arc::clone(&DB_CONN),
+        Arc::clone(&SECURITY),
+    )));
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -260,6 +275,77 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
     }
 }
 
+#[tauri::command]
+async fn fetch_mailboxes(account_id: String) -> Result<Vec<Mailbox>, String> {
+    let imap = IMAP_MANAGER.lock().unwrap();
+    imap.fetch_mailboxes(&account_id).await
+}
+
+#[tauri::command]
+async fn fetch_headers(
+    account_id: String,
+    mailbox: String,
+    anchor: Option<u64>,
+    limit: u32,
+) -> Result<Vec<MailHeader>, String> {
+    let imap = IMAP_MANAGER.lock().unwrap();
+    imap.fetch_headers(&account_id, &mailbox, anchor.map(|a| a as u32), limit)
+        .await
+}
+
+#[tauri::command]
+async fn fetch_message_full(
+    account_id: String,
+    mailbox: String,
+    uid: u64,
+) -> Result<Option<MessageFull>, String> {
+    let imap = IMAP_MANAGER.lock().unwrap();
+    imap.fetch_message_full(&account_id, &mailbox, uid as u32)
+        .await
+}
+
+#[tauri::command]
+async fn start_sync(account_id: String) -> Result<(), String> {
+    let imap = IMAP_MANAGER.lock().unwrap();
+    imap.start_sync(&account_id).await
+}
+
+#[tauri::command]
+async fn stop_sync(_account_id: String) -> Result<(), String> {
+    // TODO: Implement stop sync
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_sync_status(_account_id: String) -> Result<SyncStatusEnum, String> {
+    // TODO: Implement sync status
+    Ok(SyncStatusEnum::Idle)
+}
+
+#[tauri::command]
+async fn enqueue_message(account_id: String, raw_eml: String) -> Result<String, String> {
+    let smtp = SMTP_MANAGER.lock().unwrap();
+    smtp.enqueue_message(&account_id, raw_eml.as_bytes()).await
+}
+
+#[tauri::command]
+async fn list_outbox(account_id: String) -> Result<Vec<OutboxItem>, String> {
+    let smtp = SMTP_MANAGER.lock().unwrap();
+    smtp.list_outbox(&account_id).await
+}
+
+#[tauri::command]
+async fn retry_sending(outbox_id: String) -> Result<(), String> {
+    let smtp = SMTP_MANAGER.lock().unwrap();
+    smtp.retry_sending(&outbox_id).await
+}
+
+#[tauri::command]
+async fn cancel_sending(outbox_id: String) -> Result<(), String> {
+    let smtp = SMTP_MANAGER.lock().unwrap();
+    smtp.cancel_sending(&outbox_id).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let port = portpicker::pick_unused_port().expect("failed to find a free port");
@@ -280,7 +366,17 @@ pub fn run() {
             list_accounts,
             remove_account,
             check_security_options,
-            initialize_security
+            initialize_security,
+            fetch_mailboxes,
+            fetch_headers,
+            fetch_message_full,
+            start_sync,
+            stop_sync,
+            get_sync_status,
+            enqueue_message,
+            list_outbox,
+            retry_sending,
+            cancel_sending
         ])
         .register_uri_scheme_protocol("postail", protocol::handler)
         .run(tauri::generate_context!())
