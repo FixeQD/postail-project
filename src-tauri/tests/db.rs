@@ -1,14 +1,27 @@
 use chrono::Utc;
+use rusqlite::Connection;
+use std::fs;
+use tempfile::NamedTempFile;
 
+use postail_project_lib::db::tables::create_tables;
 use postail_project_lib::db::{
-    add_account, init_db, list_accounts, remove_account, AccountInput, Credentials, ImapConfig,
+    add_account, list_accounts, remove_account, AccountInput, Credentials, ImapConfig,
     OAuthCredentials, PasswordCredentials, SmtpConfig,
 };
 use postail_project_lib::security::SecurityManager;
 
+fn init_temp_db() -> Connection {
+    let temp_file = NamedTempFile::new().unwrap();
+    let db_path = temp_file.path();
+    fs::remove_file(db_path).unwrap();
+    let conn = Connection::open(db_path).unwrap();
+    create_tables(&conn).unwrap();
+    conn
+}
+
 #[test]
 fn test_init_db() {
-    let conn = init_db().unwrap();
+    let conn = init_temp_db();
     // Check if table exists
     let mut stmt = conn
         .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='accounts'")
@@ -19,11 +32,12 @@ fn test_init_db() {
 
 #[test]
 fn test_add_account_password() {
-    let conn = init_db().unwrap();
+    let conn = init_temp_db();
     let security = test_manager();
 
     let input = AccountInput {
         name: "Test Account".to_string(),
+        email: "user@example.com".to_string(),
         auth_type: "password".to_string(),
         imap_config: ImapConfig {
             host: "imap.example.com".to_string(),
@@ -51,11 +65,12 @@ fn test_add_account_password() {
 
 #[test]
 fn test_add_account_oauth() {
-    let conn = init_db().unwrap();
+    let conn = init_temp_db();
     let security = test_manager();
 
     let input = AccountInput {
         name: "OAuth Account".to_string(),
+        email: "oauth@example.com".to_string(),
         auth_type: "oauth2".to_string(),
         imap_config: ImapConfig {
             host: "imap.gmail.com".to_string(),
@@ -83,12 +98,13 @@ fn test_add_account_oauth() {
 
 #[test]
 fn test_list_accounts() {
-    let conn = init_db().unwrap();
+    let conn = init_temp_db();
     let security = test_manager();
 
     // Add two accounts
     let input1 = AccountInput {
         name: "Account 1".to_string(),
+        email: "user1@example.com".to_string(),
         auth_type: "password".to_string(),
         imap_config: ImapConfig {
             host: "imap1.com".to_string(),
@@ -109,6 +125,7 @@ fn test_list_accounts() {
 
     let input2 = AccountInput {
         name: "Account 2".to_string(),
+        email: "user2@example.com".to_string(),
         auth_type: "oauth2".to_string(),
         imap_config: ImapConfig {
             host: "imap2.com".to_string(),
@@ -136,11 +153,12 @@ fn test_list_accounts() {
 
 #[test]
 fn test_remove_account() {
-    let conn = init_db().unwrap();
+    let conn = init_temp_db();
     let security = test_manager();
 
     let input = AccountInput {
         name: "To Remove".to_string(),
+        email: "user@example.com".to_string(),
         auth_type: "password".to_string(),
         imap_config: ImapConfig {
             host: "imap.example.com".to_string(),
@@ -189,20 +207,49 @@ pub fn test_manager() -> SecurityManager {
 
 #[test]
 fn test_fts_search() {
-    use crate::db::{escape_fts_query, init_db, search_messages, upsert_message};
+    use postail_project_lib::db::tables::create_fts_triggers;
+    use postail_project_lib::db::{
+        add_account, escape_fts_query, search_messages, upsert_message, AccountInput, Credentials,
+        ImapConfig, PasswordCredentials, SmtpConfig,
+    };
 
-    let conn = init_db().unwrap();
+    let conn = init_temp_db();
+    create_fts_triggers(&conn).unwrap();
     let security = test_manager();
-
-    let account_id = "test-account-fts";
     let mailbox = "INBOX";
     let uid1 = 1;
     let uid2 = 2;
 
+    let account = add_account(
+        &conn,
+        AccountInput {
+            name: "Test Account FTS".to_string(),
+            email: "test-fts@example.com".to_string(),
+            auth_type: "password".to_string(),
+            imap_config: ImapConfig {
+                host: "imap.example.com".to_string(),
+                port: 993,
+                tls: true,
+            },
+            smtp_config: SmtpConfig {
+                host: "smtp.example.com".to_string(),
+                port: 587,
+                tls: true,
+            },
+            credentials: Credentials::Password(PasswordCredentials {
+                username: "test-fts@example.com".to_string(),
+                password: "secret".to_string(),
+            }),
+        },
+        &security,
+    )
+    .unwrap();
+    let account_id = account.id;
+
     let created_at = Utc::now();
     upsert_message(
         &conn,
-        account_id,
+        &account_id,
         mailbox,
         uid1,
         Some("msg1@example.com"),
@@ -218,7 +265,7 @@ fn test_fts_search() {
 
     upsert_message(
         &conn,
-        account_id,
+        &account_id,
         mailbox,
         uid2,
         Some("msg2@example.com"),
@@ -232,7 +279,7 @@ fn test_fts_search() {
     )
     .unwrap();
 
-    let results = search_messages(&conn, Some(account_id), Some(mailbox), "keyword", 10).unwrap();
+    let results = search_messages(&conn, Some(&account_id), Some(mailbox), "keyword", 10).unwrap();
 
     assert_eq!(results.len(), 1);
     assert_eq!(
@@ -246,17 +293,45 @@ fn test_fts_search() {
 
 #[test]
 fn test_uidvalidity_mismatch() {
-    use crate::db::{check_uidvalidity, init_db, upsert_mailbox};
+    use postail_project_lib::db::{
+        add_account, check_uidvalidity, upsert_mailbox, AccountInput, Credentials, ImapConfig,
+        PasswordCredentials, SmtpConfig,
+    };
 
-    let conn = init_db().unwrap();
+    let conn = init_temp_db();
     let security = test_manager();
-    let account_id = "test-account-uid";
     let mailbox = "INBOX";
+
+    let account = add_account(
+        &conn,
+        AccountInput {
+            name: "Test Account UID".to_string(),
+            email: "test-uid@example.com".to_string(),
+            auth_type: "password".to_string(),
+            imap_config: ImapConfig {
+                host: "imap.example.com".to_string(),
+                port: 993,
+                tls: true,
+            },
+            smtp_config: SmtpConfig {
+                host: "smtp.example.com".to_string(),
+                port: 587,
+                tls: true,
+            },
+            credentials: Credentials::Password(PasswordCredentials {
+                username: "test-uid@example.com".to_string(),
+                password: "secret".to_string(),
+            }),
+        },
+        &security,
+    )
+    .unwrap();
+    let account_id = account.id;
 
     upsert_mailbox(
         &conn,
-        account_id,
-        &crate::db::Mailbox {
+        &account_id,
+        &postail_project_lib::db::Mailbox {
             name: mailbox.to_string(),
             uid_validity: Some(1),
             highest_modseq: None,
@@ -265,23 +340,35 @@ fn test_uidvalidity_mismatch() {
     )
     .unwrap();
 
-    let should_resync = check_uidvalidity(&conn, account_id, mailbox, 2).unwrap();
+    let should_resync = check_uidvalidity(&conn, &account_id, mailbox, 2).unwrap();
     assert!(should_resync);
 
-    let should_resync2 = check_uidvalidity(&conn, account_id, mailbox, 2).unwrap();
+    upsert_mailbox(
+        &conn,
+        &account_id,
+        &postail_project_lib::db::Mailbox {
+            name: mailbox.to_string(),
+            uid_validity: Some(2),
+            highest_modseq: None,
+            last_synced_uid: None,
+        },
+    )
+    .unwrap();
+
+    let should_resync2 = check_uidvalidity(&conn, &account_id, mailbox, 2).unwrap();
     assert!(!should_resync2);
 }
 
 #[test]
 fn test_concurrent_access() {
-    use crate::db::{
-        add_account, init_db, list_accounts, AccountInput, Credentials, ImapConfig,
-        PasswordCredentials, SmtpConfig,
+    use postail_project_lib::db::{
+        add_account, list_accounts, AccountInput, Credentials, ImapConfig, PasswordCredentials,
+        SmtpConfig,
     };
     use std::sync::{Arc, Mutex};
     use std::thread;
 
-    let conn = Arc::new(Mutex::new(init_db().unwrap()));
+    let conn: Arc<Mutex<Connection>> = Arc::new(Mutex::new(init_temp_db()));
     let security = Arc::new(Mutex::new(test_manager()));
 
     let mut handles = vec![];
@@ -293,6 +380,7 @@ fn test_concurrent_access() {
         handles.push(thread::spawn(move || {
             let input = AccountInput {
                 name: format!("Concurrent Account {}", i),
+                email: format!("user{}@example.com", i),
                 auth_type: "password".to_string(),
                 imap_config: ImapConfig {
                     host: format!("imap{}.com", i),
@@ -327,7 +415,7 @@ fn test_concurrent_access() {
 
 #[test]
 fn test_calculate_backoff() {
-    use crate::db::calculate_backoff;
+    use postail_project_lib::db::calculate_backoff;
 
     let backoff1 = calculate_backoff(0);
     assert!(backoff1 > 0);
@@ -341,7 +429,7 @@ fn test_calculate_backoff() {
 
 #[test]
 fn test_attachment_cache_path() {
-    use crate::db::get_attachment_cache_path;
+    use postail_project_lib::db::get_attachment_cache_path;
 
     let path = get_attachment_cache_path(12345, "1.1");
     assert!(path.to_string_lossy().contains("attachments"));
