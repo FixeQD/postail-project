@@ -1,0 +1,42 @@
+use std::sync::{Arc, Mutex};
+
+use async_imap::Session;
+use async_native_tls::TlsStream;
+use async_std::net::TcpStream;
+use async_std::stream::StreamExt;
+use rusqlite::Connection;
+
+use crate::db::{fetch_mailboxes as db_fetch_mailboxes, upsert_mailbox, Mailbox};
+
+impl crate::imap::ImapManager {
+    pub fn fetch_mailboxes_sync(&self, account_id: &str) -> Result<Vec<Mailbox>, String> {
+        let conn = self.conn.lock().unwrap();
+        db_fetch_mailboxes(&*conn, account_id).map_err(|e| e.to_string())
+    }
+
+    pub async fn fetch_mailboxes(&self, account_id: &str) -> Result<Vec<Mailbox>, String> {
+        let mut session = self.connect_imap(account_id).await?;
+        let mut result = Vec::new();
+        {
+            let mut mailboxes = session
+                .list(None, Some("*"))
+                .await
+                .map_err(|e| e.to_string())?;
+            while let Some(mb) = mailboxes.next().await {
+                let mb = mb.map_err(|e| e.to_string())?;
+                let name = mb.name().to_string();
+                let mailbox = Mailbox {
+                    name,
+                    uid_validity: None,
+                    highest_modseq: None,
+                    last_synced_uid: None,
+                };
+                upsert_mailbox(&*self.conn.lock().unwrap(), account_id, &mailbox)
+                    .map_err(|e| e.to_string())?;
+                result.push(mailbox);
+            }
+        }
+        session.logout().await.map_err(|e| e.to_string())?;
+        Ok(result)
+    }
+}

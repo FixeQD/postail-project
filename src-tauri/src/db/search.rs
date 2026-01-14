@@ -1,6 +1,6 @@
+use crate::error::DBError;
 use rusqlite::{params, Connection, Result as SqlResult};
 use serde::{Deserialize, Serialize};
-use crate::error::DBError;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchResult {
@@ -33,7 +33,10 @@ pub fn search_messages(
     limit: u32,
 ) -> Result<Vec<SearchResult>, DBError> {
     let (where_clause, params): (String, Vec<String>) = match (account_id, mailbox) {
-        (Some(a), Some(m)) => ("AND m.account_id = ? AND m.mailbox = ?".to_string(), vec![a.to_string(), m.to_string()]),
+        (Some(a), Some(m)) => (
+            "AND m.account_id = ? AND m.mailbox = ?".to_string(),
+            vec![a.to_string(), m.to_string()],
+        ),
         (Some(a), None) => ("AND m.account_id = ?".to_string(), vec![a.to_string()]),
         (None, None) => ("".to_string(), vec![]),
         _ => return Err(DBError::Sqlite(rusqlite::Error::InvalidQuery)),

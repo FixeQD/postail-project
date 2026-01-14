@@ -1,15 +1,16 @@
+use crate::error::DBError;
+use crate::security::SecurityManager;
 use chrono::Utc;
 use mailparse::{parse_mail, MailHeaderMap};
 use rusqlite::{params, Connection, Result as SqlResult};
 use std::fs;
 use std::path::PathBuf;
 use uuid::Uuid;
-use crate::error::DBError;
-use crate::security::SecurityManager;
 
 pub fn extract_headers_from_eml(eml_path: &str) -> Result<(Option<String>, String), DBError> {
     let eml_bytes = fs::read(eml_path).map_err(DBError::Io)?;
-    let mail = parse_mail(&eml_bytes).map_err(|e| DBError::Sqlite(rusqlite::Error::ToSqlConversionFailure(Box::new(e))))?;
+    let mail = parse_mail(&eml_bytes)
+        .map_err(|e| DBError::Sqlite(rusqlite::Error::ToSqlConversionFailure(Box::new(e))))?;
 
     let subject = mail
         .get_headers()

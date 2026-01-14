@@ -1,6 +1,6 @@
-use rusqlite::{params, Connection, OptionalExtension, Result as SqlResult};
 use crate::error::DBError;
 use ammonia;
+use rusqlite::{params, Connection, OptionalExtension, Result as SqlResult};
 
 pub fn create_message_bodies_table(conn: &Connection) -> SqlResult<()> {
     conn.execute(

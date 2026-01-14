@@ -1,6 +1,6 @@
-use rusqlite::{params, Connection, Result as SqlResult};
-use crate::error::DBError;
 use crate::db::sql_helpers::*;
+use crate::error::DBError;
+use rusqlite::{params, Connection, Result as SqlResult};
 
 pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
     pragma_set(conn, "journal_mode", "WAL")?;
@@ -37,7 +37,10 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
             ("highest_modseq", "INTEGER"),
             ("last_synced_uid", "INTEGER"),
             ("UNIQUE(account_id, name)", ""),
-            ("FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE", ""),
+            (
+                "FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE",
+                "",
+            ),
         ],
     )?;
 
@@ -58,7 +61,10 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
             ("flags_json", "TEXT"),
             ("cached_structure_json", "TEXT"),
             ("UNIQUE(account_id, mailbox, uid)", ""),
-            ("FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE", ""),
+            (
+                "FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE",
+                "",
+            ),
         ],
     )?;
 
@@ -84,7 +90,10 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
             ("last_error", "TEXT"),
             ("created_at", "INTEGER NOT NULL"),
             ("next_retry", "INTEGER"),
-            ("FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE", ""),
+            (
+                "FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE",
+                "",
+            ),
         ],
     )?;
 
@@ -99,7 +108,10 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
             ("mime_type", "TEXT NOT NULL"),
             ("size", "INTEGER NOT NULL"),
             ("cached_path", "TEXT"),
-            ("FOREIGN KEY(message_table_id) REFERENCES messages(id) ON DELETE CASCADE", ""),
+            (
+                "FOREIGN KEY(message_table_id) REFERENCES messages(id) ON DELETE CASCADE",
+                "",
+            ),
         ],
     )?;
 
@@ -107,11 +119,41 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
 }
 
 pub fn create_indexes(conn: &Connection) -> Result<(), DBError> {
-    create_index_if_not_exists(conn, "idx_messages_account_mailbox", "messages", &["account_id", "mailbox"], false)?;
-    create_index_if_not_exists(conn, "idx_messages_uid", "messages", &["account_id", "mailbox", "uid"], false)?;
-    create_index_if_not_exists(conn, "idx_messages_internal_date", "messages", &["internal_date DESC"], false)?;
-    create_index_if_not_exists(conn, "idx_outbox_status_retry", "outbox", &["status", "next_retry"], false)?;
-    create_index_if_not_exists(conn, "idx_attachments_message", "attachments", &["message_table_id"], false)?;
+    create_index_if_not_exists(
+        conn,
+        "idx_messages_account_mailbox",
+        "messages",
+        &["account_id", "mailbox"],
+        false,
+    )?;
+    create_index_if_not_exists(
+        conn,
+        "idx_messages_uid",
+        "messages",
+        &["account_id", "mailbox", "uid"],
+        false,
+    )?;
+    create_index_if_not_exists(
+        conn,
+        "idx_messages_internal_date",
+        "messages",
+        &["internal_date DESC"],
+        false,
+    )?;
+    create_index_if_not_exists(
+        conn,
+        "idx_outbox_status_retry",
+        "outbox",
+        &["status", "next_retry"],
+        false,
+    )?;
+    create_index_if_not_exists(
+        conn,
+        "idx_attachments_message",
+        "attachments",
+        &["message_table_id"],
+        false,
+    )?;
 
     Ok(())
 }

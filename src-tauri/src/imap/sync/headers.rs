@@ -1,47 +1,16 @@
-use crate::db::{fetch_mailboxes as db_fetch_mailboxes, upsert_mailbox, upsert_message, MailHeader, Mailbox};
+use std::sync::{Arc, Mutex};
+
 use async_imap::Session;
 use async_native_tls::TlsStream;
 use async_std::net::TcpStream;
 use async_std::stream::StreamExt;
 use chrono::DateTime;
-use mailparse::parse_mail;
 use rusqlite::Connection;
 use serde_json;
-use std::sync::{Arc, Mutex};
-use tokio::time::{sleep, Duration};
 
-impl super::ImapManager {
-    pub fn fetch_mailboxes_sync(&self, account_id: &str) -> Result<Vec<Mailbox>, String> {
-        let conn = self.conn.lock().unwrap();
-        db_fetch_mailboxes(&*conn, account_id).map_err(|e| e.to_string())
-    }
+use crate::db::{upsert_message, MailHeader};
 
-    pub async fn fetch_mailboxes(&self, account_id: &str) -> Result<Vec<Mailbox>, String> {
-        let mut session = self.connect_imap(account_id).await?;
-        let mut result = Vec::new();
-        {
-            let mut mailboxes = session
-                .list(None, Some("*"))
-                .await
-                .map_err(|e| e.to_string())?;
-            while let Some(mb) = mailboxes.next().await {
-                let mb = mb.map_err(|e| e.to_string())?;
-                let name = mb.name().to_string();
-                let mailbox = Mailbox {
-                    name,
-                    uid_validity: None,
-                    highest_modseq: None,
-                    last_synced_uid: None,
-                };
-                upsert_mailbox(&*self.conn.lock().unwrap(), account_id, &mailbox)
-                    .map_err(|e| e.to_string())?;
-                result.push(mailbox);
-            }
-        }
-        session.logout().await.map_err(|e| e.to_string())?;
-        Ok(result)
-    }
-
+impl crate::imap::ImapManager {
     pub fn fetch_headers_sync(
         &self,
         account_id: &str,
@@ -50,7 +19,8 @@ impl super::ImapManager {
         limit: u32,
     ) -> Result<Vec<MailHeader>, String> {
         let conn = self.conn.lock().unwrap();
-        crate::db::fetch_headers(&*conn, account_id, mailbox, anchor, limit).map_err(|e| e.to_string())
+        crate::db::fetch_headers(&*conn, account_id, mailbox, anchor, limit)
+            .map_err(|e| e.to_string())
     }
 
     pub async fn fetch_headers(
@@ -134,7 +104,7 @@ impl super::ImapManager {
                     .map(|flag| format!("{:?}", flag))
                     .collect::<Vec<_>>();
                 let internal_date = fetch.internal_date().ok_or("No internal date")?;
-                let snippet = None; // TODO: generate snippet
+                let snippet = None;
 
                 let header = MailHeader {
                     uid,
@@ -147,7 +117,7 @@ impl super::ImapManager {
                     to,
                     flags,
                     snippet,
-                    has_attachments: false, // TODO
+                    has_attachments: false,
                 };
 
                 upsert_message(
@@ -175,72 +145,5 @@ impl super::ImapManager {
 
         session.logout().await.map_err(|e| e.to_string())?;
         Ok(headers)
-    }
-
-    pub fn fetch_message_full_sync(
-        &self,
-        account_id: &str,
-        mailbox: &str,
-        uid: u32,
-    ) -> Result<Option<crate::db::MessageFull>, String> {
-        let conn = self.conn.lock().unwrap();
-        crate::db::fetch_message_full(&*conn, account_id, mailbox, uid).map_err(|e| e.to_string())
-    }
-
-    pub async fn fetch_message_full(
-        &self,
-        account_id: &str,
-        mailbox: &str,
-        uid: u32,
-    ) -> Result<Option<crate::db::MessageFull>, String> {
-        let mut session = self.connect_imap(account_id).await?;
-        session.select(mailbox).await.map_err(|e| e.to_string())?;
-
-        let fetch_result = {
-            let mut fetches = session
-                .fetch(format!("{}", uid), "(BODY[])")
-                .await
-                .map_err(|e| e.to_string())?;
-            if let Some(fetch) = fetches.next().await {
-                let fetch = fetch.map_err(|e| e.to_string())?;
-                let body = fetch.body().ok_or("No body")?;
-                let parsed = parse_mail(body).map_err(|e| e.to_string())?;
-                // TODO: Parse HTML, plain, attachments
-                let body_html_safe =
-                    ammonia::clean(&parsed.get_body().unwrap_or_default()).to_string();
-                let body_plain = parsed.get_body().unwrap_or_default();
-                let attachments = vec![]; // TODO
-                let inline_images = vec![]; // TODO
-
-                let header = crate::db::fetch_headers(
-                    &*self.conn.lock().unwrap(),
-                    account_id,
-                    mailbox,
-                    Some(uid - 1),
-                    1,
-                )
-                .map_err(|e| e.to_string())?
-                .into_iter()
-                .next()
-                .ok_or("No header")?;
-
-                Some(crate::db::MessageFull {
-                    header,
-                    body_html_safe,
-                    body_plain,
-                    attachments,
-                    inline_images,
-                })
-            } else {
-                None
-            }
-        };
-
-        session.logout().await.map_err(|e| e.to_string())?;
-        Ok(fetch_result)
-    }
-
-    pub fn start_sync(&self, account_id: &str) -> Result<(), String> {
-        Ok(())
     }
 }

@@ -1,7 +1,7 @@
-use rusqlite::params;
 use crate::error::DBError;
 use crate::security::SecurityManager;
 use chrono::{DateTime, Utc};
+use rusqlite::params;
 use rusqlite::{Connection, Result as SqlResult};
 use std::fs;
 use std::path::PathBuf;

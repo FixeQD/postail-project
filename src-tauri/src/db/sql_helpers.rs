@@ -1,5 +1,5 @@
-use rusqlite::{params, Connection, ToSql, Result as SqlResult};
 use crate::error::DBError;
+use rusqlite::{params, Connection, Result as SqlResult, ToSql};
 
 pub fn create_table_if_not_exists(
     conn: &Connection,
@@ -12,10 +12,7 @@ pub fn create_table_if_not_exists(
         .collect::<Vec<_>>()
         .join(", ");
 
-    let sql = format!(
-        "CREATE TABLE IF NOT EXISTS {} ({})",
-        name, col_defs
-    );
+    let sql = format!("CREATE TABLE IF NOT EXISTS {} ({})", name, col_defs);
 
     conn.execute(&sql, []).map_err(DBError::Sqlite)?;
     Ok(())
@@ -106,7 +103,10 @@ pub fn insert_into<T: ToSql>(
     values: &[&T],
 ) -> Result<i64, DBError> {
     let col_list = columns.join(", ");
-    let placeholders: String = (1..=values.len()).map(|_| "?").collect::<Vec<_>>().join(", ");
+    let placeholders: String = (1..=values.len())
+        .map(|_| "?")
+        .collect::<Vec<_>>()
+        .join(", ");
 
     let sql = format!(
         "INSERT INTO {} ({}) VALUES ({})",
@@ -126,7 +126,10 @@ pub fn insert_or_replace_into<T: ToSql>(
     values: &[&T],
 ) -> Result<i64, DBError> {
     let col_list = columns.join(", ");
-    let placeholders: String = (1..=values.len()).map(|_| "?").collect::<Vec<_>>().join(", ");
+    let placeholders: String = (1..=values.len())
+        .map(|_| "?")
+        .collect::<Vec<_>>()
+        .join(", ");
 
     let sql = format!(
         "INSERT OR REPLACE INTO {} ({}) VALUES ({})",
@@ -155,10 +158,7 @@ pub fn update_where<T: ToSql>(
     let mut set_values: Vec<&T> = set_parts.iter().map(|(_, val)| *val).collect();
     set_values.extend(where_params);
 
-    let sql = format!(
-        "UPDATE {} SET {} WHERE {}",
-        table, set_list, where_clause
-    );
+    let sql = format!("UPDATE {} SET {} WHERE {}", table, set_list, where_clause);
 
     conn.execute(&sql, rusqlite::params_from_iter(set_values.iter()))
         .map_err(DBError::Sqlite)?;
@@ -202,7 +202,8 @@ pub fn delete_where<T: ToSql>(
 ) -> Result<usize, DBError> {
     let sql = format!("DELETE FROM {} WHERE {}", table, where_clause);
 
-    let affected = conn.execute(&sql, rusqlite::params_from_iter(where_params.iter()))
+    let affected = conn
+        .execute(&sql, rusqlite::params_from_iter(where_params.iter()))
         .map_err(DBError::Sqlite)?;
 
     Ok(affected)
@@ -218,11 +219,8 @@ pub fn create_table_as_select(
     Ok(())
 }
 
-pub fn pragma_set(
-    conn: &Connection,
-    key: &str,
-    value: &str,
-) -> Result<(), DBError> {
-    conn.pragma_update(None, key, value).map_err(DBError::Sqlite)?;
+pub fn pragma_set(conn: &Connection, key: &str, value: &str) -> Result<(), DBError> {
+    conn.pragma_update(None, key, value)
+        .map_err(DBError::Sqlite)?;
     Ok(())
 }

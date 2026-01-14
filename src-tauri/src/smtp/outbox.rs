@@ -5,11 +5,7 @@ use std::sync::MutexGuard;
 use uuid::Uuid;
 
 impl super::SmtpManager {
-    pub fn enqueue_message(
-        &self,
-        account_id: &str,
-        raw_eml: &[u8],
-    ) -> Result<String, String> {
+    pub fn enqueue_message(&self, account_id: &str, raw_eml: &[u8]) -> Result<String, String> {
         let data_dir = dirs::data_dir()
             .unwrap_or_else(|| std::path::PathBuf::from("."))
             .join("postail")
@@ -62,6 +58,5 @@ impl super::SmtpManager {
         Ok(())
     }
 
-    pub fn start_outbox_worker(&self) {
-    }
+    pub fn start_outbox_worker(&self) {}
 }

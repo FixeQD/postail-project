@@ -8,15 +8,17 @@ pub mod security;
 pub mod smtp;
 pub mod utils;
 
-use crate::db::{
-    enqueue_message as db_enqueue_message,
-    export_backup as db_export_backup, fetch_headers as db_fetch_headers,
-    fetch_mailboxes as db_fetch_mailboxes, fetch_message_full as db_fetch_message_full,
-    import_backup as db_import_backup, init_db, list_outbox as db_list_outbox, AccountInput, AccountMeta,
-    Credentials, ImapConfig, MailHeader, Mailbox, MessageFull, OAuthCredentials, OutboxItem,
-    SearchResult, SmtpConfig, SyncStatusEnum,
+use crate::db::accounts::{
+    add_account as db_add_account, list_accounts as db_list_accounts,
+    remove_account as db_remove_account,
 };
-use crate::db::accounts::{add_account as db_add_account, list_accounts as db_list_accounts, remove_account as db_remove_account};
+use crate::db::{
+    enqueue_message as db_enqueue_message, export_backup as db_export_backup,
+    fetch_headers as db_fetch_headers, fetch_mailboxes as db_fetch_mailboxes,
+    fetch_message_full as db_fetch_message_full, import_backup as db_import_backup, init_db,
+    list_outbox as db_list_outbox, AccountInput, AccountMeta, Credentials, ImapConfig, MailHeader,
+    Mailbox, MessageFull, OAuthCredentials, OutboxItem, SearchResult, SmtpConfig, SyncStatusEnum,
+};
 use crate::imap::ImapManager;
 use crate::security::stores::SecretStore;
 use crate::security::SecurityManager;
