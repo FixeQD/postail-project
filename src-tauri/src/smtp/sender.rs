@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 impl super::SmtpManager {
     fn get_credentials(&self, account_id: &str) -> Result<String, String> {
-        let conn = self.conn.blocking_lock();
+        let conn = self.conn.lock().unwrap();
         let mut stmt = conn
             .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
             .map_err(|e| e.to_string())?;
@@ -17,7 +17,7 @@ impl super::SmtpManager {
         drop(stmt);
         drop(conn);
 
-        let security = self.security.blocking_lock();
+        let security = self.security.lock().unwrap();
         let encrypted = std::fs::read(&creds_path).map_err(|e| e.to_string())?;
         let decrypted = security.decrypt(&encrypted).map_err(|e| e.to_string())?;
         let creds_json = String::from_utf8(decrypted).map_err(|e| e.to_string())?;
@@ -25,7 +25,7 @@ impl super::SmtpManager {
     }
 
     pub async fn send_email(&self, account_id: &str, eml_content: &[u8]) -> Result<(), String> {
-        let conn = self.conn.lock().await;
+        let conn = self.conn.lock().unwrap();
         let mut stmt = conn
             .prepare("SELECT smtp_host, smtp_port, smtp_tls, auth_type FROM accounts WHERE id = ?")
             .map_err(|e| e.to_string())?;
@@ -47,7 +47,6 @@ impl super::SmtpManager {
             serde_json::from_str(&creds_json).map_err(|e| e.to_string())?;
 
         let username = if auth_type == "oauth2" {
-            // For OAuth, username is email
             creds["email"].as_str().ok_or("No email for OAuth")?
         } else {
             creds["username"].as_str().ok_or("No username")?

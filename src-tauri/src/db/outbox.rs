@@ -1,6 +1,6 @@
 use chrono::Utc;
+use mailparse::{parse_mail, MailHeaderMap};
 use rusqlite::{params, Connection, Result as SqlResult};
-use mailparse::ParsedMail;
 use std::fs;
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -9,15 +9,17 @@ use crate::security::SecurityManager;
 
 pub fn extract_headers_from_eml(eml_path: &str) -> Result<(Option<String>, String), DBError> {
     let eml_bytes = fs::read(eml_path).map_err(DBError::Io)?;
-    let (headers, _) = mailparse::parse_mail(&eml_bytes).map_err(|e| DBError::Sqlite(rusqlite::Error::ToSqlConversionFailure(Box::new(e))))?;
+    let mail = parse_mail(&eml_bytes).map_err(|e| DBError::Sqlite(rusqlite::Error::ToSqlConversionFailure(Box::new(e))))?;
 
-    let subject = headers
-        .get_header_value("Subject")
-        .map(|s| String::from_utf8_lossy(s).to_string());
+    let subject = mail
+        .get_headers()
+        .get_first_header("Subject")
+        .map(|s| s.get_value());
 
-    let recipient = headers
-        .get_header_value("To")
-        .map(|s| String::from_utf8_lossy(s).to_string())
+    let recipient = mail
+        .get_headers()
+        .get_first_header("To")
+        .map(|s| s.get_value())
         .unwrap_or_default();
 
     Ok((subject, recipient))

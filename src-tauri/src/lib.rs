@@ -9,23 +9,21 @@ pub mod smtp;
 pub mod utils;
 
 use crate::db::{
-    add_account as db_add_account, enqueue_message as db_enqueue_message,
+    enqueue_message as db_enqueue_message,
     export_backup as db_export_backup, fetch_headers as db_fetch_headers,
     fetch_mailboxes as db_fetch_mailboxes, fetch_message_full as db_fetch_message_full,
-    import_backup as db_import_backup, init_db, list_accounts as db_list_accounts,
-    list_outbox as db_list_outbox, remove_account as db_remove_account, AccountInput, AccountMeta,
+    import_backup as db_import_backup, init_db, list_outbox as db_list_outbox, AccountInput, AccountMeta,
     Credentials, ImapConfig, MailHeader, Mailbox, MessageFull, OAuthCredentials, OutboxItem,
     SearchResult, SmtpConfig, SyncStatusEnum,
 };
-use rusqlite::params;
+use crate::db::accounts::{add_account as db_add_account, list_accounts as db_list_accounts, remove_account as db_remove_account};
 use crate::imap::ImapManager;
 use crate::security::stores::SecretStore;
 use crate::security::SecurityManager;
 use crate::smtp::SmtpManager;
 use lazy_static::lazy_static;
 use rusqlite::Connection;
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 lazy_static! {
     static ref DB_CONN: Arc<Mutex<Connection>> = Arc::new(Mutex::new(init_db().unwrap()));
@@ -41,28 +39,27 @@ lazy_static! {
     )));
 }
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
 #[tauri::command]
-async fn add_account(input: AccountInput) -> Result<AccountMeta, String> {
-    let conn = DB_CONN.lock().await;
-    let security = SECURITY.lock().await;
+fn add_account(input: AccountInput) -> Result<AccountMeta, String> {
+    let conn = DB_CONN.lock().unwrap();
+    let security = SECURITY.lock().unwrap();
     db_add_account(&*conn, input, &*security).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn list_accounts() -> Result<Vec<AccountMeta>, String> {
-    let conn = DB_CONN.lock().await;
+fn list_accounts() -> Result<Vec<AccountMeta>, String> {
+    let conn = DB_CONN.lock().unwrap();
     db_list_accounts(&*conn).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn remove_account(id: String) -> Result<(), String> {
-    let conn = DB_CONN.lock().await;
+fn remove_account(id: String) -> Result<(), String> {
+    let conn = DB_CONN.lock().unwrap();
     db_remove_account(&*conn, &id).map_err(|e| e.to_string())
 }
 
@@ -86,7 +83,6 @@ async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta,
         Err(e) => return Err(e.to_string()),
     };
 
-    // Fetch user info to get email
     let email = match provider {
         oauth::Provider::Gmail => {
             let client = reqwest::Client::new();
@@ -134,7 +130,6 @@ async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta,
         }
     };
 
-    // Create account input
     let account_input = AccountInput {
         name: format!(
             "{} Account",
@@ -176,8 +171,8 @@ async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta,
         },
     };
 
-    let conn = DB_CONN.lock().await;
-    let security = SECURITY.lock().await;
+    let conn = DB_CONN.lock().unwrap();
+    let security = SECURITY.lock().unwrap();
     let account = db_add_account(&*conn, account_input, &*security).map_err(|e| e.to_string())?;
     Ok(account)
 }
@@ -200,7 +195,7 @@ async fn check_security_options() -> Result<SecurityOptions, String> {
     Ok(SecurityOptions {
         tpm_available,
         keyring_available,
-        argon2_available: true, // Always available
+        argon2_available: true,
     })
 }
 
@@ -211,14 +206,12 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
             println!("Initializing TPM security");
 
             if let Some(tpm_store) = crate::security::stores::tpm::get_tpm_store() {
-                // Create SecurityManager with TPM store
                 let new_security = crate::security::SecurityManager::with_store(
                     tpm_store.into(),
                     crate::security::stores::StorageTier::Tpm,
                 );
 
-                // Initialize it
-                let mut security_guard = SECURITY.lock().await;
+                let mut security_guard = SECURITY.lock().unwrap();
                 *security_guard = new_security;
                 security_guard.initialize().map_err(|e| e.to_string())?;
 
@@ -231,17 +224,14 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
         "keyring" => {
             println!("Initializing keyring security");
 
-            // Try to create keyring store
             match crate::security::stores::keyring::KeyringStore::new() {
                 Ok(store) if store.is_available() => {
-                    // Create SecurityManager with KeyringStore
                     let new_security = crate::security::SecurityManager::with_store(
                         std::sync::Arc::new(store),
                         crate::security::stores::StorageTier::Keyring,
                     );
 
-                    // Initialize it
-                    let mut security_guard = SECURITY.lock().await;
+                    let mut security_guard = SECURITY.lock().unwrap();
                     *security_guard = new_security;
                     security_guard.initialize().map_err(|e| e.to_string())?;
 
@@ -255,19 +245,16 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
             let pass = passphrase.ok_or("Passphrase required for Argon2")?;
             println!("Initializing Argon2 security with passphrase");
 
-            // Create storage path
             let storage_path = dirs::data_dir()
                 .unwrap_or_else(|| std::path::PathBuf::from("."))
                 .join("postail")
                 .join("security");
 
-            // Create new SecurityManager with Argon2Store
             let builder =
                 crate::security::manager::PassphraseSecurityBuilder::new(storage_path, pass);
             let new_security = builder.build();
 
-            // Initialize it
-            let mut security_guard = SECURITY.lock().await;
+            let mut security_guard = SECURITY.lock().unwrap();
             *security_guard = new_security;
             security_guard.initialize().map_err(|e| e.to_string())?;
 
@@ -279,89 +266,85 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
 }
 
 #[tauri::command]
-async fn fetch_mailboxes(account_id: String) -> Result<Vec<Mailbox>, String> {
-    let imap = IMAP_MANAGER.lock().await;
-    imap.fetch_mailboxes(&account_id).await
+fn fetch_mailboxes(account_id: String) -> Result<Vec<Mailbox>, String> {
+    let imap = IMAP_MANAGER.lock().unwrap();
+    imap.fetch_mailboxes_sync(&account_id)
 }
 
 #[tauri::command]
-async fn fetch_headers(
+fn fetch_headers(
     account_id: String,
     mailbox: String,
     anchor: Option<u64>,
     limit: u32,
 ) -> Result<Vec<MailHeader>, String> {
-    let imap = IMAP_MANAGER.lock().await;
-    imap.fetch_headers(&account_id, &mailbox, anchor.map(|a| a as u32), limit)
-        .await
+    let imap = IMAP_MANAGER.lock().unwrap();
+    imap.fetch_headers_sync(&account_id, &mailbox, anchor.map(|a| a as u32), limit)
 }
 
 #[tauri::command]
-async fn fetch_message_full(
+fn fetch_message_full(
     account_id: String,
     mailbox: String,
     uid: u64,
 ) -> Result<Option<MessageFull>, String> {
-    let imap = IMAP_MANAGER.lock().await;
-    imap.fetch_message_full(&account_id, &mailbox, uid as u32)
-        .await
+    let imap = IMAP_MANAGER.lock().unwrap();
+    imap.fetch_message_full_sync(&account_id, &mailbox, uid as u32)
 }
 
 #[tauri::command]
-async fn start_sync(account_id: String) -> Result<(), String> {
-    let imap = IMAP_MANAGER.lock().await;
-    imap.start_sync(&account_id).await
+fn start_sync(account_id: String) -> Result<(), String> {
+    let imap = IMAP_MANAGER.lock().unwrap();
+    imap.start_sync(&account_id)
 }
 
 #[tauri::command]
-async fn stop_sync(_account_id: String) -> Result<(), String> {
-    // TODO: Implement stop sync
+fn stop_sync(_account_id: String) -> Result<(), String> {
     Ok(())
 }
 
 #[tauri::command]
-async fn get_sync_status(_account_id: String) -> Result<SyncStatusEnum, String> {
-    // TODO: Implement sync status
+fn get_sync_status(_account_id: String) -> Result<SyncStatusEnum, String> {
     Ok(SyncStatusEnum::Idle)
 }
 
 #[tauri::command]
-async fn enqueue_message(account_id: String, raw_eml: String) -> Result<String, String> {
-    let smtp = SMTP_MANAGER.lock().await;
-    smtp.enqueue_message(&account_id, raw_eml.as_bytes()).await
+fn enqueue_message(account_id: String, raw_eml: String) -> Result<String, String> {
+    let smtp = SMTP_MANAGER.lock().unwrap();
+    smtp.enqueue_message(&account_id, raw_eml.as_bytes())
 }
 
 #[tauri::command]
-async fn list_outbox(account_id: String) -> Result<Vec<OutboxItem>, String> {
-    let smtp = SMTP_MANAGER.lock().await;
-    smtp.list_outbox(&account_id).await
+fn list_outbox(account_id: String) -> Result<Vec<OutboxItem>, String> {
+    let smtp = SMTP_MANAGER.lock().unwrap();
+    smtp.list_outbox(&account_id)
 }
 
 #[tauri::command]
-async fn retry_sending(outbox_id: String) -> Result<(), String> {
-    let smtp = SMTP_MANAGER.lock().await;
-    smtp.retry_sending(&outbox_id).await
+fn retry_sending(outbox_id: String) -> Result<(), String> {
+    let smtp = SMTP_MANAGER.lock().unwrap();
+    smtp.retry_sending(&outbox_id)
 }
 
 #[tauri::command]
-async fn cancel_sending(outbox_id: String) -> Result<(), String> {
-    let smtp = SMTP_MANAGER.lock().await;
-    smtp.cancel_sending(&outbox_id).await
+fn cancel_sending(outbox_id: String) -> Result<(), String> {
+    let smtp = SMTP_MANAGER.lock().unwrap();
+    smtp.cancel_sending(&outbox_id)
 }
 
 #[tauri::command]
-async fn export_backup(passphrase: Option<String>) -> Result<String, String> {
-    let conn = DB_CONN.lock().await;
-    let security = SECURITY.lock().await;
-    let backup_path =
-        db_export_backup(&*conn, &*security, passphrase).map_err(|e| e.to_string())?;
-    Ok(backup_path.to_string_lossy().to_string())
+fn export_backup(passphrase: Option<String>) -> Result<String, String> {
+    let conn = DB_CONN.lock().unwrap();
+    let security = SECURITY.lock().unwrap();
+    db_export_backup(&*conn, &*security, passphrase)
+        .map(|p| p.to_string_lossy().to_string())
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn import_backup(backup_path: String, passphrase: Option<String>) -> Result<(), String> {
-    let conn = DB_CONN.blocking_lock();
-    let security = SECURITY.blocking_lock();
+fn import_backup(backup_path: String, passphrase: Option<String>) -> Result<(), String> {
+    let mut conn = DB_CONN.lock().unwrap();
+    let security = SECURITY.lock().unwrap();
     let path = std::path::PathBuf::from(backup_path);
     db_import_backup(&mut *conn, &*security, &path, passphrase).map_err(|e| e.to_string())
 }

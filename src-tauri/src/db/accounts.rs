@@ -1,6 +1,7 @@
+use rusqlite::params;
 use crate::error::DBError;
 use crate::security::SecurityManager;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use rusqlite::{Connection, Result as SqlResult};
 use std::fs;
 use std::path::PathBuf;
@@ -80,9 +81,7 @@ pub fn add_account(
 }
 
 pub fn list_accounts(conn: &Connection) -> Result<Vec<crate::db::AccountMeta>, DBError> {
-    use rusqlite::params;
-
-    let stmt = conn.prepare(
+    let mut stmt = conn.prepare(
         "SELECT id, name, email, provider_type, auth_type, imap_host, imap_port, imap_tls, smtp_host, smtp_port, smtp_tls, encryption_mode, created_at FROM accounts"
     )?;
 
@@ -114,6 +113,6 @@ pub fn remove_account(conn: &Connection, id: &str) -> Result<(), DBError> {
     if let Some(path) = creds_path {
         let _ = fs::remove_file(path);
     }
-    crate::db::sql_helpers::delete_where(conn, "accounts", "id = ?", params![id])?;
+    crate::db::sql_helpers::delete_where::<String>(conn, "accounts", "id = ?", &[&id.to_string()])?;
     Ok(())
 }

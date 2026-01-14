@@ -87,24 +87,6 @@ pub fn drop_trigger_if_exists(conn: &Connection, name: &str) -> Result<(), DBErr
     Ok(())
 }
 
-pub fn create_fts_table(
-    conn: &Connection,
-    name: &str,
-    columns: &[&str],
-    content_table: &str,
-    content_rowid: &str,
-) -> Result<(), DBError> {
-    let col_list = columns.join(", ");
-
-    let sql = format!(
-        "CREATE VIRTUAL TABLE IF NOT EXISTS {} USING fts5({}, content={}, content_rowid={})",
-        name, col_list, content_table, content_rowid
-    );
-
-    conn.execute(&sql, []).map_err(DBError::Sqlite)?;
-    Ok(())
-}
-
 pub fn attach_database(conn: &Connection, name: &str, path: &str) -> Result<(), DBError> {
     conn.execute("ATTACH DATABASE ? AS ?", params![path, name])
         .map_err(DBError::Sqlite)?;
@@ -184,15 +166,15 @@ pub fn update_where<T: ToSql>(
     Ok(())
 }
 
-pub fn select_where<T: ToSql>(
-    conn: &Connection,
-    table: &str,
-    columns: &[&str],
-    where_clause: Option<&str>,
-    where_params: &[&T],
-    order_by: Option<&str>,
+pub fn select_where<'a, T: ToSql>(
+    conn: &'a Connection,
+    table: &'a str,
+    columns: &'a [&'a str],
+    where_clause: Option<&'a str>,
+    where_params: &'a [&'a T],
+    order_by: Option<&'a str>,
     limit: Option<u32>,
-) -> Result<rusqlite::Statement, DBError> {
+) -> Result<rusqlite::Statement<'a>, DBError> {
     let col_list = columns.join(", ");
 
     let mut sql = format!("SELECT {} FROM {}", col_list, table);

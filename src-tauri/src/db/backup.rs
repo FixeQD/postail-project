@@ -1,5 +1,6 @@
 use std::env;
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use uuid::Uuid;
 use rusqlite::{params, Connection, Result as SqlResult};
@@ -62,7 +63,7 @@ pub const MIGRATIONS: &[Migration] = &[
         name: "Initial schema",
         up: |conn| {
             conn.pragma_update(None, "journal_mode", "WAL")?;
-            super::create_tables(conn)?;
+            super::create_tables(conn).map_err(|e| rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e)))?;
             Ok(())
         },
     },
@@ -191,7 +192,7 @@ pub fn export_backup(
 
     let file = fs::File::create(&backup_path).map_err(DBError::Io)?;
     let mut zip = ZipWriter::new(file);
-    let options = FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let options: zip::write::FileOptions<()> = FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     for entry in fs::read_dir(&temp_dir).map_err(DBError::Io)? {
         let entry = entry.map_err(DBError::Io)?;

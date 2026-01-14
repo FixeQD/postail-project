@@ -120,7 +120,8 @@ pub fn create_fts_triggers(conn: &Connection) -> Result<(), DBError> {
     create_trigger_if_not_exists(
         conn,
         "messages_fts_insert",
-        "AFTER INSERT",
+        "AFTER",
+        "INSERT",
         "messages",
         "INSERT INTO messages_fts(rowid, subject, from_addr, snippet) VALUES (NEW.id, NEW.subject, NEW.from_addr, NEW.snippet)",
     )?;
@@ -128,7 +129,8 @@ pub fn create_fts_triggers(conn: &Connection) -> Result<(), DBError> {
     create_trigger_if_not_exists(
         conn,
         "messages_fts_update",
-        "AFTER UPDATE",
+        "AFTER",
+        "UPDATE",
         "messages",
         "UPDATE messages_fts SET subject = NEW.subject, from_addr = NEW.from_addr, snippet = NEW.snippet WHERE rowid = NEW.id",
     )?;
@@ -136,45 +138,8 @@ pub fn create_fts_triggers(conn: &Connection) -> Result<(), DBError> {
     create_trigger_if_not_exists(
         conn,
         "messages_fts_delete",
-        "AFTER DELETE",
-        "messages",
-        "DELETE FROM messages_fts WHERE rowid = OLD.id",
-    )?;
-
-    Ok(())
-}
-
-pub fn create_indexes(conn: &Connection) -> Result<(), DBError> {
-    create_index_if_not_exists(conn, "idx_messages_account_mailbox", "messages", &["account_id", "mailbox"], false)?;
-    create_index_if_not_exists(conn, "idx_messages_uid", "messages", &["account_id", "mailbox", "uid"], false)?;
-    create_index_if_not_exists(conn, "idx_messages_internal_date", "messages", &["internal_date DESC"], false)?;
-    create_index_if_not_exists(conn, "idx_outbox_status_retry", "outbox", &["status", "next_retry"], false)?;
-    create_index_if_not_exists(conn, "idx_attachments_message", "attachments", &["message_table_id"], false)?;
-
-    Ok(())
-}
-
-pub fn create_fts_triggers(conn: &Connection) -> Result<(), DBError> {
-    create_trigger_if_not_exists(
-        conn,
-        "messages_fts_insert",
-        "AFTER INSERT",
-        "messages",
-        "INSERT INTO messages_fts(rowid, subject, from_addr, snippet) VALUES (NEW.id, NEW.subject, NEW.from_addr, NEW.snippet)",
-    )?;
-
-    create_trigger_if_not_exists(
-        conn,
-        "messages_fts_update",
-        "AFTER UPDATE",
-        "messages",
-        "UPDATE messages_fts SET subject = NEW.subject, from_addr = NEW.from_addr, snippet = NEW.snippet WHERE rowid = NEW.id",
-    )?;
-
-    create_trigger_if_not_exists(
-        conn,
-        "messages_fts_delete",
-        "AFTER DELETE",
+        "AFTER",
+        "DELETE",
         "messages",
         "DELETE FROM messages_fts WHERE rowid = OLD.id",
     )?;

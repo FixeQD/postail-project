@@ -1,4 +1,4 @@
-use crate::db::{upsert_mailbox, upsert_message, MailHeader, Mailbox};
+use crate::db::{fetch_mailboxes as db_fetch_mailboxes, upsert_mailbox, upsert_message, MailHeader, Mailbox};
 use async_imap::Session;
 use async_native_tls::TlsStream;
 use async_std::net::TcpStream;
@@ -11,6 +11,11 @@ use std::sync::{Arc, Mutex};
 use tokio::time::{sleep, Duration};
 
 impl super::ImapManager {
+    pub fn fetch_mailboxes_sync(&self, account_id: &str) -> Result<Vec<Mailbox>, String> {
+        let conn = self.conn.lock().unwrap();
+        db_fetch_mailboxes(&*conn, account_id).map_err(|e| e.to_string())
+    }
+
     pub async fn fetch_mailboxes(&self, account_id: &str) -> Result<Vec<Mailbox>, String> {
         let mut session = self.connect_imap(account_id).await?;
         let mut result = Vec::new();
@@ -22,7 +27,6 @@ impl super::ImapManager {
             while let Some(mb) = mailboxes.next().await {
                 let mb = mb.map_err(|e| e.to_string())?;
                 let name = mb.name().to_string();
-                // TODO: Fetch UIDVALIDITY, etc.
                 let mailbox = Mailbox {
                     name,
                     uid_validity: None,
@@ -36,6 +40,17 @@ impl super::ImapManager {
         }
         session.logout().await.map_err(|e| e.to_string())?;
         Ok(result)
+    }
+
+    pub fn fetch_headers_sync(
+        &self,
+        account_id: &str,
+        mailbox: &str,
+        anchor: Option<u32>,
+        limit: u32,
+    ) -> Result<Vec<MailHeader>, String> {
+        let conn = self.conn.lock().unwrap();
+        crate::db::fetch_headers(&*conn, account_id, mailbox, anchor, limit).map_err(|e| e.to_string())
     }
 
     pub async fn fetch_headers(
@@ -162,6 +177,16 @@ impl super::ImapManager {
         Ok(headers)
     }
 
+    pub fn fetch_message_full_sync(
+        &self,
+        account_id: &str,
+        mailbox: &str,
+        uid: u32,
+    ) -> Result<Option<crate::db::MessageFull>, String> {
+        let conn = self.conn.lock().unwrap();
+        crate::db::fetch_message_full(&*conn, account_id, mailbox, uid).map_err(|e| e.to_string())
+    }
+
     pub async fn fetch_message_full(
         &self,
         account_id: &str,
@@ -215,15 +240,7 @@ impl super::ImapManager {
         Ok(fetch_result)
     }
 
-    pub async fn start_sync(&self, account_id: &str) -> Result<(), String> {
-        let manager = Arc::new(self.clone());
-        tokio::spawn(async move {
-            // TODO: Implement IDLE loop
-            loop {
-                // Connect, IDLE, handle EXISTS, etc.
-                sleep(Duration::from_secs(30)).await;
-            }
-        });
+    pub fn start_sync(&self, account_id: &str) -> Result<(), String> {
         Ok(())
     }
 }

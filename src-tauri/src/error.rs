@@ -63,6 +63,12 @@ pub enum OAuthError {
     UrlParse(#[from] url::ParseError),
 }
 
+impl From<OAuthError> for String {
+    fn from(err: OAuthError) -> Self {
+        err.to_string()
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum DBError {
     #[error("SQLite error: {0}")]
@@ -73,6 +79,9 @@ pub enum DBError {
 
     #[error("Security error: {0}")]
     Security(#[from] SecurityError),
+
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
 }
 
 pub type Result<T> = std::result::Result<T, SecurityError>;

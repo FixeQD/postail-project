@@ -133,16 +133,13 @@ impl SecurityManager {
         use argon2::Argon2;
 
         let mut derived_key = [0u8; 32];
+        let salt = b"postail-email-client-v1";
         let argon2 = Argon2::default();
         argon2
-            .hash_password_into(passphrase.as_bytes(), &mut derived_key)
+            .hash_password_into(passphrase.as_bytes(), salt, &mut derived_key)
             .map_err(|_| SecurityError::KeyDerivation("Failed to derive key".to_string()))?;
 
-        let master_key =
-            MasterKey::from_bytes(&derived_key).map_err(|e| SecurityError::InvalidKeyLength {
-                expected: 32,
-                got: e.len(),
-            })?;
+        let master_key = MasterKey::from_bytes(&derived_key)?;
 
         encrypt_with_key(&master_key, plaintext)
     }
@@ -152,16 +149,13 @@ impl SecurityManager {
         use argon2::Argon2;
 
         let mut derived_key = [0u8; 32];
+        let salt = b"postail-email-client-v1";
         let argon2 = Argon2::default();
         argon2
-            .hash_password_into(passphrase.as_bytes(), &mut derived_key)
+            .hash_password_into(passphrase.as_bytes(), salt, &mut derived_key)
             .map_err(|_| SecurityError::KeyDerivation("Failed to derive key".to_string()))?;
 
-        let master_key =
-            MasterKey::from_bytes(&derived_key).map_err(|e| SecurityError::InvalidKeyLength {
-                expected: 32,
-                got: e.len(),
-            })?;
+        let master_key = MasterKey::from_bytes(&derived_key)?;
 
         decrypt_with_key(&master_key, ciphertext)
     }
