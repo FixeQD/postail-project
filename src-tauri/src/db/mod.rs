@@ -18,7 +18,7 @@ use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
 pub use crate::db::accounts::*;
-pub use crate::db::backup::{export_backup, import_backup};
+pub use crate::db::backup::{export_backup, import_backup, run_maintenance};
 pub use crate::db::imap::*;
 pub use crate::db::mailbox::{fetch_mailboxes, upsert_mailbox};
 pub use crate::db::message_bodies::*;
@@ -154,6 +154,8 @@ pub fn init_db() -> Result<Connection, DBError> {
     let db_path = data_dir.join("postail.db");
     let conn = Connection::open(db_path)?;
     tables::create_tables(&conn)?;
+    tables::create_indexes(&conn)?;
+    tables::create_fts_triggers(&conn)?;
     Ok(conn)
 }
 

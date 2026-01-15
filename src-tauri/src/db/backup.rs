@@ -258,7 +258,7 @@ pub fn export_backup(
 }
 
 pub fn import_backup(
-    conn: &mut Connection,
+    conn: &Connection,
     security: &SecurityManager,
     backup_path: &PathBuf,
     passphrase: Option<String>,
@@ -336,6 +336,15 @@ pub fn import_backup(
 
     run_migrations(conn)?;
 
+    run_maintenance(conn)?;
+
     let _ = fs::remove_dir_all(temp_dir);
+    Ok(())
+}
+
+pub fn run_maintenance(conn: &Connection) -> Result<(), DBError> {
+    conn.execute("PRAGMA wal_checkpoint(TRUNCATE)", [])?;
+    conn.execute("VACUUM", [])?;
+    conn.execute("ANALYZE", [])?;
     Ok(())
 }

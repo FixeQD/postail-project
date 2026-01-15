@@ -2,6 +2,7 @@ pub mod db;
 pub mod error;
 pub mod globals;
 pub mod imap;
+pub mod maintenance;
 pub mod oauth;
 pub mod protocol;
 pub mod security;
@@ -333,20 +334,45 @@ fn cancel_sending(outbox_id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn export_backup(passphrase: Option<String>) -> Result<String, String> {
-    let conn = DB_CONN.lock().unwrap();
-    let security = SECURITY.lock().unwrap();
-    db_export_backup(&*conn, &*security, passphrase)
-        .map(|p| p.to_string_lossy().to_string())
-        .map_err(|e| e.to_string())
+async fn export_backup(passphrase: Option<String>) -> Result<String, String> {
+    let db_conn = Arc::clone(&DB_CONN);
+    let security = Arc::clone(&SECURITY);
+    let passphrase_clone = passphrase.clone();
+    tokio::task::spawn_blocking(move || {
+        let conn = db_conn.lock().unwrap();
+        let sec = security.lock().unwrap();
+        db_export_backup(&*conn, &*sec, passphrase_clone)
+            .map(|p| p.to_string_lossy().to_string())
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-fn import_backup(backup_path: String, passphrase: Option<String>) -> Result<(), String> {
-    let mut conn = DB_CONN.lock().unwrap();
-    let security = SECURITY.lock().unwrap();
+async fn import_backup(backup_path: String, passphrase: Option<String>) -> Result<(), String> {
+    let db_conn = Arc::clone(&DB_CONN);
+    let security = Arc::clone(&SECURITY);
     let path = std::path::PathBuf::from(backup_path);
-    db_import_backup(&mut *conn, &*security, &path, passphrase).map_err(|e| e.to_string())
+    let passphrase_clone = passphrase;
+    tokio::task::spawn_blocking(move || {
+        let conn = db_conn.lock().unwrap();
+        let sec = security.lock().unwrap();
+        db_import_backup(&*conn, &*sec, &path, passphrase_clone).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn run_maintenance() -> Result<(), String> {
+    let db_conn = Arc::clone(&DB_CONN);
+    tokio::task::spawn_blocking(move || {
+        let conn = db_conn.lock().unwrap();
+        crate::db::run_maintenance(&*conn).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -359,6 +385,7 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .setup(|app| {
             utils::oauth_server::start(app.handle().clone());
+            maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -381,7 +408,8 @@ pub fn run() {
             retry_sending,
             cancel_sending,
             export_backup,
-            import_backup
+            import_backup,
+            run_maintenance
         ])
         .register_uri_scheme_protocol("postail", protocol::handler)
         .run(tauri::generate_context!())

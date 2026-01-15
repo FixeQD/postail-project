@@ -26,10 +26,9 @@
 ## Database Integration
 
 ### Async & Concurrency
-
 - [x] Replace std::sync::Mutex with tokio::sync::Mutex (DB_CONN, IMAP_MANAGER, SMTP_MANAGER)
 - [x] Update .lock().unwrap() to .lock().await in all async functions
-- [ ] Add spawn_blocking for batch operations (messages, vacuum, backup)
+- [x] Add spawn_blocking for batch operations (messages, vacuum, backup)
 
 ### IMAP Data Storage
 
@@ -70,11 +69,10 @@
 - [ ] Add lazy loading pattern for large messages
 
 ### Performance Optimization
-
-- [ ] Add indexes: messages(account_id, mailbox, uid, internal_date), outbox(status, next_retry)
-- [ ] Configure PRAGMA: journal_mode=WAL, synchronous=NORMAL, cache_size=64MB, mmap_size=256MB
-- [ ] Implement schedule_maintenance with weekly VACUUM/ANALYZE
-- [ ] Add WAL checkpoint scheduling
+- [x] Add indexes: messages(account_id, mailbox, uid, internal_date), outbox(status, next_retry)
+- [x] Configure PRAGMA: journal_mode=WAL, synchronous=NORMAL, cache_size=64MB, mmap_size=256MB
+- [x] Implement schedule_maintenance with weekly VACUUM/ANALYZE
+- [x] Add WAL checkpoint scheduling
 
 ### Database Migrations
 

@@ -4,6 +4,9 @@ use rusqlite::Connection;
 
 pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
     pragma_set(conn, "journal_mode", "WAL")?;
+    pragma_set(conn, "synchronous", "NORMAL")?;
+    pragma_set(conn, "cache_size", "-64000")?;
+    pragma_set(conn, "mmap_size", "268435456")?;
 
     create_table_if_not_exists(
         conn,
