@@ -52,19 +52,19 @@ fn greet(name: &str) -> String {
 fn add_account(input: AccountInput) -> Result<AccountMeta, String> {
     let conn = DB_CONN.lock().unwrap();
     let security = SECURITY.lock().unwrap();
-    db_add_account(&*conn, input, &*security).map_err(|e| e.to_string())
+    db_add_account(&conn, input, &security).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn list_accounts() -> Result<Vec<AccountMeta>, String> {
     let conn = DB_CONN.lock().unwrap();
-    db_list_accounts(&*conn).map_err(|e| e.to_string())
+    db_list_accounts(&conn).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn remove_account(id: String) -> Result<(), String> {
     let conn = DB_CONN.lock().unwrap();
-    db_remove_account(&*conn, &id).map_err(|e| e.to_string())
+    db_remove_account(&conn, &id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -175,7 +175,7 @@ async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta,
 
     let conn = DB_CONN.lock().unwrap();
     let security = SECURITY.lock().unwrap();
-    let account = db_add_account(&*conn, account_input, &*security).map_err(|e| e.to_string())?;
+    let account = db_add_account(&conn, account_input, &security).map_err(|e| e.to_string())?;
     Ok(account)
 }
 
@@ -263,7 +263,7 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
             println!("Argon2 security initialized successfully");
             Ok(())
         }
-        _ => return Err("Invalid security method".to_string()),
+        _ => Err("Invalid security method".to_string()),
     }
 }
 
@@ -297,7 +297,7 @@ fn fetch_message_full(
 #[tauri::command]
 fn start_sync(account_id: String) -> Result<(), String> {
     let imap = IMAP_MANAGER.lock().unwrap();
-    imap.start_sync(&account_id)
+    imap.start_sync(&account_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -342,7 +342,7 @@ async fn export_backup(passphrase: Option<String>) -> Result<String, String> {
     tokio::task::spawn_blocking(move || {
         let conn = db_conn.lock().unwrap();
         let sec = security.lock().unwrap();
-        db_export_backup(&*conn, &*sec, passphrase_clone)
+        db_export_backup(&conn, &sec, passphrase_clone)
             .map(|p| p.to_string_lossy().to_string())
             .map_err(|e| e.to_string())
     })
@@ -359,7 +359,7 @@ async fn import_backup(backup_path: String, passphrase: Option<String>) -> Resul
     tokio::task::spawn_blocking(move || {
         let conn = db_conn.lock().unwrap();
         let sec = security.lock().unwrap();
-        db_import_backup(&*conn, &*sec, &path, passphrase_clone).map_err(|e| e.to_string())
+        db_import_backup(&conn, &sec, &path, passphrase_clone).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())?
@@ -370,7 +370,7 @@ async fn run_maintenance() -> Result<(), String> {
     let db_conn = Arc::clone(&DB_CONN);
     tokio::task::spawn_blocking(move || {
         let conn = db_conn.lock().unwrap();
-        crate::db::run_maintenance(&*conn).map_err(|e| e.to_string())
+        crate::db::run_maintenance(&conn).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())?
@@ -388,7 +388,7 @@ pub fn run() {
             utils::oauth_server::start(app.handle().clone());
             maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
 
-            let db_conn = Arc::clone(&DB_CONN);
+            let _db_conn = Arc::clone(&DB_CONN);
             tokio::task::spawn_blocking(move || {
                 if let Err(e) = run_encryption_migration_if_needed() {
                     eprintln!("[DB] Encryption migration failed: {}", e);

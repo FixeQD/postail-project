@@ -88,3 +88,175 @@ pub enum DBError {
 }
 
 pub type Result<T> = std::result::Result<T, SecurityError>;
+
+#[derive(Debug, Error)]
+pub enum ImapError {
+    #[error("IMAP connection failed: {0}")]
+    Connection(String),
+
+    #[error("IMAP login failed: {0}")]
+    Login(String),
+
+    #[error("OAuth refresh failed: {0}")]
+    OAuthRefresh(String),
+
+    #[error("Unknown OAuth provider")]
+    UnknownOAuthProvider,
+
+    #[error("Failed to fetch credentials: {0}")]
+    CredentialsFetch(String),
+
+    #[error("IDLE not supported for mailbox {mailbox}")]
+    IdleNotSupported { mailbox: String },
+
+    #[error("IDLE init failed for {mailbox}: {error}")]
+    IdleInitFailed { mailbox: String, error: String },
+
+    #[error("IDLE wait error for {mailbox}: {error}")]
+    IdleWaitError { mailbox: String, error: String },
+
+    #[error("IDLE timeout for {mailbox}")]
+    IdleTimeout { mailbox: String },
+
+    #[error("IDLE reinit failed for {mailbox}")]
+    IdleReinitFailed { mailbox: String },
+
+    #[error("Mailbox sync error for {mailbox}: {error}")]
+    MailboxSyncError { mailbox: String, error: String },
+
+    #[error("No sync running for account {account_id}")]
+    NoSyncRunning { account_id: String },
+
+    #[error("Sync thread join failed for {account_id}: {error}")]
+    SyncThreadJoinFailed { account_id: String, error: String },
+
+    #[error("Failed to join sync thread for {account_id}: {error}")]
+    FailedToJoinThread { account_id: String, error: String },
+}
+
+impl From<ImapError> for String {
+    fn from(err: ImapError) -> Self {
+        err.to_string()
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum SyncError {
+    #[error("Sync loop failed for account {account_id}: {error}")]
+    SyncLoopFailed { account_id: String, error: String },
+
+    #[error("Sync thread panic for account {account_id}: {error}")]
+    SyncThreadPanic { account_id: String, error: String },
+}
+
+#[derive(Debug, Error)]
+pub enum AppError {
+    #[error("Unknown OAuth provider")]
+    UnknownOAuthProvider,
+
+    #[error("Failed to fetch Gmail user info: {0}")]
+    GmailUserInfoFailed(String),
+
+    #[error("Failed to fetch Outlook user info: {0}")]
+    OutlookUserInfoFailed(String),
+
+    #[error("No email in OAuth response")]
+    NoEmailInResponse,
+
+    #[error("TPM not available or not supported")]
+    TpmNotAvailable,
+
+    #[error("Keyring not available")]
+    KeyringNotAvailable,
+
+    #[error("Invalid security method: {0}")]
+    InvalidSecurityMethod(String),
+
+    #[error("Failed to get database encryption key")]
+    DbEncryptionKeyFailed,
+
+    #[error("Database encryption verification failed")]
+    DbEncryptionVerifyFailed,
+
+    #[error("Database migration failed: {0}")]
+    MigrationFailed(String),
+
+    #[error("Encrypted database file was not created")]
+    EncryptedDbNotCreated,
+
+    #[error("Encrypted database integrity check failed")]
+    EncryptedDbIntegrityFailed,
+
+    #[error("Tables not found after migration")]
+    TablesNotFound,
+
+    #[error("Failed to derive key")]
+    KeyDerivationFailed,
+
+    #[error("IMAP error: {0}")]
+    Imap(#[from] ImapError),
+
+    #[error("Sync error: {0}")]
+    Sync(#[from] SyncError),
+}
+
+impl From<String> for AppError {
+    fn from(err: String) -> Self {
+        AppError::Imap(ImapError::Connection(err))
+    }
+}
+
+impl From<&str> for AppError {
+    fn from(err: &str) -> Self {
+        AppError::Imap(ImapError::Connection(err.to_string()))
+    }
+}
+
+impl From<OAuthError> for AppError {
+    fn from(err: OAuthError) -> Self {
+        match err {
+            OAuthError::NoRefreshToken => AppError::NoEmailInResponse,
+            _ => AppError::GmailUserInfoFailed(err.to_string()),
+        }
+    }
+}
+
+impl From<DBError> for AppError {
+    fn from(err: DBError) -> Self {
+        match err {
+            DBError::Migration(e) => AppError::MigrationFailed(e),
+            _ => AppError::GmailUserInfoFailed(err.to_string()),
+        }
+    }
+}
+
+impl From<rusqlite::Error> for AppError {
+    fn from(err: rusqlite::Error) -> Self {
+        AppError::GmailUserInfoFailed(err.to_string())
+    }
+}
+
+impl From<std::io::Error> for AppError {
+    fn from(err: std::io::Error) -> Self {
+        AppError::GmailUserInfoFailed(err.to_string())
+    }
+}
+
+impl From<async_imap::error::Error> for AppError {
+    fn from(err: async_imap::error::Error) -> Self {
+        let msg = err.to_string();
+        if msg.contains("connection") || msg.contains("Connection") {
+            AppError::Imap(ImapError::Connection(msg))
+        } else if msg.contains("login") || msg.contains("Login") || msg.contains("authentication") {
+            AppError::Imap(ImapError::Login(msg))
+        } else {
+            AppError::Imap(ImapError::Connection(msg))
+        }
+    }
+}
+
+impl From<AppError> for String {
+    fn from(err: AppError) -> Self {
+        err.to_string()
+    }
+}

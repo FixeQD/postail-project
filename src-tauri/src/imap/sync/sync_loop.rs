@@ -3,6 +3,8 @@ use std::sync::Arc;
 use std::thread;
 use tokio::time::{timeout, Duration};
 
+use crate::error::{AppError, ImapError, SyncError};
+
 const RFC_IDLE_TIMEOUT_SECS: u64 = 29 * 60;
 const POLL_INTERVAL_SECS: u64 = 60;
 
@@ -13,7 +15,7 @@ lazy_static::lazy_static! {
 }
 
 impl crate::imap::ImapManager {
-    pub fn start_sync(&self, account_id: &str) -> Result<(), String> {
+    pub fn start_sync(&self, account_id: &str) -> Result<(), AppError> {
         let manager = self.clone();
         let account_id = account_id.to_string();
 
@@ -32,7 +34,7 @@ impl crate::imap::ImapManager {
                     .unwrap();
 
                 rt.block_on(async {
-                    let sync_loop: Result<(), String> =
+                    let sync_loop: Result<(), AppError> =
                         async { manager.account_sync_loop(&account_id, &stop_flag).await }.await;
 
                     if let Err(e) = sync_loop {
@@ -43,14 +45,14 @@ impl crate::imap::ImapManager {
                     flags.remove(&account_id);
                 });
             })
-            .map_err(|e| e.to_string())?;
+            .map_err(AppError::from)?;
 
         let mut tasks = SYNC_TASKS.lock().unwrap();
         tasks.push(handle);
         Ok(())
     }
 
-    pub fn stop_sync(&self, account_id: &str) -> Result<(), String> {
+    pub fn stop_sync(&self, account_id: &str) -> Result<(), AppError> {
         let (stop_flag, handle_idx): (Arc<AtomicBool>, Option<usize>) = {
             let flags = STOP_FLAGS.lock().unwrap();
             let tasks = SYNC_TASKS.lock().unwrap();
@@ -78,19 +80,24 @@ impl crate::imap::ImapManager {
             let mut tasks = SYNC_TASKS.lock().unwrap();
             let idx = Self::find_task_by_account_id(&tasks, account_id)
                 .map(|(idx, _)| idx)
-                .ok_or_else(|| format!("No sync running for account {}", account_id))?;
+                .ok_or_else(|| ImapError::NoSyncRunning {
+                    account_id: account_id.to_string(),
+                })?;
             tasks.remove(idx)
         };
 
         handle.join().map_err(|e| {
-            let err = if let Some(_) = e.downcast_ref::<&str>() {
-                "thread panicked with &str"
-            } else if let Some(_) = e.downcast_ref::<String>() {
-                "thread panicked with String"
+            let err = if let Some(s) = e.downcast_ref::<&str>() {
+                s.to_string()
+            } else if let Some(s) = e.downcast_ref::<String>() {
+                s.clone()
             } else {
-                "thread panicked"
+                "thread panicked".to_string()
             };
-            format!("Failed to join sync thread for {}: {}", account_id, err)
+            SyncError::SyncThreadPanic {
+                account_id: account_id.to_string(),
+                error: err,
+            }
         })?;
 
         let mut flags = STOP_FLAGS.lock().unwrap();
@@ -120,7 +127,7 @@ impl crate::imap::ImapManager {
         &self,
         account_id: &str,
         stop_flag: &Arc<AtomicBool>,
-    ) -> Result<(), String> {
+    ) -> Result<(), AppError> {
         self.sync_all_mailboxes(account_id, stop_flag).await?;
 
         loop {
@@ -142,7 +149,7 @@ impl crate::imap::ImapManager {
         &self,
         account_id: &str,
         stop_flag: &Arc<AtomicBool>,
-    ) -> Result<(), String> {
+    ) -> Result<(), AppError> {
         let mailboxes = self.fetch_mailboxes(account_id).await?;
         let account_id = account_id.to_string();
 
@@ -189,12 +196,9 @@ impl crate::imap::ImapManager {
         account_id: &str,
         mailbox_name: &str,
         stop_flag: &Arc<AtomicBool>,
-    ) -> Result<(), String> {
+    ) -> Result<(), AppError> {
         let mut session = self.connect_imap(account_id).await?;
-        let mailbox = session
-            .select(mailbox_name)
-            .await
-            .map_err(|e| e.to_string())?;
+        let mailbox = session.select(mailbox_name).await.map_err(AppError::from)?;
 
         let uid_validity = mailbox.uid_validity.unwrap_or(0);
         let highest_uid = mailbox.uid_next.map(|u| u.saturating_sub(1)).unwrap_or(0);
@@ -214,7 +218,7 @@ impl crate::imap::ImapManager {
 
         let mut idle = session.idle();
         if idle.init().await.is_err() {
-            session = idle.done().await.map_err(|e| e.to_string())?;
+            session = idle.done().await?;
             eprintln!(
                 "[IMAP] IDLE init failed for {}@{}, switching to polling",
                 mailbox_name, account_id
@@ -240,10 +244,13 @@ impl crate::imap::ImapManager {
         mailbox_name: &str,
         last_uid: &mut u32,
         stop_flag: &Arc<AtomicBool>,
-    ) -> Result<(), String> {
+    ) -> Result<(), AppError> {
         loop {
             if stop_flag.load(Ordering::SeqCst) {
-                let mut session = idle.done().await.map_err(|e| e.to_string())?;
+                let mut session = idle.done().await.map_err(|e| ImapError::IdleWaitError {
+                    mailbox: mailbox_name.to_string(),
+                    error: e.to_string(),
+                })?;
                 let _ = session.logout().await;
                 return Ok(());
             }
@@ -251,11 +258,16 @@ impl crate::imap::ImapManager {
             let (wait_future, _interrupt) = idle.wait();
             match timeout(Duration::from_secs(RFC_IDLE_TIMEOUT_SECS), wait_future).await {
                 Ok(Ok(_)) => {
-                    let mut session = idle.done().await.map_err(|e| e.to_string())?;
-                    let mailbox = session
-                        .select(mailbox_name)
-                        .await
-                        .map_err(|e| e.to_string())?;
+                    let mut session = idle.done().await.map_err(|e| ImapError::IdleWaitError {
+                        mailbox: mailbox_name.to_string(),
+                        error: e.to_string(),
+                    })?;
+                    let mailbox = session.select(mailbox_name).await.map_err(|e| {
+                        ImapError::MailboxSyncError {
+                            mailbox: mailbox_name.to_string(),
+                            error: e.to_string(),
+                        }
+                    })?;
                     let new_highest_uid =
                         mailbox.uid_next.map(|u| u.saturating_sub(1)).unwrap_or(0);
                     if new_highest_uid > *last_uid {
@@ -270,7 +282,9 @@ impl crate::imap::ImapManager {
                     }
                     idle = session.idle();
                     if idle.init().await.is_err() {
-                        session = idle.done().await.map_err(|e| e.to_string())?;
+                        session = idle.done().await.map_err(|e| ImapError::IdleReinitFailed {
+                            mailbox: mailbox_name.to_string(),
+                        })?;
                         eprintln!(
                             "[IMAP] IDLE reinit failed for {}@{}, switching to polling",
                             mailbox_name, account_id
@@ -281,7 +295,10 @@ impl crate::imap::ImapManager {
                     }
                 }
                 Ok(Err(e)) => {
-                    let session = idle.done().await.map_err(|e| e.to_string())?;
+                    let session = idle.done().await.map_err(|e| ImapError::IdleWaitError {
+                        mailbox: mailbox_name.to_string(),
+                        error: e.to_string(),
+                    })?;
                     eprintln!(
                         "[IMAP] IDLE wait error for {}@{}: {}, switching to polling",
                         mailbox_name, account_id, e
@@ -291,14 +308,19 @@ impl crate::imap::ImapManager {
                         .await;
                 }
                 Err(_) => {
-                    let mut session = idle.done().await.map_err(|e| e.to_string())?;
+                    let mut session = idle.done().await.map_err(|e| ImapError::IdleWaitError {
+                        mailbox: mailbox_name.to_string(),
+                        error: e.to_string(),
+                    })?;
                     eprintln!(
                         "[IMAP] IDLE timeout for {}@{}, re-entering IDLE",
                         mailbox_name, account_id
                     );
                     idle = session.idle();
                     if idle.init().await.is_err() {
-                        session = idle.done().await.map_err(|e| e.to_string())?;
+                        session = idle.done().await.map_err(|e| ImapError::IdleReinitFailed {
+                            mailbox: mailbox_name.to_string(),
+                        })?;
                         eprintln!(
                             "[IMAP] IDLE reinit failed for {}@{}, switching to polling",
                             mailbox_name, account_id
@@ -319,7 +341,7 @@ impl crate::imap::ImapManager {
         mailbox_name: &str,
         last_uid: &mut u32,
         stop_flag: &Arc<AtomicBool>,
-    ) -> Result<(), String> {
+    ) -> Result<(), AppError> {
         loop {
             if stop_flag.load(Ordering::SeqCst) {
                 let _ = session.logout().await;
@@ -330,10 +352,7 @@ impl crate::imap::ImapManager {
 
             match session.noop().await {
                 Ok(_) => {
-                    let mailbox = session
-                        .select(mailbox_name)
-                        .await
-                        .map_err(|e| e.to_string())?;
+                    let mailbox = session.select(mailbox_name).await?;
                     let new_highest_uid =
                         mailbox.uid_next.map(|u| u.saturating_sub(1)).unwrap_or(0);
                     if new_highest_uid > *last_uid {
@@ -353,10 +372,7 @@ impl crate::imap::ImapManager {
                         mailbox_name, account_id, e
                     );
                     session = self.connect_imap(account_id).await?;
-                    let _ = session
-                        .select(mailbox_name)
-                        .await
-                        .map_err(|e| e.to_string())?;
+                    let _ = session.select(mailbox_name).await?;
                 }
             }
         }
@@ -366,11 +382,10 @@ impl crate::imap::ImapManager {
         &self,
         account_id: &str,
         mailbox_name: &str,
-    ) -> Result<u32, String> {
+    ) -> Result<u32, AppError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn
-            .prepare("SELECT last_synced_uid FROM mailboxes WHERE account_id = ? AND name = ?")
-            .map_err(|e| e.to_string())?;
+            .prepare("SELECT last_synced_uid FROM mailboxes WHERE account_id = ? AND name = ?")?;
         let last_uid: Option<i64> = stmt
             .query_row([account_id, mailbox_name], |row| row.get(0))
             .ok();
@@ -383,7 +398,7 @@ impl crate::imap::ImapManager {
         mailbox_name: &str,
         start_uid: u32,
         end_uid: u32,
-    ) -> Result<(), String> {
+    ) -> Result<(), AppError> {
         if start_uid >= end_uid {
             return Ok(());
         }
@@ -413,15 +428,14 @@ impl crate::imap::ImapManager {
         }
 
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn
-            .prepare("UPDATE mailboxes SET last_synced_uid = ? WHERE account_id = ? AND name = ?")
-            .map_err(|e| e.to_string())?;
+        let mut stmt = conn.prepare(
+            "UPDATE mailboxes SET last_synced_uid = ? WHERE account_id = ? AND name = ?",
+        )?;
         stmt.execute([
             end_uid.to_string(),
             account_id.to_string(),
             mailbox_name.to_string(),
-        ])
-        .map_err(|e| e.to_string())?;
+        ])?;
 
         Ok(())
     }

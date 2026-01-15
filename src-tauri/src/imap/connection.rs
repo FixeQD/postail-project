@@ -1,3 +1,4 @@
+use crate::error::ImapError;
 use crate::oauth;
 use crate::oauth::ProviderKind;
 use async_imap::{Client, Session};
@@ -6,21 +7,25 @@ use async_std::net::TcpStream;
 use serde_json;
 
 impl super::ImapManager {
-    fn get_credentials(&self, account_id: &str) -> Result<String, String> {
+    fn get_credentials(&self, account_id: &str) -> Result<String, ImapError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn
             .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
         let creds_path: String = stmt
             .query_row([account_id], |row| row.get(0))
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
         drop(stmt);
         drop(conn);
 
         let security = self.security.lock().unwrap();
-        let encrypted = std::fs::read(&creds_path).map_err(|e| e.to_string())?;
-        let decrypted = security.decrypt(&encrypted).map_err(|e| e.to_string())?;
-        let creds_json = String::from_utf8(decrypted).map_err(|e| e.to_string())?;
+        let encrypted =
+            std::fs::read(&creds_path).map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
+        let decrypted = security
+            .decrypt(&encrypted)
+            .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
+        let creds_json =
+            String::from_utf8(decrypted).map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
         Ok(creds_json)
     }
 
@@ -28,7 +33,7 @@ impl super::ImapManager {
         &self,
         account_id: &str,
         creds: &mut serde_json::Value,
-    ) -> Result<(), String> {
+    ) -> Result<(), ImapError> {
         let auth_type = creds
             .get("auth_type")
             .and_then(|v| v.as_str())
@@ -49,7 +54,7 @@ impl super::ImapManager {
 
         if expires_in < 300 && refresh_token.is_some() {
             let provider_kind = ProviderKind::from_str(provider_type)
-                .ok_or_else(|| "Unknown OAuth provider".to_string())?;
+                .ok_or_else(|| ImapError::UnknownOAuthProvider)?;
             let provider = oauth::Provider::from_kind(provider_kind);
 
             match oauth::refresh_access_token(provider, refresh_token.unwrap().to_string()).await {
@@ -64,20 +69,21 @@ impl super::ImapManager {
                         let conn = self.conn.lock().unwrap();
                         let mut stmt = conn
                             .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
-                            .map_err(|e| e.to_string())?;
+                            .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
                         stmt.query_row([account_id], |row| row.get::<_, String>(0))
-                            .map_err(|e| e.to_string())
+                            .map_err(|e| ImapError::CredentialsFetch(e.to_string()))
                     }?;
 
                     let creds_json = creds.to_string();
                     let security = self.security.lock().unwrap();
                     let encrypted = security
                         .encrypt(creds_json.as_bytes())
-                        .map_err(|e| e.to_string())?;
-                    std::fs::write(&creds_path, encrypted).map_err(|e| e.to_string())?;
+                        .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
+                    std::fs::write(&creds_path, encrypted)
+                        .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
                 }
                 Err(e) => {
-                    return Err(format!("OAuth refresh failed: {}", e));
+                    return Err(ImapError::OAuthRefresh(e.to_string()));
                 }
             }
         }
@@ -88,11 +94,11 @@ impl super::ImapManager {
     pub async fn connect_imap(
         &self,
         account_id: &str,
-    ) -> Result<Session<TlsStream<TcpStream>>, String> {
+    ) -> Result<Session<TlsStream<TcpStream>>, ImapError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn
             .prepare("SELECT imap_host, imap_port, imap_tls, auth_type, email FROM accounts WHERE id = ?")
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| ImapError::Connection(e.to_string()))?;
         let (host, port, _tls, auth_type, email): (String, u16, bool, String, String) = stmt
             .query_row([account_id], |row| {
                 Ok((
@@ -103,38 +109,44 @@ impl super::ImapManager {
                     row.get(4)?,
                 ))
             })
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| ImapError::Connection(e.to_string()))?;
         drop(stmt);
         drop(conn);
 
         let creds_json = self.get_credentials(account_id)?;
         let mut creds: serde_json::Value =
-            serde_json::from_str(&creds_json).map_err(|e| e.to_string())?;
+            serde_json::from_str(&creds_json).map_err(|e| ImapError::Connection(e.to_string()))?;
         self.refresh_oauth_if_needed(account_id, &mut creds).await?;
 
         let tcp_stream = async_std::net::TcpStream::connect((host.as_str(), port))
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| ImapError::Connection(e.to_string()))?;
         let tls_connector = TlsConnector::new();
         let tls_stream = tls_connector
             .connect(&host, tcp_stream)
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| ImapError::Connection(e.to_string()))?;
         let client = Client::new(tls_stream);
 
         let session = if auth_type == "oauth2" {
-            let access_token = creds["access_token"].as_str().ok_or("No access_token")?;
+            let access_token = creds["access_token"]
+                .as_str()
+                .ok_or_else(|| ImapError::Login("No access_token".to_string()))?;
             let username = &email;
             match client.login(username, access_token).await {
                 Ok(session) => session,
-                Err((e, _)) => return Err(format!("Login failed: {:?}", e)),
+                Err((e, _)) => return Err(ImapError::Login(e.to_string())),
             }
         } else {
-            let username = creds["username"].as_str().ok_or("No username")?;
-            let password = creds["password"].as_str().ok_or("No password")?;
+            let username = creds["username"]
+                .as_str()
+                .ok_or_else(|| ImapError::Login("No username".to_string()))?;
+            let password = creds["password"]
+                .as_str()
+                .ok_or_else(|| ImapError::Login("No password".to_string()))?;
             match client.login(username, password).await {
                 Ok(session) => session,
-                Err((e, _)) => return Err(format!("Login failed: {:?}", e)),
+                Err((e, _)) => return Err(ImapError::Login(e.to_string())),
             }
         };
 
