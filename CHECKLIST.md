@@ -2,11 +2,11 @@
 
 ## IMAP Sync
 
-- [ ] Fix MutexGuard Send issues in async commands (use tokio::sync::Mutex or spawn_blocking)
+- [x] Fix MutexGuard Send issues in async commands (use tokio::sync::Mutex or spawn_blocking)
 - [ ] Implement robust IMAP connection with IDLE/poll fallback
-- [ ] Add mailbox fetching and caching
-- [ ] Implement header fetching with pagination
-- [ ] Add full message fetching with body parsing (HTML/plain, attachments)
+- [x] Add mailbox fetching and caching
+- [x] Implement header fetching with pagination
+- [x] Add full message fetching with body parsing (HTML/plain, attachments)
 - [ ] Handle OAuth refresh during IMAP operations
 - [ ] Implement sync status tracking
 - [ ] Add error recovery for network/auth failures
@@ -14,9 +14,9 @@
 
 ## SMTP & Outbox
 
-- [ ] Implement SMTP sending with authentication (password/OAuth)
-- [ ] Add outbox queue with retry policy (exponential backoff)
-- [ ] Handle sending failures and status updates
+- [x] Implement SMTP sending with authentication (password/OAuth)
+- [x] Add outbox queue with retry policy (exponential backoff)
+- [x] Handle sending failures and status updates
 - [ ] Integrate with IMAP to move sent emails to Sent folder
 - [ ] Implement outbox worker (background task with tokio::spawn)
 - [ ] Add email composition with HTML/CSS inlining
@@ -26,11 +26,13 @@
 ## Database Integration
 
 ### Async & Concurrency
+
 - [x] Replace std::sync::Mutex with tokio::sync::Mutex (DB_CONN, IMAP_MANAGER, SMTP_MANAGER)
 - [x] Update .lock().unwrap() to .lock().await in all async functions
 - [ ] Add spawn_blocking for batch operations (messages, vacuum, backup)
 
 ### IMAP Data Storage
+
 - [ ] Implement check_uidvalidity function with mailbox resync on mismatch
 - [ ] Add get_mailbox_metadata (uid_validity, highest_modseq)
 - [ ] Implement update_highest_modseq for CONDSTORE support
@@ -39,48 +41,56 @@
 - [ ] Populate has_attachments flag by checking attachments table
 
 ### Full-Text Search (FTS5)
+
 - [ ] Implement search_messages function with account/mailbox filters
 - [ ] Add FTS triggers (INSERT/UPDATE/DELETE) for auto-sync
 - [ ] Add escape_fts_query helper for user input sanitization
 - [ ] Support phrase/boolean search syntax (default FTS5)
 
 ### Outbox Persistence
-- [ ] Implement extract_headers_from_eml using mailparse
-- [ ] Update enqueue_message to store subject and recipient
-- [ ] Add update_outbox_status and increment_outbox_attempts functions
-- [ ] Implement calculate_backoff (5s, 30s, 5m, 15m, 1h)
+
+- [x] Implement extract_headers_from_eml using mailparse
+- [x] Update enqueue_message to store subject and recipient
+- [x] Add update_outbox_status and increment_outbox_attempts functions
+- [x] Implement calculate_backoff (5s, 30s, 5m, 15m, 1h)
 - [ ] Add cleanup_old_sent_messages (delete SENT >30 days)
 
 ### Attachment Management
+
 - [ ] Implement get_attachment_cache_path with sharded structure
 - [ ] Add save_attachment function (encrypt + write + store metadata)
 - [ ] Add load_attachment function (decrypt + return data + mime type)
 - [ ] Implement enforce_attachment_cache_limit with LRU eviction (2GB max)
 
 ### Message Body Storage
-- [ ] Create message_bodies table
-- [ ] Implement save_message_body with ammonia sanitization
-- [ ] Update fetch_message_full to load actual body content
+
+- [x] Create message_bodies table
+- [x] Implement save_message_body with ammonia sanitization
+- [x] Update fetch_message_full to load actual body content
 - [ ] Add lazy loading pattern for large messages
 
 ### Performance Optimization
+
 - [ ] Add indexes: messages(account_id, mailbox, uid, internal_date), outbox(status, next_retry)
 - [ ] Configure PRAGMA: journal_mode=WAL, synchronous=NORMAL, cache_size=64MB, mmap_size=256MB
 - [ ] Implement schedule_maintenance with weekly VACUUM/ANALYZE
 - [ ] Add WAL checkpoint scheduling
 
 ### Database Migrations
+
 - [ ] Create migrations module with version tracking
 - [ ] Implement run_migrations with automatic upgrade
 - [ ] Add migration for message_bodies table
 - [ ] Add migration for FTS triggers
 
 ### Backup & Recovery
-- [ ] Implement export_backup (partial DB + re-encrypted creds)
-- [ ] Implement import_backup (validate + restore + re-encrypt)
+
+- [x] Implement export_backup (partial DB + re-encrypted creds)
+- [x] Implement import_backup (validate + restore + re-encrypt)
 - [ ] Add backup passphrase handling (separate from master key)
 
 ### Testing
+
 - [ ] Add test_fts_search with various query patterns
 - [ ] Add test_concurrent_access for parallel operations
 - [ ] Add test_migration_up_down for migration verification
