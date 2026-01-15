@@ -16,7 +16,7 @@ use crate::db::accounts::{
 use crate::db::{
     export_backup as db_export_backup, import_backup as db_import_backup, init_db, AccountInput,
     AccountMeta, Credentials, ImapConfig, MailHeader, Mailbox, MessageFull, OAuthCredentials,
-    OutboxItem, SmtpConfig, SyncStatusEnum,
+    OutboxItem, SmtpConfig, SyncStatusEnum, run_encryption_migration_if_needed,
 };
 use crate::imap::ImapManager;
 use crate::security::stores::SecretStore;
@@ -27,14 +27,16 @@ use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
 lazy_static! {
-    static ref DB_CONN: Arc<Mutex<Connection>> = Arc::new(Mutex::new(init_db().unwrap()));
-    static ref SECURITY: Arc<Mutex<SecurityManager>> =
-        Arc::new(Mutex::new(SecurityManager::new().unwrap()));
-    static ref IMAP_MANAGER: Arc<Mutex<ImapManager>> = Arc::new(Mutex::new(ImapManager::new(
+    pub static ref DB_CONN: Arc<Mutex<Connection>> = Arc::new(Mutex::new(
+        init_db().expect("Failed to initialize database")
+    ));
+    pub static ref SECURITY: Arc<Mutex<SecurityManager>> =
+        Arc::new(Mutex::new(SecurityManager::new().expect("Failed to initialize security")));
+    pub static ref IMAP_MANAGER: Arc<Mutex<ImapManager>> = Arc::new(Mutex::new(ImapManager::new(
         Arc::clone(&DB_CONN),
         Arc::clone(&SECURITY),
     )));
-    static ref SMTP_MANAGER: Arc<Mutex<SmtpManager>> = Arc::new(Mutex::new(SmtpManager::new(
+    pub static ref SMTP_MANAGER: Arc<Mutex<SmtpManager>> = Arc::new(Mutex::new(SmtpManager::new(
         Arc::clone(&DB_CONN),
         Arc::clone(&SECURITY),
     )));
@@ -384,6 +386,15 @@ pub fn run() {
         .setup(|app| {
             utils::oauth_server::start(app.handle().clone());
             maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
+
+            let db_conn = Arc::clone(&DB_CONN);
+            tokio::task::spawn_blocking(move || {
+                if let Err(e) = run_encryption_migration_if_needed() {
+                    eprintln!("[DB] Encryption migration failed: {}", e);
+                    eprintln!("[DB] The application may not function correctly without encrypted database");
+                }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

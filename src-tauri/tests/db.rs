@@ -635,3 +635,87 @@ fn test_performance_large_datasets() {
         fetch_time
     );
 }
+
+#[test]
+fn test_hkdf_key_derivation() {
+    use hkdf::Hkdf;
+    use sha2::Sha256;
+
+    let master_key = [0x42u8; 32];
+    let salt = b"test-salt-for-hkdf-32bytes!";
+
+    let mut derived_key = [0u8; 32];
+    let hkdf = Hkdf::<Sha256>::new(Some(salt), &master_key);
+    hkdf.expand(b"postail-db-encryption-v1", &mut derived_key)
+        .unwrap();
+
+    let derived_key_hex = hex::encode(derived_key);
+    assert_eq!(derived_key_hex.len(), 64);
+
+    let mut derived_key2 = [0u8; 32];
+    let hkdf2 = Hkdf::<Sha256>::new(Some(salt), &master_key);
+    hkdf2.expand(b"postail-db-encryption-v1", &mut derived_key2)
+        .unwrap();
+
+    assert_eq!(derived_key, derived_key2);
+}
+
+#[test]
+fn test_db_encryption_roundtrip() {
+    use postail_project_lib::security::db_encryption::DbEncryption;
+
+    let master_key = [0xab; 32];
+
+    let encryption = DbEncryption::derive_with_test_salt(&master_key).unwrap();
+    let hex_key = encryption.hex_key();
+    assert_eq!(hex_key.len(), 64);
+
+    let encryption2 = DbEncryption::derive_with_test_salt(&master_key).unwrap();
+    assert_eq!(encryption.hex_key(), encryption2.hex_key());
+
+    let different_master = [0xcd; 32];
+    let encryption3 = DbEncryption::derive_with_test_salt(&different_master).unwrap();
+    assert_ne!(hex_key, encryption3.hex_key());
+}
+
+#[test]
+fn test_sqlcipher_encryption() {
+    use postail_project_lib::security::db_encryption::DbEncryption;
+    use rusqlite::Connection;
+
+    let temp_file = NamedTempFile::new().unwrap();
+    let db_path = temp_file.path();
+    std::fs::remove_file(db_path).unwrap();
+
+    let master_key = [0x12u8; 32];
+    let encryption = DbEncryption::derive_with_test_salt(&master_key).unwrap();
+    let key_hex = encryption.hex_key();
+
+    {
+        let conn = Connection::open(db_path).unwrap();
+        conn.execute(&format!("PRAGMA key = \"x'{key_hex}'\""), ()).unwrap();
+        conn.execute("CREATE TABLE test_table (id INTEGER PRIMARY KEY, data TEXT)", ()).unwrap();
+        conn.execute("INSERT INTO test_table VALUES (1, 'secret_data')", ()).unwrap();
+    }
+
+    {
+        let conn = Connection::open(db_path).unwrap();
+        let result: Result<String, rusqlite::Error> = conn.query_row(
+            "SELECT data FROM test_table WHERE id = 1",
+            [],
+            |row| row.get(0),
+        );
+        assert!(result.is_err(), "Reading without key should fail on encrypted DB");
+    }
+
+    {
+        let conn = Connection::open(db_path).unwrap();
+        conn.execute(&format!("PRAGMA key = \"x'{key_hex}'\""), ()).unwrap();
+        let result: String = conn.query_row(
+            "SELECT data FROM test_table WHERE id = 1",
+            [],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(result, "secret_data");
+    }
+}

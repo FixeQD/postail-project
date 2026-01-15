@@ -128,6 +128,13 @@ impl SecurityManager {
             .ok_or(SecurityError::MasterKeyNotFound)
     }
 
+    pub fn get_master_key_raw(&self) -> Vec<u8> {
+        self.master_key
+            .as_ref()
+            .map(|mk| mk.as_bytes().to_vec())
+            .unwrap_or_default()
+    }
+
     pub fn encrypt_with_passphrase(&self, plaintext: &[u8], passphrase: &str) -> Result<Vec<u8>> {
         use crate::security::master_key::MasterKey;
         use argon2::Argon2;

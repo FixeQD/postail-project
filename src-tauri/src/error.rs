@@ -82,6 +82,9 @@ pub enum DBError {
 
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
+
+    #[error("Migration error: {0}")]
+    Migration(String),
 }
 
 pub type Result<T> = std::result::Result<T, SecurityError>;

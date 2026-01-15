@@ -4,6 +4,7 @@ pub mod imap;
 pub mod mailbox;
 pub mod message_bodies;
 pub mod messages;
+pub mod migration;
 pub mod outbox;
 pub mod outbox_db;
 pub mod search;
@@ -23,12 +24,14 @@ pub use crate::db::imap::*;
 pub use crate::db::mailbox::{fetch_mailboxes, upsert_mailbox};
 pub use crate::db::message_bodies::*;
 pub use crate::db::messages::{fetch_headers, fetch_message_full, upsert_message};
+pub use crate::db::migration::run_encryption_migration_if_needed;
 pub use crate::db::outbox::*;
 pub use crate::db::outbox_db::{enqueue_message, list_outbox};
 pub use crate::db::search::*;
 pub use crate::db::sql_helpers::*;
 pub use crate::db::tables::*;
 use crate::error::DBError;
+use crate::security::db_encryption::DbEncryption;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ImapConfig {
@@ -152,11 +155,41 @@ pub fn init_db() -> Result<Connection, DBError> {
         .join("postail");
     fs::create_dir_all(&data_dir).map_err(|e| DBError::Io(e))?;
     let db_path = data_dir.join("postail.db");
-    let conn = Connection::open(db_path)?;
+
+    let conn = Connection::open(&db_path)?;
+
+    apply_sqlcipher_key(&conn)?;
+
     tables::create_tables(&conn)?;
     tables::create_indexes(&conn)?;
     tables::create_fts_triggers(&conn)?;
+
     Ok(conn)
+}
+
+fn apply_sqlcipher_key(conn: &Connection) -> Result<(), DBError> {
+    let key = crate::security::DbEncryption::get_hex_key();
+    if key.is_empty() {
+        return Err(DBError::Security(crate::error::SecurityError::KeyDerivation(
+            "Failed to get database encryption key".to_string(),
+        )));
+    }
+
+    conn.execute(&format!("PRAGMA key = \"x'{key}'\""), ())?;
+
+    let integrity: i32 = conn.query_row("PRAGMA cipher_integrity_check", [], |row| row.get(0)).unwrap_or(1);
+    if integrity != 0 {
+        return Err(DBError::Security(crate::error::SecurityError::Decryption(
+            "Database encryption verification failed".to_string(),
+        )));
+    }
+
+    conn.execute("PRAGMA journal_mode = WAL", ())?;
+    conn.execute("PRAGMA synchronous = NORMAL", ())?;
+    conn.execute("PRAGMA cache_size = -64000", ())?;
+    conn.execute("PRAGMA mmap_size = 268435456", ())?;
+
+    Ok(())
 }
 
 fn save_creds_blob(id: &str, data: &[u8]) -> Result<String, DBError> {
