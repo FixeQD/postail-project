@@ -1,4 +1,5 @@
 use crate::oauth;
+use crate::oauth::ProviderKind;
 use async_imap::{Client, Session};
 use async_native_tls::{TlsConnector, TlsStream};
 use async_std::net::TcpStream;
@@ -47,11 +48,9 @@ impl super::ImapManager {
             .unwrap_or("generic");
 
         if expires_in < 300 && refresh_token.is_some() {
-            let provider = match provider_type {
-                "gmail" => oauth::Provider::Gmail,
-                "outlook" => oauth::Provider::Outlook,
-                _ => return Err("Unknown OAuth provider".to_string()),
-            };
+            let provider_kind = ProviderKind::from_str(provider_type)
+                .ok_or_else(|| "Unknown OAuth provider".to_string())?;
+            let provider = oauth::Provider::from_kind(provider_kind);
 
             match oauth::refresh_access_token(provider, refresh_token.unwrap().to_string()).await {
                 Ok(new_tokens) => {

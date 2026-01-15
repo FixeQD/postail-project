@@ -66,11 +66,9 @@ fn remove_account(id: String) -> Result<(), String> {
 
 #[tauri::command]
 async fn start_oauth_flow(provider: String) -> Result<String, String> {
-    let provider = match provider.as_str() {
-        "gmail" => oauth::Provider::Gmail,
-        "outlook" => oauth::Provider::Outlook,
-        _ => return Err("Unknown provider".to_string()),
-    };
+    let provider_kind =
+        oauth::ProviderKind::from_str(&provider).ok_or_else(|| "Unknown provider".to_string())?;
+    let provider = oauth::Provider::from_kind(provider_kind);
     match oauth::start_oauth_flow(provider) {
         Ok(url) => Ok(url),
         Err(e) => Err(e.to_string()),
@@ -84,8 +82,8 @@ async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta,
         Err(e) => return Err(e.to_string()),
     };
 
-    let email = match provider {
-        oauth::Provider::Gmail => {
+    let email = match provider.kind {
+        oauth::ProviderKind::Gmail => {
             let client = reqwest::Client::new();
             let response = client
                 .get("https://www.googleapis.com/oauth2/v2/userinfo")
@@ -111,7 +109,7 @@ async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta,
                 .ok_or("No email in Gmail response")?
                 .to_string()
         }
-        oauth::Provider::Outlook => {
+        oauth::ProviderKind::Outlook => {
             let client = reqwest::Client::new();
             let response = client
                 .get("https://graph.microsoft.com/v1.0/me")
@@ -134,9 +132,9 @@ async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta,
     let account_input = AccountInput {
         name: format!(
             "{} Account",
-            match provider {
-                oauth::Provider::Gmail => "Gmail",
-                oauth::Provider::Outlook => "Outlook",
+            match provider.kind {
+                oauth::ProviderKind::Gmail => "Gmail",
+                oauth::ProviderKind::Outlook => "Outlook",
             }
         ),
         email,
@@ -146,25 +144,25 @@ async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta,
             refresh_token: tokens.refresh_token,
             expires_in: tokens.expires_in,
         }),
-        imap_config: match provider {
-            oauth::Provider::Gmail => ImapConfig {
+        imap_config: match provider.kind {
+            oauth::ProviderKind::Gmail => ImapConfig {
                 host: "imap.gmail.com".to_string(),
                 port: 993,
                 tls: true,
             },
-            oauth::Provider::Outlook => ImapConfig {
+            oauth::ProviderKind::Outlook => ImapConfig {
                 host: "outlook.office365.com".to_string(),
                 port: 993,
                 tls: true,
             },
         },
-        smtp_config: match provider {
-            oauth::Provider::Gmail => SmtpConfig {
+        smtp_config: match provider.kind {
+            oauth::ProviderKind::Gmail => SmtpConfig {
                 host: "smtp.gmail.com".to_string(),
                 port: 587,
                 tls: true,
             },
-            oauth::Provider::Outlook => SmtpConfig {
+            oauth::ProviderKind::Outlook => SmtpConfig {
                 host: "smtp-mail.outlook.com".to_string(),
                 port: 587,
                 tls: true,
