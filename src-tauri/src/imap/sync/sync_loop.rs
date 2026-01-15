@@ -1,7 +1,9 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
-use tokio::time::Duration;
+use tokio::time::{timeout, Duration};
+
+const RFC_IDLE_TIMEOUT_SECS: u64 = 29 * 60;
 
 lazy_static::lazy_static! {
     static ref SYNC_TASKS: std::sync::Mutex<Vec<thread::JoinHandle<()>>> = std::sync::Mutex::new(Vec::new());
@@ -219,8 +221,8 @@ impl crate::imap::ImapManager {
             idle.init().await.map_err(|e| e.to_string())?;
 
             let (wait_future, _interrupt) = idle.wait();
-            match wait_future.await {
-                Ok(_) => {
+            match timeout(Duration::from_secs(RFC_IDLE_TIMEOUT_SECS), wait_future).await {
+                Ok(Ok(_)) => {
                     session = idle.done().await.map_err(|e| e.to_string())?;
                     let mailbox = session
                         .select(mailbox_name)
@@ -238,8 +240,15 @@ impl crate::imap::ImapManager {
                         last_uid = new_uid_count;
                     }
                 }
-                Err(e) => {
+                Ok(Err(e)) => {
                     return Err(format!("IDLE wait error: {}", e));
+                }
+                Err(_) => {
+                    session = idle.done().await.map_err(|e| e.to_string())?;
+                    eprintln!(
+                        "[IMAP] IDLE timeout for {}@{}, re-entering IDLE",
+                        mailbox_name, account_id
+                    );
                 }
             }
         }
