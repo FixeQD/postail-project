@@ -313,7 +313,7 @@ pub fn import_backup(
         for entry in fs::read_dir(&backup_creds).map_err(DBError::Io)? {
             let entry = entry.map_err(DBError::Io)?;
             let path = entry.path();
-            if path.is_file() && path.extension().map_or(false, |e| e == "enc") {
+            if path.is_file() && path.extension().is_some_and(|e| e == "enc") {
                 let backup_encrypted = fs::read(&path).map_err(DBError::Io)?;
                 let decrypted = if let Some(ref pass) = passphrase {
                     security

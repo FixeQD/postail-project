@@ -53,7 +53,7 @@ impl crate::imap::ImapManager {
     }
 
     pub fn stop_sync(&self, account_id: &str) -> Result<(), AppError> {
-        let (stop_flag, handle_idx): (Arc<AtomicBool>, Option<usize>) = {
+        let (stop_flag, _handle_idx): (Arc<AtomicBool>, Option<usize>) = {
             let flags = STOP_FLAGS.lock().unwrap();
             let tasks = SYNC_TASKS.lock().unwrap();
             match (
@@ -282,9 +282,12 @@ impl crate::imap::ImapManager {
                     }
                     idle = session.idle();
                     if idle.init().await.is_err() {
-                        session = idle.done().await.map_err(|e| ImapError::IdleReinitFailed {
-                            mailbox: mailbox_name.to_string(),
-                        })?;
+                        session = idle
+                            .done()
+                            .await
+                            .map_err(|_e| ImapError::IdleReinitFailed {
+                                mailbox: mailbox_name.to_string(),
+                            })?;
                         eprintln!(
                             "[IMAP] IDLE reinit failed for {}@{}, switching to polling",
                             mailbox_name, account_id
@@ -318,9 +321,12 @@ impl crate::imap::ImapManager {
                     );
                     idle = session.idle();
                     if idle.init().await.is_err() {
-                        session = idle.done().await.map_err(|e| ImapError::IdleReinitFailed {
-                            mailbox: mailbox_name.to_string(),
-                        })?;
+                        session = idle
+                            .done()
+                            .await
+                            .map_err(|_e| ImapError::IdleReinitFailed {
+                                mailbox: mailbox_name.to_string(),
+                            })?;
                         eprintln!(
                             "[IMAP] IDLE reinit failed for {}@{}, switching to polling",
                             mailbox_name, account_id

@@ -1,6 +1,5 @@
 use std::fs;
 
-use rusqlite::Connection;
 use uuid::Uuid;
 
 use crate::db::{enqueue_message, extract_headers_from_eml, list_outbox, OutboxItem};
@@ -19,7 +18,7 @@ impl super::SmtpManager {
         drop(security);
         fs::write(&eml_path, encrypted_eml).map_err(|e| e.to_string())?;
 
-        let (_subject, recipient) =
+        let (_subject, _recipient) =
             extract_headers_from_eml(&eml_path.to_string_lossy()).map_err(|e| e.to_string())?;
 
         let conn = self.conn.lock().unwrap();

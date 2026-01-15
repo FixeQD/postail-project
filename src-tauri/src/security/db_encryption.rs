@@ -11,8 +11,6 @@ use std::sync::Arc;
 use thiserror::Error;
 use zeroize::Zeroize;
 
-use crate::error::SecurityError;
-
 const DB_ENC_KEY_INFO: &[u8] = b"postail-db-encryption-v1";
 const DB_ENC_SALT_SERVICE: &str = "postail";
 const DB_ENC_SALT_KEY: &str = "db-encryption-salt";

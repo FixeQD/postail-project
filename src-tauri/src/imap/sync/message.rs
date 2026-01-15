@@ -9,7 +9,7 @@ impl crate::imap::ImapManager {
         uid: u32,
     ) -> Result<Option<crate::db::MessageFull>, String> {
         let conn = self.conn.lock().unwrap();
-        crate::db::fetch_message_full(&*conn, account_id, mailbox, uid).map_err(|e| e.to_string())
+        crate::db::fetch_message_full(&conn, account_id, mailbox, uid).map_err(|e| e.to_string())
     }
 
     pub async fn fetch_message_full(
@@ -37,7 +37,7 @@ impl crate::imap::ImapManager {
                 let inline_images = vec![];
 
                 let header = crate::db::fetch_headers(
-                    &*self.conn.lock().unwrap(),
+                    &self.conn.lock().unwrap(),
                     account_id,
                     mailbox,
                     Some(uid - 1),

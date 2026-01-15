@@ -43,7 +43,7 @@ pub fn start_maintenance_scheduler(db_conn: Arc<Mutex<Connection>>) {
                 let db_conn_clone = Arc::clone(&db_conn);
                 thread::spawn(move || {
                     let conn = db_conn_clone.lock().unwrap();
-                    if let Err(e) = run_maintenance(&*conn) {
+                    if let Err(e) = run_maintenance(&conn) {
                         eprintln!("Weekly maintenance failed: {}", e);
                     }
                 });

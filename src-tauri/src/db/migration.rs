@@ -6,10 +6,8 @@ use crate::error::DBError;
 use crate::security::db_encryption::DbEncryption;
 
 pub fn check_db_encrypted(conn: &Connection) -> bool {
-    match conn.query_row("PRAGMA cipher_version", [], |_| Ok(())) {
-        Ok(_) => true,
-        Err(_) => false,
-    }
+    conn.query_row("PRAGMA cipher_version", [], |_| Ok(()))
+        .is_ok()
 }
 
 pub fn check_db_has_tables(conn: &Connection) -> bool {
@@ -64,7 +62,7 @@ pub fn migrate_unencrypted_db(db_path: &Path, encryption: &DbEncryption) -> Resu
 
     eprintln!("[DB] Replacing original database with encrypted version...");
 
-    fs::rename(encrypted_path, db_path).map_err(|e| DBError::Io(e))?;
+    fs::rename(encrypted_path, db_path).map_err(DBError::Io)?;
 
     eprintln!("[DB] Verifying encrypted database...");
 

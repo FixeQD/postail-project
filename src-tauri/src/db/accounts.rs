@@ -62,7 +62,7 @@ pub fn add_account(
             &(input.smtp_config.tls as i64).to_string(),
             &creds_path,
             &encryption_mode,
-            &(created_at.timestamp() as i64).to_string(),
+            &created_at.timestamp().to_string(),
         ],
     )?;
 

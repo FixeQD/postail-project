@@ -72,7 +72,7 @@ pub(crate) fn hex_encode(bytes: &[u8]) -> String {
 }
 
 pub(crate) fn hex_decode(hex: &str) -> Result<Vec<u8>> {
-    if hex.len() % 2 != 0 {
+    if !hex.len().is_multiple_of(2) {
         return Err(SecurityError::Decryption("invalid hex length".into()));
     }
 

@@ -13,7 +13,7 @@ impl crate::imap::ImapManager {
         limit: u32,
     ) -> Result<Vec<MailHeader>, String> {
         let conn = self.conn.lock().unwrap();
-        crate::db::fetch_headers(&*conn, account_id, mailbox, anchor, limit)
+        crate::db::fetch_headers(&conn, account_id, mailbox, anchor, limit)
             .map_err(|e| e.to_string())
     }
 
@@ -115,7 +115,7 @@ impl crate::imap::ImapManager {
                 };
 
                 upsert_message(
-                    &*self.conn.lock().unwrap(),
+                    &self.conn.lock().unwrap(),
                     account_id,
                     mailbox,
                     uid,

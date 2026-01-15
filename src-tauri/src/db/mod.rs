@@ -31,7 +31,6 @@ pub use crate::db::search::*;
 pub use crate::db::sql_helpers::*;
 pub use crate::db::tables::*;
 use crate::error::DBError;
-use crate::security::db_encryption::DbEncryption;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ImapConfig {
@@ -153,7 +152,7 @@ pub fn init_db() -> Result<Connection, DBError> {
     let data_dir = dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("postail");
-    fs::create_dir_all(&data_dir).map_err(|e| DBError::Io(e))?;
+    fs::create_dir_all(&data_dir).map_err(DBError::Io)?;
     let db_path = data_dir.join("postail.db");
 
     let conn = Connection::open(&db_path)?;

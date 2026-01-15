@@ -28,9 +28,7 @@ pub fn save_message_body(
     body_html: Option<&str>,
     body_plain: Option<&str>,
 ) -> Result<(), DBError> {
-    let body_html_safe = body_html
-        .map(|html| ammonia::clean(html))
-        .unwrap_or_default();
+    let body_html_safe = body_html.map(ammonia::clean).unwrap_or_default();
 
     let body_text = body_plain.unwrap_or_else(|| body_html.unwrap_or(""));
     let snippet = body_text.chars().take(200).collect::<String>();

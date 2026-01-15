@@ -53,8 +53,8 @@ impl super::ImapManager {
             .unwrap_or("generic");
 
         if expires_in < 300 && refresh_token.is_some() {
-            let provider_kind = ProviderKind::from_str(provider_type)
-                .ok_or_else(|| ImapError::UnknownOAuthProvider)?;
+            let provider_kind =
+                ProviderKind::from_str(provider_type).ok_or(ImapError::UnknownOAuthProvider)?;
             let provider = oauth::Provider::from_kind(provider_kind);
 
             match oauth::refresh_access_token(provider, refresh_token.unwrap().to_string()).await {

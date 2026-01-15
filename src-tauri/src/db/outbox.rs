@@ -154,7 +154,7 @@ fn enforce_attachment_cache_limit_rec(
     for entry in fs::read_dir(dir).map_err(DBError::Io)? {
         let entry = entry.map_err(DBError::Io)?;
         let path = entry.path();
-        if path.is_file() && path.extension().map_or(false, |e| e == "enc") {
+        if path.is_file() && path.extension().is_some_and(|e| e == "enc") {
             let file_size = entry.metadata().map_err(DBError::Io)?.len();
             size += file_size;
             files.push((path, file_size));
