@@ -1,10 +1,8 @@
-use crate::security::SecurityManager;
+use crate::oauth;
 use async_imap::{Client, Session};
 use async_native_tls::{TlsConnector, TlsStream};
 use async_std::net::TcpStream;
-use rusqlite::Connection;
 use serde_json;
-use std::sync::{Arc, Mutex};
 
 impl super::ImapManager {
     fn get_credentials(&self, account_id: &str) -> Result<String, String> {
@@ -30,8 +28,61 @@ impl super::ImapManager {
         account_id: &str,
         creds: &mut serde_json::Value,
     ) -> Result<(), String> {
-        // TODO: Implement OAuth refresh logic
-        // Check expires_at, refresh, update DB
+        let auth_type = creds
+            .get("auth_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        if auth_type != "oauth2" {
+            return Ok(());
+        }
+
+        let expires_in = creds
+            .get("expires_in")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        let refresh_token = creds.get("refresh_token").and_then(|v| v.as_str());
+        let provider_type = creds
+            .get("provider_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("generic");
+
+        if expires_in < 300 && refresh_token.is_some() {
+            let provider = match provider_type {
+                "gmail" => oauth::Provider::Gmail,
+                "outlook" => oauth::Provider::Outlook,
+                _ => return Err("Unknown OAuth provider".to_string()),
+            };
+
+            match oauth::refresh_access_token(provider, refresh_token.unwrap().to_string()).await {
+                Ok(new_tokens) => {
+                    creds["access_token"] = serde_json::Value::String(new_tokens.access_token);
+                    if let Some(rt) = new_tokens.refresh_token {
+                        creds["refresh_token"] = serde_json::Value::String(rt);
+                    }
+                    creds["expires_in"] = serde_json::Number::from(new_tokens.expires_in).into();
+
+                    let creds_path: String = {
+                        let conn = self.conn.lock().unwrap();
+                        let mut stmt = conn
+                            .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
+                            .map_err(|e| e.to_string())?;
+                        stmt.query_row([account_id], |row| row.get::<_, String>(0))
+                            .map_err(|e| e.to_string())
+                    }?;
+
+                    let creds_json = creds.to_string();
+                    let security = self.security.lock().unwrap();
+                    let encrypted = security
+                        .encrypt(creds_json.as_bytes())
+                        .map_err(|e| e.to_string())?;
+                    std::fs::write(&creds_path, encrypted).map_err(|e| e.to_string())?;
+                }
+                Err(e) => {
+                    return Err(format!("OAuth refresh failed: {}", e));
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -43,7 +94,7 @@ impl super::ImapManager {
         let mut stmt = conn
             .prepare("SELECT imap_host, imap_port, imap_tls, auth_type, email FROM accounts WHERE id = ?")
             .map_err(|e| e.to_string())?;
-        let (host, port, tls, auth_type, email): (String, u16, bool, String, String) = stmt
+        let (host, port, _tls, auth_type, email): (String, u16, bool, String, String) = stmt
             .query_row([account_id], |row| {
                 Ok((
                     row.get(0)?,

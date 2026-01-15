@@ -3,6 +3,7 @@ use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
 pub mod connection;
+pub mod mailbox;
 pub mod sync;
 
 pub struct ImapManager {

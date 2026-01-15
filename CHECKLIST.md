@@ -3,13 +3,13 @@
 ## IMAP Sync
 
 - [x] Fix MutexGuard Send issues in async commands (use tokio::sync::Mutex or spawn_blocking)
-- [ ] Implement robust IMAP connection with IDLE/poll fallback
+- [x] Implement robust IMAP connection with IDLE/poll fallback
 - [x] Add mailbox fetching and caching
 - [x] Implement header fetching with pagination
 - [x] Add full message fetching with body parsing (HTML/plain, attachments)
-- [ ] Handle OAuth refresh during IMAP operations
+- [x] Handle OAuth refresh during IMAP operations
 - [ ] Implement sync status tracking
-- [ ] Add error recovery for network/auth failures
+- [x] Add error recovery for network/auth failures
 - [ ] Optimize for large mailboxes (virtualization, batching)
 
 ## SMTP & Outbox
@@ -32,9 +32,9 @@
 
 ### IMAP Data Storage
 
-- [ ] Implement check_uidvalidity function with mailbox resync on mismatch
-- [ ] Add get_mailbox_metadata (uid_validity, highest_modseq)
-- [ ] Implement update_highest_modseq for CONDSTORE support
+- [x] Implement check_uidvalidity function with mailbox resync on mismatch
+- [x] Add get_mailbox_metadata (uid_validity, highest_modseq)
+- [x] Implement update_highest_modseq for CONDSTORE support
 - [ ] Add batch_insert_messages with transaction commits every 50 messages
 - [ ] Implement update_message_flags with comparison optimization
 - [ ] Populate has_attachments flag by checking attachments table
@@ -101,4 +101,4 @@
 - [ ] Outbox worker not implemented (background task needed)
 - [ ] Email parsing and sanitization incomplete
 - [ ] Attachment streaming and caching not fully implemented
-- [ ] IDLE mode not implemented for real-time sync
+- [x] IDLE mode not implemented for real-time sync
