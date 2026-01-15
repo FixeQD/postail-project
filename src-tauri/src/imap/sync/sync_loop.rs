@@ -182,34 +182,28 @@ impl crate::imap::ImapManager {
                 return Ok(());
             }
 
-            session = self.wait_for_idle(session).await?;
-            let mailbox = session
-                .select(mailbox_name)
-                .await
-                .map_err(|e| e.to_string())?;
-            let new_uid_count = mailbox.exists;
-            if new_uid_count > last_uid {
-                self.fetch_missing_messages(account_id, mailbox_name, last_uid + 1, new_uid_count)
-                    .await?;
-                last_uid = new_uid_count;
-            }
-        }
-    }
+            let mut idle = session.idle();
+            idle.init().await.map_err(|e| e.to_string())?;
 
-    async fn wait_for_idle(
-        &self,
-        session: async_imap::Session<async_native_tls::TlsStream<async_std::net::TcpStream>>,
-    ) -> Result<async_imap::Session<async_native_tls::TlsStream<async_std::net::TcpStream>>, String>
-    {
-        let mut idle = session.idle();
-        idle.init().await.map_err(|e| e.to_string())?;
-
-        loop {
             let (wait_future, _interrupt) = idle.wait();
             match wait_future.await {
                 Ok(_) => {
-                    let session = idle.done().await.map_err(|e| e.to_string())?;
-                    return Ok(session);
+                    session = idle.done().await.map_err(|e| e.to_string())?;
+                    let mailbox = session
+                        .select(mailbox_name)
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    let new_uid_count = mailbox.exists;
+                    if new_uid_count > last_uid {
+                        self.fetch_missing_messages(
+                            account_id,
+                            mailbox_name,
+                            last_uid + 1,
+                            new_uid_count,
+                        )
+                        .await?;
+                        last_uid = new_uid_count;
+                    }
                 }
                 Err(e) => {
                     return Err(format!("IDLE wait error: {}", e));
