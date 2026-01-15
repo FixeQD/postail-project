@@ -2,10 +2,9 @@ use crate::error::DBError;
 use crate::security::SecurityManager;
 use chrono::Utc;
 use mailparse::{parse_mail, MailHeaderMap};
-use rusqlite::{params, Connection, Result as SqlResult};
+use rusqlite::{params, Connection};
 use std::fs;
 use std::path::PathBuf;
-use uuid::Uuid;
 
 pub fn extract_headers_from_eml(eml_path: &str) -> Result<(Option<String>, String), DBError> {
     let eml_bytes = fs::read(eml_path).map_err(DBError::Io)?;
@@ -66,7 +65,7 @@ pub fn calculate_backoff(attempts: u32) -> i64 {
 pub fn cleanup_old_sent_messages(conn: &Connection, days_old: u32) -> Result<usize, DBError> {
     let cutoff = Utc::now().timestamp() - (days_old as i64 * 86400);
     let mut stmt = conn.prepare(
-        "SELECT raw_eml_path FROM outbox 
+        "SELECT raw_eml_path FROM outbox
          WHERE status = 'SENT' AND created_at < ?",
     )?;
 
@@ -136,7 +135,7 @@ pub fn load_attachment(
     part_id: &str,
 ) -> Result<(Vec<u8>, String), DBError> {
     let (cache_path, mime_type): (String, String) = conn.query_row(
-        "SELECT cached_path, mime_type FROM attachments 
+        "SELECT cached_path, mime_type FROM attachments
          WHERE message_table_id = ? AND part_id = ?",
         params![message_table_id, part_id],
         |row| Ok((row.get(0)?, row.get(1)?)),

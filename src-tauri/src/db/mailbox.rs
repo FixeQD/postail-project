@@ -1,6 +1,7 @@
+use rusqlite::{params, Connection};
+
 use crate::db::Mailbox;
 use crate::error::DBError;
-use rusqlite::{params, Connection, Result as SqlResult};
 
 pub fn fetch_mailboxes(conn: &Connection, account_id: &str) -> Result<Vec<Mailbox>, DBError> {
     let mut stmt = conn.prepare(

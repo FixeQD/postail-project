@@ -1,11 +1,5 @@
-use std::sync::{Arc, Mutex};
-
-use async_imap::Session;
-use async_native_tls::TlsStream;
-use async_std::net::TcpStream;
 use async_std::stream::StreamExt;
 use chrono::DateTime;
-use rusqlite::Connection;
 use serde_json;
 
 use crate::db::{upsert_message, MailHeader};

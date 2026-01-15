@@ -1,15 +1,17 @@
-pub mod outbox;
-pub mod sender;
+use std::fs;
+use std::sync::{Arc, Mutex};
 
-use crate::db::{enqueue_message, list_outbox, OutboxItem};
-use crate::security::SecurityManager;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
 use rusqlite::Connection;
-use std::fs;
-use std::sync::{Arc, Mutex};
 use tokio::time::Duration;
 use uuid::Uuid;
+
+use crate::db::{enqueue_message, list_outbox, OutboxItem};
+use crate::security::SecurityManager;
+
+pub mod outbox;
+pub mod sender;
 
 pub struct SmtpManager {
     conn: Arc<Mutex<Connection>>,

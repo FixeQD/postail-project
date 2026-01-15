@@ -1,8 +1,9 @@
-use crate::db::{enqueue_message, extract_headers_from_eml, list_outbox, OutboxItem};
-use rusqlite::Connection;
 use std::fs;
-use std::sync::MutexGuard;
+
+use rusqlite::Connection;
 use uuid::Uuid;
+
+use crate::db::{enqueue_message, extract_headers_from_eml, list_outbox, OutboxItem};
 
 impl super::SmtpManager {
     pub fn enqueue_message(&self, account_id: &str, raw_eml: &[u8]) -> Result<String, String> {
@@ -18,7 +19,7 @@ impl super::SmtpManager {
         drop(security);
         fs::write(&eml_path, encrypted_eml).map_err(|e| e.to_string())?;
 
-        let (subject, recipient) =
+        let (_subject, recipient) =
             extract_headers_from_eml(&eml_path.to_string_lossy()).map_err(|e| e.to_string())?;
 
         let conn = self.conn.lock().unwrap();

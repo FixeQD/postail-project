@@ -10,23 +10,23 @@ pub mod search;
 pub mod sql_helpers;
 pub mod tables;
 
-use chrono::{DateTime, Utc};
-use rusqlite::{params, Connection, OptionalExtension, Result as SqlResult};
-use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use uuid::Uuid;
+
+use chrono::{DateTime, Utc};
+use rusqlite::Connection;
+use serde::{Deserialize, Serialize};
 
 pub use crate::db::accounts::*;
-pub use crate::db::backup::*;
+pub use crate::db::backup::{export_backup, import_backup};
 pub use crate::db::imap::*;
-pub use crate::db::mailbox::*;
+pub use crate::db::mailbox::{fetch_mailboxes, upsert_mailbox};
 pub use crate::db::message_bodies::*;
-pub use crate::db::messages::*;
+pub use crate::db::messages::{fetch_headers, fetch_message_full, upsert_message};
 pub use crate::db::outbox::*;
-pub use crate::db::outbox_db::*;
+pub use crate::db::outbox_db::{enqueue_message, list_outbox};
 pub use crate::db::search::*;
-use crate::db::sql_helpers::*;
+pub use crate::db::sql_helpers::*;
 pub use crate::db::tables::*;
 use crate::error::DBError;
 
@@ -146,18 +146,14 @@ pub enum SyncStatusEnum {
     Error(String),
 }
 
-pub fn init_db() -> SqlResult<Connection> {
+pub fn init_db() -> Result<Connection, DBError> {
     let data_dir = dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("postail");
-    fs::create_dir_all(&data_dir).map_err(|e| {
-        rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e))
-    })?;
+    fs::create_dir_all(&data_dir).map_err(|e| DBError::Io(e))?;
     let db_path = data_dir.join("postail.db");
     let conn = Connection::open(db_path)?;
-    tables::create_tables(&conn).map_err(|e| {
-        rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e))
-    })?;
+    tables::create_tables(&conn)?;
     Ok(conn)
 }
 

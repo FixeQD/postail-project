@@ -1,5 +1,5 @@
 use crate::error::DBError;
-use rusqlite::{params, Connection, Result as SqlResult, ToSql};
+use rusqlite::{params, Connection, ToSql};
 
 pub fn create_table_if_not_exists(
     conn: &Connection,
@@ -151,7 +151,7 @@ pub fn update_where<T: ToSql>(
 ) -> Result<(), DBError> {
     let set_list = set_parts
         .iter()
-        .map(|(col, val)| format!("{} = ?", col))
+        .map(|(col, _)| format!("{} = ?", col))
         .collect::<Vec<_>>()
         .join(", ");
 
@@ -171,7 +171,6 @@ pub fn select_where<'a, T: ToSql>(
     table: &'a str,
     columns: &'a [&'a str],
     where_clause: Option<&'a str>,
-    where_params: &'a [&'a T],
     order_by: Option<&'a str>,
     limit: Option<u32>,
 ) -> Result<rusqlite::Statement<'a>, DBError> {

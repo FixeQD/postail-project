@@ -1,17 +1,20 @@
+use std::fs;
+
+use chrono::{DateTime, Utc};
+use rusqlite::{params, Connection};
+use uuid::Uuid;
+
+use crate::db::sql_helpers::{delete_where, insert_or_replace_into};
+use crate::db::AccountInput;
+use crate::db::AccountMeta;
 use crate::error::DBError;
 use crate::security::SecurityManager;
-use chrono::{DateTime, Utc};
-use rusqlite::params;
-use rusqlite::{Connection, Result as SqlResult};
-use std::fs;
-use std::path::PathBuf;
-use uuid::Uuid;
 
 pub fn add_account(
     conn: &Connection,
-    input: crate::db::AccountInput,
+    input: AccountInput,
     security: &SecurityManager,
-) -> Result<crate::db::AccountMeta, DBError> {
+) -> Result<AccountMeta, DBError> {
     let id = Uuid::new_v4().to_string();
     let email = input.email.clone();
     let provider_type = match input.auth_type.as_str() {
@@ -26,7 +29,7 @@ pub fn add_account(
     let encryption_mode = "aes-gcm".to_string();
     let created_at = Utc::now();
 
-    crate::db::sql_helpers::insert_or_replace_into(
+    insert_or_replace_into(
         conn,
         "accounts",
         &[
@@ -63,7 +66,7 @@ pub fn add_account(
         ],
     )?;
 
-    Ok(crate::db::AccountMeta {
+    Ok(AccountMeta {
         id,
         name: input.name,
         email,
@@ -80,13 +83,13 @@ pub fn add_account(
     })
 }
 
-pub fn list_accounts(conn: &Connection) -> Result<Vec<crate::db::AccountMeta>, DBError> {
+pub fn list_accounts(conn: &Connection) -> Result<Vec<AccountMeta>, DBError> {
     let mut stmt = conn.prepare(
         "SELECT id, name, email, provider_type, auth_type, imap_host, imap_port, imap_tls, smtp_host, smtp_port, smtp_tls, encryption_mode, created_at FROM accounts"
     )?;
 
     let accounts_iter = stmt.query_map([], |row| {
-        Ok(crate::db::AccountMeta {
+        Ok(AccountMeta {
             id: row.get(0)?,
             name: row.get(1)?,
             email: row.get(2)?,
@@ -103,7 +106,7 @@ pub fn list_accounts(conn: &Connection) -> Result<Vec<crate::db::AccountMeta>, D
         })
     })?;
 
-    let accounts: Result<Vec<crate::db::AccountMeta>, _> = accounts_iter.collect();
+    let accounts: Result<Vec<AccountMeta>, _> = accounts_iter.collect();
     accounts.map_err(DBError::Sqlite)
 }
 
@@ -113,6 +116,6 @@ pub fn remove_account(conn: &Connection, id: &str) -> Result<(), DBError> {
     if let Some(path) = creds_path {
         let _ = fs::remove_file(path);
     }
-    crate::db::sql_helpers::delete_where::<String>(conn, "accounts", "id = ?", &[&id.to_string()])?;
+    delete_where::<String>(conn, "accounts", "id = ?", &[&id.to_string()])?;
     Ok(())
 }

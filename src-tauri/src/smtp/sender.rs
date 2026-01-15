@@ -1,9 +1,8 @@
-use crate::security::SecurityManager;
+use std::fs;
+
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
-use rusqlite::Connection;
 use serde_json;
-use std::sync::{Arc, Mutex};
 
 impl super::SmtpManager {
     fn get_credentials(&self, account_id: &str) -> Result<String, String> {

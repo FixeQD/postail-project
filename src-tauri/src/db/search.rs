@@ -1,5 +1,5 @@
 use crate::error::DBError;
-use rusqlite::{params, Connection, Result as SqlResult};
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -43,7 +43,7 @@ pub fn search_messages(
     };
 
     let sql = format!(
-        "SELECT m.id, m.account_id, m.mailbox, m.uid, m.subject, m.from_addr, 
+        "SELECT m.id, m.account_id, m.mailbox, m.uid, m.subject, m.from_addr,
                 m.snippet, messages_fts.rank
          FROM messages_fts
          JOIN messages m ON messages_fts.rowid = m.id

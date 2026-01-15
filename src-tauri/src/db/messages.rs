@@ -2,7 +2,7 @@ use super::MailHeader;
 use super::MessageFull;
 use crate::error::DBError;
 use chrono::{DateTime, Utc};
-use rusqlite::{params, Connection, OptionalExtension, Result as SqlResult};
+use rusqlite::{params, Connection, OptionalExtension};
 
 pub fn fetch_headers(
     conn: &Connection,

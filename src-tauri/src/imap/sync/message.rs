@@ -1,11 +1,5 @@
-use std::sync::{Arc, Mutex};
-
-use async_imap::Session;
-use async_native_tls::TlsStream;
-use async_std::net::TcpStream;
 use async_std::stream::StreamExt;
 use mailparse::parse_mail;
-use rusqlite::Connection;
 
 impl crate::imap::ImapManager {
     pub fn fetch_message_full_sync(

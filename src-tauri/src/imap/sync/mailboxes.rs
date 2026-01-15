@@ -1,10 +1,4 @@
-use std::sync::{Arc, Mutex};
-
-use async_imap::Session;
-use async_native_tls::TlsStream;
-use async_std::net::TcpStream;
 use async_std::stream::StreamExt;
-use rusqlite::Connection;
 
 use crate::db::{fetch_mailboxes as db_fetch_mailboxes, upsert_mailbox, Mailbox};
 

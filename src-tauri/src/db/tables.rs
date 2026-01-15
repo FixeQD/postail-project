@@ -1,6 +1,6 @@
 use crate::db::sql_helpers::*;
 use crate::error::DBError;
-use rusqlite::{params, Connection, Result as SqlResult};
+use rusqlite::Connection;
 
 pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
     pragma_set(conn, "journal_mode", "WAL")?;

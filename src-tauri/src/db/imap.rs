@@ -1,5 +1,5 @@
 use crate::error::DBError;
-use rusqlite::{params, Connection, Result as SqlResult};
+use rusqlite::{params, Connection};
 
 pub fn check_uidvalidity(
     conn: &Connection,
