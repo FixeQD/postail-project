@@ -19,24 +19,27 @@ impl crate::imap::ImapManager {
             flags.insert(account_id.clone(), Arc::clone(&stop_flag));
         }
 
-        let handle = thread::spawn(move || {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .unwrap();
+        let handle = thread::Builder::new()
+            .name(account_id.clone())
+            .spawn(move || {
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap();
 
-            rt.block_on(async {
-                let sync_loop: Result<(), String> =
-                    async { manager.account_sync_loop(&account_id, &stop_flag).await }.await;
+                rt.block_on(async {
+                    let sync_loop: Result<(), String> =
+                        async { manager.account_sync_loop(&account_id, &stop_flag).await }.await;
 
-                if let Err(e) = sync_loop {
-                    eprintln!("Sync loop failed for {}: {}", account_id, e);
-                }
+                    if let Err(e) = sync_loop {
+                        eprintln!("Sync loop failed for {}: {}", account_id, e);
+                    }
 
-                let mut flags = STOP_FLAGS.lock().unwrap();
-                flags.remove(&account_id);
-            });
-        });
+                    let mut flags = STOP_FLAGS.lock().unwrap();
+                    flags.remove(&account_id);
+                });
+            })
+            .map_err(|e| e.to_string())?;
 
         let mut tasks = SYNC_TASKS.lock().unwrap();
         tasks.push(handle);
@@ -44,13 +47,57 @@ impl crate::imap::ImapManager {
     }
 
     pub fn stop_sync(&self, account_id: &str) -> Result<(), String> {
-        let flags = STOP_FLAGS.lock().unwrap();
-        if let Some(stop_flag) = flags.get(account_id) {
-            stop_flag.store(true, Ordering::SeqCst);
-            Ok(())
-        } else {
-            Err(format!("No sync running for account {}", account_id))
+        let (_stop_flag, _handle_idx): (Arc<AtomicBool>, Option<usize>) = {
+            let flags = STOP_FLAGS.lock().unwrap();
+            let tasks = SYNC_TASKS.lock().unwrap();
+            match (
+                flags.get(account_id),
+                Self::find_task_by_account_id(&tasks, account_id),
+            ) {
+                (Some(flag), Some((idx, _))) => (flag.clone(), Some(idx)),
+                _ => (Arc::new(AtomicBool::new(false)), None),
+            }
+        };
+
+        _stop_flag.store(true, Ordering::SeqCst);
+
+        let handle = {
+            let mut tasks = SYNC_TASKS.lock().unwrap();
+            let idx = Self::find_task_by_account_id(&tasks, account_id)
+                .map(|(idx, _)| idx)
+                .ok_or_else(|| format!("No sync running for account {}", account_id))?;
+            tasks.remove(idx)
+        };
+
+        handle.join().map_err(|e| {
+            let err = if let Some(_) = e.downcast_ref::<&str>() {
+                "thread panicked with &str"
+            } else if let Some(_) = e.downcast_ref::<String>() {
+                "thread panicked with String"
+            } else {
+                "thread panicked"
+            };
+            format!("Failed to join sync thread for {}: {}", account_id, err)
+        })?;
+
+        let mut flags = STOP_FLAGS.lock().unwrap();
+        flags.remove(account_id);
+
+        Ok(())
+    }
+
+    fn find_task_by_account_id(
+        tasks: &Vec<thread::JoinHandle<()>>,
+        account_id: &str,
+    ) -> Option<(usize, String)> {
+        for (idx, handle) in tasks.iter().enumerate() {
+            if let Some(id) = handle.thread().name() {
+                if id == account_id {
+                    return Some((idx, id.to_string()));
+                }
+            }
         }
+        None
     }
 
     async fn account_sync_loop(
