@@ -654,7 +654,8 @@ fn test_hkdf_key_derivation() {
 
     let mut derived_key2 = [0u8; 32];
     let hkdf2 = Hkdf::<Sha256>::new(Some(salt), &master_key);
-    hkdf2.expand(b"postail-db-encryption-v1", &mut derived_key2)
+    hkdf2
+        .expand(b"postail-db-encryption-v1", &mut derived_key2)
         .unwrap();
 
     assert_eq!(derived_key, derived_key2);
@@ -693,29 +694,38 @@ fn test_sqlcipher_encryption() {
 
     {
         let conn = Connection::open(db_path).unwrap();
-        conn.execute_batch(&format!("PRAGMA key = \"x'{key_hex}'\"")).unwrap();
-        conn.execute("CREATE TABLE test_table (id INTEGER PRIMARY KEY, data TEXT)", ()).unwrap();
-        conn.execute("INSERT INTO test_table VALUES (1, 'secret_data')", ()).unwrap();
+        conn.execute_batch(&format!("PRAGMA key = \"x'{key_hex}'\""))
+            .unwrap();
+        conn.execute(
+            "CREATE TABLE test_table (id INTEGER PRIMARY KEY, data TEXT)",
+            (),
+        )
+        .unwrap();
+        conn.execute("INSERT INTO test_table VALUES (1, 'secret_data')", ())
+            .unwrap();
     }
 
     {
         let conn = Connection::open(db_path).unwrap();
-        let result: Result<String, rusqlite::Error> = conn.query_row(
-            "SELECT data FROM test_table WHERE id = 1",
-            [],
-            |row| row.get(0),
+        let result: Result<String, rusqlite::Error> =
+            conn.query_row("SELECT data FROM test_table WHERE id = 1", [], |row| {
+                row.get(0)
+            });
+        assert!(
+            result.is_err(),
+            "Reading without key should fail on encrypted DB"
         );
-        assert!(result.is_err(), "Reading without key should fail on encrypted DB");
     }
 
     {
         let conn = Connection::open(db_path).unwrap();
-        conn.execute_batch(&format!("PRAGMA key = \"x'{key_hex}'\"")).unwrap();
-        let result: String = conn.query_row(
-            "SELECT data FROM test_table WHERE id = 1",
-            [],
-            |row| row.get(0),
-        ).unwrap();
+        conn.execute_batch(&format!("PRAGMA key = \"x'{key_hex}'\""))
+            .unwrap();
+        let result: String = conn
+            .query_row("SELECT data FROM test_table WHERE id = 1", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
         assert_eq!(result, "secret_data");
     }
 }

@@ -1,6 +1,6 @@
+use rusqlite::Connection;
 use std::fs;
 use std::path::{Path, PathBuf};
-use rusqlite::Connection;
 
 use crate::error::DBError;
 use crate::security::db_encryption::DbEncryption;
@@ -17,7 +17,8 @@ pub fn check_db_has_tables(conn: &Connection) -> bool {
         "SELECT name FROM sqlite_master WHERE type='table' AND name='accounts' LIMIT 1",
         [],
         |_| Ok(()),
-    ).is_ok()
+    )
+    .is_ok()
 }
 
 pub fn migrate_unencrypted_db(db_path: &Path, encryption: &DbEncryption) -> Result<(), DBError> {
@@ -41,23 +42,29 @@ pub fn migrate_unencrypted_db(db_path: &Path, encryption: &DbEncryption) -> Resu
         let conn = Connection::open(&backup_path)?;
         let key = encryption.hex_key();
 
-        let sql = format!(r#"
+        let sql = format!(
+            r#"
             ATTACH DATABASE '{}' AS encrypted KEY "x'{}'";
             SELECT sqlcipher_export('encrypted');
             DETACH DATABASE encrypted;
-        "#, encrypted_path.display(), key);
+        "#,
+            encrypted_path.display(),
+            key
+        );
 
-        conn.execute(&sql, ()).map_err(|e| DBError::Migration(e.to_string()))?;
+        conn.execute(&sql, ())
+            .map_err(|e| DBError::Migration(e.to_string()))?;
     }
 
     if !encrypted_path.exists() {
-        return Err(DBError::Migration("Encrypted database file was not created".to_string()));
+        return Err(DBError::Migration(
+            "Encrypted database file was not created".to_string(),
+        ));
     }
 
     eprintln!("[DB] Replacing original database with encrypted version...");
 
-    fs::rename(encrypted_path, db_path)
-        .map_err(|e| DBError::Io(e))?;
+    fs::rename(encrypted_path, db_path).map_err(|e| DBError::Io(e))?;
 
     eprintln!("[DB] Verifying encrypted database...");
 
@@ -70,11 +77,15 @@ pub fn migrate_unencrypted_db(db_path: &Path, encryption: &DbEncryption) -> Resu
             .map_err(|e| DBError::Migration(e.to_string()))?;
 
         if integrity != 0 {
-            return Err(DBError::Migration("Encrypted database integrity check failed".to_string()));
+            return Err(DBError::Migration(
+                "Encrypted database integrity check failed".to_string(),
+            ));
         }
 
         if !check_db_has_tables(&conn) {
-            return Err(DBError::Migration("Tables not found after migration".to_string()));
+            return Err(DBError::Migration(
+                "Tables not found after migration".to_string(),
+            ));
         }
     }
 
@@ -112,10 +123,11 @@ pub fn run_encryption_migration_if_needed() -> Result<(), DBError> {
             migrate_unencrypted_db(&db_path, encryption)?;
             Ok(())
         }
-        Err(e) => {
-            Err(DBError::Security(crate::error::SecurityError::KeyDerivation(
-                format!("Failed to initialize encryption: {}", e)
-            )))
-        }
+        Err(e) => Err(DBError::Security(
+            crate::error::SecurityError::KeyDerivation(format!(
+                "Failed to initialize encryption: {}",
+                e
+            )),
+        )),
     }
 }

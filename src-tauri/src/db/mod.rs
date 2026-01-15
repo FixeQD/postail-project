@@ -170,14 +170,18 @@ pub fn init_db() -> Result<Connection, DBError> {
 fn apply_sqlcipher_key(conn: &Connection) -> Result<(), DBError> {
     let key = crate::security::DbEncryption::get_hex_key();
     if key.is_empty() {
-        return Err(DBError::Security(crate::error::SecurityError::KeyDerivation(
-            "Failed to get database encryption key".to_string(),
-        )));
+        return Err(DBError::Security(
+            crate::error::SecurityError::KeyDerivation(
+                "Failed to get database encryption key".to_string(),
+            ),
+        ));
     }
 
     conn.execute(&format!("PRAGMA key = \"x'{key}'\""), ())?;
 
-    let integrity: i32 = conn.query_row("PRAGMA cipher_integrity_check", [], |row| row.get(0)).unwrap_or(1);
+    let integrity: i32 = conn
+        .query_row("PRAGMA cipher_integrity_check", [], |row| row.get(0))
+        .unwrap_or(1);
     if integrity != 0 {
         return Err(DBError::Security(crate::error::SecurityError::Decryption(
             "Database encryption verification failed".to_string(),

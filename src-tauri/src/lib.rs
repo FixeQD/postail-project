@@ -14,9 +14,9 @@ use crate::db::accounts::{
     remove_account as db_remove_account,
 };
 use crate::db::{
-    export_backup as db_export_backup, import_backup as db_import_backup, init_db, AccountInput,
-    AccountMeta, Credentials, ImapConfig, MailHeader, Mailbox, MessageFull, OAuthCredentials,
-    OutboxItem, SmtpConfig, SyncStatusEnum, run_encryption_migration_if_needed,
+    export_backup as db_export_backup, import_backup as db_import_backup, init_db,
+    run_encryption_migration_if_needed, AccountInput, AccountMeta, Credentials, ImapConfig,
+    MailHeader, Mailbox, MessageFull, OAuthCredentials, OutboxItem, SmtpConfig, SyncStatusEnum,
 };
 use crate::imap::ImapManager;
 use crate::security::stores::SecretStore;
@@ -30,8 +30,9 @@ lazy_static! {
     pub static ref DB_CONN: Arc<Mutex<Connection>> = Arc::new(Mutex::new(
         init_db().expect("Failed to initialize database")
     ));
-    pub static ref SECURITY: Arc<Mutex<SecurityManager>> =
-        Arc::new(Mutex::new(SecurityManager::new().expect("Failed to initialize security")));
+    pub static ref SECURITY: Arc<Mutex<SecurityManager>> = Arc::new(Mutex::new(
+        SecurityManager::new().expect("Failed to initialize security")
+    ));
     pub static ref IMAP_MANAGER: Arc<Mutex<ImapManager>> = Arc::new(Mutex::new(ImapManager::new(
         Arc::clone(&DB_CONN),
         Arc::clone(&SECURITY),
