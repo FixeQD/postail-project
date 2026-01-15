@@ -693,7 +693,7 @@ fn test_sqlcipher_encryption() {
 
     {
         let conn = Connection::open(db_path).unwrap();
-        conn.execute(&format!("PRAGMA key = \"x'{key_hex}'\""), ()).unwrap();
+        conn.execute_batch(&format!("PRAGMA key = \"x'{key_hex}'\"")).unwrap();
         conn.execute("CREATE TABLE test_table (id INTEGER PRIMARY KEY, data TEXT)", ()).unwrap();
         conn.execute("INSERT INTO test_table VALUES (1, 'secret_data')", ()).unwrap();
     }
@@ -710,7 +710,7 @@ fn test_sqlcipher_encryption() {
 
     {
         let conn = Connection::open(db_path).unwrap();
-        conn.execute(&format!("PRAGMA key = \"x'{key_hex}'\""), ()).unwrap();
+        conn.execute_batch(&format!("PRAGMA key = \"x'{key_hex}'\"")).unwrap();
         let result: String = conn.query_row(
             "SELECT data FROM test_table WHERE id = 1",
             [],
