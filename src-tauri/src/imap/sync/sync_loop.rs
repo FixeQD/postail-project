@@ -4,6 +4,7 @@ use std::thread;
 use tokio::time::{timeout, Duration};
 
 const RFC_IDLE_TIMEOUT_SECS: u64 = 29 * 60;
+const POLL_INTERVAL_SECS: u64 = 60;
 
 lazy_static::lazy_static! {
     static ref SYNC_TASKS: std::sync::Mutex<Vec<thread::JoinHandle<()>>> = std::sync::Mutex::new(Vec::new());
@@ -209,47 +210,153 @@ impl crate::imap::ImapManager {
             last_uid = highest_uid;
         }
 
-        eprintln!("[IMAP] Entering IDLE for {}@{}", mailbox_name, account_id);
+        eprintln!("[IMAP] Starting sync for {}@{}", mailbox_name, account_id);
 
+        let mut idle = session.idle();
+        if idle.init().await.is_err() {
+            session = idle.done().await.map_err(|e| e.to_string())?;
+            eprintln!(
+                "[IMAP] IDLE init failed for {}@{}, switching to polling",
+                mailbox_name, account_id
+            );
+            self.poll_loop(session, account_id, mailbox_name, &mut last_uid, stop_flag)
+                .await
+        } else {
+            eprintln!(
+                "[IMAP] Entering IDLE mode for {}@{}",
+                mailbox_name, account_id
+            );
+            self.idle_loop(idle, account_id, mailbox_name, &mut last_uid, stop_flag)
+                .await
+        }
+    }
+
+    async fn idle_loop(
+        &self,
+        mut idle: async_imap::extensions::idle::Handle<
+            async_native_tls::TlsStream<async_std::net::TcpStream>,
+        >,
+        account_id: &str,
+        mailbox_name: &str,
+        last_uid: &mut u32,
+        stop_flag: &Arc<AtomicBool>,
+    ) -> Result<(), String> {
         loop {
             if stop_flag.load(Ordering::SeqCst) {
+                let mut session = idle.done().await.map_err(|e| e.to_string())?;
                 let _ = session.logout().await;
                 return Ok(());
             }
 
-            let mut idle = session.idle();
-            idle.init().await.map_err(|e| e.to_string())?;
-
             let (wait_future, _interrupt) = idle.wait();
             match timeout(Duration::from_secs(RFC_IDLE_TIMEOUT_SECS), wait_future).await {
                 Ok(Ok(_)) => {
-                    session = idle.done().await.map_err(|e| e.to_string())?;
+                    let mut session = idle.done().await.map_err(|e| e.to_string())?;
                     let mailbox = session
                         .select(mailbox_name)
                         .await
                         .map_err(|e| e.to_string())?;
                     let new_highest_uid =
                         mailbox.uid_next.map(|u| u.saturating_sub(1)).unwrap_or(0);
-                    if new_highest_uid > last_uid {
+                    if new_highest_uid > *last_uid {
                         self.fetch_missing_messages(
                             account_id,
                             mailbox_name,
-                            last_uid + 1,
+                            *last_uid + 1,
                             new_highest_uid,
                         )
                         .await?;
-                        last_uid = new_highest_uid;
+                        *last_uid = new_highest_uid;
+                    }
+                    idle = session.idle();
+                    if idle.init().await.is_err() {
+                        session = idle.done().await.map_err(|e| e.to_string())?;
+                        eprintln!(
+                            "[IMAP] IDLE reinit failed for {}@{}, switching to polling",
+                            mailbox_name, account_id
+                        );
+                        return self
+                            .poll_loop(session, account_id, mailbox_name, last_uid, stop_flag)
+                            .await;
                     }
                 }
                 Ok(Err(e)) => {
-                    return Err(format!("IDLE wait error: {}", e));
+                    let session = idle.done().await.map_err(|e| e.to_string())?;
+                    eprintln!(
+                        "[IMAP] IDLE wait error for {}@{}: {}, switching to polling",
+                        mailbox_name, account_id, e
+                    );
+                    return self
+                        .poll_loop(session, account_id, mailbox_name, last_uid, stop_flag)
+                        .await;
                 }
                 Err(_) => {
-                    session = idle.done().await.map_err(|e| e.to_string())?;
+                    let mut session = idle.done().await.map_err(|e| e.to_string())?;
                     eprintln!(
                         "[IMAP] IDLE timeout for {}@{}, re-entering IDLE",
                         mailbox_name, account_id
                     );
+                    idle = session.idle();
+                    if idle.init().await.is_err() {
+                        session = idle.done().await.map_err(|e| e.to_string())?;
+                        eprintln!(
+                            "[IMAP] IDLE reinit failed for {}@{}, switching to polling",
+                            mailbox_name, account_id
+                        );
+                        return self
+                            .poll_loop(session, account_id, mailbox_name, last_uid, stop_flag)
+                            .await;
+                    }
+                }
+            }
+        }
+    }
+
+    async fn poll_loop(
+        &self,
+        mut session: async_imap::Session<async_native_tls::TlsStream<async_std::net::TcpStream>>,
+        account_id: &str,
+        mailbox_name: &str,
+        last_uid: &mut u32,
+        stop_flag: &Arc<AtomicBool>,
+    ) -> Result<(), String> {
+        loop {
+            if stop_flag.load(Ordering::SeqCst) {
+                let _ = session.logout().await;
+                return Ok(());
+            }
+
+            tokio::time::sleep(Duration::from_secs(POLL_INTERVAL_SECS)).await;
+
+            match session.noop().await {
+                Ok(_) => {
+                    let mailbox = session
+                        .select(mailbox_name)
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    let new_highest_uid =
+                        mailbox.uid_next.map(|u| u.saturating_sub(1)).unwrap_or(0);
+                    if new_highest_uid > *last_uid {
+                        self.fetch_missing_messages(
+                            account_id,
+                            mailbox_name,
+                            *last_uid + 1,
+                            new_highest_uid,
+                        )
+                        .await?;
+                        *last_uid = new_highest_uid;
+                    }
+                }
+                Err(e) => {
+                    eprintln!(
+                        "[IMAP] NOOP error for {}@{}: {}, reconnecting...",
+                        mailbox_name, account_id, e
+                    );
+                    session = self.connect_imap(account_id).await?;
+                    let _ = session
+                        .select(mailbox_name)
+                        .await
+                        .map_err(|e| e.to_string())?;
                 }
             }
         }
