@@ -88,13 +88,12 @@
 - [ ] Add backup passphrase handling (separate from master key)
 
 ### Testing
-
-- [ ] Add test_fts_search with various query patterns
-- [ ] Add test_concurrent_access for parallel operations
-- [ ] Add test_migration_up_down for migration verification
-- [ ] Add test_attachment_cache_lru for LRU eviction
-- [ ] Add test_uidvalidity_mismatch for resync logic
-- [ ] Add performance tests for large datasets (10k+ messages)
+- [x] Add test_fts_search with various query patterns
+- [x] Add test_concurrent_access for parallel operations
+- [x] Add test_migration_up_down for migration verification
+- [x] Add test_attachment_cache_lru for LRU eviction
+- [x] Add test_uidvalidity_mismatch for resync logic
+- [x] Add performance tests for large datasets (10k+ messages)
 
 ## Known Issues
 

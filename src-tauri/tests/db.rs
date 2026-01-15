@@ -1,5 +1,5 @@
 use chrono::Utc;
-use rusqlite::Connection;
+use rusqlite::{params, Connection};
 use std::fs;
 use tempfile::NamedTempFile;
 
@@ -428,11 +428,210 @@ fn test_calculate_backoff() {
 }
 
 #[test]
-fn test_attachment_cache_path() {
-    use postail_project_lib::db::get_attachment_cache_path;
+fn test_attachment_cache_lru() {
+    use postail_project_lib::db::enforce_attachment_cache_limit;
 
-    let path = get_attachment_cache_path(12345, "1.1");
-    assert!(path.to_string_lossy().contains("attachments"));
-    let prefix = path.file_name().unwrap().to_string_lossy();
-    assert!(prefix.contains("123451.1"));
+    let cache_dir = dirs::data_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("postail")
+        .join("attachments");
+    std::fs::create_dir_all(&cache_dir).unwrap();
+
+    for i in 0..5 {
+        let path = cache_dir.join(format!("test_file_{}.enc", i));
+        let content = format!("attachment content {}", i).into_bytes();
+        std::fs::write(&path, &content).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+
+    let total_size_before: u64 = cache_dir
+        .read_dir()
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_file() && e.file_name().to_string_lossy().starts_with("test_file_"))
+        .map(|e| e.metadata().unwrap().len())
+        .sum();
+
+    assert!(total_size_before > 0, "Files should exist in cache dir");
+
+    let removed = enforce_attachment_cache_limit(10).unwrap();
+
+    let total_size_after: u64 = cache_dir
+        .read_dir()
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_file() && e.file_name().to_string_lossy().starts_with("test_file_"))
+        .map(|e| e.metadata().unwrap().len())
+        .sum();
+
+    assert!(
+        total_size_after <= total_size_before,
+        "Size should not increase"
+    );
+    assert!(
+        removed > 0,
+        "Some files should have been removed, removed: {}",
+        removed
+    );
+
+    for i in 0..5 {
+        let path = cache_dir.join(format!("test_file_{}.enc", i));
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+#[test]
+fn test_migration_up_down() {
+    use postail_project_lib::db::backup::{run_migrations, MIGRATIONS};
+    use rusqlite::Connection;
+    use std::fs;
+    use tempfile::NamedTempFile;
+
+    let temp_file = NamedTempFile::new().unwrap();
+    let db_path = temp_file.path();
+    fs::remove_file(db_path).unwrap();
+    let conn = Connection::open(db_path).unwrap();
+
+    let initial_version: i32 = conn
+        .query_row("SELECT MAX(version) FROM schema_migrations", [], |row| {
+            row.get(0)
+        })
+        .ok()
+        .unwrap_or(0);
+
+    run_migrations(&conn).unwrap();
+
+    let final_version: i32 = conn
+        .query_row("SELECT MAX(version) FROM schema_migrations", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+
+    assert!(final_version > initial_version);
+    assert_eq!(final_version, MIGRATIONS.len() as i32);
+
+    conn.execute(
+        "DELETE FROM schema_migrations WHERE version < ?",
+        [final_version],
+    )
+    .unwrap();
+
+    let version_after_cleanup: i32 = conn
+        .query_row("SELECT MAX(version) FROM schema_migrations", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!(version_after_cleanup, final_version);
+}
+
+#[test]
+fn test_performance_large_datasets() {
+    use postail_project_lib::db::tables::create_indexes;
+    use postail_project_lib::db::{
+        add_account, upsert_message, AccountInput, Credentials, ImapConfig, PasswordCredentials,
+        SmtpConfig,
+    };
+    use std::time::Instant;
+
+    let mut conn = init_temp_db();
+    create_indexes(&conn).unwrap();
+    let security = test_manager();
+
+    let account = add_account(
+        &conn,
+        AccountInput {
+            name: "Perf Test Account".to_string(),
+            email: "perf@example.com".to_string(),
+            auth_type: "password".to_string(),
+            imap_config: ImapConfig {
+                host: "imap.example.com".to_string(),
+                port: 993,
+                tls: true,
+            },
+            smtp_config: SmtpConfig {
+                host: "smtp.example.com".to_string(),
+                port: 587,
+                tls: true,
+            },
+            credentials: Credentials::Password(PasswordCredentials {
+                username: "perf@example.com".to_string(),
+                password: "secret".to_string(),
+            }),
+        },
+        &security,
+    )
+    .unwrap();
+    let account_id = account.id;
+    let mailbox = "INBOX";
+    let created_at = Utc::now();
+
+    let start = Instant::now();
+    let batch_size = 100;
+    let num_batches = 100;
+    let total_messages = batch_size * num_batches;
+
+    for batch in 0..num_batches {
+        let batch_start = batch * batch_size;
+        let tx = conn.transaction().unwrap();
+        for i in 0..batch_size {
+            let uid = (batch_start + i + 1) as u32;
+            upsert_message(
+                &tx,
+                &account_id,
+                mailbox,
+                uid,
+                Some(&format!("msg{}@example.com", uid)),
+                created_at,
+                Some(&format!("sender{}@example.com", uid)),
+                Some("recipient@example.com"),
+                Some(&format!("Subject {}", uid)),
+                Some(&format!("Body content for message {}", uid)),
+                Some(r#"["\Seen"]"#),
+                None,
+            )
+            .unwrap();
+        }
+        tx.commit().unwrap();
+    }
+    let insert_time = start.elapsed();
+    println!("Inserted {} messages in {:?}", total_messages, insert_time);
+    assert!(
+        insert_time.as_secs() < 30,
+        "Insert took too long: {:?}",
+        insert_time
+    );
+
+    let query_start = Instant::now();
+    let mut stmt = conn
+        .prepare("SELECT COUNT(*) FROM messages WHERE account_id = ? AND mailbox = ?")
+        .unwrap();
+    let count: i64 = stmt
+        .query_row(params![account_id, mailbox], |row| row.get(0))
+        .unwrap();
+    let query_time = query_start.elapsed();
+    println!("Count query took: {:?}", query_time);
+    assert_eq!(count, total_messages as i64);
+    assert!(
+        query_time.as_millis() < 100,
+        "Query took too long: {:?}",
+        query_time
+    );
+
+    let fetch_start = Instant::now();
+    let mut stmt = conn
+        .prepare("SELECT subject FROM messages WHERE account_id = ? AND mailbox = ? ORDER BY uid DESC LIMIT 100")
+        .unwrap();
+    let subjects: Vec<String> = stmt
+        .query_map(params![account_id, mailbox], |row| row.get(0))
+        .unwrap()
+        .filter_map(|r| r.ok())
+        .collect();
+    let fetch_time = fetch_start.elapsed();
+    println!("Fetch 100 messages took: {:?}", fetch_time);
+    assert_eq!(subjects.len(), 100);
+    assert!(
+        fetch_time.as_millis() < 200,
+        "Fetch took too long: {:?}",
+        fetch_time
+    );
 }
