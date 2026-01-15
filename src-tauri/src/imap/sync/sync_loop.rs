@@ -196,17 +196,17 @@ impl crate::imap::ImapManager {
             .map_err(|e| e.to_string())?;
 
         let uid_validity = mailbox.uid_validity.unwrap_or(0);
-        let current_uid = mailbox.exists;
+        let highest_uid = mailbox.uid_next.map(|u| u.saturating_sub(1)).unwrap_or(0);
 
         self.check_uidvalidity(account_id, mailbox_name, uid_validity)
             .await?;
 
         let mut last_uid = self.get_last_synced_uid(account_id, mailbox_name).await?;
 
-        if current_uid > last_uid {
-            self.fetch_missing_messages(account_id, mailbox_name, last_uid + 1, current_uid)
+        if highest_uid > last_uid {
+            self.fetch_missing_messages(account_id, mailbox_name, last_uid + 1, highest_uid)
                 .await?;
-            last_uid = current_uid;
+            last_uid = highest_uid;
         }
 
         eprintln!("[IMAP] Entering IDLE for {}@{}", mailbox_name, account_id);
@@ -228,16 +228,17 @@ impl crate::imap::ImapManager {
                         .select(mailbox_name)
                         .await
                         .map_err(|e| e.to_string())?;
-                    let new_uid_count = mailbox.exists;
-                    if new_uid_count > last_uid {
+                    let new_highest_uid =
+                        mailbox.uid_next.map(|u| u.saturating_sub(1)).unwrap_or(0);
+                    if new_highest_uid > last_uid {
                         self.fetch_missing_messages(
                             account_id,
                             mailbox_name,
                             last_uid + 1,
-                            new_uid_count,
+                            new_highest_uid,
                         )
                         .await?;
-                        last_uid = new_uid_count;
+                        last_uid = new_highest_uid;
                     }
                 }
                 Ok(Err(e)) => {
