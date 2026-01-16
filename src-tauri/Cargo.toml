@@ -34,16 +34,29 @@ zeroize = { version = "1", features = ["derive"] }
 rand = "0.8"
 thiserror = "2"
 dirs = "5"
+hkdf = "0.12"
+hex = "0.4"
 
 # Database
-rusqlite = { version = "0.32", features = ["bundled", "unlock_notify"] }
+rusqlite = { version = "0.32", features = ["bundled-sqlcipher", "unlock_notify"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }
+walkdir = "2"
+zip = "2"
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
 portpicker = "0.1.1"
 tiny_http = "0.12.0"
+async-native-tls = "0.5"
+async-std = { version = "1.12", features = ["attributes"] }
+
+# Mail handling
+async-imap = "0.5"
+lettre = { version = "0.11", features = ["tokio1-native-tls", "smtp-transport"] }
+mailparse = "0.15"
+css-inline = "0.14"
+ammonia = "4"
 
 # TPM support (Linux)
 [target.'cfg(target_os = "linux")'.dependencies]

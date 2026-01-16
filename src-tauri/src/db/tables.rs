@@ -1,0 +1,193 @@
+use crate::db::sql_helpers::*;
+use crate::error::DBError;
+use rusqlite::Connection;
+
+pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
+    pragma_set(conn, "journal_mode", "WAL")?;
+    pragma_set(conn, "synchronous", "NORMAL")?;
+    pragma_set(conn, "cache_size", "-64000")?;
+    pragma_set(conn, "mmap_size", "268435456")?;
+
+    create_table_if_not_exists(
+        conn,
+        "accounts",
+        &[
+            ("id", "TEXT PRIMARY KEY"),
+            ("name", "TEXT NOT NULL"),
+            ("email", "TEXT NOT NULL"),
+            ("provider_type", "TEXT NOT NULL"),
+            ("auth_type", "TEXT NOT NULL"),
+            ("imap_host", "TEXT NOT NULL"),
+            ("imap_port", "INTEGER NOT NULL"),
+            ("imap_tls", "INTEGER NOT NULL"),
+            ("smtp_host", "TEXT NOT NULL"),
+            ("smtp_port", "INTEGER NOT NULL"),
+            ("smtp_tls", "INTEGER NOT NULL"),
+            ("creds_blob_path", "TEXT NOT NULL"),
+            ("encryption_mode", "TEXT NOT NULL"),
+            ("created_at", "INTEGER NOT NULL"),
+        ],
+    )?;
+
+    create_table_if_not_exists(
+        conn,
+        "mailboxes",
+        &[
+            ("id", "INTEGER PRIMARY KEY"),
+            ("account_id", "TEXT NOT NULL"),
+            ("name", "TEXT NOT NULL"),
+            ("uid_validity", "INTEGER"),
+            ("highest_modseq", "INTEGER"),
+            ("last_synced_uid", "INTEGER"),
+            ("UNIQUE(account_id, name)", ""),
+            (
+                "FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE",
+                "",
+            ),
+        ],
+    )?;
+
+    create_table_if_not_exists(
+        conn,
+        "messages",
+        &[
+            ("id", "INTEGER PRIMARY KEY"),
+            ("account_id", "TEXT NOT NULL"),
+            ("mailbox", "TEXT NOT NULL"),
+            ("uid", "INTEGER NOT NULL"),
+            ("message_id", "TEXT"),
+            ("internal_date", "INTEGER NOT NULL"),
+            ("from_addr", "TEXT"),
+            ("to_json", "TEXT"),
+            ("subject", "TEXT"),
+            ("snippet", "TEXT"),
+            ("flags_json", "TEXT"),
+            ("cached_structure_json", "TEXT"),
+            ("UNIQUE(account_id, mailbox, uid)", ""),
+            (
+                "FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE",
+                "",
+            ),
+        ],
+    )?;
+
+    create_fts_table(
+        conn,
+        "messages_fts",
+        &["subject", "from_addr", "snippet", "body_plain"],
+        "messages",
+        "id",
+    )?;
+
+    create_table_if_not_exists(
+        conn,
+        "outbox",
+        &[
+            ("id", "TEXT PRIMARY KEY"),
+            ("account_id", "TEXT NOT NULL"),
+            ("raw_eml_path", "TEXT NOT NULL"),
+            ("subject", "TEXT"),
+            ("recipient", "TEXT"),
+            ("status", "TEXT NOT NULL"),
+            ("attempts", "INTEGER DEFAULT 0"),
+            ("last_error", "TEXT"),
+            ("created_at", "INTEGER NOT NULL"),
+            ("next_retry", "INTEGER"),
+            (
+                "FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE",
+                "",
+            ),
+        ],
+    )?;
+
+    create_table_if_not_exists(
+        conn,
+        "attachments",
+        &[
+            ("id", "INTEGER PRIMARY KEY"),
+            ("message_table_id", "INTEGER NOT NULL"),
+            ("part_id", "TEXT NOT NULL"),
+            ("filename", "TEXT"),
+            ("mime_type", "TEXT NOT NULL"),
+            ("size", "INTEGER NOT NULL"),
+            ("cached_path", "TEXT"),
+            (
+                "FOREIGN KEY(message_table_id) REFERENCES messages(id) ON DELETE CASCADE",
+                "",
+            ),
+        ],
+    )?;
+
+    Ok(())
+}
+
+pub fn create_indexes(conn: &Connection) -> Result<(), DBError> {
+    create_index_if_not_exists(
+        conn,
+        "idx_messages_account_mailbox",
+        "messages",
+        &["account_id", "mailbox"],
+        false,
+    )?;
+    create_index_if_not_exists(
+        conn,
+        "idx_messages_uid",
+        "messages",
+        &["account_id", "mailbox", "uid"],
+        false,
+    )?;
+    create_index_if_not_exists(
+        conn,
+        "idx_messages_internal_date",
+        "messages",
+        &["internal_date DESC"],
+        false,
+    )?;
+    create_index_if_not_exists(
+        conn,
+        "idx_outbox_status_retry",
+        "outbox",
+        &["status", "next_retry"],
+        false,
+    )?;
+    create_index_if_not_exists(
+        conn,
+        "idx_attachments_message",
+        "attachments",
+        &["message_table_id"],
+        false,
+    )?;
+
+    Ok(())
+}
+
+pub fn create_fts_triggers(conn: &Connection) -> Result<(), DBError> {
+    create_trigger_if_not_exists(
+        conn,
+        "messages_fts_insert",
+        "AFTER",
+        "INSERT",
+        "messages",
+        "INSERT INTO messages_fts(rowid, subject, from_addr, snippet) VALUES (NEW.id, NEW.subject, NEW.from_addr, NEW.snippet);",
+    )?;
+
+    create_trigger_if_not_exists(
+        conn,
+        "messages_fts_update",
+        "AFTER",
+        "UPDATE",
+        "messages",
+        "UPDATE messages_fts SET subject = NEW.subject, from_addr = NEW.from_addr, snippet = NEW.snippet WHERE rowid = NEW.id;",
+    )?;
+
+    create_trigger_if_not_exists(
+        conn,
+        "messages_fts_delete",
+        "AFTER",
+        "DELETE",
+        "messages",
+        "DELETE FROM messages_fts WHERE rowid = OLD.id;",
+    )?;
+
+    Ok(())
+}

@@ -7,22 +7,22 @@
 - [x] 3 — Account Management
     - DB, OAuth flow (local server + PKCE), encrypted creds storage, account metadata
 
-- [ ] 4 — IMAP Basic (headers only)
+- [x] 4 — IMAP Basic (headers only)
     - Fetch mailboxes, headers (pagination/anchor), UIDVALIDITY handling
 
-- [ ] 5 — Message list / indexing
+- [x] 5 — Message list / indexing
     - Virtualization/list performance (react-virtuoso), FTS5 + fast queries, incremental loading
 
-- [ ] 6 — Message fetching (body, no attachments)
+- [x] 6 — Message fetching (body, no attachments)
     - BODYSTRUCTURE, fetch parts (text/html/plain), MIME parsing
 
-- [ ] 7 — SMTP & Outbox
+- [x] 7 — SMTP & Outbox
     - Save EML, outbox table, background worker, retry/backoff, append to Sent
 
-- [ ] 8 — Attachments (download + cache)
+- [x] 8 — Attachments (download + cache)
     - Stream BODY.PEEK -> encrypted file, serve via asset://, LRU cache, sharded dirs
 
-- [ ] 9 — Sync Loop (IDLE)
+- [x] 9 — Sync Loop (IDLE)
     - IDLE + poll fallback, NOOP, handle EXISTS/EXPUNGE, OAuth token refresh
 
 - [ ] 10 — UI
