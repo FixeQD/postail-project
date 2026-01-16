@@ -218,9 +218,19 @@ impl LinuxTpmStore {
         let sensitive_data = SensitiveData::try_from(data.to_vec())
             .map_err(|e| SecurityError::Tpm(e.to_string()))?;
 
+        let pcr_selection = super::pcr::create_pcr_selection_for_boot_state()
+            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
+
         let result = ctx
             .execute_with_session(Some(session), |ctx| {
-                ctx.create(primary, seal_public, None, Some(sensitive_data), None, None)
+                ctx.create(
+                    primary,
+                    seal_public,
+                    None,
+                    Some(sensitive_data),
+                    None,
+                    Some(pcr_selection),
+                )
             })
             .map_err(|e| SecurityError::Tpm(e.to_string()))?;
 
