@@ -346,5 +346,12 @@ pub fn run_maintenance(conn: &Connection) -> Result<(), DBError> {
     conn.execute("PRAGMA wal_checkpoint(TRUNCATE)", [])?;
     conn.execute("VACUUM", [])?;
     conn.execute("ANALYZE", [])?;
+
+    if let Ok(count) = super::outbox::cleanup_old_sent_messages(conn, 30) {
+        if count > 0 {
+            eprintln!("[DB] Cleaned up {} old sent messages (>30 days)", count);
+        }
+    }
+
     Ok(())
 }

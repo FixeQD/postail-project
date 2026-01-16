@@ -53,7 +53,7 @@
 - [x] Update enqueue_message to store subject and recipient
 - [x] Add update_outbox_status and increment_outbox_attempts functions
 - [x] Implement calculate_backoff (5s, 30s, 5m, 15m, 1h)
-- [ ] Add cleanup_old_sent_messages (delete SENT >30 days)
+- [x] Add cleanup_old_sent_messages (delete SENT >30 days)
 
 ### Attachment Management
 
