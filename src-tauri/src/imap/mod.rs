@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 pub mod connection;
 pub mod mailbox;
 pub mod sync;
+pub mod sync_status;
 
 pub struct ImapManager {
     conn: Arc<Mutex<Connection>>,

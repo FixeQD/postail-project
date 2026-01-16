@@ -4,6 +4,10 @@ use std::thread;
 use tokio::time::{timeout, Duration};
 
 use crate::error::{AppError, ImapError, SyncError};
+use crate::imap::sync_status::{
+    mark_sync_complete, mark_sync_error, start_sync_status_tracking, stop_sync_status_tracking,
+    update_sync_status,
+};
 
 const RFC_IDLE_TIMEOUT_SECS: u64 = 29 * 60;
 const POLL_INTERVAL_SECS: u64 = 60;
@@ -16,40 +20,19 @@ lazy_static::lazy_static! {
 
 impl crate::imap::ImapManager {
     pub fn start_sync(&self, account_id: &str) -> Result<(), AppError> {
-        let manager = self.clone();
-        let account_id = account_id.to_string();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| AppError::from(e.to_string()))?;
 
-        let stop_flag = Arc::new(AtomicBool::new(false));
-        {
-            let mut flags = STOP_FLAGS.lock().unwrap();
-            flags.insert(account_id.clone(), Arc::clone(&stop_flag));
-        }
-
-        let handle = thread::Builder::new()
-            .name(account_id.clone())
-            .spawn(move || {
-                let rt = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap();
-
-                rt.block_on(async {
-                    let sync_loop: Result<(), AppError> =
-                        async { manager.account_sync_loop(&account_id, &stop_flag).await }.await;
-
-                    if let Err(e) = sync_loop {
-                        eprintln!("Sync loop failed for {}: {}", account_id, e);
-                    }
-
-                    let mut flags = STOP_FLAGS.lock().unwrap();
-                    flags.remove(&account_id);
-                });
-            })
-            .map_err(AppError::from)?;
-
-        let mut tasks = SYNC_TASKS.lock().unwrap();
-        tasks.push(handle);
-        Ok(())
+        rt.block_on(async {
+            start_sync_status_tracking(account_id).await;
+            if let Err(e) = self.start_sync_async(account_id).await {
+                mark_sync_error(account_id, &e.to_string()).await;
+                return Err(e);
+            }
+            Ok(())
+        })
     }
 
     pub fn stop_sync(&self, account_id: &str) -> Result<(), AppError> {
@@ -100,11 +83,24 @@ impl crate::imap::ImapManager {
             }
         })?;
 
-        let mut flags = STOP_FLAGS.lock().unwrap();
-        flags.remove(account_id);
+        {
+            let mut flags = STOP_FLAGS.lock().unwrap();
+            flags.remove(account_id);
+        }
 
-        let mut mailbox_tasks = MAILBOX_TASKS.lock().unwrap();
-        mailbox_tasks.remove(account_id);
+        {
+            let mut mailbox_tasks = MAILBOX_TASKS.lock().unwrap();
+            mailbox_tasks.remove(account_id);
+        }
+
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| AppError::from(e.to_string()))?;
+
+        rt.block_on(async {
+            stop_sync_status_tracking(account_id).await;
+        });
 
         Ok(())
     }
@@ -123,70 +119,52 @@ impl crate::imap::ImapManager {
         None
     }
 
-    async fn account_sync_loop(
-        &self,
-        account_id: &str,
-        stop_flag: &Arc<AtomicBool>,
-    ) -> Result<(), AppError> {
-        self.sync_all_mailboxes(account_id, stop_flag).await?;
+    async fn start_sync_async(&self, account_id: &str) -> Result<(), AppError> {
+        use crate::imap::sync_status::SYNC_STATUS_MANAGER;
+        let stop_flag: Arc<AtomicBool> = SYNC_STATUS_MANAGER.get_stop_flag(account_id).await;
 
         loop {
             if stop_flag.load(Ordering::SeqCst) {
-                let mut mailbox_tasks = MAILBOX_TASKS.lock().unwrap();
-                if let Some(tasks) = mailbox_tasks.get_mut(account_id) {
-                    for task in tasks.drain(..) {
-                        let _ = task.join();
-                    }
-                }
+                mark_sync_complete(account_id).await;
                 return Ok(());
             }
 
-            tokio::time::sleep(Duration::from_secs(60)).await;
+            match self.sync_all_mailboxes_async(account_id, &stop_flag).await {
+                Ok(()) => {
+                    tokio::time::sleep(Duration::from_secs(60)).await;
+                }
+                Err(e) => {
+                    eprintln!("[IMAP] Sync error for {}: {}", account_id, e);
+                    mark_sync_error(account_id, &e.to_string()).await;
+                    tokio::time::sleep(Duration::from_secs(30)).await;
+                }
+            }
         }
     }
 
-    async fn sync_all_mailboxes(
+    async fn sync_all_mailboxes_async(
         &self,
         account_id: &str,
         stop_flag: &Arc<AtomicBool>,
     ) -> Result<(), AppError> {
         let mailboxes = self.fetch_mailboxes(account_id).await?;
-        let account_id = account_id.to_string();
 
-        let mut tasks = Vec::new();
         for mailbox in mailboxes {
             if stop_flag.load(Ordering::SeqCst) {
                 return Ok(());
             }
-            let manager = self.clone();
-            let mailbox_name = mailbox.name.clone();
-            let stop_flag = Arc::clone(stop_flag);
-            let account_id_clone = account_id.clone();
 
-            let handle = thread::Builder::new()
-                .name(format!("{}-{}", account_id_clone, mailbox_name))
-                .spawn(move || {
-                    let rt = tokio::runtime::Builder::new_current_thread()
-                        .enable_all()
-                        .build()
-                        .unwrap();
-
-                    rt.block_on(async {
-                        if let Err(e) = manager
-                            .idle_mailbox(&account_id_clone, &mailbox_name, &stop_flag)
-                            .await
-                        {
-                            eprintln!("[IMAP] Mailbox error for {}: {}", mailbox_name, e);
-                        }
-                    });
-                })
-                .map_err(|e| e.to_string())?;
-
-            tasks.push(handle);
+            match self
+                .idle_mailbox(account_id, &mailbox.name, stop_flag)
+                .await
+            {
+                Ok(()) => {}
+                Err(e) => {
+                    eprintln!("[IMAP] Mailbox error for {}: {}", mailbox.name, e);
+                    mark_sync_error(account_id, &e.to_string()).await;
+                }
+            }
         }
-
-        let mut mailbox_tasks = MAILBOX_TASKS.lock().unwrap();
-        mailbox_tasks.insert(account_id, tasks);
 
         Ok(())
     }
@@ -197,6 +175,8 @@ impl crate::imap::ImapManager {
         mailbox_name: &str,
         stop_flag: &Arc<AtomicBool>,
     ) -> Result<(), AppError> {
+        update_sync_status(account_id, mailbox_name, 0, 0).await;
+
         let mut session = self.connect_imap(account_id).await?;
         let mailbox = session.select(mailbox_name).await.map_err(AppError::from)?;
 
@@ -409,11 +389,15 @@ impl crate::imap::ImapManager {
             return Ok(());
         }
 
+        let total = end_uid - start_uid + 1;
         let limit: u32 = 100;
         let mut anchor = start_uid;
         let mut latest_uid = start_uid;
+        let mut processed = 0u32;
 
         while anchor < end_uid {
+            update_sync_status(account_id, mailbox_name, processed, total).await;
+
             let headers = self
                 .fetch_headers(account_id, mailbox_name, Some(anchor), limit)
                 .await?;
@@ -426,12 +410,15 @@ impl crate::imap::ImapManager {
                 latest_uid = h.uid;
             }
 
+            processed += headers.len() as u32;
             anchor = latest_uid + 1;
 
             if headers.len() < limit as usize {
                 break;
             }
         }
+
+        update_sync_status(account_id, mailbox_name, total, total).await;
 
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(

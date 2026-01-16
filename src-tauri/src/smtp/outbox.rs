@@ -57,6 +57,4 @@ impl super::SmtpManager {
             .map_err(|e| e.to_string())?;
         Ok(())
     }
-
-    pub fn start_outbox_worker(&self) {}
 }

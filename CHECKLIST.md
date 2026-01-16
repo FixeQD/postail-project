@@ -8,7 +8,7 @@
 - [x] Implement header fetching with pagination
 - [x] Add full message fetching with body parsing (HTML/plain, attachments)
 - [x] Handle OAuth refresh during IMAP operations
-- [ ] Implement sync status tracking
+- [x] Implement sync status tracking
 - [x] Add error recovery for network/auth failures
 - [ ] Optimize for large mailboxes (virtualization, batching)
 
@@ -17,8 +17,8 @@
 - [x] Implement SMTP sending with authentication (password/OAuth)
 - [x] Add outbox queue with retry policy (exponential backoff)
 - [x] Handle sending failures and status updates
-- [ ] Integrate with IMAP to move sent emails to Sent folder
-- [ ] Implement outbox worker (background task with tokio::spawn)
+- [x] Integrate with IMAP to move sent emails to Sent folder
+- [x] Implement outbox worker (background task with tokio::spawn)
 - [ ] Add email composition with HTML/CSS inlining
 - [ ] Handle attachments in sending
 - [ ] Implement cancel/retry for queued emails
@@ -26,6 +26,7 @@
 ## Database Integration
 
 ### Async & Concurrency
+
 - [x] Replace std::sync::Mutex with tokio::sync::Mutex (DB_CONN, IMAP_MANAGER, SMTP_MANAGER)
 - [x] Update .lock().unwrap() to .lock().await in all async functions
 - [x] Add spawn_blocking for batch operations (messages, vacuum, backup)
@@ -35,15 +36,15 @@
 - [x] Implement check_uidvalidity function with mailbox resync on mismatch
 - [x] Add get_mailbox_metadata (uid_validity, highest_modseq)
 - [x] Implement update_highest_modseq for CONDSTORE support
-- [ ] Add batch_insert_messages with transaction commits every 50 messages
-- [ ] Implement update_message_flags with comparison optimization
+- [x] Add batch_insert_messages with transaction commits every 50 messages
+- [x] Implement update_message_flags with comparison optimization
 - [ ] Populate has_attachments flag by checking attachments table
 
 ### Full-Text Search (FTS5)
 
-- [ ] Implement search_messages function with account/mailbox filters
-- [ ] Add FTS triggers (INSERT/UPDATE/DELETE) for auto-sync
-- [ ] Add escape_fts_query helper for user input sanitization
+- [x] Implement search_messages function with account/mailbox filters
+- [x] Add FTS triggers (INSERT/UPDATE/DELETE) for auto-sync
+- [x] Add escape_fts_query helper for user input sanitization
 - [ ] Support phrase/boolean search syntax (default FTS5)
 
 ### Outbox Persistence
@@ -69,6 +70,7 @@
 - [ ] Add lazy loading pattern for large messages
 
 ### Performance Optimization
+
 - [x] Add indexes: messages(account_id, mailbox, uid, internal_date), outbox(status, next_retry)
 - [x] Configure PRAGMA: journal_mode=WAL, synchronous=NORMAL, cache_size=64MB, mmap_size=256MB
 - [x] Implement schedule_maintenance with weekly VACUUM/ANALYZE
@@ -88,6 +90,7 @@
 - [ ] Add backup passphrase handling (separate from master key)
 
 ### Testing
+
 - [x] Add test_fts_search with various query patterns
 - [x] Add test_concurrent_access for parallel operations
 - [x] Add test_migration_up_down for migration verification
@@ -98,7 +101,7 @@
 ## Known Issues
 
 - [x] MutexGuard not Send in async Tauri commands - migrated to tokio::sync::Mutex
-- [ ] Outbox worker not implemented (background task needed)
+- [x] Outbox worker not implemented (background task needed) - now implemented with tokio::spawn
 - [ ] Email parsing and sanitization incomplete
 - [ ] Attachment streaming and caching not fully implemented
-- [x] IDLE mode not implemented for real-time sync
+- [x] IDLE mode not implemented for real-time sync - now implemented with fallback

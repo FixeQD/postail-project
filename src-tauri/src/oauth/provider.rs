@@ -43,6 +43,9 @@ pub struct ProviderInfo {
     pub auth_url: &'static str,
     pub token_url: &'static str,
     pub scopes: &'static str,
+    pub imap_host: &'static str,
+    pub smtp_host: &'static str,
+    pub sent_folder: &'static str,
 }
 
 impl ProviderInfo {
@@ -54,6 +57,9 @@ impl ProviderInfo {
                 auth_url: "https://accounts.google.com/o/oauth2/v2/auth",
                 token_url: "https://oauth2.googleapis.com/token",
                 scopes: "https://mail.google.com/ https://www.googleapis.com/auth/userinfo.email",
+                imap_host: "imap.gmail.com",
+                smtp_host: "smtp.gmail.com",
+                sent_folder: "[Gmail]/Sent Mail",
             },
             ProviderKind::Outlook => ProviderInfo {
                 kind,
@@ -61,6 +67,9 @@ impl ProviderInfo {
                 auth_url: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
                 token_url: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
                 scopes: "https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/SMTP.Send",
+                imap_host: "outlook.office365.com",
+                smtp_host: "smtp-mail.outlook.com",
+                sent_folder: "Sent Items",
             },
         }
     }

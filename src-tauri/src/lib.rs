@@ -133,13 +133,7 @@ async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta,
     };
 
     let account_input = AccountInput {
-        name: format!(
-            "{} Account",
-            match provider.kind {
-                oauth::ProviderKind::Gmail => "Gmail",
-                oauth::ProviderKind::Outlook => "Outlook",
-            }
-        ),
+        name: format!("{} Account", provider.kind.display_name()),
         email,
         auth_type: "oauth2".to_string(),
         credentials: Credentials::OAuth(OAuthCredentials {
@@ -147,29 +141,19 @@ async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta,
             refresh_token: tokens.refresh_token,
             expires_in: tokens.expires_in,
         }),
-        imap_config: match provider.kind {
-            oauth::ProviderKind::Gmail => ImapConfig {
-                host: "imap.gmail.com".to_string(),
-                port: 993,
-                tls: true,
-            },
-            oauth::ProviderKind::Outlook => ImapConfig {
-                host: "outlook.office365.com".to_string(),
-                port: 993,
-                tls: true,
-            },
+        imap_config: ImapConfig {
+            host: oauth::ProviderInfo::get(provider.kind)
+                .imap_host
+                .to_string(),
+            port: 993,
+            tls: true,
         },
-        smtp_config: match provider.kind {
-            oauth::ProviderKind::Gmail => SmtpConfig {
-                host: "smtp.gmail.com".to_string(),
-                port: 587,
-                tls: true,
-            },
-            oauth::ProviderKind::Outlook => SmtpConfig {
-                host: "smtp-mail.outlook.com".to_string(),
-                port: 587,
-                tls: true,
-            },
+        smtp_config: SmtpConfig {
+            host: oauth::ProviderInfo::get(provider.kind)
+                .smtp_host
+                .to_string(),
+            port: 587,
+            tls: true,
         },
     };
 
@@ -306,8 +290,55 @@ fn stop_sync(_account_id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn get_sync_status(_account_id: String) -> Result<SyncStatusEnum, String> {
-    Ok(SyncStatusEnum::Idle)
+fn get_sync_status(account_id: String) -> Result<SyncStatusEnum, String> {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    Ok(rt.block_on(async {
+        use crate::imap::sync_status::SYNC_STATUS_MANAGER;
+        SYNC_STATUS_MANAGER.get_status(&account_id).await
+    }))
+}
+
+#[tauri::command]
+fn search_messages(
+    account_id: Option<String>,
+    mailbox: Option<String>,
+    query: String,
+    limit: u32,
+) -> Result<Vec<db::search::SearchResult>, String> {
+    let conn = DB_CONN.lock().unwrap();
+    db::search_messages(
+        &conn,
+        account_id.as_deref(),
+        mailbox.as_deref(),
+        &query,
+        limit,
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn mark_read(
+    account_id: String,
+    mailbox: String,
+    uids: Vec<u64>,
+    read: bool,
+) -> Result<(), String> {
+    let conn = DB_CONN.lock().unwrap();
+    let uids: Vec<u32> = uids.into_iter().map(|u| u as u32).collect();
+    db::mark_read(&conn, &account_id, &mailbox, &uids, read).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn move_to_trash(account_id: String, mailbox: String, uids: Vec<u64>) -> Result<(), String> {
+    let conn = DB_CONN.lock().unwrap();
+    let uids: Vec<u32> = uids.into_iter().map(|u| u as u32).collect();
+    db::move_to_trash(&conn, &account_id, &mailbox, &uids).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -388,6 +419,11 @@ pub fn run() {
             utils::oauth_server::start(app.handle().clone());
             maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
 
+            {
+                let smtp = SMTP_MANAGER.lock().unwrap();
+                smtp.start_outbox_worker();
+            }
+
             let _db_conn = Arc::clone(&DB_CONN);
             tokio::task::spawn_blocking(move || {
                 if let Err(e) = run_encryption_migration_if_needed() {
@@ -413,6 +449,9 @@ pub fn run() {
             start_sync,
             stop_sync,
             get_sync_status,
+            search_messages,
+            mark_read,
+            move_to_trash,
             enqueue_message,
             list_outbox,
             retry_sending,

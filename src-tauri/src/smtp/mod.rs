@@ -6,6 +6,7 @@ use crate::security::SecurityManager;
 
 pub mod outbox;
 pub mod sender;
+pub mod worker;
 
 pub struct SmtpManager {
     conn: Arc<Mutex<Connection>>,

@@ -3,7 +3,7 @@ use lettre::{Message, SmtpTransport, Transport};
 use serde_json;
 
 impl super::SmtpManager {
-    fn get_credentials(&self, account_id: &str) -> Result<String, String> {
+    pub(crate) fn get_credentials(&self, account_id: &str) -> Result<String, String> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn
             .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")

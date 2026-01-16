@@ -4,6 +4,66 @@ use crate::error::DBError;
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 
+pub struct MessageBatchItem {
+    pub uid: u32,
+    pub message_id: Option<String>,
+    pub internal_date: DateTime<Utc>,
+    pub from: Option<String>,
+    pub to: Vec<String>,
+    pub subject: Option<String>,
+    pub snippet: Option<String>,
+    pub flags: Vec<String>,
+    pub structure_json: Option<String>,
+}
+
+pub fn batch_insert_messages(
+    conn: &mut Connection,
+    account_id: &str,
+    mailbox: &str,
+    items: &[MessageBatchItem],
+    transaction_size: usize,
+) -> Result<usize, DBError> {
+    if items.is_empty() {
+        return Ok(0);
+    }
+
+    let mut total_inserted = 0;
+    let mut tx = conn.transaction()?;
+
+    for (idx, item) in items.iter().enumerate() {
+        let flags_json = serde_json::to_string(&item.flags).unwrap_or_default();
+        let to_json = serde_json::to_string(&item.to).unwrap_or_default();
+
+        tx.execute(
+            "INSERT OR IGNORE INTO messages (account_id, mailbox, uid, message_id, internal_date, from_addr, to_json, subject, snippet, flags_json, cached_structure_json)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            params![
+                account_id,
+                mailbox,
+                item.uid,
+                item.message_id.as_deref(),
+                item.internal_date.timestamp(),
+                item.from.as_deref(),
+                to_json,
+                item.subject.as_deref(),
+                item.snippet.as_deref(),
+                flags_json,
+                item.structure_json.as_deref(),
+            ],
+        )?;
+
+        total_inserted += 1;
+
+        if (idx + 1) % transaction_size == 0 {
+            tx.commit()?;
+            tx = conn.transaction()?;
+        }
+    }
+
+    tx.commit()?;
+    Ok(total_inserted)
+}
+
 pub fn fetch_headers(
     conn: &Connection,
     account_id: &str,
@@ -131,4 +191,79 @@ pub fn upsert_message(
         ],
     )?;
     Ok(conn.last_insert_rowid())
+}
+
+pub fn update_message_flags(
+    conn: &Connection,
+    account_id: &str,
+    mailbox: &str,
+    uids: &[u32],
+    add_flags: Option<&[&str]>,
+    remove_flags: Option<&[&str]>,
+) -> Result<usize, DBError> {
+    if uids.is_empty() {
+        return Ok(0);
+    }
+
+    for uid in uids {
+        let current_flags: Option<String> = conn.query_row(
+            "SELECT flags_json FROM messages WHERE account_id = ? AND mailbox = ? AND uid = ?",
+            params![account_id, mailbox, uid],
+            |row| row.get(0),
+        )?;
+
+        let mut flags: Vec<String> = current_flags
+            .as_deref()
+            .and_then(|s| serde_json::from_str(s).ok())
+            .unwrap_or_default();
+
+        if let Some(add) = add_flags {
+            for flag in add {
+                if !flags.contains(&flag.to_string()) {
+                    flags.push(flag.to_string());
+                }
+            }
+        }
+
+        if let Some(remove) = remove_flags {
+            for flag in remove {
+                flags.retain(|f| f != flag);
+            }
+        }
+
+        conn.execute(
+            "UPDATE messages SET flags_json = ? WHERE account_id = ? AND mailbox = ? AND uid = ?",
+            params![
+                serde_json::to_string(&flags).unwrap_or_default(),
+                account_id,
+                mailbox,
+                uid
+            ],
+        )?;
+    }
+
+    Ok(uids.len())
+}
+
+pub fn mark_read(
+    conn: &Connection,
+    account_id: &str,
+    mailbox: &str,
+    uids: &[u32],
+    read: bool,
+) -> Result<usize, DBError> {
+    if read {
+        update_message_flags(conn, account_id, mailbox, uids, Some(&["\\Seen"]), None)
+    } else {
+        update_message_flags(conn, account_id, mailbox, uids, None, Some(&["\\Seen"]))
+    }
+}
+
+pub fn move_to_trash(
+    conn: &Connection,
+    account_id: &str,
+    mailbox: &str,
+    uids: &[u32],
+) -> Result<usize, DBError> {
+    update_message_flags(conn, account_id, mailbox, uids, Some(&["\\Deleted"]), None)
 }
