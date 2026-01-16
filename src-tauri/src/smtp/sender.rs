@@ -1,6 +1,8 @@
+use crate::security::SecurityManager;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
 use serde_json;
+use std::sync::Arc;
 
 impl super::SmtpManager {
     pub(crate) fn get_credentials(&self, account_id: &str) -> Result<String, String> {
@@ -19,6 +21,38 @@ impl super::SmtpManager {
         let decrypted = security.decrypt(&encrypted).map_err(|e| e.to_string())?;
         let creds_json = String::from_utf8(decrypted).map_err(|e| e.to_string())?;
         Ok(creds_json)
+    }
+
+    pub(crate) fn inline_css_in_html(html: &str) -> Result<String, String> {
+        css_inline::inline(html).map_err(|e| e.to_string())
+    }
+
+    pub(crate) fn process_outgoing_eml(raw_eml: &[u8]) -> Result<Vec<u8>, String> {
+        let eml_str = String::from_utf8(raw_eml.clone()).map_err(|e| e.to_string());
+
+        let eml_str = match eml_str {
+            Ok(s) => s,
+            Err(_) => return Ok(raw_eml.to_vec()),
+        };
+
+        if let Some(html_start) = eml_str.find("Content-Type: text/html") {
+            let before_html = &eml_str[..html_start];
+            if let Some(html_end) = eml_str[html_start..].find("\r\n\r\n") {
+                let content_start = html_start + html_end + 4;
+                if let Some(boundary_end) = eml_str[content_start..].find("\r\n--") {
+                    let html_content = &eml_str[content_start..content_start + boundary_end];
+                    let inlined = css_inline::inline(html_content).unwrap_or_else(|_| html_content.to_string());
+
+                    let mut result = eml_str[..content_start].to_string();
+                    result.push_str(&inlined);
+                    result.push_str(&eml_str[content_start + boundary_end..]);
+
+                    return Ok(result.into_bytes());
+                }
+            }
+        }
+
+        Ok(raw_eml.to_vec())
     }
 
     pub async fn send_email(&self, account_id: &str, eml_content: &[u8]) -> Result<(), String> {
@@ -61,8 +95,10 @@ impl super::SmtpManager {
             .credentials(creds_smtp)
             .build();
 
+        let processed_eml = self.process_outgoing_eml(eml_content)?;
+
         let message = Message::builder()
-            .body(eml_content.to_vec())
+            .body(processed_eml)
             .map_err(|e| e.to_string())?;
 
         mailer.send(&message).map_err(|e| e.to_string())?;
