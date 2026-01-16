@@ -4,6 +4,8 @@ use crate::error::DBError;
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 
+pub const DEFAULT_BATCH_SIZE: usize = 50;
+
 pub struct MessageBatchItem {
     pub uid: u32,
     pub message_id: Option<String>,

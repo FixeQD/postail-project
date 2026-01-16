@@ -2,7 +2,7 @@ use async_std::stream::StreamExt;
 use chrono::DateTime;
 use serde_json;
 
-use crate::db::{upsert_message, MailHeader, MessageUpsertData};
+use crate::db::{upsert_message, MailHeader, MessageBatchItem, MessageUpsertData, DEFAULT_BATCH_SIZE};
 
 impl crate::imap::ImapManager {
     pub fn fetch_headers_sync(
@@ -33,6 +33,7 @@ impl crate::imap::ImapManager {
             "1:*".to_string()
         };
 
+        let mut batch_items: Vec<MessageBatchItem> = Vec::with_capacity(DEFAULT_BATCH_SIZE);
         let mut headers = Vec::new();
         {
             let mut fetches = session
@@ -114,29 +115,37 @@ impl crate::imap::ImapManager {
                     has_attachments: false,
                 };
 
-                upsert_message(
-                    &self.conn.lock().unwrap(),
-                    account_id,
-                    mailbox,
-                    &MessageUpsertData {
-                        uid,
-                        message_id: header.message_id.clone(),
-                        internal_date: header.internal_date,
-                        from: header.from.first().cloned(),
-                        to_json: Some(serde_json::to_string(&header.to).unwrap()),
-                        subject: header.subject.clone(),
-                        snippet: header.snippet.clone(),
-                        flags_json: Some(serde_json::to_string(&header.flags).unwrap()),
-                        structure_json: None,
-                    },
-                )
-                .map_err(|e| e.to_string())?;
+                batch_items.push(MessageBatchItem {
+                    uid,
+                    message_id: header.message_id.clone(),
+                    internal_date: header.internal_date,
+                    from: header.from.first().cloned(),
+                    to: header.to,
+                    subject: header.subject.clone(),
+                    snippet: header.snippet.clone(),
+                    flags: header.flags.clone(),
+                    structure_json: None,
+                });
 
                 headers.push(header);
+
+                if batch_items.len() >= DEFAULT_BATCH_SIZE {
+                    let mut conn = self.conn.lock().unwrap();
+                    crate::db::batch_insert_messages(&mut conn, account_id, mailbox, &batch_items, DEFAULT_BATCH_SIZE)
+                        .map_err(|e| e.to_string())?;
+                    batch_items.clear();
+                }
+
                 if headers.len() >= limit as usize {
                     break;
                 }
             }
+        }
+
+        if !batch_items.is_empty() {
+            let mut conn = self.conn.lock().unwrap();
+            crate::db::batch_insert_messages(&mut conn, account_id, mailbox, &batch_items, DEFAULT_BATCH_SIZE)
+                .map_err(|e| e.to_string())?;
         }
 
         session.logout().await.map_err(|e| e.to_string())?;
