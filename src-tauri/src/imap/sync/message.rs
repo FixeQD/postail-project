@@ -1,6 +1,8 @@
 use async_std::stream::StreamExt;
 use mailparse::parse_mail;
 
+use crate::db;
+
 impl crate::imap::ImapManager {
     pub fn fetch_message_full_sync(
         &self,
@@ -36,31 +38,29 @@ impl crate::imap::ImapManager {
                 let attachments = vec![];
                 let inline_images = vec![];
 
-                let header = crate::db::fetch_headers(
-                    &self.conn.lock().unwrap(),
-                    account_id,
-                    mailbox,
-                    Some(uid - 1),
-                    1,
-                )
-                .map_err(|e| e.to_string())?
-                .into_iter()
-                .next()
-                .ok_or("No header")?;
+                let message_full = {
+                    let conn = self.conn.lock().unwrap();
+                    db::fetch_message_full(&conn, account_id, mailbox, uid)
+                        .map_err(|e| e.to_string())?
+                };
 
-                Some(crate::db::MessageFull {
-                    header,
-                    body_html_safe,
-                    body_plain,
-                    attachments,
-                    inline_images,
-                })
+                if let Some(message) = message_full {
+                    Ok(Some(crate::db::MessageFull {
+                        header: message.header,
+                        body_html_safe,
+                        body_plain,
+                        attachments,
+                        inline_images,
+                    }))
+                } else {
+                    Err("Message not found in database".to_string())
+                }
             } else {
-                None
+                Ok(None)
             }
         };
 
         session.logout().await.map_err(|e| e.to_string())?;
-        Ok(fetch_result)
+        fetch_result
     }
 }
