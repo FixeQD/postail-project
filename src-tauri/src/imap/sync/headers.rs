@@ -1,5 +1,5 @@
 use async_std::stream::StreamExt;
-use chrono::DateTime;
+use chrono::{TimeZone, Utc};
 
 use crate::db::{MailHeader, MessageBatchItem, DEFAULT_BATCH_SIZE};
 
@@ -100,12 +100,17 @@ impl crate::imap::ImapManager {
                 let internal_date = fetch.internal_date().ok_or("No internal date")?;
                 let snippet = None;
 
+                let header_internal_date = Utc
+                    .timestamp_opt(internal_date.timestamp(), 0)
+                    .single()
+                    .unwrap_or_else(Utc::now);
+
                 let header = MailHeader {
                     uid,
                     message_id: envelope
                         .message_id
                         .map(|s| String::from_utf8_lossy(s).to_string()),
-                    internal_date: DateTime::from_timestamp(internal_date.timestamp(), 0).unwrap(),
+                    internal_date: header_internal_date,
                     subject,
                     from,
                     to: to.clone(),
