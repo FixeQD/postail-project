@@ -125,6 +125,10 @@ pub fn save_attachment(
         ],
     )?;
 
+    if let Err(e) = super::messages::sync_message_attachments_flag(message_table_id, conn) {
+        eprintln!("[DB] Failed to sync attachments flag: {}", e);
+    }
+
     Ok(conn.last_insert_rowid())
 }
 

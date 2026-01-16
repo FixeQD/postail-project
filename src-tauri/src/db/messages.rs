@@ -73,13 +73,13 @@ pub fn fetch_headers(
 ) -> Result<Vec<MailHeader>, DBError> {
     let (query, params) = if let Some(anchor) = anchor {
         (
-            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, flags_json, snippet
+            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, flags_json, snippet, has_attachments
              FROM messages WHERE account_id = ? AND mailbox = ? AND uid > ? ORDER BY uid DESC LIMIT ?",
             vec![account_id.to_string(), mailbox.to_string(), anchor.to_string(), limit.to_string()],
         )
     } else {
         (
-            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, flags_json, snippet
+            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, flags_json, snippet, has_attachments
              FROM messages WHERE account_id = ? AND mailbox = ? ORDER BY uid DESC LIMIT ?",
             vec![account_id.to_string(), mailbox.to_string(), limit.to_string()],
         )
@@ -104,7 +104,7 @@ pub fn fetch_headers(
             to,
             flags,
             snippet: row.get(7)?,
-            has_attachments: false,
+            has_attachments: row.get::<_, i64>(8)? != 0,
         })
     })?;
 
@@ -119,7 +119,7 @@ pub fn fetch_message_full(
     uid: u32,
 ) -> Result<Option<MessageFull>, DBError> {
     let mut stmt = conn.prepare(
-        "SELECT message_id, internal_date, subject, from_addr, to_json, flags_json, snippet FROM messages
+        "SELECT message_id, internal_date, subject, from_addr, to_json, flags_json, snippet, has_attachments FROM messages
          WHERE account_id = ? AND mailbox = ? AND uid = ?",
     )?;
     let header = stmt
@@ -141,7 +141,7 @@ pub fn fetch_message_full(
                 to,
                 flags,
                 snippet: row.get(6)?,
-                has_attachments: false,
+                has_attachments: row.get::<_, i64>(7)? != 0,
             })
         })
         .optional()?;
@@ -270,4 +270,38 @@ pub fn move_to_trash(
     uids: &[u32],
 ) -> Result<usize, DBError> {
     update_message_flags(conn, account_id, mailbox, uids, Some(&["\\Deleted"]), None)
+}
+
+pub fn update_message_has_attachments(message_table_id: i64, has_attachments: bool) -> Result<(), DBError> {
+    super::DB_CONN.lock().unwrap().execute(
+        "UPDATE messages SET has_attachments = ? WHERE id = ?",
+        params![if has_attachments { 1 } else { 0 }, message_table_id],
+    )?;
+    Ok(())
+}
+
+pub fn sync_message_attachments_flag(message_table_id: i64, conn: &Connection) -> Result<(), DBError> {
+    let has_attachments: bool = conn.query_row(
+        "SELECT COUNT(*) FROM attachments WHERE message_table_id = ?",
+        params![message_table_id],
+        |row| row.get(0).map(|c| c > 0),
+    )?;
+
+    conn.execute(
+        "UPDATE messages SET has_attachments = ? WHERE id = ?",
+        params![if has_attachments { 1 } else { 0 }, message_table_id],
+    )?;
+    Ok(())
+}
+
+pub fn refresh_all_attachments_flags(conn: &Connection) -> Result<usize, DBError> {
+    conn.execute(
+        "UPDATE messages SET has_attachments = 1 WHERE id IN (SELECT DISTINCT message_table_id FROM attachments)",
+        [],
+    )?;
+    conn.execute(
+        "UPDATE messages SET has_attachments = 0 WHERE id NOT IN (SELECT DISTINCT message_table_id FROM attachments) AND has_attachments = 1",
+        [],
+    )?;
+    Ok(conn.changes() as usize)
 }
