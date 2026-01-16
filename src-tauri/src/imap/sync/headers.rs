@@ -1,8 +1,7 @@
 use async_std::stream::StreamExt;
 use chrono::DateTime;
-use serde_json;
 
-use crate::db::{upsert_message, MailHeader, MessageBatchItem, MessageUpsertData, DEFAULT_BATCH_SIZE};
+use crate::db::{MessageBatchItem, DEFAULT_BATCH_SIZE, MailHeader};
 
 impl crate::imap::ImapManager {
     pub fn fetch_headers_sync(
@@ -72,7 +71,7 @@ impl crate::imap::ImapManager {
                             .collect()
                     })
                     .unwrap_or_default();
-                let to = envelope
+                let to: Vec<String> = envelope
                     .to
                     .as_ref()
                     .map(|addrs| {
@@ -109,7 +108,7 @@ impl crate::imap::ImapManager {
                     internal_date: DateTime::from_timestamp(internal_date.timestamp(), 0).unwrap(),
                     subject,
                     from,
-                    to,
+                    to: to.clone(),
                     flags,
                     snippet,
                     has_attachments: false,
@@ -120,7 +119,7 @@ impl crate::imap::ImapManager {
                     message_id: header.message_id.clone(),
                     internal_date: header.internal_date,
                     from: header.from.first().cloned(),
-                    to: header.to,
+                    to,
                     subject: header.subject.clone(),
                     snippet: header.snippet.clone(),
                     flags: header.flags.clone(),

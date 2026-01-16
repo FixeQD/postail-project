@@ -1,6 +1,6 @@
 use crate::error::DBError;
 use ammonia;
-use mailparse::{parse_mail, MailPart};
+use mailparse::{parse_mail, ParsedMail};
 use rusqlite::{params, Connection, OptionalExtension, Result as SqlResult};
 use std::panic;
 
@@ -30,32 +30,30 @@ pub fn parse_mail_with_fallback(raw_eml: &[u8]) -> (Option<String>, Option<Strin
     let parse_result = panic::catch_unwind(|| parse_mail(raw_eml));
 
     match parse_result {
-        Ok(mail) => {
+        Ok(Ok(mail)) => {
             let mut html_content = None;
             let mut plain_content = None;
 
-            fn extract_text_parts(part: &MailPart, html: &mut Option<String>, plain: &mut Option<String>) {
+            fn extract_text_parts(part: &ParsedMail, html: &mut Option<String>, plain: &mut Option<String>) {
                 let mime_type = part.ctype.mimetype.as_str();
                 
                 if mime_type == "text/html" {
-                    if let Ok(content) = std::str::from_utf8(&part.body.raw) {
+                    if let Ok(content) = part.get_body() {
                         if html.is_none() {
-                            *html = Some(content.to_string());
+                            *html = Some(content);
                         }
                     }
                 } else if mime_type == "text/plain" {
-                    if let Ok(content) = std::str::from_utf8(&part.body.raw) {
+                    if let Ok(content) = part.get_body() {
                         if plain.is_none() {
-                            *plain = Some(content.to_string());
+                            *plain = Some(content);
                         }
                     }
                 }
 
-                if part.ctype.mimetype.starts_with("multipart/") {
-                    if let Some(ref subparts) = part.body.subparts {
-                        for sp in subparts {
-                            extract_text_parts(sp, html, plain);
-                        }
+                if mime_type.starts_with("multipart/") {
+                    for sp in &part.subparts {
+                        extract_text_parts(sp, html, plain);
                     }
                 }
             }
@@ -64,7 +62,7 @@ pub fn parse_mail_with_fallback(raw_eml: &[u8]) -> (Option<String>, Option<Strin
 
             (html_content, plain_content, None)
         }
-        Err(_) => {
+        Ok(Err(_)) | Err(_) => {
             let raw_str = String::from_utf8_lossy(raw_eml);
             let preview = raw_str.chars().take(500).collect::<String>();
             (None, None, Some(preview))

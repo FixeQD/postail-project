@@ -274,19 +274,11 @@ pub fn move_to_trash(
     update_message_flags(conn, account_id, mailbox, uids, Some(&["\\Deleted"]), None)
 }
 
-pub fn update_message_has_attachments(message_table_id: i64, has_attachments: bool) -> Result<(), DBError> {
-    super::DB_CONN.lock().unwrap().execute(
-        "UPDATE messages SET has_attachments = ? WHERE id = ?",
-        params![if has_attachments { 1 } else { 0 }, message_table_id],
-    )?;
-    Ok(())
-}
-
 pub fn sync_message_attachments_flag(message_table_id: i64, conn: &Connection) -> Result<(), DBError> {
     let has_attachments: bool = conn.query_row(
         "SELECT COUNT(*) FROM attachments WHERE message_table_id = ?",
         params![message_table_id],
-        |row| row.get(0).map(|c| c > 0),
+        |row| row.get::<_, i64>(0).map(|c| c > 0),
     )?;
 
     conn.execute(

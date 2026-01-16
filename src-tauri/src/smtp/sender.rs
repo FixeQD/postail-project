@@ -1,8 +1,6 @@
-use crate::security::SecurityManager;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
 use serde_json;
-use std::sync::Arc;
 
 impl super::SmtpManager {
     pub(crate) fn get_credentials(&self, account_id: &str) -> Result<String, String> {
@@ -27,8 +25,8 @@ impl super::SmtpManager {
         css_inline::inline(html).map_err(|e| e.to_string())
     }
 
-    pub(crate) fn process_outgoing_eml(raw_eml: &[u8]) -> Result<Vec<u8>, String> {
-        let eml_str = String::from_utf8(raw_eml.clone()).map_err(|e| e.to_string());
+    pub(crate) fn process_outgoing_eml(&self, raw_eml: &[u8]) -> Result<Vec<u8>, String> {
+        let eml_str = String::from_utf8(raw_eml.to_vec()).map_err(|e| e.to_string());
 
         let eml_str = match eml_str {
             Ok(s) => s,
@@ -55,33 +53,22 @@ impl super::SmtpManager {
         Ok(raw_eml.to_vec())
     }
 
-    pub(crate) fn extract_attachments_from_eml(raw_eml: &[u8]) -> Result<Vec<(&str, &str, &[u8])>, String> {
+    pub(crate) fn extract_attachments_from_eml(&self, raw_eml: &[u8]) -> Result<Vec<(String, String, Vec<u8>)>, String> {
         let mail = mailparse::parse_mail(raw_eml).map_err(|e| e.to_string())?;
 
         let mut attachments = Vec::new();
 
-        fn find_attachments(part: &mailparse::MailPart, attachments: &mut Vec<(&str, &str, &[u8])>) {
-            if let Some(ct) = part.ctype.mimetype.starts_with("multipart/") {
-                if let Some(ref subparts) = part.body.subparts {
-                    for sp in subparts {
-                        find_attachments(sp, attachments);
-                    }
-                }
-            } else if !part.ctype.mimetype.starts_with("text/") {
-                if let Some(disposition) = &part.ctype.params.get("name") {
-                    let filename = disposition.as_str();
-                    if let Ok(data) = part.body.raw {
-                        attachments.push((filename, &part.ctype.mimetype, &data));
-                    }
-                }
-            }
+        fn find_attachments<'a>(part: &'a mailparse::ParsedMail<'a>, attachments: &mut Vec<(String, String, Vec<u8>)>) {
+            let mime_type = part.ctype.mimetype.as_str();
 
-            if let Some(ref cte) = part.ctype.params.get("content-transfer-encoding") {
-                if cte.as_str() == "base64" {
-                    if let Ok(decoded) = base64::decode(&String::from_utf8_lossy(&part.body.raw)) {
-                        if let Some(filename) = part.ctype.params.get("name") {
-                            attachments.push((filename.as_str(), &part.ctype.mimetype, &decoded));
-                        }
+            if mime_type.starts_with("multipart/") {
+                for sp in &part.subparts {
+                    find_attachments(sp, attachments);
+                }
+            } else if !mime_type.starts_with("text/") {
+                if let Some(filename) = part.ctype.params.get("name") {
+                    if let Ok(data) = part.get_body_raw() {
+                        attachments.push((filename.to_string(), mime_type.to_string(), data));
                     }
                 }
             }

@@ -1,23 +1,23 @@
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 use crate::error::DBError;
 
 const DB_VERSION: u32 = 1;
 
 pub fn get_db_version(conn: &Connection) -> Result<u32, DBError> {
-    conn.query_row(
+    let version: Option<i64> = conn.query_row(
         "SELECT version FROM schema_versions ORDER BY version DESC LIMIT 1",
         [],
         |row| row.get(0)
     )
     .optional()
-    .map_err(DBError::Sqlite)?
-    .unwrap_or(0)
+    .map_err(DBError::Sqlite)?;
+    Ok(version.unwrap_or(0) as u32)
 }
 
 pub fn set_db_version(conn: &Connection, version: u32) -> Result<(), DBError> {
     conn.execute(
         "INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)",
-        [version, chrono::Utc::now().timestamp()]
+        [version as i64, chrono::Utc::now().timestamp()]
     )?;
     Ok(())
 }
