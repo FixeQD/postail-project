@@ -13,6 +13,10 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+            - name: Install system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y pkg-config libglib2.0-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev
             - name: Install Rust
               run: rustup default stable
             - name: cargo check
@@ -24,6 +28,10 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+            - name: Install system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y pkg-config libglib2.0-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev
             - name: Install Rust
               run: rustup default stable
             - name: cargo clippy
@@ -35,6 +43,10 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+            - name: Install system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y pkg-config libglib2.0-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev
             - name: Install Rust
               run: rustup default stable
             - name: cargo test
