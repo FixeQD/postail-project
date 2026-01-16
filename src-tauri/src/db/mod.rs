@@ -5,6 +5,7 @@ pub mod mailbox;
 pub mod message_bodies;
 pub mod messages;
 pub mod migration;
+pub mod migrations;
 pub mod outbox;
 pub mod outbox_db;
 pub mod search;
@@ -28,6 +29,7 @@ pub use crate::db::messages::{
     upsert_message, MessageUpsertData,
 };
 pub use crate::db::migration::run_encryption_migration_if_needed;
+pub use crate::db::migrations::{run_migrations, get_db_version};
 pub use crate::db::outbox::*;
 pub use crate::db::outbox_db::{enqueue_message, list_outbox};
 pub use crate::db::search::*;
@@ -165,6 +167,8 @@ pub fn init_db() -> Result<Connection, DBError> {
     tables::create_tables(&conn)?;
     tables::create_indexes(&conn)?;
     tables::create_fts_triggers(&conn)?;
+
+    run_migrations(&conn)?;
 
     Ok(conn)
 }
