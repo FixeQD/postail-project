@@ -55,6 +55,43 @@ impl super::SmtpManager {
         Ok(raw_eml.to_vec())
     }
 
+    pub(crate) fn extract_attachments_from_eml(raw_eml: &[u8]) -> Result<Vec<(&str, &str, &[u8])>, String> {
+        let mail = mailparse::parse_mail(raw_eml).map_err(|e| e.to_string())?;
+
+        let mut attachments = Vec::new();
+
+        fn find_attachments(part: &mailparse::MailPart, attachments: &mut Vec<(&str, &str, &[u8])>) {
+            if let Some(ct) = part.ctype.mimetype.starts_with("multipart/") {
+                if let Some(ref subparts) = part.body.subparts {
+                    for sp in subparts {
+                        find_attachments(sp, attachments);
+                    }
+                }
+            } else if !part.ctype.mimetype.starts_with("text/") {
+                if let Some(disposition) = &part.ctype.params.get("name") {
+                    let filename = disposition.as_str();
+                    if let Ok(data) = part.body.raw {
+                        attachments.push((filename, &part.ctype.mimetype, &data));
+                    }
+                }
+            }
+
+            if let Some(ref cte) = part.ctype.params.get("content-transfer-encoding") {
+                if cte.as_str() == "base64" {
+                    if let Ok(decoded) = base64::decode(&String::from_utf8_lossy(&part.body.raw)) {
+                        if let Some(filename) = part.ctype.params.get("name") {
+                            attachments.push((filename.as_str(), &part.ctype.mimetype, &decoded));
+                        }
+                    }
+                }
+            }
+        }
+
+        find_attachments(&mail, &mut attachments);
+
+        Ok(attachments)
+    }
+
     pub async fn send_email(&self, account_id: &str, eml_content: &[u8]) -> Result<(), String> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn
