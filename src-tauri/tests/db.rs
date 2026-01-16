@@ -6,7 +6,7 @@ use tempfile::NamedTempFile;
 use postail_project_lib::db::tables::create_tables;
 use postail_project_lib::db::{
     add_account, list_accounts, remove_account, AccountInput, Credentials, ImapConfig,
-    OAuthCredentials, PasswordCredentials, SmtpConfig,
+    MessageUpsertData, OAuthCredentials, PasswordCredentials, SmtpConfig,
 };
 use postail_project_lib::security::SecurityManager;
 
@@ -251,15 +251,17 @@ fn test_fts_search() {
         &conn,
         &account_id,
         mailbox,
-        uid1,
-        Some("msg1@example.com"),
-        created_at,
-        Some("sender1@example.com"),
-        Some("recipient@example.com"),
-        Some("Test subject with keyword"),
-        Some("Body text with searchable content"),
-        Some(r#"["\Seen", "\Flagged"]"#),
-        Some("structure"),
+        &MessageUpsertData {
+            uid: uid1,
+            message_id: Some("msg1@example.com".to_string()),
+            internal_date: created_at,
+            from: Some("sender1@example.com".to_string()),
+            to_json: Some("recipient@example.com".to_string()),
+            subject: Some("Test subject with keyword".to_string()),
+            snippet: Some("Body text with searchable content".to_string()),
+            flags_json: Some(r#"["\Seen", "\Flagged"]"#.to_string()),
+            structure_json: Some("structure".to_string()),
+        },
     )
     .unwrap();
 
@@ -267,15 +269,17 @@ fn test_fts_search() {
         &conn,
         &account_id,
         mailbox,
-        uid2,
-        Some("msg2@example.com"),
-        created_at,
-        Some("sender2@example.com"),
-        Some("recipient@example.com"),
-        Some("Another subject"),
-        Some("Different body content"),
-        Some(r#"["\Seen"]"#),
-        Some("structure"),
+        &MessageUpsertData {
+            uid: uid2,
+            message_id: Some("msg2@example.com".to_string()),
+            internal_date: created_at,
+            from: Some("sender2@example.com".to_string()),
+            to_json: Some("recipient@example.com".to_string()),
+            subject: Some("Another subject".to_string()),
+            snippet: Some("Different body content".to_string()),
+            flags_json: Some(r#"["\Seen"]"#.to_string()),
+            structure_json: Some("structure".to_string()),
+        },
     )
     .unwrap();
 
@@ -579,15 +583,17 @@ fn test_performance_large_datasets() {
                 &tx,
                 &account_id,
                 mailbox,
-                uid,
-                Some(&format!("msg{}@example.com", uid)),
-                created_at,
-                Some(&format!("sender{}@example.com", uid)),
-                Some("recipient@example.com"),
-                Some(&format!("Subject {}", uid)),
-                Some(&format!("Body content for message {}", uid)),
-                Some(r#"["\Seen"]"#),
-                None,
+                &MessageUpsertData {
+                    uid,
+                    message_id: Some(format!("msg{}@example.com", uid)),
+                    internal_date: created_at,
+                    from: Some(format!("sender{}@example.com", uid)),
+                    to_json: Some("recipient@example.com".to_string()),
+                    subject: Some(format!("Subject {}", uid)),
+                    snippet: Some(format!("Body content for message {}", uid)),
+                    flags_json: Some(r#"["\Seen"]"#.to_string()),
+                    structure_json: None,
+                },
             )
             .unwrap();
         }
