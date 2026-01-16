@@ -29,7 +29,7 @@ pub use crate::db::messages::{
     upsert_message, MessageBatchItem, MessageUpsertData, DEFAULT_BATCH_SIZE,
 };
 pub use crate::db::migration::run_encryption_migration_if_needed;
-pub use crate::db::migrations::{run_migrations, get_db_version};
+pub use crate::db::migrations::{get_db_version, run_migrations};
 pub use crate::db::outbox::*;
 pub use crate::db::outbox_db::{enqueue_message, list_outbox};
 pub use crate::db::search::*;

@@ -274,7 +274,10 @@ pub fn move_to_trash(
     update_message_flags(conn, account_id, mailbox, uids, Some(&["\\Deleted"]), None)
 }
 
-pub fn sync_message_attachments_flag(message_table_id: i64, conn: &Connection) -> Result<(), DBError> {
+pub fn sync_message_attachments_flag(
+    message_table_id: i64,
+    conn: &Connection,
+) -> Result<(), DBError> {
     let has_attachments: bool = conn.query_row(
         "SELECT COUNT(*) FROM attachments WHERE message_table_id = ?",
         params![message_table_id],

@@ -4,6 +4,8 @@ use mailparse::{parse_mail, ParsedMail};
 use rusqlite::{params, Connection, OptionalExtension, Result as SqlResult};
 use std::panic;
 
+type MessageBodyFull = (Option<String>, String, Option<Vec<u8>>, Option<String>);
+
 pub fn create_message_bodies_table(conn: &Connection) -> SqlResult<()> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS message_bodies (
@@ -26,7 +28,9 @@ pub fn create_message_bodies_table(conn: &Connection) -> SqlResult<()> {
     Ok(())
 }
 
-pub fn parse_mail_with_fallback(raw_eml: &[u8]) -> (Option<String>, Option<String>, Option<String>) {
+pub fn parse_mail_with_fallback(
+    raw_eml: &[u8],
+) -> (Option<String>, Option<String>, Option<String>) {
     let parse_result = panic::catch_unwind(|| parse_mail(raw_eml));
 
     match parse_result {
@@ -34,9 +38,13 @@ pub fn parse_mail_with_fallback(raw_eml: &[u8]) -> (Option<String>, Option<Strin
             let mut html_content = None;
             let mut plain_content = None;
 
-            fn extract_text_parts(part: &ParsedMail, html: &mut Option<String>, plain: &mut Option<String>) {
+            fn extract_text_parts(
+                part: &ParsedMail,
+                html: &mut Option<String>,
+                plain: &mut Option<String>,
+            ) {
                 let mime_type = part.ctype.mimetype.as_str();
-                
+
                 if mime_type == "text/html" {
                     if let Ok(content) = part.get_body() {
                         if html.is_none() {
@@ -105,7 +113,8 @@ pub fn save_message_body_with_fallback(
     let html_cleaned = html.as_deref().map(ammonia::clean);
     let body_html = html_cleaned.as_deref().unwrap_or("");
     let body_plain = plain.as_deref().unwrap_or("");
-    let snippet = error_preview.clone()
+    let snippet = error_preview
+        .clone()
         .or_else(|| Some(body_text_for_snippet(body_plain)))
         .unwrap_or_default();
 
@@ -159,7 +168,7 @@ pub fn load_message_body(
 pub fn load_message_body_full(
     conn: &Connection,
     message_table_id: i64,
-) -> Result<(Option<String>, String, Option<Vec<u8>>, Option<String>), DBError> {
+) -> Result<MessageBodyFull, DBError> {
     conn.query_row(
         "SELECT body_html_safe, body_plain, raw_content, parse_error FROM message_bodies WHERE message_id = ?",
         params![message_table_id],

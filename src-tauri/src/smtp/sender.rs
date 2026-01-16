@@ -21,10 +21,6 @@ impl super::SmtpManager {
         Ok(creds_json)
     }
 
-    pub(crate) fn inline_css_in_html(html: &str) -> Result<String, String> {
-        css_inline::inline(html).map_err(|e| e.to_string())
-    }
-
     pub(crate) fn process_outgoing_eml(&self, raw_eml: &[u8]) -> Result<Vec<u8>, String> {
         let eml_str = String::from_utf8(raw_eml.to_vec()).map_err(|e| e.to_string());
 
@@ -34,12 +30,13 @@ impl super::SmtpManager {
         };
 
         if let Some(html_start) = eml_str.find("Content-Type: text/html") {
-            let before_html = &eml_str[..html_start];
+            let _before_html = &eml_str[..html_start];
             if let Some(html_end) = eml_str[html_start..].find("\r\n\r\n") {
                 let content_start = html_start + html_end + 4;
                 if let Some(boundary_end) = eml_str[content_start..].find("\r\n--") {
                     let html_content = &eml_str[content_start..content_start + boundary_end];
-                    let inlined = css_inline::inline(html_content).unwrap_or_else(|_| html_content.to_string());
+                    let inlined = css_inline::inline(html_content)
+                        .unwrap_or_else(|_| html_content.to_string());
 
                     let mut result = eml_str[..content_start].to_string();
                     result.push_str(&inlined);
@@ -51,32 +48,6 @@ impl super::SmtpManager {
         }
 
         Ok(raw_eml.to_vec())
-    }
-
-    pub(crate) fn extract_attachments_from_eml(&self, raw_eml: &[u8]) -> Result<Vec<(String, String, Vec<u8>)>, String> {
-        let mail = mailparse::parse_mail(raw_eml).map_err(|e| e.to_string())?;
-
-        let mut attachments = Vec::new();
-
-        fn find_attachments<'a>(part: &'a mailparse::ParsedMail<'a>, attachments: &mut Vec<(String, String, Vec<u8>)>) {
-            let mime_type = part.ctype.mimetype.as_str();
-
-            if mime_type.starts_with("multipart/") {
-                for sp in &part.subparts {
-                    find_attachments(sp, attachments);
-                }
-            } else if !mime_type.starts_with("text/") {
-                if let Some(filename) = part.ctype.params.get("name") {
-                    if let Ok(data) = part.get_body_raw() {
-                        attachments.push((filename.to_string(), mime_type.to_string(), data));
-                    }
-                }
-            }
-        }
-
-        find_attachments(&mail, &mut attachments);
-
-        Ok(attachments)
     }
 
     pub async fn send_email(&self, account_id: &str, eml_content: &[u8]) -> Result<(), String> {

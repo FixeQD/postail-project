@@ -1,7 +1,7 @@
 use async_std::stream::StreamExt;
 use chrono::DateTime;
 
-use crate::db::{MessageBatchItem, DEFAULT_BATCH_SIZE, MailHeader};
+use crate::db::{MailHeader, MessageBatchItem, DEFAULT_BATCH_SIZE};
 
 impl crate::imap::ImapManager {
     pub fn fetch_headers_sync(
@@ -130,8 +130,14 @@ impl crate::imap::ImapManager {
 
                 if batch_items.len() >= DEFAULT_BATCH_SIZE {
                     let mut conn = self.conn.lock().unwrap();
-                    crate::db::batch_insert_messages(&mut conn, account_id, mailbox, &batch_items, DEFAULT_BATCH_SIZE)
-                        .map_err(|e| e.to_string())?;
+                    crate::db::batch_insert_messages(
+                        &mut conn,
+                        account_id,
+                        mailbox,
+                        &batch_items,
+                        DEFAULT_BATCH_SIZE,
+                    )
+                    .map_err(|e| e.to_string())?;
                     batch_items.clear();
                 }
 
@@ -143,8 +149,14 @@ impl crate::imap::ImapManager {
 
         if !batch_items.is_empty() {
             let mut conn = self.conn.lock().unwrap();
-            crate::db::batch_insert_messages(&mut conn, account_id, mailbox, &batch_items, DEFAULT_BATCH_SIZE)
-                .map_err(|e| e.to_string())?;
+            crate::db::batch_insert_messages(
+                &mut conn,
+                account_id,
+                mailbox,
+                &batch_items,
+                DEFAULT_BATCH_SIZE,
+            )
+            .map_err(|e| e.to_string())?;
         }
 
         session.logout().await.map_err(|e| e.to_string())?;

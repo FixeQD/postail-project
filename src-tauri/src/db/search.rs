@@ -74,17 +74,11 @@ pub fn parse_advanced_fts_query(query: &str) -> String {
         return escape_fts_query(normalized);
     }
 
-    let has_boolean = normalized.contains(" AND ")
-        || normalized.contains(" OR ")
-        || normalized.contains(" NOT ");
+    let has_boolean =
+        normalized.contains(" AND ") || normalized.contains(" OR ") || normalized.contains(" NOT ");
 
     if has_boolean {
-        let processed = normalized
-            .replace(" AND ", " AND ")
-            .replace(" OR ", " OR ")
-            .replace(" NOT ", " NOT ");
-
-        let tokens: Vec<&str> = processed.split_whitespace().collect();
+        let tokens: Vec<&str> = normalized.split_whitespace().collect();
         let mut result = String::new();
         let mut expect_operand = true;
 
@@ -98,9 +92,7 @@ pub fn parse_advanced_fts_query(query: &str) -> String {
                     if !expect_operand {
                         result.push(' ');
                     }
-                    if token.starts_with('-') {
-                        result.push_str(token);
-                    } else if token.contains(':') {
+                    if token.starts_with('-') || token.contains(':') {
                         result.push_str(token);
                     } else {
                         result.push_str(&format!("\"{}\"", escape_fts_query(token)));
