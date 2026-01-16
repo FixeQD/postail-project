@@ -8,15 +8,17 @@ use tss_esapi::{
         resource_handles::Hierarchy,
     },
     structures::{
-        CreatePrimaryKeyResult, Digest, MaxBuffer, Public, PublicBuilder,
-        PublicKeyedHashParameters, SensitiveData, SymmetricDefinition, SymmetricDefinitionObject,
+        CreatePrimaryKeyResult, Digest, Public, PublicBuilder, PublicKeyedHashParameters,
+        SensitiveData, SymmetricDefinition, SymmetricDefinitionObject,
     },
     tcti_ldr::{DeviceConfig, TctiNameConf},
+    traits::{Marshall, UnMarshall},
     Context,
 };
 
 use std::fs;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use crate::error::{Result, SecurityError};
 use crate::security::master_key::MasterKey;
@@ -39,9 +41,15 @@ impl LinuxTpmStore {
         #[cfg(feature = "tpm")]
         {
             let tcti = if std::path::Path::new("/dev/tpmrm0").exists() {
-                TctiNameConf::Device(DeviceConfig::Path(std::path::PathBuf::from("/dev/tpmrm0")))
+                TctiNameConf::Device(
+                    DeviceConfig::from_str("/dev/tpmrm0")
+                        .map_err(|e| SecurityError::Tpm(e.to_string()))?,
+                )
             } else if std::path::Path::new("/dev/tpm0").exists() {
-                TctiNameConf::Device(DeviceConfig::Path(std::path::PathBuf::from("/dev/tpm0")))
+                TctiNameConf::Device(
+                    DeviceConfig::from_str("/dev/tpm0")
+                        .map_err(|e| SecurityError::Tpm(e.to_string()))?,
+                )
             } else {
                 TctiNameConf::Tabrmd(Default::default())
             };
@@ -158,7 +166,10 @@ impl LinuxTpmStore {
 
         let mut blob = Vec::new();
         let priv_bytes = result.out_private.to_vec();
-        let pub_bytes = result.out_public.serialize();
+        let pub_bytes = result
+            .out_public
+            .marshall()
+            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
 
         blob.extend_from_slice(&(priv_bytes.len() as u32).to_le_bytes());
         blob.extend_from_slice(&priv_bytes);
@@ -197,7 +208,7 @@ impl LinuxTpmStore {
         let private = tss_esapi::structures::Private::try_from(priv_bytes.to_vec())
             .map_err(|e| SecurityError::Tpm(e.to_string()))?;
         let public =
-            Public::deserialize(&pub_bytes).map_err(|e| SecurityError::Tpm(e.to_string()))?;
+            Public::unmarshall(pub_bytes).map_err(|e| SecurityError::Tpm(e.to_string()))?;
 
         let session = ctx
             .start_auth_session(
