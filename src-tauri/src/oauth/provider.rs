@@ -14,7 +14,7 @@ impl ProviderKind {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s {
             "gmail" => Some(ProviderKind::Gmail),
             "outlook" => Some(ProviderKind::Outlook),

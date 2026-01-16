@@ -70,7 +70,7 @@ fn remove_account(id: String) -> Result<(), String> {
 #[tauri::command]
 async fn start_oauth_flow(provider: String) -> Result<String, String> {
     let provider_kind =
-        oauth::ProviderKind::from_str(&provider).ok_or_else(|| "Unknown provider".to_string())?;
+        oauth::ProviderKind::parse(&provider).ok_or_else(|| "Unknown provider".to_string())?;
     let provider = oauth::Provider::from_kind(provider_kind);
     match oauth::start_oauth_flow(provider) {
         Ok(url) => Ok(url),

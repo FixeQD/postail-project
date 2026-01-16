@@ -159,19 +159,23 @@ pub fn fetch_message_full(
     }
 }
 
+pub struct MessageUpsertData {
+    pub uid: u32,
+    pub message_id: Option<String>,
+    pub internal_date: DateTime<Utc>,
+    pub from: Option<String>,
+    pub to_json: Option<String>,
+    pub subject: Option<String>,
+    pub snippet: Option<String>,
+    pub flags_json: Option<String>,
+    pub structure_json: Option<String>,
+}
+
 pub fn upsert_message(
     conn: &Connection,
     account_id: &str,
     mailbox: &str,
-    uid: u32,
-    message_id: Option<&str>,
-    internal_date: DateTime<Utc>,
-    from: Option<&str>,
-    to_json: Option<&str>,
-    subject: Option<&str>,
-    snippet: Option<&str>,
-    flags_json: Option<&str>,
-    structure_json: Option<&str>,
+    data: &MessageUpsertData,
 ) -> Result<i64, DBError> {
     conn.execute(
         "INSERT OR REPLACE INTO messages (account_id, mailbox, uid, message_id, internal_date, from_addr, to_json, subject, snippet, flags_json, cached_structure_json)
@@ -179,15 +183,15 @@ pub fn upsert_message(
         params![
             account_id,
             mailbox,
-            uid,
-            message_id,
-            internal_date.timestamp(),
-            from,
-            to_json,
-            subject,
-            snippet,
-            flags_json,
-            structure_json,
+            data.uid,
+            data.message_id.as_deref(),
+            data.internal_date.timestamp(),
+            data.from.as_deref(),
+            data.to_json.as_deref(),
+            data.subject.as_deref(),
+            data.snippet.as_deref(),
+            data.flags_json.as_deref(),
+            data.structure_json.as_deref(),
         ],
     )?;
     Ok(conn.last_insert_rowid())

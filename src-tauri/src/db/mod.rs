@@ -25,7 +25,7 @@ pub use crate::db::mailbox::{fetch_mailboxes, upsert_mailbox};
 pub use crate::db::message_bodies::*;
 pub use crate::db::messages::{
     batch_insert_messages, fetch_headers, fetch_message_full, mark_read, move_to_trash,
-    upsert_message,
+    upsert_message, MessageUpsertData,
 };
 pub use crate::db::migration::run_encryption_migration_if_needed;
 pub use crate::db::outbox::*;

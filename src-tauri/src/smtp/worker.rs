@@ -187,7 +187,7 @@ impl SmtpManager {
                 .map_err(|e| e.to_string())
         }?;
 
-        let provider_kind = ProviderKind::from_str(&provider_type).ok_or("Unknown provider")?;
+        let provider_kind = ProviderKind::parse(&provider_type).ok_or("Unknown provider")?;
         let info = oauth::ProviderInfo::get(provider_kind);
 
         Ok(info.sent_folder.to_string())
@@ -202,22 +202,21 @@ impl SmtpManager {
         use async_native_tls::TlsConnector;
         use async_std::net::TcpStream;
 
-        let conn = self.conn.lock().unwrap();
-        let mut stmt = conn
-            .prepare("SELECT imap_host, imap_port, auth_type, email FROM accounts WHERE id = ?")
-            .map_err(|e| e.to_string())?;
-        let (host, port, auth_type, email): (String, u16, String, String) = stmt
-            .query_row([account_id], |row| {
+        let (host, port, auth_type, email) = {
+            let conn = self.conn.lock().unwrap();
+            let mut stmt = conn
+                .prepare("SELECT imap_host, imap_port, auth_type, email FROM accounts WHERE id = ?")
+                .map_err(|e| e.to_string())?;
+            stmt.query_row([account_id], |row| {
                 Ok((
-                    row.get(0)?,
+                    row.get::<_, String>(0)?,
                     row.get::<_, i64>(1)? as u16,
-                    row.get(2)?,
-                    row.get(3)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
                 ))
             })
-            .map_err(|e| e.to_string())?;
-        drop(stmt);
-        drop(conn);
+            .map_err(|e| e.to_string())?
+        };
 
         let creds_json = self.get_credentials(account_id)?;
         let mut creds: serde_json::Value =
@@ -283,37 +282,40 @@ impl SmtpManager {
             .and_then(|v| v.as_str())
             .unwrap_or("generic");
 
-        if expires_in < 300 && refresh_token.is_some() {
-            let provider_kind =
-                ProviderKind::from_str(provider_type).ok_or("Unknown OAuth provider")?;
-            let provider = oauth::Provider::from_kind(provider_kind);
+        if expires_in < 300 {
+            if let Some(refresh_token) = refresh_token {
+                let provider_kind =
+                    ProviderKind::parse(provider_type).ok_or("Unknown OAuth provider")?;
+                let provider = oauth::Provider::from_kind(provider_kind);
 
-            match oauth::refresh_access_token(provider, refresh_token.unwrap().to_string()).await {
-                Ok(new_tokens) => {
-                    creds["access_token"] = serde_json::Value::String(new_tokens.access_token);
-                    if let Some(rt) = new_tokens.refresh_token {
-                        creds["refresh_token"] = serde_json::Value::String(rt);
-                    }
-                    creds["expires_in"] = serde_json::Number::from(new_tokens.expires_in).into();
+                match oauth::refresh_access_token(provider, refresh_token.to_string()).await {
+                    Ok(new_tokens) => {
+                        creds["access_token"] = serde_json::Value::String(new_tokens.access_token);
+                        if let Some(rt) = new_tokens.refresh_token {
+                            creds["refresh_token"] = serde_json::Value::String(rt);
+                        }
+                        creds["expires_in"] =
+                            serde_json::Number::from(new_tokens.expires_in).into();
 
-                    let creds_path: String = {
-                        let conn = self.conn.lock().unwrap();
-                        let mut stmt = conn
-                            .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
+                        let creds_path: String = {
+                            let conn = self.conn.lock().unwrap();
+                            let mut stmt = conn
+                                .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
+                                .map_err(|e| e.to_string())?;
+                            stmt.query_row([account_id], |row| row.get::<_, String>(0))
+                                .map_err(|e| e.to_string())
+                        }?;
+
+                        let creds_json = creds.to_string();
+                        let security = self.security.lock().unwrap();
+                        let encrypted = security
+                            .encrypt(creds_json.as_bytes())
                             .map_err(|e| e.to_string())?;
-                        stmt.query_row([account_id], |row| row.get::<_, String>(0))
-                            .map_err(|e| e.to_string())
-                    }?;
-
-                    let creds_json = creds.to_string();
-                    let security = self.security.lock().unwrap();
-                    let encrypted = security
-                        .encrypt(creds_json.as_bytes())
-                        .map_err(|e| e.to_string())?;
-                    std::fs::write(&creds_path, encrypted).map_err(|e| e.to_string())?;
-                }
-                Err(e) => {
-                    return Err(format!("OAuth refresh failed: {}", e));
+                        std::fs::write(&creds_path, encrypted).map_err(|e| e.to_string())?;
+                    }
+                    Err(e) => {
+                        return Err(format!("OAuth refresh failed: {}", e));
+                    }
                 }
             }
         }

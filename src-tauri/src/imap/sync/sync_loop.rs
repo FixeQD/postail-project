@@ -106,7 +106,7 @@ impl crate::imap::ImapManager {
     }
 
     fn find_task_by_account_id(
-        tasks: &Vec<thread::JoinHandle<()>>,
+        tasks: &[thread::JoinHandle<()>],
         account_id: &str,
     ) -> Option<(usize, String)> {
         for (idx, handle) in tasks.iter().enumerate() {

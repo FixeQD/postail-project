@@ -2,7 +2,7 @@ use async_std::stream::StreamExt;
 use chrono::DateTime;
 use serde_json;
 
-use crate::db::{upsert_message, MailHeader};
+use crate::db::{upsert_message, MailHeader, MessageUpsertData};
 
 impl crate::imap::ImapManager {
     pub fn fetch_headers_sync(
@@ -118,15 +118,17 @@ impl crate::imap::ImapManager {
                     &self.conn.lock().unwrap(),
                     account_id,
                     mailbox,
-                    uid,
-                    header.message_id.as_deref(),
-                    header.internal_date,
-                    header.from.first().map(|s| s.as_str()),
-                    Some(&serde_json::to_string(&header.to).unwrap()),
-                    header.subject.as_deref(),
-                    header.snippet.as_deref(),
-                    Some(&serde_json::to_string(&header.flags).unwrap()),
-                    None,
+                    &MessageUpsertData {
+                        uid,
+                        message_id: header.message_id.clone(),
+                        internal_date: header.internal_date,
+                        from: header.from.first().cloned(),
+                        to_json: Some(serde_json::to_string(&header.to).unwrap()),
+                        subject: header.subject.clone(),
+                        snippet: header.snippet.clone(),
+                        flags_json: Some(serde_json::to_string(&header.flags).unwrap()),
+                        structure_json: None,
+                    },
                 )
                 .map_err(|e| e.to_string())?;
 
