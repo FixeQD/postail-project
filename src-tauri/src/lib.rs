@@ -264,8 +264,11 @@ fn fetch_headers(
     anchor: Option<u64>,
     limit: u32,
 ) -> Result<Vec<MailHeader>, String> {
+    let anchor: Option<u32> = anchor
+        .map(|a| a.try_into().map_err(|_| "Anchor too large".to_string()))
+        .transpose()?;
     let imap = IMAP_MANAGER.lock().unwrap();
-    imap.fetch_headers_sync(&account_id, &mailbox, anchor.map(|a| a as u32), limit)
+    imap.fetch_headers_sync(&account_id, &mailbox, anchor, limit)
 }
 
 #[tauri::command]
@@ -274,8 +277,9 @@ fn fetch_message_full(
     mailbox: String,
     uid: u64,
 ) -> Result<Option<MessageFull>, String> {
+    let uid_u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
     let imap = IMAP_MANAGER.lock().unwrap();
-    imap.fetch_message_full_sync(&account_id, &mailbox, uid as u32)
+    imap.fetch_message_full_sync(&account_id, &mailbox, uid_u32)
 }
 
 #[tauri::command]
@@ -328,7 +332,14 @@ fn mark_read(
     read: bool,
 ) -> Result<(), String> {
     let conn = DB_CONN.lock().unwrap();
-    let uids: Vec<u32> = uids.into_iter().map(|u| u as u32).collect();
+    let uids: Result<Vec<u32>, String> = uids
+        .into_iter()
+        .map(|u| {
+            u.try_into()
+                .map_err(|_| format!("UID too large: {}", u))
+        })
+        .collect();
+    let uids = uids?;
     db::mark_read(&conn, &account_id, &mailbox, &uids, read).map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -336,7 +347,14 @@ fn mark_read(
 #[tauri::command]
 fn move_to_trash(account_id: String, mailbox: String, uids: Vec<u64>) -> Result<(), String> {
     let conn = DB_CONN.lock().unwrap();
-    let uids: Vec<u32> = uids.into_iter().map(|u| u as u32).collect();
+    let uids: Result<Vec<u32>, String> = uids
+        .into_iter()
+        .map(|u| {
+            u.try_into()
+                .map_err(|_| format!("UID too large: {}", u))
+        })
+        .collect();
+    let uids = uids?;
     db::move_to_trash(&conn, &account_id, &mailbox, &uids).map_err(|e| e.to_string())?;
     Ok(())
 }
