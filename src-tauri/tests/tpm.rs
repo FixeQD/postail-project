@@ -1,7 +1,7 @@
 #[cfg(all(target_os = "linux", feature = "tpm"))]
 mod tpm_tests {
     use postail_project_lib::security::master_key::MasterKey;
-    use postail_project_lib::security::stores::tpm::LinuxTpmStore;
+    use postail_project_lib::security::stores::tpm::{LinuxTpmStore, PCR_SLOTS_FOR_BOOT};
     use std::path::PathBuf;
     use tpm2_simulator::{Simulator, Tcti};
 
@@ -140,5 +140,30 @@ mod tpm_tests {
         store.store(&key2).expect("Failed to store key2");
         let retrieved2 = store.retrieve().expect("Failed to retrieve key2");
         assert_eq!(key2.as_bytes(), retrieved2.as_bytes());
+    }
+
+    #[test]
+    fn test_pcr_selection_defined() {
+        assert_eq!(PCR_SLOTS_FOR_BOOT.len(), 8);
+        assert_eq!(PCR_SLOTS_FOR_BOOT[0], tss_esapi::structures::PcrSlot::Slot0);
+    }
+
+    #[test]
+    fn test_empty_store_operations() {
+        let (_, store) = setup_with_simulator();
+        assert!(store.retrieve().is_err());
+    }
+
+    #[test]
+    fn test_replaced_key_retrieve() {
+        let (_, store) = setup_with_simulator();
+        let key1 = MasterKey::generate();
+        let key2 = MasterKey::generate();
+
+        store.store(&key1).expect("Failed to store key1");
+        store.store(&key2).expect("Failed to store key2 (replace)");
+
+        let retrieved = store.retrieve().expect("Failed to retrieve key");
+        assert_eq!(key2.as_bytes(), retrieved.as_bytes());
     }
 }
