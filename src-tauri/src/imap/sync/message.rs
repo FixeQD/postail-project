@@ -11,7 +11,10 @@ impl crate::imap::ImapManager {
         uid: u32,
     ) -> Result<Option<crate::db::MessageFull>, String> {
         let conn = self.conn.lock().unwrap();
-        crate::db::fetch_message_full(&conn, account_id, mailbox, uid).map_err(|e| e.to_string())
+        match crate::db::fetch_message_full(&conn, account_id, mailbox, uid) {
+            Ok(message) => Ok(message),
+            Err(e) => Err(format!("Failed to fetch message: {}", e)),
+        }
     }
 
     pub async fn fetch_message_full(
