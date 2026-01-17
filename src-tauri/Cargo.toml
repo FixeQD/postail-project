@@ -74,5 +74,5 @@ windows = { version = "0.58", features = [
 tempfile = "3"
 
 [features]
-default = []
+default = ["tpm"]
 tpm = ["tss-esapi", "windows"]
