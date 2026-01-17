@@ -67,6 +67,7 @@ impl super::ImapManager {
                         creds["expires_in"] =
                             serde_json::Number::from(new_tokens.expires_in).into();
 
+                        let security = self.security.lock().unwrap();
                         let creds_path: String = {
                             let conn = self.conn.lock().unwrap();
                             let mut stmt = conn
@@ -77,7 +78,6 @@ impl super::ImapManager {
                         }?;
 
                         let creds_json = creds.to_string();
-                        let security = self.security.lock().unwrap();
                         let encrypted = security
                             .encrypt(creds_json.as_bytes())
                             .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
