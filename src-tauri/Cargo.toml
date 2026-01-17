@@ -72,6 +72,7 @@ windows = { version = "0.58", features = [
 
 [dev-dependencies]
 tempfile = "3"
+tpm2-simulator = "0.0.3"
 
 [features]
 default = []
