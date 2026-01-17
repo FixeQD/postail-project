@@ -20,6 +20,7 @@ use tss_esapi::{
 
 use std::fs;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use crate::error::{Result, SecurityError};
 use crate::security::master_key::MasterKey;
