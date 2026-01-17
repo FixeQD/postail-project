@@ -7,7 +7,6 @@ const TEST_DETERMINISTIC_SALT: &[u8] = b"test-salt-for-hkdf-32bytes!";
 use hkdf::Hkdf;
 use keyring::Entry;
 use sha2::Sha256;
-use std::sync::Arc;
 use thiserror::Error;
 use zeroize::Zeroize;
 
@@ -107,8 +106,8 @@ impl Drop for DbEncryption {
 }
 
 lazy_static::lazy_static! {
-    pub static ref DB_ENCRYPTION: Arc<Result<DbEncryption, DbEncryptionError>> = {
-        Arc::new(DbEncryption::initialize())
+    pub static ref DB_ENCRYPTION: Result<DbEncryption, DbEncryptionError> = {
+        DbEncryption::initialize()
     };
 }
 
@@ -116,15 +115,25 @@ impl DbEncryption {
     fn initialize() -> Result<Self, DbEncryptionError> {
         use crate::SECURITY;
 
-        let master_key = {
-            let security = SECURITY.lock().unwrap();
-            security.get_master_key_raw()
+        let master_key = match SECURITY.lock() {
+            Ok(guard) => guard.get_master_key_raw(),
+            Err(_) => {
+                return Err(DbEncryptionError::Keyring(
+                    "Failed to acquire security lock during initialization".to_string(),
+                ));
+            }
         };
+
+        if master_key.is_empty() {
+            return Err(DbEncryptionError::Keyring(
+                "Master key not available during encryption initialization".to_string(),
+            ));
+        }
 
         Self::derive_from_master_key(&master_key)
     }
 
-    pub fn global() -> &'static Arc<Result<DbEncryption, DbEncryptionError>> {
+    pub fn global() -> &'static Result<DbEncryption, DbEncryptionError> {
         &DB_ENCRYPTION
     }
 
