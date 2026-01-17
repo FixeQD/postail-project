@@ -39,6 +39,13 @@ impl LinuxTpmStore {
         Self::with_storage_path(default_storage_path())
     }
 
+    pub fn with_tcti(tcti: TctiNameConf) -> Self {
+        Self {
+            storage_path: default_storage_path(),
+            tcti,
+        }
+    }
+
     pub fn with_storage_path(storage_path: PathBuf) -> Result<Self> {
         #[cfg(feature = "tpm")]
         {
