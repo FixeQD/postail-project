@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::time::Duration;
 
 use reqwest::Client;
 use url::Url;
@@ -10,6 +11,15 @@ use super::config::OAuthConfig;
 use super::pkce::PkceData;
 use super::provider::ProviderKind;
 use super::tokens::OAuthTokens;
+
+const HTTP_TIMEOUT_SECS: u64 = 30;
+
+fn create_http_client() -> Client {
+    Client::builder()
+        .timeout(Duration::from_secs(HTTP_TIMEOUT_SECS))
+        .build()
+        .unwrap_or_else(|_| Client::new())
+}
 
 #[derive(Debug, Clone)]
 pub struct Provider {
@@ -83,7 +93,7 @@ pub async fn complete_oauth_flow(
         .ok_or(OAuthError::InvalidState)?;
 
     let config = provider.config()?;
-    let client = Client::new();
+    let client = create_http_client();
 
     let client_id = config.client_id().unwrap_or_default();
 
@@ -119,7 +129,7 @@ pub async fn refresh_access_token(
     refresh_token: String,
 ) -> Result<OAuthTokens, OAuthError> {
     let config = provider.config()?;
-    let client = Client::new();
+    let client = create_http_client();
 
     let client_id = config.client_id().unwrap_or_default();
 
