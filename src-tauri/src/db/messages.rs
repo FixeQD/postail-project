@@ -1,10 +1,18 @@
 use super::MailHeader;
 use super::MessageFull;
 use crate::error::DBError;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 
 pub const DEFAULT_BATCH_SIZE: usize = 50;
+
+pub(crate) fn safe_timestamp_from_utc(seconds: i64) -> Option<DateTime<Utc>> {
+    if seconds == 0 {
+        Some(Utc::now())
+    } else {
+        Utc.timestamp_opt(seconds, 0).single()
+    }
+}
 
 pub struct MessageBatchItem {
     pub uid: u32,
@@ -100,7 +108,8 @@ pub fn fetch_headers(
         Ok(MailHeader {
             uid: row.get::<_, u32>(0)?,
             message_id: row.get(1)?,
-            internal_date: DateTime::from_timestamp(row.get::<_, i64>(2)?, 0).unwrap(),
+            internal_date: safe_timestamp_from_utc(row.get::<_, i64>(2)?)
+                .ok_or_else(|| rusqlite::Error::InvalidColumnName("internal_date".into()))?,
             subject: row.get(3)?,
             from: vec![row.get::<_, Option<String>>(4)?.unwrap_or_default()],
             to,
@@ -137,7 +146,8 @@ pub fn fetch_message_full(
             Ok(MailHeader {
                 uid,
                 message_id: row.get(0)?,
-                internal_date: DateTime::from_timestamp(row.get::<_, i64>(1)?, 0).unwrap(),
+                internal_date: safe_timestamp_from_utc(row.get::<_, i64>(1)?)
+                    .ok_or_else(|| rusqlite::Error::InvalidColumnName("internal_date".into()))?,
                 subject: row.get(2)?,
                 from: vec![row.get::<_, Option<String>>(3)?.unwrap_or_default()],
                 to,

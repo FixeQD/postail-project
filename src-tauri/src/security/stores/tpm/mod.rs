@@ -4,6 +4,9 @@ pub mod linux;
 #[cfg(target_os = "windows")]
 pub mod windows;
 
+#[cfg(feature = "tpm")]
+pub mod pcr;
+
 use crate::error::{Result, SecurityError};
 use crate::security::master_key::MasterKey;
 use crate::security::stores::SecretStore;

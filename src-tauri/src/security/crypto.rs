@@ -3,6 +3,7 @@ use aes_gcm::{
     Aes256Gcm, Nonce,
 };
 use rand::RngCore;
+use zeroize::Zeroize;
 
 use crate::error::{Result, SecurityError};
 use crate::security::master_key::MasterKey;
@@ -16,7 +17,7 @@ pub struct Crypto {
 impl Crypto {
     pub fn new(key: &MasterKey) -> Self {
         let cipher =
-            Aes256Gcm::new_from_slice(key.as_bytes()).expect("key length is always 32 bytes"); // can't fail with valid MasterKey
+            Aes256Gcm::new_from_slice(key.as_bytes()).expect("key length is always 32 bytes");
         Self { cipher }
     }
 
@@ -34,6 +35,7 @@ impl Crypto {
         result.extend_from_slice(&nonce_bytes);
         result.extend_from_slice(&ciphertext);
 
+        nonce_bytes.zeroize();
         Ok(result)
     }
 

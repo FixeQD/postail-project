@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::sync::Arc;
+use zeroize::Zeroize;
 
 use crate::error::{Result, SecurityError};
 use crate::security::crypto::{decrypt_with_key, encrypt_with_key, Crypto};
@@ -147,6 +148,7 @@ impl SecurityManager {
             .map_err(|_| SecurityError::KeyDerivation("Failed to derive key".to_string()))?;
 
         let master_key = MasterKey::from_bytes(&derived_key)?;
+        derived_key.zeroize();
 
         encrypt_with_key(&master_key, plaintext)
     }
@@ -163,6 +165,7 @@ impl SecurityManager {
             .map_err(|_| SecurityError::KeyDerivation("Failed to derive key".to_string()))?;
 
         let master_key = MasterKey::from_bytes(&derived_key)?;
+        derived_key.zeroize();
 
         decrypt_with_key(&master_key, ciphertext)
     }

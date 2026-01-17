@@ -193,6 +193,12 @@ pub enum AppError {
     #[error("Failed to derive key")]
     KeyDerivationFailed,
 
+    #[error("Database error: {0}")]
+    DatabaseError(String),
+
+    #[error("IO error: {0}")]
+    IoError(String),
+
     #[error("IMAP error: {0}")]
     Imap(#[from] ImapError),
 
@@ -216,7 +222,20 @@ impl From<OAuthError> for AppError {
     fn from(err: OAuthError) -> Self {
         match err {
             OAuthError::NoRefreshToken => AppError::NoEmailInResponse,
-            _ => AppError::GmailUserInfoFailed(err.to_string()),
+            OAuthError::NotImplemented { provider } => {
+                AppError::GmailUserInfoFailed(format!("OAuth not implemented for {}", provider))
+            }
+            OAuthError::InvalidState => AppError::GmailUserInfoFailed("Invalid OAuth state".into()),
+            OAuthError::TokenExchangeFailed { status } => {
+                AppError::GmailUserInfoFailed(format!("Token exchange failed: {}", status))
+            }
+            OAuthError::TokenRefreshFailed { status } => {
+                AppError::GmailUserInfoFailed(format!("Token refresh failed: {}", status))
+            }
+            OAuthError::Http(e) => AppError::GmailUserInfoFailed(format!("HTTP error: {}", e)),
+            OAuthError::UrlParse(e) => {
+                AppError::GmailUserInfoFailed(format!("URL parse error: {}", e))
+            }
         }
     }
 }
@@ -225,20 +244,23 @@ impl From<DBError> for AppError {
     fn from(err: DBError) -> Self {
         match err {
             DBError::Migration(e) => AppError::MigrationFailed(e),
-            _ => AppError::GmailUserInfoFailed(err.to_string()),
+            DBError::Sqlite(e) => AppError::DatabaseError(e.to_string()),
+            DBError::Io(e) => AppError::IoError(e.to_string()),
+            DBError::Security(e) => AppError::GmailUserInfoFailed(format!("Security error: {}", e)),
+            DBError::Json(e) => AppError::DatabaseError(format!("JSON error: {}", e)),
         }
     }
 }
 
 impl From<rusqlite::Error> for AppError {
     fn from(err: rusqlite::Error) -> Self {
-        AppError::GmailUserInfoFailed(err.to_string())
+        AppError::DatabaseError(err.to_string())
     }
 }
 
 impl From<std::io::Error> for AppError {
     fn from(err: std::io::Error) -> Self {
-        AppError::GmailUserInfoFailed(err.to_string())
+        AppError::IoError(err.to_string())
     }
 }
 

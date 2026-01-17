@@ -4,11 +4,16 @@ use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection};
 use uuid::Uuid;
 
+use crate::db::messages::safe_timestamp_from_utc;
 use crate::db::sql_helpers::{delete_where, insert_or_replace_into};
 use crate::db::AccountInput;
 use crate::db::AccountMeta;
 use crate::error::DBError;
 use crate::security::SecurityManager;
+
+fn timestamp_from_utc_or_default(seconds: i64) -> DateTime<Utc> {
+    safe_timestamp_from_utc(seconds).unwrap_or_else(Utc::now)
+}
 
 pub fn add_account(
     conn: &Connection,
@@ -102,7 +107,7 @@ pub fn list_accounts(conn: &Connection) -> Result<Vec<AccountMeta>, DBError> {
             smtp_port: row.get::<_, i64>(9)? as u16,
             smtp_tls: row.get::<_, i64>(10)? != 0,
             encryption_mode: row.get(11)?,
-            created_at: DateTime::from_timestamp(row.get::<_, i64>(12)?, 0).unwrap(),
+            created_at: timestamp_from_utc_or_default(row.get::<_, i64>(12)?),
         })
     })?;
 
