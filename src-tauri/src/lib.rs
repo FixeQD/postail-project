@@ -25,6 +25,9 @@ use crate::smtp::SmtpManager;
 use lazy_static::lazy_static;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+const HTTP_TIMEOUT_SECS: Duration = Duration::from_secs(30);
 
 lazy_static! {
     pub static ref DB_CONN: Arc<Mutex<Connection>> = Arc::new(Mutex::new(
@@ -87,7 +90,10 @@ async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta,
 
     let email = match provider.kind {
         oauth::ProviderKind::Gmail => {
-            let client = reqwest::Client::new();
+            let client = reqwest::Client::builder()
+                .timeout(HTTP_TIMEOUT_SECS)
+                .build()
+                .map_err(|e| e.to_string())?;
             let response = client
                 .get("https://www.googleapis.com/oauth2/v2/userinfo")
                 .bearer_auth(&tokens.access_token)
@@ -113,7 +119,10 @@ async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta,
                 .to_string()
         }
         oauth::ProviderKind::Outlook => {
-            let client = reqwest::Client::new();
+            let client = reqwest::Client::builder()
+                .timeout(HTTP_TIMEOUT_SECS)
+                .build()
+                .map_err(|e| e.to_string())?;
             let response = client
                 .get("https://graph.microsoft.com/v1.0/me")
                 .bearer_auth(&tokens.access_token)
