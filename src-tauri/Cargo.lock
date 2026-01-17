@@ -3866,7 +3866,6 @@ dependencies = [
  "thiserror 2.0.17",
  "tiny_http",
  "tokio",
- "tpm2-simulator",
  "tss-esapi",
  "url",
  "uuid",
@@ -5747,12 +5746,6 @@ name = "tower-service"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
-
-[[package]]
-name = "tpm2-simulator"
-version = "0.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c5cbd50edb2a1263d6f00521b96490ba263859746bff7255ae7ec59e857a59d"
 
 [[package]]
 name = "tracing"

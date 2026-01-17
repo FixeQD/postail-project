@@ -38,7 +38,7 @@ mod tests {
 
     #[test]
     fn test_zeroizing_bytes_drops() {
-        let mut bytes = ZeroizingBytes(vec![1, 2, 3, 4, 5]);
+        let bytes = ZeroizingBytes(vec![1, 2, 3, 4, 5]);
         {
             let slice: &[u8] = &bytes;
             assert_eq!(slice, &[1, 2, 3, 4, 5]);

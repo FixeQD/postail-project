@@ -13,7 +13,7 @@ use tss_esapi::{
         PublicRsaParametersBuilder, RsaExponent, SensitiveData, SymmetricDefinition,
         SymmetricDefinitionObject,
     },
-    tcti_ldr::{DeviceConfig, TctiNameConf},
+    tcti_ldr::TctiNameConf,
     traits::{Marshall, UnMarshall},
     Context,
 };
@@ -39,26 +39,15 @@ impl LinuxTpmStore {
         Self::with_storage_path(default_storage_path())
     }
 
-    pub fn with_tcti(tcti: TctiNameConf) -> Self {
-        Self {
-            storage_path: default_storage_path(),
-            tcti,
-        }
-    }
-
     pub fn with_storage_path(storage_path: PathBuf) -> Result<Self> {
         #[cfg(feature = "tpm")]
         {
             let tcti = if std::path::Path::new("/dev/tpmrm0").exists() {
-                TctiNameConf::Device(
-                    DeviceConfig::from_str("/dev/tpmrm0")
-                        .map_err(|e| SecurityError::Tpm(e.to_string()))?,
-                )
+                TctiNameConf::from_str("device:/dev/tpmrm0")
+                    .map_err(|e| SecurityError::Tpm(e.to_string()))?
             } else if std::path::Path::new("/dev/tpm0").exists() {
-                TctiNameConf::Device(
-                    DeviceConfig::from_str("/dev/tpm0")
-                        .map_err(|e| SecurityError::Tpm(e.to_string()))?,
-                )
+                TctiNameConf::from_str("device:/dev/tpm0")
+                    .map_err(|e| SecurityError::Tpm(e.to_string()))?
             } else {
                 TctiNameConf::Tabrmd(Default::default())
             };
