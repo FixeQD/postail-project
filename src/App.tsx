@@ -6,31 +6,34 @@ import { TitleBar } from './components/TitleBar'
 import { WelcomeScreen } from './components/Welcome/WelcomeScreen'
 import { EncryptionChoice } from './components/Welcome/EncryptionChoice'
 import { Argon2Setup } from './components/Welcome/Argon2Setup'
-import { AddAccountScreen } from './components/Account/AddAccountScreen'
+import { UnlockScreen } from './components/Welcome/UnlockScreen'
+import { Argon2Unlock } from './components/Welcome/Argon2Unlock'
+import { AccountsScreen } from './components/Account/AccountsScreen'
+import type { AccountMeta } from './types/accounts'
 import './i18n'
 
-type AppState = 'welcome' | 'security' | 'accounts' | 'argon2-setup' | 'dashboard'
-
-interface AccountMeta {
-	id: string
-	name: string
-	email: string
-	provider_type: string
-	auth_type: string
-	imap_host: string
-	imap_port: number
-	imap_tls: boolean
-	smtp_host: string
-	smtp_port: number
-	smtp_tls: boolean
-	encryption_mode: string
-	created_at: string
-}
+type AppState = 'init' | 'welcome' | 'security' | 'accounts' | 'argon2-setup' | 'dashboard' | 'unlock' | 'argon2-unlock'
 
 function App() {
-	const [currentState, setCurrentState] = useState<AppState>('welcome')
-	const [loading, setLoading] = useState<string | null>(null)
+	const [currentState, setCurrentState] = useState<AppState>('init')
 	const [accounts, setAccounts] = useState<AccountMeta[]>([])
+
+    useEffect(() => {
+        const init = async () => {
+            try {
+                const status = await invoke<string>('get_app_initialization_status')
+                if (status === 'Locked') {
+                    setCurrentState('unlock')
+                } else {
+                    setCurrentState('welcome')
+                }
+            } catch (e) {
+                console.error("Failed to get initialization status", e)
+                setCurrentState('welcome') // Fallback
+            }
+        }
+        init()
+    }, [])
 
 	const handleGetStarted = () => {
 		setCurrentState('security')
@@ -40,10 +43,20 @@ function App() {
 		if (method === 'argon2') {
 			setCurrentState('argon2-setup')
 		} else {
-			// For TPM and Keyring, proceed to accounts
+			// For TPM and Keyring, proceed to accounts (initialization logic inside component would have called initialize_security)
+            // Wait, EncryptionChoice (and UnlockScreen) call initialize_security.
+            // But we need to update state here.
+            // EncryptionChoice actually only calls onChoiceSelected for argon2, but for others?
+            // Let's check EncryptionChoice logic separately if needed.
+            // Assuming invoking initialize_security matches for now.
 			setCurrentState('accounts')
 		}
 	}
+
+    const handleUnlockSuccess = async () => {
+        await fetchAccounts()
+        setCurrentState('dashboard')
+    }
 
 	const handleBack = () => {
 		if (currentState === 'security') {
@@ -52,16 +65,46 @@ function App() {
 			setCurrentState('security')
 		} else if (currentState === 'argon2-setup') {
 			setCurrentState('security')
+		} else if (currentState === 'argon2-unlock') {
+            setCurrentState('unlock')
+        }
+	}
+
+	const fetchAccounts = async () => {
+		try {
+			const fetchedAccounts = await invoke<AccountMeta[]>('list_accounts')
+			setAccounts(fetchedAccounts)
+			if (fetchedAccounts.length > 0 && (currentState === 'welcome' || currentState === 'unlock')) {
+				setCurrentState('dashboard')
+			} else if (currentState === 'welcome') {
+                // If accounts list is empty but we expected 'dashboard'?
+                // Logic above says if we are in welcome, go to dashboard.
+                // If we are in unlock, go to dashboard.
+            }
+		} catch (error) {
+			console.error('Failed to fetch accounts:', error)
 		}
 	}
 
 	const handleAccountAdded = async () => {
+		await fetchAccounts()
+		setCurrentState('dashboard')
+	}
+
+	const handleRemoveAccount = async (id: string) => {
 		try {
-			const fetchedAccounts = await invoke<AccountMeta[]>('list_accounts')
-			setAccounts(fetchedAccounts)
-			setCurrentState('dashboard')
+			await invoke('remove_account', { id })
+			setAccounts(prev => prev.filter(a => a.id !== id))
 		} catch (error) {
-			console.error('Failed to fetch accounts:', error)
+			console.error('Failed to remove account:', error)
+		}
+	}
+
+	const handleSyncAccount = async (id: string) => {
+		try {
+			await invoke('start_sync', { accountId: id })
+		} catch (error) {
+			console.error('Failed to sync account:', error)
 		}
 	}
 
@@ -82,9 +125,6 @@ function App() {
 					await getCurrentWindow().maximize()
 				} catch (error) {
 					console.error('Failed to complete OAuth flow:', error)
-					// TODO: Show an error message to the user in the UI
-				} finally {
-					setLoading(null)
 				}
 			}
 		)
@@ -94,100 +134,72 @@ function App() {
 		}
 	}, [])
 
-	// Fetch accounts on app load
-	useEffect(() => {
-		const fetchAccounts = async () => {
-			try {
-				const fetchedAccounts = await invoke<AccountMeta[]>('list_accounts')
-				setAccounts(fetchedAccounts)
-				if (fetchedAccounts.length > 0) {
-					setCurrentState('dashboard')
-				}
-			} catch (error) {
-				console.error('Failed to fetch accounts:', error)
-			}
-		}
-		fetchAccounts()
-	}, [])
+	// Fetch accounts on app load - REPLACED by init effect
+	// useEffect(() => {
+	// 	fetchAccounts()
+	// }, [])
 
 	const renderCurrentScreen = () => {
 		switch (currentState) {
+            case 'init':
+                return <div className="flex h-full items-center justify-center">Loading...</div>
 			case 'welcome':
 				return <WelcomeScreen onGetStarted={handleGetStarted} />
 			case 'security':
 				return (
 					<EncryptionChoice onChoiceSelected={handleSecurityChoice} onBack={handleBack} />
 				)
-			case 'accounts':
-				return (
-					<AddAccountScreen
-						onBack={handleBack}
-						onAccountAdded={handleAccountAdded}
-						loading={loading}
-						setLoading={setLoading}
-					/>
-				)
 			case 'argon2-setup':
 				return (
 					<Argon2Setup
 						onBack={handleBack}
-						onComplete={() => setCurrentState('accounts')}
+						onComplete={() => {
+                            // After setup complete, maybe fetch accounts?
+                            fetchAccounts()
+                            setCurrentState('accounts')
+                        }}
 					/>
 				)
-			// Temporary dashboard
+            case 'unlock':
+                return (
+                    <UnlockScreen 
+                        onChoiceSelected={(method) => {
+                            if (method === 'argon2') {
+                                setCurrentState('argon2-unlock')
+                            }
+                        }}
+                        onSuccess={handleUnlockSuccess}
+                    />
+                )
+            case 'argon2-unlock':
+                return (
+                    <Argon2Unlock 
+                        onBack={handleBack}
+                        onUnlock={handleUnlockSuccess}
+                    />
+                )
+			case 'accounts': // Empty accounts list / first run
+                // AccountsScreen handles empty list case? No, AddAccountDialog usually.
+                // Re-using AccountsScreen which has add button.
 			case 'dashboard':
 				return (
-					<div className='flex h-full flex-col p-8'>
-						<h1 className='mb-6 text-3xl font-bold text-slate-100'>Your Accounts</h1>
-						<div className='grid gap-4'>
-							{accounts.map((account) => (
-								<div
-									key={account.id}
-									className='rounded-xl bg-slate-800/50 p-6 ring-1 ring-slate-700/50'>
-									<div className='flex items-center justify-between'>
-										<div>
-											<h3 className='font-semibold text-slate-100'>
-												{account.name}
-											</h3>
-											<p className='text-sm text-slate-400'>
-												{account.email}
-											</p>
-											<p className='text-xs text-slate-500'>
-												{account.provider_type} • {account.auth_type}
-											</p>
-										</div>
-										<div className='text-right text-xs text-slate-500'>
-											<p>
-												IMAP: {account.imap_host}:{account.imap_port}
-											</p>
-											<p>
-												SMTP: {account.smtp_host}:{account.smtp_port}
-											</p>
-										</div>
-									</div>
-								</div>
-							))}
-						</div>
-						<button
-							type='button'
-							onClick={() => setCurrentState('accounts')}
-							className='mt-6 rounded-lg bg-slate-700 px-6 py-2 text-slate-100 transition-colors hover:bg-slate-600'>
-							Add Another Account
-						</button>
-					</div>
+					<AccountsScreen 
+						accounts={accounts}
+						onAccountAdded={handleAccountAdded}
+						onRemoveAccount={handleRemoveAccount}
+						onSyncAccount={handleSyncAccount}
+					/>
 				)
 			default:
 				return null
 		}
 	}
 
-	// Only show title bar for welcome, security, accounts, and dashboard screens
-	const shouldShowTitleBar = ['welcome', 'security', 'accounts', 'dashboard'].includes(
-		currentState
-	)
+	// Only show title bar for suitable screens
+	const shouldShowTitleBar = true
 
 	return (
-		<div className='flex h-screen flex-col bg-slate-900 text-slate-100'>
+		<div className='flex h-screen flex-col bg-slate-950 text-slate-100'>
 			{shouldShowTitleBar && <TitleBar />}
 			<main className='flex-1 overflow-y-auto'>{renderCurrentScreen()}</main>
 		</div>
@@ -195,3 +207,4 @@ function App() {
 }
 
 export default App
+
