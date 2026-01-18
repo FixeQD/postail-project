@@ -8,12 +8,15 @@ pub mod sync;
 pub mod sync_status;
 
 pub struct ImapManager {
-    conn: Arc<Mutex<Connection>>,
+    conn: Arc<Mutex<Option<Connection>>>,
     security: Arc<Mutex<SecurityManager>>,
 }
 
 impl ImapManager {
-    pub fn new(conn: Arc<Mutex<Connection>>, security: Arc<Mutex<SecurityManager>>) -> Self {
+    pub fn new(
+        conn: Arc<Mutex<Option<Connection>>>,
+        security: Arc<Mutex<SecurityManager>>,
+    ) -> Self {
         Self { conn, security }
     }
 }

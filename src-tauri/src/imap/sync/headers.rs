@@ -11,8 +11,9 @@ impl crate::imap::ImapManager {
         anchor: Option<u32>,
         limit: u32,
     ) -> Result<Vec<MailHeader>, String> {
-        let conn = self.conn.lock().unwrap();
-        crate::db::fetch_headers(&conn, account_id, mailbox, anchor, limit)
+        let conn_guard = self.conn.lock().unwrap();
+        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+        crate::db::fetch_headers(conn, account_id, mailbox, anchor, limit)
             .map_err(|e| e.to_string())
     }
 
@@ -134,9 +135,10 @@ impl crate::imap::ImapManager {
                 headers.push(header);
 
                 if batch_items.len() >= DEFAULT_BATCH_SIZE {
-                    let mut conn = self.conn.lock().unwrap();
+                    let mut conn_guard = self.conn.lock().unwrap();
+                    let conn = conn_guard.as_mut().ok_or("Database not initialized")?;
                     crate::db::batch_insert_messages(
-                        &mut conn,
+                        conn,
                         account_id,
                         mailbox,
                         &batch_items,
@@ -153,9 +155,10 @@ impl crate::imap::ImapManager {
         }
 
         if !batch_items.is_empty() {
-            let mut conn = self.conn.lock().unwrap();
+            let mut conn_guard = self.conn.lock().unwrap();
+            let conn = conn_guard.as_mut().ok_or("Database not initialized")?;
             crate::db::batch_insert_messages(
-                &mut conn,
+                conn,
                 account_id,
                 mailbox,
                 &batch_items,

@@ -21,20 +21,29 @@ impl super::SmtpManager {
         let (_subject, _recipient) =
             extract_headers_from_eml(&eml_path.to_string_lossy()).map_err(|e| e.to_string())?;
 
-        let conn = self.conn.lock().unwrap();
-        let id = enqueue_message(&conn, account_id, &eml_path.to_string_lossy())
+        let conn_guard = self.conn.lock().unwrap();
+        let conn = conn_guard
+            .as_ref()
+            .ok_or("Database not initialized".to_string())?;
+        let id = enqueue_message(conn, account_id, &eml_path.to_string_lossy())
             .map_err(|e| e.to_string());
-        drop(conn);
+        drop(conn_guard);
         id
     }
 
     pub fn list_outbox(&self, account_id: &str) -> Result<Vec<OutboxItem>, String> {
-        let conn = self.conn.lock().unwrap();
-        list_outbox(&conn, account_id).map_err(|e| e.to_string())
+        let conn_guard = self.conn.lock().unwrap();
+        let conn = conn_guard
+            .as_ref()
+            .ok_or("Database not initialized".to_string())?;
+        list_outbox(conn, account_id).map_err(|e| e.to_string())
     }
 
     pub fn retry_sending(&self, outbox_id: &str) -> Result<(), String> {
-        let conn = self.conn.lock().unwrap();
+        let conn_guard = self.conn.lock().unwrap();
+        let conn = conn_guard
+            .as_ref()
+            .ok_or("Database not initialized".to_string())?;
         conn.execute(
             "UPDATE outbox SET status = 'PENDING', next_retry = NULL WHERE id = ?",
             [outbox_id],
@@ -44,7 +53,10 @@ impl super::SmtpManager {
     }
 
     pub fn cancel_sending(&self, outbox_id: &str) -> Result<(), String> {
-        let conn = self.conn.lock().unwrap();
+        let conn_guard = self.conn.lock().unwrap();
+        let conn = conn_guard
+            .as_ref()
+            .ok_or("Database not initialized".to_string())?;
         let mut stmt = conn
             .prepare("SELECT raw_eml_path FROM outbox WHERE id = ?")
             .map_err(|e| e.to_string())?;

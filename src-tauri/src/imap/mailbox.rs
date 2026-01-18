@@ -8,7 +8,10 @@ impl ImapManager {
         server_uidvalidity: u32,
     ) -> Result<(), String> {
         let db_uidvalidity: Option<u32> = {
-            let conn = self.conn.lock().unwrap();
+            let conn_guard = self.conn.lock().unwrap();
+            let conn = conn_guard
+                .as_ref()
+                .ok_or("Database not initialized".to_string())?;
             let mut stmt = conn
                 .prepare("SELECT uid_validity FROM mailboxes WHERE account_id = ? AND name = ?")
                 .map_err(|e| e.to_string())?;
@@ -36,7 +39,10 @@ impl ImapManager {
                     "[IMAP] No UIDVALIDITY stored for {}, creating mailbox entry",
                     mailbox_name
                 );
-                let conn = self.conn.lock().unwrap();
+                let conn_guard = self.conn.lock().unwrap();
+                let conn = conn_guard
+                    .as_ref()
+                    .ok_or("Database not initialized".to_string())?;
                 let mut stmt = conn
                     .prepare(
                         "INSERT OR REPLACE INTO mailboxes (account_id, name, uid_validity, last_synced_uid) VALUES (?, ?, ?, 0)",
@@ -58,7 +64,10 @@ impl ImapManager {
     ) -> Result<(), String> {
         eprintln!("[IMAP] Performing full resync for {}", mailbox_name);
 
-        let mut conn = self.conn.lock().unwrap();
+        let mut conn_guard = self.conn.lock().unwrap();
+        let conn = conn_guard
+            .as_mut()
+            .ok_or("Database not initialized".to_string())?;
         let tx = conn.transaction().map_err(|e| e.to_string())?;
 
         tx.execute(
@@ -83,7 +92,10 @@ impl ImapManager {
         account_id: &str,
         mailbox_name: &str,
     ) -> Result<Option<MailboxMetadata>, String> {
-        let conn = self.conn.lock().unwrap();
+        let conn_guard = self.conn.lock().unwrap();
+        let conn = conn_guard
+            .as_ref()
+            .ok_or("Database not initialized".to_string())?;
         let mut stmt = conn
             .prepare(
                 "SELECT uid_validity, highest_modseq, last_synced_uid FROM mailboxes WHERE account_id = ? AND name = ?",
@@ -98,7 +110,7 @@ impl ImapManager {
                 })
             });
         drop(stmt);
-        drop(conn);
+        drop(conn_guard);
         match result.map_err(|e| e.to_string()) {
             Ok(metadata) => Ok(Some(metadata)),
             Err(_) => Ok(None),
@@ -111,7 +123,10 @@ impl ImapManager {
         mailbox_name: &str,
         modseq: u64,
     ) -> Result<(), String> {
-        let conn = self.conn.lock().unwrap();
+        let conn_guard = self.conn.lock().unwrap();
+        let conn = conn_guard
+            .as_ref()
+            .ok_or("Database not initialized".to_string())?;
         let mut stmt = conn
             .prepare(
                 "UPDATE mailboxes SET highest_modseq = ? WHERE account_id = ? AND name = ? AND highest_modseq < ?",

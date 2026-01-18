@@ -10,8 +10,11 @@ impl crate::imap::ImapManager {
         mailbox: &str,
         uid: u32,
     ) -> Result<Option<crate::db::MessageFull>, String> {
-        let conn = self.conn.lock().unwrap();
-        match crate::db::fetch_message_full(&conn, account_id, mailbox, uid) {
+        let conn_guard = self.conn.lock().unwrap();
+        let conn = conn_guard
+            .as_ref()
+            .ok_or("Database not initialized".to_string())?;
+        match crate::db::fetch_message_full(conn, account_id, mailbox, uid) {
             Ok(message) => Ok(message),
             Err(e) => Err(format!("Failed to fetch message: {}", e)),
         }
@@ -42,8 +45,9 @@ impl crate::imap::ImapManager {
                 let inline_images = vec![];
 
                 let message_full = {
-                    let conn = self.conn.lock().unwrap();
-                    db::fetch_message_full(&conn, account_id, mailbox, uid)
+                    let conn_guard = self.conn.lock().unwrap();
+                    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+                    db::fetch_message_full(conn, account_id, mailbox, uid)
                         .map_err(|e| e.to_string())?
                 };
 

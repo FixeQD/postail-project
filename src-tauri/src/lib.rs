@@ -14,9 +14,9 @@ use crate::db::accounts::{
     remove_account as db_remove_account,
 };
 use crate::db::{
-    export_backup as db_export_backup, import_backup as db_import_backup, init_db,
-    run_encryption_migration_if_needed, AccountInput, AccountMeta, Credentials, ImapConfig,
-    MailHeader, Mailbox, MessageFull, OAuthCredentials, OutboxItem, SmtpConfig, SyncStatusEnum,
+    export_backup as db_export_backup, import_backup as db_import_backup, AccountInput,
+    AccountMeta, Credentials, ImapConfig, MailHeader, Mailbox, MessageFull, OAuthCredentials,
+    OutboxItem, SmtpConfig, SyncStatusEnum,
 };
 use crate::imap::ImapManager;
 use crate::security::stores::SecretStore;
@@ -30,9 +30,7 @@ use std::time::Duration;
 const HTTP_TIMEOUT_SECS: Duration = Duration::from_secs(30);
 
 lazy_static! {
-    pub static ref DB_CONN: Arc<Mutex<Connection>> = Arc::new(Mutex::new(
-        init_db().expect("Failed to initialize database")
-    ));
+    pub static ref DB_CONN: Arc<Mutex<Option<Connection>>> = Arc::new(Mutex::new(None));
     pub static ref SECURITY: Arc<Mutex<SecurityManager>> = Arc::new(Mutex::new(
         SecurityManager::new().expect("Failed to initialize security")
     ));
@@ -53,21 +51,24 @@ fn greet(name: &str) -> String {
 
 #[tauri::command]
 fn add_account(input: AccountInput) -> Result<AccountMeta, String> {
-    let conn = DB_CONN.lock().unwrap();
+    let conn_guard = DB_CONN.lock().unwrap();
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
     let security = SECURITY.lock().unwrap();
-    db_add_account(&conn, input, &security).map_err(|e| e.to_string())
+    db_add_account(conn, input, &security).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn list_accounts() -> Result<Vec<AccountMeta>, String> {
-    let conn = DB_CONN.lock().unwrap();
-    db_list_accounts(&conn).map_err(|e| e.to_string())
+    let conn_guard = DB_CONN.lock().unwrap();
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+    db_list_accounts(conn).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn remove_account(id: String) -> Result<(), String> {
-    let conn = DB_CONN.lock().unwrap();
-    db_remove_account(&conn, &id).map_err(|e| e.to_string())
+    let conn_guard = DB_CONN.lock().unwrap();
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+    db_remove_account(conn, &id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -166,9 +167,10 @@ async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta,
         },
     };
 
-    let conn = DB_CONN.lock().unwrap();
+    let conn_guard = DB_CONN.lock().unwrap();
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
     let security = SECURITY.lock().unwrap();
-    let account = db_add_account(&conn, account_input, &security).map_err(|e| e.to_string())?;
+    let account = db_add_account(conn, account_input, &security).map_err(|e| e.to_string())?;
     Ok(account)
 }
 
@@ -194,6 +196,38 @@ async fn check_security_options() -> Result<SecurityOptions, String> {
     })
 }
 
+#[derive(serde::Serialize)]
+pub enum TpmStatus {
+    Available,
+    RequiresElevation,
+    NotAvailable,
+}
+
+#[tauri::command]
+async fn check_tpm_availability() -> Result<TpmStatus, String> {
+    use crate::security::TpmAvailability;
+    let initializer = crate::security::TpmInitializer::new();
+    match initializer.check_availability() {
+        TpmAvailability::Available => Ok(TpmStatus::Available),
+        TpmAvailability::RequiresElevation => Ok(TpmStatus::RequiresElevation),
+        TpmAvailability::NotAvailable => Ok(TpmStatus::NotAvailable),
+    }
+}
+
+#[tauri::command]
+fn get_app_initialization_status() -> String {
+    let data_dir = dirs::data_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("postail");
+    let db_path = data_dir.join("postail.db");
+
+    if db_path.exists() {
+        "Locked".to_string()
+    } else {
+        "SetupRequired".to_string()
+    }
+}
+
 #[tauri::command]
 async fn initialize_security(method: String, passphrase: Option<String>) -> Result<(), String> {
     match method.as_str() {
@@ -211,6 +245,18 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
                 security_guard.initialize().map_err(|e| e.to_string())?;
 
                 println!("TPM security initialized successfully");
+
+                // Init database after security
+                let db = crate::db::init_db().map_err(|e| e.to_string())?;
+                {
+                    let mut db_guard = DB_CONN.lock().unwrap();
+                    *db_guard = Some(db);
+                }
+
+                crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
+                let smtp = SMTP_MANAGER.lock().unwrap();
+                smtp.start_outbox_worker();
+
                 Ok(())
             } else {
                 Err("TPM not available or not supported".to_string())
@@ -231,6 +277,18 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
                     security_guard.initialize().map_err(|e| e.to_string())?;
 
                     println!("Keyring security initialized successfully");
+
+                    // Init database after security
+                    let db = crate::db::init_db().map_err(|e| e.to_string())?;
+                    {
+                        let mut db_guard = DB_CONN.lock().unwrap();
+                        *db_guard = Some(db);
+                    }
+
+                    crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
+                    let smtp = SMTP_MANAGER.lock().unwrap();
+                    smtp.start_outbox_worker();
+
                     Ok(())
                 }
                 _ => Err("Keyring not available".to_string()),
@@ -246,14 +304,70 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
                 .join("security");
 
             let builder =
-                crate::security::manager::PassphraseSecurityBuilder::new(storage_path, pass);
+                crate::security::manager::PassphraseSecurityBuilder::new(storage_path.clone(), pass);
             let new_security = builder.build();
 
             let mut security_guard = SECURITY.lock().unwrap();
             *security_guard = new_security;
-            security_guard.initialize().map_err(|e| e.to_string())?;
+            
+            // Check if vault file exists - if yes, we MUST unlock, not initialize
+            let vault_path = storage_path.join("master_key.sealed");
+            let vault_exists = vault_path.exists();
+            
+            // Try to unlock if vault exists, otherwise initialize
+            if vault_exists {
+                match security_guard.unlock() {
+                    Ok(()) => {
+                        println!("Argon2: Unlocked existing vault");
+                    }
+                    Err(e) => {
+                        eprintln!("Argon2: Failed to unlock vault (wrong password?): {}", e);
+                        return Err("Wrong password - could not unlock vault".to_string());
+                    }
+                }
+            } else {
+                println!("Argon2: Creating new vault");
+                security_guard.initialize().map_err(|e| e.to_string())?;
+            }
 
             println!("Argon2 security initialized successfully");
+
+            // Derive encryption key BEFORE releasing lock to avoid deadlock
+            let master_key_raw = security_guard.get_master_key_raw();
+            let encryption = crate::security::DbEncryption::derive_from_master_key(&master_key_raw)
+                .map_err(|e| e.to_string())?;
+            let hex_key = encryption.hex_key();
+            
+            drop(security_guard);
+
+            // Check if database already exists
+            let data_dir = dirs::data_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join("postail");
+            let db_path = data_dir.join("postail.db");
+            
+            let db = if db_path.exists() {
+                println!("Connecting to existing database...");
+                crate::db::connect_db_with_key(&hex_key).map_err(|e| e.to_string())?
+            } else {
+                println!("Initializing new database...");
+                let db = crate::db::init_db_with_key(&hex_key).map_err(|e| e.to_string())?;
+                println!("Starting maintenance scheduler...");
+                crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
+                println!("Starting SMTP worker...");
+                let smtp = SMTP_MANAGER.lock().unwrap();
+                smtp.start_outbox_worker();
+                println!("SMTP worker started");
+                db
+            };
+            
+            {
+                let mut db_guard = DB_CONN.lock().unwrap();
+                *db_guard = Some(db);
+            }
+            
+            println!("Database ready!");
+            println!("Initialization complete!");
             Ok(())
         }
         _ => Err("Invalid security method".to_string()),
@@ -322,9 +436,10 @@ fn search_messages(
     query: String,
     limit: u32,
 ) -> Result<Vec<db::search::SearchResult>, String> {
-    let conn = DB_CONN.lock().unwrap();
+    let conn_guard = DB_CONN.lock().unwrap();
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
     db::search_messages(
-        &conn,
+        conn,
         account_id.as_deref(),
         mailbox.as_deref(),
         &query,
@@ -340,31 +455,27 @@ fn mark_read(
     uids: Vec<u64>,
     read: bool,
 ) -> Result<(), String> {
-    let conn = DB_CONN.lock().unwrap();
+    let conn_guard = DB_CONN.lock().unwrap();
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
     let uids: Result<Vec<u32>, String> = uids
         .into_iter()
-        .map(|u| {
-            u.try_into()
-                .map_err(|_| format!("UID too large: {}", u))
-        })
+        .map(|u| u.try_into().map_err(|_| format!("UID too large: {}", u)))
         .collect();
     let uids = uids?;
-    db::mark_read(&conn, &account_id, &mailbox, &uids, read).map_err(|e| e.to_string())?;
+    db::mark_read(conn, &account_id, &mailbox, &uids, read).map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
 fn move_to_trash(account_id: String, mailbox: String, uids: Vec<u64>) -> Result<(), String> {
-    let conn = DB_CONN.lock().unwrap();
+    let conn_guard = DB_CONN.lock().unwrap();
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
     let uids: Result<Vec<u32>, String> = uids
         .into_iter()
-        .map(|u| {
-            u.try_into()
-                .map_err(|_| format!("UID too large: {}", u))
-        })
+        .map(|u| u.try_into().map_err(|_| format!("UID too large: {}", u)))
         .collect();
     let uids = uids?;
-    db::move_to_trash(&conn, &account_id, &mailbox, &uids).map_err(|e| e.to_string())?;
+    db::move_to_trash(conn, &account_id, &mailbox, &uids).map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -398,9 +509,10 @@ async fn export_backup(passphrase: Option<String>) -> Result<String, String> {
     let security = Arc::clone(&SECURITY);
     let passphrase_clone = passphrase.clone();
     tokio::task::spawn_blocking(move || {
-        let conn = db_conn.lock().unwrap();
+        let conn_guard = db_conn.lock().unwrap();
+        let conn = conn_guard.as_ref().expect("Database not initialized");
         let sec = security.lock().unwrap();
-        db_export_backup(&conn, &sec, passphrase_clone)
+        db_export_backup(conn, &sec, passphrase_clone)
             .map(|p| p.to_string_lossy().to_string())
             .map_err(|e| e.to_string())
     })
@@ -415,9 +527,10 @@ async fn import_backup(backup_path: String, passphrase: Option<String>) -> Resul
     let path = std::path::PathBuf::from(backup_path);
     let passphrase_clone = passphrase;
     tokio::task::spawn_blocking(move || {
-        let conn = db_conn.lock().unwrap();
+        let conn_guard = db_conn.lock().unwrap();
+        let conn = conn_guard.as_ref().expect("Database not initialized");
         let sec = security.lock().unwrap();
-        db_import_backup(&conn, &sec, &path, passphrase_clone).map_err(|e| e.to_string())
+        db_import_backup(conn, &sec, &path, passphrase_clone).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())?
@@ -427,8 +540,9 @@ async fn import_backup(backup_path: String, passphrase: Option<String>) -> Resul
 async fn run_maintenance() -> Result<(), String> {
     let db_conn = Arc::clone(&DB_CONN);
     tokio::task::spawn_blocking(move || {
-        let conn = db_conn.lock().unwrap();
-        crate::db::run_maintenance(&conn).map_err(|e| e.to_string())
+        let conn_guard = db_conn.lock().unwrap();
+        let conn = conn_guard.as_ref().expect("Database not initialized");
+        crate::db::run_maintenance(conn).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())?
@@ -436,32 +550,16 @@ async fn run_maintenance() -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let port = portpicker::pick_unused_port().expect("failed to find a free port");
-    globals::set_oauth_port(port);
-
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
         .setup(|app| {
             utils::oauth_server::start(app.handle().clone());
-            maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
-
-            {
-                let smtp = SMTP_MANAGER.lock().unwrap();
-                smtp.start_outbox_worker();
-            }
-
-            let _db_conn = Arc::clone(&DB_CONN);
-            tokio::task::spawn_blocking(move || {
-                if let Err(e) = run_encryption_migration_if_needed() {
-                    eprintln!("[DB] Encryption migration failed: {}", e);
-                    eprintln!("[DB] The application may not function correctly without encrypted database");
-                }
-            });
 
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            get_app_initialization_status,
             greet,
             start_oauth_flow,
             complete_oauth_flow,
@@ -469,6 +567,7 @@ pub fn run() {
             list_accounts,
             remove_account,
             check_security_options,
+            check_tpm_availability,
             initialize_security,
             fetch_mailboxes,
             fetch_headers,

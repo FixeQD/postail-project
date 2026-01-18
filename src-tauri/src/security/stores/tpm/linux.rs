@@ -71,6 +71,18 @@ impl LinuxTpmStore {
     }
 
     #[cfg(feature = "tpm")]
+    fn check_context_silent(&self) -> bool {
+        let tpm_dev_exists = std::path::Path::new("/dev/tpmrm0").exists() 
+            || std::path::Path::new("/dev/tpm0").exists();
+        
+        if !tpm_dev_exists {
+            return false;
+        }
+        
+        self.create_context().is_ok()
+    }
+
+    #[cfg(feature = "tpm")]
     fn create_primary_key(&self, ctx: &mut Context) -> Result<CreatePrimaryKeyResult> {
         let session = ctx
             .start_auth_session(
@@ -360,7 +372,7 @@ impl SecretStore for LinuxTpmStore {
     fn is_available(&self) -> bool {
         #[cfg(feature = "tpm")]
         {
-            self.create_context().is_ok()
+            self.check_context_silent()
         }
 
         #[cfg(not(feature = "tpm"))]

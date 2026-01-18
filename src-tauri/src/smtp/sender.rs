@@ -4,7 +4,8 @@ use serde_json;
 
 impl super::SmtpManager {
     pub(crate) fn get_credentials(&self, account_id: &str) -> Result<String, String> {
-        let conn = self.conn.lock().unwrap();
+        let conn_guard = self.conn.lock().unwrap();
+        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
         let mut stmt = conn
             .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
             .map_err(|e| e.to_string())?;
@@ -12,7 +13,7 @@ impl super::SmtpManager {
             .query_row([account_id], |row| row.get(0))
             .map_err(|e| e.to_string())?;
         drop(stmt);
-        drop(conn);
+        drop(conn_guard);
 
         let security = self.security.lock().unwrap();
         let encrypted = std::fs::read(&creds_path).map_err(|e| e.to_string())?;
@@ -51,7 +52,8 @@ impl super::SmtpManager {
     }
 
     pub async fn send_email(&self, account_id: &str, eml_content: &[u8]) -> Result<(), String> {
-        let conn = self.conn.lock().unwrap();
+        let conn_guard = self.conn.lock().unwrap();
+        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
         let mut stmt = conn
             .prepare("SELECT smtp_host, smtp_port, smtp_tls, auth_type FROM accounts WHERE id = ?")
             .map_err(|e| e.to_string())?;
@@ -66,7 +68,7 @@ impl super::SmtpManager {
             })
             .map_err(|e| e.to_string())?;
         drop(stmt);
-        drop(conn);
+        drop(conn_guard);
 
         let creds_json = self.get_credentials(account_id)?;
         let creds: serde_json::Value =

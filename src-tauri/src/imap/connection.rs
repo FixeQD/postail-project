@@ -8,7 +8,10 @@ use serde_json;
 
 impl super::ImapManager {
     fn get_credentials(&self, account_id: &str) -> Result<String, ImapError> {
-        let conn = self.conn.lock().unwrap();
+        let conn_guard = self.conn.lock().unwrap();
+        let conn = conn_guard.as_ref().ok_or(ImapError::CredentialsFetch(
+            "Database not initialized".to_string(),
+        ))?;
         let mut stmt = conn
             .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
             .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
@@ -16,7 +19,7 @@ impl super::ImapManager {
             .query_row([account_id], |row| row.get(0))
             .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
         drop(stmt);
-        drop(conn);
+        drop(conn_guard);
 
         let security = self.security.lock().unwrap();
         let encrypted =
@@ -69,7 +72,10 @@ impl super::ImapManager {
 
                         let security = self.security.lock().unwrap();
                         let creds_path: String = {
-                            let conn = self.conn.lock().unwrap();
+                            let conn_guard = self.conn.lock().unwrap();
+                            let conn = conn_guard.as_ref().ok_or(ImapError::CredentialsFetch(
+                                "Database not initialized".to_string(),
+                            ))?;
                             let mut stmt = conn
                                 .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
                                 .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
@@ -99,7 +105,10 @@ impl super::ImapManager {
         account_id: &str,
     ) -> Result<Session<TlsStream<TcpStream>>, ImapError> {
         let (host, port, _tls, auth_type, email) = {
-            let conn = self.conn.lock().unwrap();
+            let conn_guard = self.conn.lock().unwrap();
+            let conn = conn_guard.as_ref().ok_or(ImapError::Connection(
+                "Database not initialized".to_string(),
+            ))?;
             let mut stmt = conn
                 .prepare("SELECT imap_host, imap_port, imap_tls, auth_type, email FROM accounts WHERE id = ?")
                 .map_err(|e| ImapError::Connection(e.to_string()))?;

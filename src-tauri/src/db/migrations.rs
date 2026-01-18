@@ -2,6 +2,27 @@ use crate::error::DBError;
 use rusqlite::{Connection, OptionalExtension};
 
 pub fn get_db_version(conn: &Connection) -> Result<u32, DBError> {
+    let table_exists: Result<Option<String>, _> = conn
+        .query_row(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_versions'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional();
+    
+    let table_exists = match table_exists {
+        Ok(Some(_)) => true,
+        _ => false,
+    };
+    
+    if !table_exists {
+        return Ok(0);
+    }
+    
+    if !table_exists {
+        return Ok(0);
+    }
+    
     let version: Option<i64> = conn
         .query_row(
             "SELECT version FROM schema_versions ORDER BY version DESC LIMIT 1",

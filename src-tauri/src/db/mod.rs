@@ -154,26 +154,6 @@ pub enum SyncStatusEnum {
 }
 
 pub fn init_db() -> Result<Connection, DBError> {
-    let data_dir = dirs::data_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("postail");
-    fs::create_dir_all(&data_dir).map_err(DBError::Io)?;
-    let db_path = data_dir.join("postail.db");
-
-    let conn = Connection::open(&db_path)?;
-
-    apply_sqlcipher_key(&conn)?;
-
-    tables::create_tables(&conn)?;
-    tables::create_indexes(&conn)?;
-    tables::create_fts_triggers(&conn)?;
-
-    run_migrations(&conn)?;
-
-    Ok(conn)
-}
-
-fn apply_sqlcipher_key(conn: &Connection) -> Result<(), DBError> {
     let key = crate::security::DbEncryption::get_hex_key();
     if key.is_empty() {
         return Err(DBError::Security(
@@ -182,24 +162,78 @@ fn apply_sqlcipher_key(conn: &Connection) -> Result<(), DBError> {
             ),
         ));
     }
+    init_db_with_key(&key)
+}
 
-    conn.execute(&format!("PRAGMA key = \"x'{key}'\""), ())?;
-
-    let integrity: i32 = conn
-        .query_row("PRAGMA cipher_integrity_check", [], |row| row.get(0))
-        .unwrap_or(1);
-    if integrity != 0 {
-        return Err(DBError::Security(crate::error::SecurityError::Decryption(
-            "Database encryption verification failed".to_string(),
-        )));
-    }
-
-    conn.execute("PRAGMA journal_mode = WAL", ())?;
-    conn.execute("PRAGMA synchronous = NORMAL", ())?;
-    conn.execute("PRAGMA cache_size = -64000", ())?;
-    conn.execute("PRAGMA mmap_size = 268435456", ())?;
-
+fn apply_sqlcipher_key(conn: &Connection, hex_key: &str) -> Result<(), DBError> {
+    println!("[DB] Setting PRAGMA key...");
+    
+    let key_stmt = format!("PRAGMA key = \"x'{hex_key}'\"");
+    execute_pragma(&conn, &key_stmt)?;
+    println!("[DB] Key set, setting journal_mode...");
+    
+    execute_pragma(&conn, "PRAGMA journal_mode = WAL")?;
+    println!("[DB] Setting synchronous...");
+    
+    execute_pragma(&conn, "PRAGMA synchronous = NORMAL")?;
+    println!("[DB] Setting cache_size...");
+    
+    execute_pragma(&conn, "PRAGMA cache_size = -64000")?;
+    println!("[DB] Setting mmap_size...");
+    
+    execute_pragma(&conn, "PRAGMA mmap_size = 268435456")?;
+    println!("[DB] All pragmas set successfully!");
+    
     Ok(())
+}
+
+fn execute_pragma(conn: &Connection, pragma: &str) -> Result<(), DBError> {
+    match conn.execute(pragma, ()) {
+        Ok(_) => Ok(()),
+        Err(rusqlite::Error::ExecuteReturnedResults) => Ok(()),
+        Err(e) => Err(e.into()),
+    }
+}
+
+pub fn init_db_with_key(hex_key: &str) -> Result<Connection, DBError> {
+    println!("[DB] Creating data directory...");
+    let data_dir = dirs::data_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("postail");
+    fs::create_dir_all(&data_dir).map_err(DBError::Io)?;
+    let db_path = data_dir.join("postail.db");
+    println!("[DB] Opening database at {:?}", db_path);
+
+    let conn = Connection::open(&db_path)?;
+    println!("[DB] Database opened, applying key...");
+
+    apply_sqlcipher_key(&conn, hex_key)?;
+    println!("[DB] Key applied, creating tables...");
+
+    tables::create_tables(&conn)?;
+    println!("[DB] Tables created, creating indexes...");
+
+    tables::create_indexes(&conn)?;
+    println!("[DB] Indexes created, creating FTS triggers...");
+
+    tables::create_fts_triggers(&conn)?;
+    println!("[DB] FTS triggers created, running migrations...");
+
+    run_migrations(&conn)?;
+    println!("[DB] Migrations complete!");
+
+    Ok(conn)
+}
+
+pub fn connect_db_with_key(hex_key: &str) -> Result<Connection, DBError> {
+    let data_dir = dirs::data_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("postail");
+    let db_path = data_dir.join("postail.db");
+
+    let conn = Connection::open(&db_path)?;
+    apply_sqlcipher_key(&conn, hex_key)?;
+    Ok(conn)
 }
 
 fn save_creds_blob(id: &str, data: &[u8]) -> Result<String, DBError> {

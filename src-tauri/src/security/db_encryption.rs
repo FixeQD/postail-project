@@ -112,6 +112,10 @@ lazy_static::lazy_static! {
 }
 
 impl DbEncryption {
+    pub fn fresh() -> Result<Self, DbEncryptionError> {
+        Self::initialize()
+    }
+
     fn initialize() -> Result<Self, DbEncryptionError> {
         use crate::SECURITY;
 
@@ -138,9 +142,7 @@ impl DbEncryption {
     }
 
     pub fn get_hex_key() -> String {
-        DB_ENCRYPTION
-            .as_ref()
-            .as_ref()
+        Self::fresh()
             .map(|e| e.hex_key())
             .unwrap_or_else(|e| {
                 eprintln!("[DB] Failed to get encryption key: {}", e);

@@ -369,9 +369,13 @@ impl crate::imap::ImapManager {
         account_id: &str,
         mailbox_name: &str,
     ) -> Result<u32, AppError> {
-        let conn = self.conn.lock().unwrap();
+        let conn_guard = self.conn.lock().unwrap();
+        let conn = conn_guard
+            .as_ref()
+            .ok_or(AppError::from("Database not initialized"))?;
         let mut stmt = conn
-            .prepare("SELECT last_synced_uid FROM mailboxes WHERE account_id = ? AND name = ?")?;
+            .prepare("SELECT last_synced_uid FROM mailboxes WHERE account_id = ? AND name = ?")
+            .map_err(|e| AppError::from(e.to_string()))?;
         let last_uid: Option<i64> = stmt
             .query_row([account_id, mailbox_name], |row| row.get(0))
             .ok();
@@ -420,15 +424,19 @@ impl crate::imap::ImapManager {
 
         update_sync_status(account_id, mailbox_name, total, total).await;
 
-        let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare(
-            "UPDATE mailboxes SET last_synced_uid = ? WHERE account_id = ? AND name = ?",
-        )?;
+        let conn_guard = self.conn.lock().unwrap();
+        let conn = conn_guard
+            .as_ref()
+            .ok_or(AppError::from("Database not initialized"))?;
+        let mut stmt = conn
+            .prepare("UPDATE mailboxes SET last_synced_uid = ? WHERE account_id = ? AND name = ?")
+            .map_err(|e| AppError::from(e.to_string()))?;
         stmt.execute([
             end_uid.to_string(),
             account_id.to_string(),
             mailbox_name.to_string(),
-        ])?;
+        ])
+        .map_err(|e| AppError::from(e.to_string()))?;
 
         Ok(())
     }

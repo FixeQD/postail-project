@@ -4,7 +4,6 @@ use std::time::Duration;
 use tokio::runtime::Builder;
 
 use crate::db::update_outbox_status;
-use crate::error::DBError;
 use crate::oauth;
 use crate::oauth::ProviderKind;
 use crate::smtp::SmtpManager;
@@ -76,16 +75,20 @@ impl SmtpManager {
         let now = chrono::Utc::now().timestamp();
 
         let pending_items = {
-            let conn = self.conn.lock().unwrap();
-            let mut stmt = conn
-                .prepare("SELECT id, account_id, raw_eml_path FROM outbox WHERE status = 'PENDING' OR (status = 'RETRY' AND next_retry < ?)")
-                .map_err(|e| e.to_string())?;
-            let items: Vec<(String, String, String)> = stmt
-                .query_map([now], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
-                .map_err(|e| e.to_string())?
-                .filter_map(|r| r.ok())
-                .collect();
-            items
+            let conn_guard = self.conn.lock().unwrap();
+            if let Some(conn) = conn_guard.as_ref() {
+                let mut stmt = conn
+                    .prepare("SELECT id, account_id, raw_eml_path FROM outbox WHERE status = 'PENDING' OR (status = 'RETRY' AND next_retry < ?)")
+                    .map_err(|e| e.to_string())?;
+                let items: Vec<(String, String, String)> = stmt
+                    .query_map([now], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+                    .map_err(|e| e.to_string())?
+                    .filter_map(|r| r.ok())
+                    .collect();
+                items
+            } else {
+                return Ok(()); // DB not ready
+            }
         };
 
         for (outbox_id, account_id, eml_path) in pending_items {
@@ -115,8 +118,9 @@ impl SmtpManager {
         };
 
         {
-            let conn = self.conn.lock().unwrap();
-            update_outbox_status(&conn, eml_path, "PROCESSING", None).map_err(|e| e.to_string())?;
+            let conn_guard = self.conn.lock().unwrap();
+            let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+            update_outbox_status(conn, eml_path, "PROCESSING", None).map_err(|e| e.to_string())?;
         }
 
         self.send_email(account_id, &eml_content).await?;
@@ -126,30 +130,40 @@ impl SmtpManager {
         Ok(())
     }
 
-    fn mark_outbox_sent(&self, outbox_id: &str) -> Result<(), DBError> {
-        let conn = self.conn.lock().unwrap();
+    fn mark_outbox_sent(&self, outbox_id: &str) -> Result<(), String> {
+        let conn_guard = self.conn.lock().unwrap();
+        let conn = conn_guard
+            .as_ref()
+            .ok_or("Database not initialized".to_string())?;
         conn.execute(
             "UPDATE outbox SET status = 'SENT' WHERE id = ?",
             [outbox_id],
-        )?;
+        )
+        .map_err(|e| e.to_string())?;
         Ok(())
     }
 
-    fn update_outbox_error(&self, outbox_id: &str, error: &str) -> Result<(), DBError> {
+    fn update_outbox_error(&self, outbox_id: &str, error: &str) -> Result<(), String> {
         use crate::db::calculate_backoff;
 
-        let conn = self.conn.lock().unwrap();
-        let attempts: u32 = conn.query_row(
-            "SELECT attempts FROM outbox WHERE id = ?",
-            [outbox_id],
-            |row| row.get::<_, i64>(0).map(|a| a as u32),
-        )?;
+        let conn_guard = self.conn.lock().unwrap();
+        let conn = conn_guard
+            .as_ref()
+            .ok_or("Database not initialized".to_string())?;
+        let attempts: u32 = conn
+            .query_row(
+                "SELECT attempts FROM outbox WHERE id = ?",
+                [outbox_id],
+                |row| row.get::<_, i64>(0).map(|a| a as u32),
+            )
+            .map_err(|e| e.to_string())?;
 
         let next_retry = calculate_backoff(attempts + 1);
         conn.execute(
             "UPDATE outbox SET status = 'RETRY', last_error = ?, attempts = ?, next_retry = ? WHERE id = ?",
             params![error, (attempts + 1).to_string(), next_retry.to_string(), outbox_id],
-        )?;
+        )
+        .map_err(|e| e.to_string())?;
         Ok(())
     }
 
@@ -179,7 +193,8 @@ impl SmtpManager {
 
     async fn get_sent_folder_name(&self, account_id: &str) -> Result<String, String> {
         let provider_type = {
-            let conn = self.conn.lock().unwrap();
+            let conn_guard = self.conn.lock().unwrap();
+            let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
             let mut stmt = conn
                 .prepare("SELECT provider_type FROM accounts WHERE id = ?")
                 .map_err(|e| e.to_string())?;
@@ -203,7 +218,8 @@ impl SmtpManager {
         use async_std::net::TcpStream;
 
         let (host, port, auth_type, email) = {
-            let conn = self.conn.lock().unwrap();
+            let conn_guard = self.conn.lock().unwrap();
+            let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
             let mut stmt = conn
                 .prepare("SELECT imap_host, imap_port, auth_type, email FROM accounts WHERE id = ?")
                 .map_err(|e| e.to_string())?;
@@ -298,7 +314,8 @@ impl SmtpManager {
                             serde_json::Number::from(new_tokens.expires_in).into();
 
                         let creds_path: String = {
-                            let conn = self.conn.lock().unwrap();
+                            let conn_guard = self.conn.lock().unwrap();
+                            let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
                             let mut stmt = conn
                                 .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
                                 .map_err(|e| e.to_string())?;

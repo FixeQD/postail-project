@@ -9,12 +9,15 @@ pub mod sender;
 pub mod worker;
 
 pub struct SmtpManager {
-    conn: Arc<Mutex<Connection>>,
+    conn: Arc<Mutex<Option<Connection>>>,
     security: Arc<Mutex<SecurityManager>>,
 }
 
 impl SmtpManager {
-    pub fn new(conn: Arc<Mutex<Connection>>, security: Arc<Mutex<SecurityManager>>) -> Self {
+    pub fn new(
+        conn: Arc<Mutex<Option<Connection>>>,
+        security: Arc<Mutex<SecurityManager>>,
+    ) -> Self {
         Self { conn, security }
     }
 }

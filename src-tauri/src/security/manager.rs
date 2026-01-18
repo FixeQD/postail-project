@@ -9,6 +9,30 @@ use crate::security::stores::keyring::KeyringStore;
 use crate::security::stores::tpm::get_tpm_store;
 use crate::security::stores::{SecretStore, StorageTier};
 
+struct NoSecureStorageStore;
+
+impl SecretStore for NoSecureStorageStore {
+    fn store(&self, _key: &MasterKey) -> Result<()> {
+        Err(SecurityError::NoSecureStorageAvailable)
+    }
+
+    fn retrieve(&self) -> Result<MasterKey> {
+        Err(SecurityError::NoSecureStorageAvailable)
+    }
+
+    fn delete(&self) -> Result<()> {
+        Ok(())
+    }
+
+    fn is_available(&self) -> bool {
+        false
+    }
+
+    fn name(&self) -> &'static str {
+        "No Secure Storage"
+    }
+}
+
 pub struct SecurityManager {
     store: Arc<dyn SecretStore>,
     master_key: Option<MasterKey>,
@@ -44,7 +68,7 @@ impl SecurityManager {
             return Ok((tpm_store.into(), StorageTier::Tpm));
         }
 
-        Err(SecurityError::NoSecureStorageAvailable)
+        Ok((Arc::new(NoSecureStorageStore), StorageTier::Passphrase))
     }
 
     pub fn storage_tier(&self) -> StorageTier {

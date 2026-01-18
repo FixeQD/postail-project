@@ -1,11 +1,22 @@
-use crate::globals;
 use serde_json;
+use std::net::TcpListener;
 use std::thread;
 use tauri::{AppHandle, Emitter};
 
+fn pick_available_port(start_port: u16) -> u16 {
+    for port in start_port..=65535 {
+        if let Ok(_listener) = TcpListener::bind(("127.0.0.1", port)) {
+            return port;
+        }
+    }
+    0
+}
+
 pub fn start(handle: AppHandle) {
+    let port = pick_available_port(3000);
+    crate::globals::set_oauth_port(port);
     thread::spawn(move || {
-        let server_addr = format!("127.0.0.1:{}", globals::get_oauth_port());
+        let server_addr = format!("127.0.0.1:{}", port);
         let server = match tiny_http::Server::http(&server_addr) {
             Ok(s) => s,
             Err(e) => {

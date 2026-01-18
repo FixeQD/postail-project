@@ -16,6 +16,7 @@ pub trait SecretStore: Send + Sync {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum StorageTier {
     Passphrase = 0,
-    Tpm = 1,
-    Keyring = 2,
+    Argon2 = 1,
+    Tpm = 2,
+    Keyring = 3,
 }
