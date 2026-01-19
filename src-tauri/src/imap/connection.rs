@@ -1,3 +1,8 @@
+// =================================
+// I spent my fu**in' like 10h on this so
+// Sincerely, f*ck you async-imap
+// =================================
+
 use crate::error::ImapError;
 use crate::oauth;
 use crate::oauth::ProviderKind;
