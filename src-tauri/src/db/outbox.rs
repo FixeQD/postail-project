@@ -5,6 +5,7 @@ use mailparse::{parse_mail, MailHeaderMap};
 use rusqlite::{params, Connection};
 use std::fs;
 use std::path::PathBuf;
+use tracing;
 
 pub fn extract_headers_from_eml(eml_path: &str) -> Result<(Option<String>, String), DBError> {
     let eml_bytes = fs::read(eml_path).map_err(DBError::Io)?;
@@ -126,7 +127,7 @@ pub fn save_attachment(
     )?;
 
     if let Err(e) = super::messages::sync_message_attachments_flag(message_table_id, conn) {
-        eprintln!("[DB] Failed to sync attachments flag: {}", e);
+        tracing::warn!(target: "postail", "[DB] Failed to sync attachments flag: {}", e);
     }
 
     Ok(conn.last_insert_rowid())

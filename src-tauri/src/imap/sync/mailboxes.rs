@@ -12,7 +12,9 @@ impl crate::imap::ImapManager {
     }
 
     pub async fn fetch_mailboxes(&self, account_id: &str) -> Result<Vec<Mailbox>, String> {
+        tracing::info!(target: "postail", "[IMAP] fetch_mailboxes: calling connect_imap for {}", account_id);
         let mut session = self.connect_imap(account_id).await?;
+        tracing::info!(target: "postail", "[IMAP] fetch_mailboxes: connected, listing mailboxes");
         let mut result = Vec::new();
         {
             let mut mailboxes = session
@@ -39,6 +41,7 @@ impl crate::imap::ImapManager {
             }
         }
         session.logout().await.map_err(|e| e.to_string())?;
+        tracing::info!(target: "postail", "[IMAP] fetch_mailboxes: done, got {} mailboxes", result.len());
         Ok(result)
     }
 }

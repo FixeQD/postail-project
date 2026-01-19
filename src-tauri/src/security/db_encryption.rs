@@ -1,4 +1,5 @@
 use std::sync::Mutex;
+use tracing;
 
 static TEST_SALT_MUTEX: Mutex<()> = Mutex::new(());
 
@@ -145,7 +146,7 @@ impl DbEncryption {
         Self::fresh()
             .map(|e| e.hex_key())
             .unwrap_or_else(|e| {
-                eprintln!("[DB] Failed to get encryption key: {}", e);
+                tracing::error!(target: "postail", "[DB] Failed to get encryption key: {}", e);
                 String::new()
             })
     }

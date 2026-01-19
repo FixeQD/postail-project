@@ -2,6 +2,7 @@ use serde_json;
 use std::net::TcpListener;
 use std::thread;
 use tauri::{AppHandle, Emitter};
+use tracing;
 
 fn pick_available_port(start_port: u16) -> u16 {
     for port in start_port..=65535 {
@@ -20,7 +21,7 @@ pub fn start(handle: AppHandle) {
         let server = match tiny_http::Server::http(&server_addr) {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("Failed to start http server for oauth: {}", e);
+                tracing::error!(target: "postail", "Failed to start http server for oauth: {}", e);
                 return;
             }
         };
@@ -48,7 +49,7 @@ pub fn start(handle: AppHandle) {
                 let response = match "Content-Type: text/html".parse::<tiny_http::Header>() {
                     Ok(header) => response.with_header(header),
                     Err(err) => {
-                        eprintln!("Failed to parse header: {:?}", err);
+                        tracing::warn!(target: "postail", "Failed to parse header: {:?}", err);
                         response
                     }
                 };

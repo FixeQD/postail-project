@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+use tracing;
 
 use rusqlite::Connection;
 
@@ -42,7 +43,7 @@ pub fn start_maintenance_scheduler(db_conn: Arc<Mutex<Option<Connection>>>) {
             };
 
             if let Err(e) = result {
-                eprintln!("WAL checkpoint failed: {}", e);
+                tracing::warn!(target: "postail", "WAL checkpoint failed: {}", e);
             }
 
             if last_weekly_maintenance.elapsed() >= WEEKLY_VACUUM_INTERVAL {
@@ -51,7 +52,7 @@ pub fn start_maintenance_scheduler(db_conn: Arc<Mutex<Option<Connection>>>) {
                     let conn_guard = db_conn_clone.lock().unwrap();
                     if let Some(conn) = conn_guard.as_ref() {
                         if let Err(e) = run_maintenance(conn) {
-                            eprintln!("Weekly maintenance failed: {}", e);
+                            tracing::error!(target: "postail", "Weekly maintenance failed: {}", e);
                         }
                     }
                 });

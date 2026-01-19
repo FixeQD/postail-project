@@ -2,6 +2,7 @@ use std::fs;
 use std::thread;
 use std::time::Duration;
 use tokio::runtime::Builder;
+use tracing;
 
 use crate::db::update_outbox_status;
 use crate::oauth;
@@ -51,19 +52,19 @@ impl SmtpManager {
     }
 
     async fn outbox_worker_loop(&self) {
-        eprintln!("[Outbox] Worker started");
+        tracing::info!(target: "postail", "[Outbox] Worker started");
 
         loop {
             let running = *OUTBOX_WORKER_RUNNING.lock().unwrap();
             if !running {
-                eprintln!("[Outbox] Worker stopping");
+                tracing::info!(target: "postail", "[Outbox] Worker stopping");
                 break;
             }
 
             match self.process_pending_outbox().await {
                 Ok(()) => {}
                 Err(e) => {
-                    eprintln!("[Outbox] Error processing outbox: {}", e);
+                    tracing::error!(target: "postail", "[Outbox] Error processing outbox: {}", e);
                 }
             }
 
@@ -96,10 +97,10 @@ impl SmtpManager {
                 Ok(()) => {
                     self.mark_outbox_sent(&outbox_id)
                         .map_err(|e| e.to_string())?;
-                    eprintln!("[Outbox] Successfully sent message {}", outbox_id);
+                    tracing::info!(target: "postail", "[Outbox] Successfully sent message {}", outbox_id);
                 }
                 Err(e) => {
-                    eprintln!("[Outbox] Failed to send message {}: {}", outbox_id, e);
+                    tracing::error!(target: "postail", "[Outbox] Failed to send message {}: {}", outbox_id, e);
                     self.update_outbox_error(&outbox_id, &e)
                         .map_err(|e| e.to_string())?;
                 }
@@ -184,7 +185,7 @@ impl SmtpManager {
                 Ok(())
             }
             Err(e) => {
-                eprintln!("[Outbox] Failed to append to Sent folder: {}", e);
+                tracing::warn!(target: "postail", "[Outbox] Failed to append to Sent folder: {}", e);
                 session.logout().await.ok();
                 Ok(())
             }
@@ -280,6 +281,8 @@ impl SmtpManager {
         account_id: &str,
         creds: &mut serde_json::Value,
     ) -> Result<(), String> {
+        use chrono::Utc;
+
         let auth_type = creds
             .get("auth_type")
             .and_then(|v| v.as_str())
@@ -288,9 +291,9 @@ impl SmtpManager {
             return Ok(());
         }
 
-        let expires_in = creds
-            .get("expires_in")
-            .and_then(|v| v.as_u64())
+        let expires_at = creds
+            .get("expires_at")
+            .and_then(|v| v.as_i64())
             .unwrap_or(0);
         let refresh_token = creds.get("refresh_token").and_then(|v| v.as_str());
         let provider_type = creds
@@ -298,7 +301,10 @@ impl SmtpManager {
             .and_then(|v| v.as_str())
             .unwrap_or("generic");
 
-        if expires_in < 300 {
+        let now = Utc::now().timestamp();
+        let seconds_until_expiry = expires_at.saturating_sub(now);
+
+        if seconds_until_expiry < 300 {
             if let Some(refresh_token) = refresh_token {
                 let provider_kind =
                     ProviderKind::parse(provider_type).ok_or("Unknown OAuth provider")?;
@@ -310,8 +316,8 @@ impl SmtpManager {
                         if let Some(rt) = new_tokens.refresh_token {
                             creds["refresh_token"] = serde_json::Value::String(rt);
                         }
-                        creds["expires_in"] =
-                            serde_json::Number::from(new_tokens.expires_in).into();
+                        creds["expires_at"] =
+                            serde_json::Value::Number(serde_json::Number::from(Utc::now().timestamp() + new_tokens.expires_in as i64));
 
                         let creds_path: String = {
                             let conn_guard = self.conn.lock().unwrap();
@@ -334,6 +340,8 @@ impl SmtpManager {
                         return Err(format!("OAuth refresh failed: {}", e));
                     }
                 }
+            } else {
+                return Err("Token expired and no refresh token available".to_string());
             }
         }
 

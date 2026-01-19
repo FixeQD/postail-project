@@ -1,4 +1,5 @@
 use crate::imap::ImapManager;
+use tracing;
 
 impl ImapManager {
     pub async fn check_uidvalidity(
@@ -23,11 +24,11 @@ impl ImapManager {
 
         match db_uidvalidity {
             Some(db_uidv) if db_uidv == server_uidvalidity => {
-                eprintln!("[IMAP] UIDVALIDITY match for {}", mailbox_name);
+                tracing::debug!(target: "postail", "[IMAP] UIDVALIDITY match for {}", mailbox_name);
                 Ok(())
             }
             Some(db_uidv) if db_uidv != server_uidvalidity => {
-                eprintln!(
+                tracing::warn!(target: "postail",
                     "[IMAP] UIDVALIDITY mismatch for {}: DB={}, Server={}. Triggering full resync.",
                     mailbox_name, db_uidv, server_uidvalidity
                 );
@@ -35,7 +36,7 @@ impl ImapManager {
                     .await
             }
             None => {
-                eprintln!(
+                tracing::info!(target: "postail",
                     "[IMAP] No UIDVALIDITY stored for {}, creating mailbox entry",
                     mailbox_name
                 );
@@ -62,7 +63,7 @@ impl ImapManager {
         mailbox_name: &str,
         uid_validity: u32,
     ) -> Result<(), String> {
-        eprintln!("[IMAP] Performing full resync for {}", mailbox_name);
+        tracing::info!(target: "postail", "[IMAP] Performing full resync for {}", mailbox_name);
 
         let mut conn_guard = self.conn.lock().unwrap();
         let conn = conn_guard

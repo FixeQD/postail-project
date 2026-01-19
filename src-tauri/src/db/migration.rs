@@ -1,6 +1,7 @@
 use rusqlite::Connection;
 use std::fs;
 use std::path::{Path, PathBuf};
+use tracing;
 
 use crate::error::DBError;
 use crate::security::db_encryption::DbEncryption;
@@ -27,14 +28,14 @@ pub fn migrate_unencrypted_db(db_path: &Path, encryption: &DbEncryption) -> Resu
     let backup_path = db_path.with_extension("bak");
     let encrypted_path = db_path.with_extension("encrypted.db");
 
-    eprintln!("[DB] Starting database encryption migration...");
-    eprintln!("[DB] Creating backup at: {}", backup_path.display());
+    tracing::info!(target: "postail", "[DB] Starting database encryption migration...");
+    tracing::info!(target: "postail", "[DB] Creating backup at: {}", backup_path.display());
 
     if let Err(e) = fs::copy(db_path, &backup_path) {
         return Err(DBError::Io(e));
     }
 
-    eprintln!("[DB] Exporting database to encrypted format...");
+    tracing::info!(target: "postail", "[DB] Exporting database to encrypted format...");
 
     {
         let conn = Connection::open(&backup_path)?;
@@ -60,11 +61,11 @@ pub fn migrate_unencrypted_db(db_path: &Path, encryption: &DbEncryption) -> Resu
         ));
     }
 
-    eprintln!("[DB] Replacing original database with encrypted version...");
+    tracing::info!(target: "postail", "[DB] Replacing original database with encrypted version...");
 
     fs::rename(encrypted_path, db_path).map_err(DBError::Io)?;
 
-    eprintln!("[DB] Verifying encrypted database...");
+    tracing::info!(target: "postail", "[DB] Verifying encrypted database...");
 
     {
         let conn = Connection::open(db_path)?;
@@ -87,8 +88,8 @@ pub fn migrate_unencrypted_db(db_path: &Path, encryption: &DbEncryption) -> Resu
         }
     }
 
-    eprintln!("[DB] Database encryption migration completed successfully!");
-    eprintln!("[DB] Backup saved at: {}", backup_path.display());
+    tracing::info!(target: "postail", "[DB] Database encryption migration completed successfully!");
+    tracing::info!(target: "postail", "[DB] Backup saved at: {}", backup_path.display());
 
     Ok(())
 }
@@ -110,11 +111,11 @@ pub fn run_encryption_migration_if_needed() -> Result<(), DBError> {
     let conn = Connection::open(&db_path)?;
 
     if check_db_encrypted(&conn) {
-        eprintln!("[DB] Database is already encrypted");
+        tracing::info!(target: "postail", "[DB] Database is already encrypted");
         return Ok(());
     }
 
-    eprintln!("[DB] Database is not encrypted, starting migration...");
+    tracing::info!(target: "postail", "[DB] Database is not encrypted, starting migration...");
 
     match DbEncryption::global().as_ref() {
         Ok(encryption) => {

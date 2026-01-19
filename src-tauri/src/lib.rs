@@ -18,6 +18,7 @@ use crate::db::{
     AccountMeta, Credentials, ImapConfig, MailHeader, Mailbox, MessageFull, OAuthCredentials,
     OutboxItem, SmtpConfig, SyncStatusEnum,
 };
+use chrono::Utc;
 use crate::imap::ImapManager;
 use crate::security::stores::SecretStore;
 use crate::security::SecurityManager;
@@ -149,7 +150,7 @@ async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta,
         credentials: Credentials::OAuth(OAuthCredentials {
             access_token: tokens.access_token,
             refresh_token: tokens.refresh_token,
-            expires_in: tokens.expires_in,
+            expires_at: Utc::now().timestamp() + tokens.expires_in as i64,
         }),
         imap_config: ImapConfig {
             host: oauth::ProviderInfo::get(provider.kind)
@@ -321,7 +322,7 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
                         println!("Argon2: Unlocked existing vault");
                     }
                     Err(e) => {
-                        eprintln!("Argon2: Failed to unlock vault (wrong password?): {}", e);
+                        tracing::error!(target: "postail", "Argon2: Failed to unlock vault (wrong password?): {}", e);
                         return Err("Wrong password - could not unlock vault".to_string());
                     }
                 }
@@ -407,8 +408,19 @@ fn fetch_message_full(
 
 #[tauri::command]
 fn start_sync(account_id: String) -> Result<(), String> {
+    tracing::info!(target: "postail", "[UI] start_sync called for {}", account_id);
     let imap = IMAP_MANAGER.lock().unwrap();
-    imap.start_sync(&account_id).map_err(|e| e.to_string())
+    tracing::info!(target: "postail", "[UI] Calling imap.start_sync");
+    match imap.start_sync(&account_id) {
+        Ok(()) => {
+            tracing::info!(target: "postail", "[UI] start_sync succeeded");
+            Ok(())
+        }
+        Err(e) => {
+            tracing::error!(target: "postail", "[UI] start_sync failed: {}", e);
+            Err(e.to_string())
+        }
+    }
 }
 
 #[tauri::command]
@@ -550,6 +562,14 @@ async fn run_maintenance() -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    tracing_subscriber::fmt()
+        .with_target(false)
+        .with_level(true)
+        .without_time()
+        .with_line_number(false)
+        .with_file(false)
+        .init();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())

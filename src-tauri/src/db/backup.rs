@@ -6,6 +6,7 @@ use std::env;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
+use tracing;
 use uuid::Uuid;
 
 pub fn add_performance_indexes(conn: &Connection) -> SqlResult<()> {
@@ -349,7 +350,7 @@ pub fn run_maintenance(conn: &Connection) -> Result<(), DBError> {
 
     if let Ok(count) = super::outbox::cleanup_old_sent_messages(conn, 30) {
         if count > 0 {
-            eprintln!("[DB] Cleaned up {} old sent messages (>30 days)", count);
+            tracing::info!(target: "postail", "[DB] Cleaned up {} old sent messages (>30 days)", count);
         }
     }
 
