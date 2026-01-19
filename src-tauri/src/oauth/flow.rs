@@ -6,6 +6,7 @@ use reqwest::Client;
 use url::Url;
 
 use crate::error::OAuthError;
+use crate::globals;
 
 use super::config::OAuthConfig;
 use super::pkce::PkceData;
@@ -58,7 +59,7 @@ lazy_static::lazy_static! {
     static ref PENDING_FLOWS: Mutex<HashMap<String, (Provider, PkceData)>> = Mutex::new(HashMap::new());
 }
 
-pub fn start_oauth_flow(provider: Provider) -> Result<String, OAuthError> {
+pub fn start_oauth_flow(provider: Provider) -> Result<(String, u16), OAuthError> {
     let config = provider.config()?;
     let pkce = PkceData::generate();
 
@@ -79,7 +80,7 @@ pub fn start_oauth_flow(provider: Provider) -> Result<String, OAuthError> {
         .unwrap()
         .insert(pkce.state.clone(), (provider, pkce));
 
-    Ok(auth_url)
+    Ok((auth_url, globals::get_oauth_port()))
 }
 
 pub async fn complete_oauth_flow(

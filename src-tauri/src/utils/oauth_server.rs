@@ -1,11 +1,19 @@
+use rand::Rng;
 use serde_json;
 use std::net::TcpListener;
 use std::thread;
 use tauri::{AppHandle, Emitter};
 use tracing;
 
-fn pick_available_port(start_port: u16) -> u16 {
-    for port in start_port..=65535 {
+fn pick_available_port() -> u16 {
+    let mut rng = rand::rng();
+    let start = rng.random_range(1024..=49151);
+    for port in start..=65535 {
+        if let Ok(_listener) = TcpListener::bind(("127.0.0.1", port)) {
+            return port;
+        }
+    }
+    for port in 1024..start {
         if let Ok(_listener) = TcpListener::bind(("127.0.0.1", port)) {
             return port;
         }
@@ -14,7 +22,7 @@ fn pick_available_port(start_port: u16) -> u16 {
 }
 
 pub fn start(handle: AppHandle) {
-    let port = pick_available_port(3000);
+    let port = pick_available_port();
     crate::globals::set_oauth_port(port);
     thread::spawn(move || {
         let server_addr = format!("127.0.0.1:{}", port);

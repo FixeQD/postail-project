@@ -72,13 +72,19 @@ fn remove_account(id: String) -> Result<(), String> {
     db_remove_account(conn, &id).map_err(|e| e.to_string())
 }
 
+#[derive(serde::Serialize)]
+pub struct OAuthFlowResponse {
+    pub url: String,
+    pub port: u16,
+}
+
 #[tauri::command]
-async fn start_oauth_flow(provider: String) -> Result<String, String> {
+async fn start_oauth_flow(provider: String) -> Result<OAuthFlowResponse, String> {
     let provider_kind =
         oauth::ProviderKind::parse(&provider).ok_or_else(|| "Unknown provider".to_string())?;
     let provider = oauth::Provider::from_kind(provider_kind);
     match oauth::start_oauth_flow(provider) {
-        Ok(url) => Ok(url),
+        Ok((url, port)) => Ok(OAuthFlowResponse { url, port }),
         Err(e) => Err(e.to_string()),
     }
 }

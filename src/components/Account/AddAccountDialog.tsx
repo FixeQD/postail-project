@@ -10,7 +10,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
-} from "@/components/ui/dialog"
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -27,7 +27,7 @@ const ProviderOption = ({
 	onClick,
 	isLoading,
 	disabled,
-	brandColor
+	brandColor,
 }: {
 	title: string
 	icon: ComponentType<{ className?: string }>
@@ -40,25 +40,33 @@ const ProviderOption = ({
 		onClick={onClick}
 		disabled={disabled}
 		className={cn(
-			"group relative flex w-full items-center justify-between rounded-xl border border-white/5 bg-white/5 p-4 transition-all hover:bg-white/10 hover:border-white/10 overflow-hidden",
-			disabled && "opacity-50 cursor-not-allowed"
-		)}
-	>
-		<div className={cn("absolute inset-0 opacity-0 transition-opacity group-hover:opacity-5 bg-gradient-to-r", brandColor)} />
-		
-		<div className="flex items-center gap-4">
-			<div className={cn("flex h-10 w-10 items-center justify-center rounded-lg bg-slate-950/50 ring-1 ring-white/10", brandColor.replace('from-', 'text-'))}>
-				<Icon className="h-5 w-5" />
+			'group relative flex w-full items-center justify-between overflow-hidden rounded-xl border border-white/5 bg-white/5 p-4 transition-all hover:border-white/10 hover:bg-white/10',
+			disabled && 'cursor-not-allowed opacity-50'
+		)}>
+		<div
+			className={cn(
+				'absolute inset-0 bg-gradient-to-r opacity-0 transition-opacity group-hover:opacity-5',
+				brandColor
+			)}
+		/>
+
+		<div className='flex items-center gap-4'>
+			<div
+				className={cn(
+					'flex h-10 w-10 items-center justify-center rounded-lg bg-slate-950/50 ring-1 ring-white/10',
+					brandColor.replace('from-', 'text-')
+				)}>
+				<Icon className='h-5 w-5' />
 			</div>
-			<div className="text-left">
-				<h3 className="font-medium text-slate-100">{title}</h3>
+			<div className='text-left'>
+				<h3 className='font-medium text-slate-100'>{title}</h3>
 			</div>
 		</div>
 
 		{isLoading ? (
-			<Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+			<Loader2 className='h-5 w-5 animate-spin text-slate-400' />
 		) : (
-			<ArrowRight className="h-5 w-5 text-slate-500 opacity-0 -translate-x-2 transition-all group-hover:opacity-100 group-hover:translate-x-0" />
+			<ArrowRight className='h-5 w-5 -translate-x-2 text-slate-500 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100' />
 		)}
 	</button>
 )
@@ -71,7 +79,10 @@ export function AddAccountDialog({ children }: Omit<AddAccountDialogProps, 'onAc
 	const handleProviderClick = async (provider: 'gmail' | 'outlook') => {
 		setLoading(provider)
 		try {
-			const url = await invoke<string>('start_oauth_flow', { provider })
+			const { url, port } = await invoke<{ url: string; port: number }>('start_oauth_flow', {
+				provider,
+			})
+			console.log(`OAuth port: ${port}`)
 			await opener.openUrl(url)
 		} catch (error) {
 			console.error(`Failed to start ${provider} OAuth:`, error)
@@ -83,33 +94,33 @@ export function AddAccountDialog({ children }: Omit<AddAccountDialogProps, 'onAc
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
 				{children || (
-					<Button className="gap-2 bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20">
-						<Plus className="h-4 w-4" />
+					<Button className='gap-2 bg-blue-600 text-white shadow-lg shadow-blue-500/20 hover:bg-blue-500'>
+						<Plus className='h-4 w-4' />
 						Add Account
 					</Button>
 				)}
 			</DialogTrigger>
-			<DialogContent className="sm:max-w-md bg-slate-900/95 border-slate-800 backdrop-blur-xl text-slate-100">
+			<DialogContent className='border-slate-800 bg-slate-900/95 text-slate-100 backdrop-blur-xl sm:max-w-md'>
 				<DialogHeader>
-					<DialogTitle className="text-xl font-bold">Add Account</DialogTitle>
-					<DialogDescription className="text-slate-400">
+					<DialogTitle className='text-xl font-bold'>Add Account</DialogTitle>
+					<DialogDescription className='text-slate-400'>
 						Choose your email provider to get started.
 					</DialogDescription>
 				</DialogHeader>
-				
-				<div className="grid gap-3 py-4">
+
+				<div className='grid gap-3 py-4'>
 					<ProviderOption
 						title={t('accounts:providers.gmail.title')}
 						icon={Mail}
-						brandColor="from-red-500 to-orange-500 text-red-500"
+						brandColor='from-red-500 to-orange-500 text-red-500'
 						onClick={() => handleProviderClick('gmail')}
 						isLoading={loading === 'gmail'}
 						disabled={loading !== null}
 					/>
 					<ProviderOption
 						title={t('accounts:providers.outlook.title')}
-						icon={Mail} 
-						brandColor="from-blue-500 to-cyan-500 text-blue-500"
+						icon={Mail}
+						brandColor='from-blue-500 to-cyan-500 text-blue-500'
 						onClick={() => handleProviderClick('outlook')}
 						isLoading={loading === 'outlook'}
 						disabled={loading !== null}

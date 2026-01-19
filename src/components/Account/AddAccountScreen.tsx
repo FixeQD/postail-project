@@ -92,7 +92,10 @@ export const AddAccountScreen = ({
 	const handleProviderClick = async (provider: 'gmail' | 'outlook') => {
 		setLoading(provider)
 		try {
-			const url = await invoke<string>('start_oauth_flow', { provider })
+			const { url, port } = await invoke<{ url: string; port: number }>('start_oauth_flow', {
+				provider,
+			})
+			console.log(`OAuth port: ${port}`)
 			await opener.openUrl(url)
 		} catch (error) {
 			console.error(`Failed to start ${provider} OAuth:`, error)
