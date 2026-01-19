@@ -133,18 +133,23 @@ pub async fn refresh_access_token(
 
     let client_id = config.client_id().unwrap_or_default();
 
-    let params = [
-        ("client_id", client_id.as_str()),
-        ("refresh_token", &refresh_token),
-        ("grant_type", "refresh_token"),
+    let mut params = vec![
+        ("client_id", client_id.clone()),
+        ("refresh_token", refresh_token.clone()),
+        ("grant_type", "refresh_token".to_string()),
     ];
+
+    if let Some(client_secret) = config.client_secret() {
+        params.push(("client_secret", client_secret));
+    }
 
     let response = client.post(&config.token_url).form(&params).send().await?;
 
     if !response.status().is_success() {
-        return Err(OAuthError::TokenRefreshFailed {
-            status: response.status().to_string(),
-        });
+        let status = response.status().to_string();
+        let body = response.text().await.unwrap_or_default();
+        tracing::error!(target: "postail", "Token refresh failed: {} - {}", status, body);
+        return Err(OAuthError::TokenRefreshFailed { status });
     }
 
     let tokens: OAuthTokens = response.json().await?;

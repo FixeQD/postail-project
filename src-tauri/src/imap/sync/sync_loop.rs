@@ -2,6 +2,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 use tokio::time::{timeout, Duration};
+use tracing;
 
 use crate::error::{AppError, ImapError, SyncError};
 use crate::imap::sync_status::{
@@ -20,19 +21,44 @@ lazy_static::lazy_static! {
 
 impl crate::imap::ImapManager {
     pub fn start_sync(&self, account_id: &str) -> Result<(), AppError> {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| AppError::from(e.to_string()))?;
+        let manager = self.clone();
+        let account_id_str = account_id.to_string();
+        let account_id_for_error = account_id_str.clone();
 
-        rt.block_on(async {
-            start_sync_status_tracking(account_id).await;
-            if let Err(e) = self.start_sync_async(account_id).await {
-                mark_sync_error(account_id, &e.to_string()).await;
-                return Err(e);
-            }
-            Ok(())
-        })
+        let handle = thread::Builder::new()
+            .name(account_id_str.clone())
+            .spawn(move || {
+                tracing::info!(target: "postail", "[IMAP] Sync started for {}", account_id_str);
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|e| AppError::from(e.to_string()))
+                    .and_then(|rt| {
+                        rt.block_on(async {
+                            start_sync_status_tracking(&account_id_str).await;
+                            if let Err(e) = manager.start_sync_async(&account_id_str).await {
+                                tracing::error!(target: "postail", "[IMAP] start_sync_async failed: {}", e);
+                                mark_sync_error(&account_id_str, &e.to_string()).await;
+                            }
+                            tracing::info!(target: "postail", "[IMAP] Sync done");
+                            Ok(())
+                        })
+                    });
+
+                if let Err(ref e) = rt {
+                    tracing::error!(target: "postail", "[IMAP] Sync runtime error: {}", e);
+                }
+            })
+            .map_err(|e| {
+                tracing::error!(target: "postail", "[IMAP] Failed to spawn thread for {}: {}", account_id_for_error, e);
+                AppError::from(e.to_string())
+            })?;
+
+        let mut tasks = SYNC_TASKS.lock().unwrap();
+        tasks.push(handle);
+
+        tracing::info!(target: "postail", "[IMAP] start_sync completed");
+        Ok(())
     }
 
     pub fn stop_sync(&self, account_id: &str) -> Result<(), AppError> {
@@ -134,7 +160,7 @@ impl crate::imap::ImapManager {
                     tokio::time::sleep(Duration::from_secs(60)).await;
                 }
                 Err(e) => {
-                    eprintln!("[IMAP] Sync error for {}: {}", account_id, e);
+                    tracing::error!(target: "postail", "[IMAP] Sync error for {}: {}", account_id, e);
                     mark_sync_error(account_id, &e.to_string()).await;
                     tokio::time::sleep(Duration::from_secs(30)).await;
                 }
@@ -160,7 +186,7 @@ impl crate::imap::ImapManager {
             {
                 Ok(()) => {}
                 Err(e) => {
-                    eprintln!("[IMAP] Mailbox error for {}: {}", mailbox.name, e);
+                    tracing::error!(target: "postail", "[IMAP] Mailbox error for {}: {}", mailbox.name, e);
                     mark_sync_error(account_id, &e.to_string()).await;
                 }
             }
@@ -194,19 +220,19 @@ impl crate::imap::ImapManager {
             last_uid = highest_uid;
         }
 
-        eprintln!("[IMAP] Starting sync for {}@{}", mailbox_name, account_id);
+        tracing::info!(target: "postail", "[IMAP] Starting sync for {}@{}", mailbox_name, account_id);
 
         let mut idle = session.idle();
         if idle.init().await.is_err() {
             session = idle.done().await?;
-            eprintln!(
+            tracing::warn!(target: "postail",
                 "[IMAP] IDLE init failed for {}@{}, switching to polling",
                 mailbox_name, account_id
             );
             self.poll_loop(session, account_id, mailbox_name, &mut last_uid, stop_flag)
                 .await
         } else {
-            eprintln!(
+            tracing::info!(target: "postail",
                 "[IMAP] Entering IDLE mode for {}@{}",
                 mailbox_name, account_id
             );
@@ -268,7 +294,7 @@ impl crate::imap::ImapManager {
                             .map_err(|_e| ImapError::IdleReinitFailed {
                                 mailbox: mailbox_name.to_string(),
                             })?;
-                        eprintln!(
+                        tracing::warn!(target: "postail",
                             "[IMAP] IDLE reinit failed for {}@{}, switching to polling",
                             mailbox_name, account_id
                         );
@@ -282,7 +308,7 @@ impl crate::imap::ImapManager {
                         mailbox: mailbox_name.to_string(),
                         error: e.to_string(),
                     })?;
-                    eprintln!(
+                    tracing::warn!(target: "postail",
                         "[IMAP] IDLE wait error for {}@{}: {}, switching to polling",
                         mailbox_name, account_id, e
                     );
@@ -295,7 +321,7 @@ impl crate::imap::ImapManager {
                         mailbox: mailbox_name.to_string(),
                         error: e.to_string(),
                     })?;
-                    eprintln!(
+                    tracing::info!(target: "postail",
                         "[IMAP] IDLE timeout for {}@{}, re-entering IDLE",
                         mailbox_name, account_id
                     );
@@ -307,7 +333,7 @@ impl crate::imap::ImapManager {
                             .map_err(|_e| ImapError::IdleReinitFailed {
                                 mailbox: mailbox_name.to_string(),
                             })?;
-                        eprintln!(
+                        tracing::warn!(target: "postail",
                             "[IMAP] IDLE reinit failed for {}@{}, switching to polling",
                             mailbox_name, account_id
                         );
@@ -353,7 +379,7 @@ impl crate::imap::ImapManager {
                     }
                 }
                 Err(e) => {
-                    eprintln!(
+                    tracing::warn!(target: "postail",
                         "[IMAP] NOOP error for {}@{}: {}, reconnecting...",
                         mailbox_name, account_id, e
                     );

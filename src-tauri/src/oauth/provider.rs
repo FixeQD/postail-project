@@ -36,6 +36,16 @@ impl fmt::Display for ProviderKind {
     }
 }
 
+impl ProviderKind {
+    pub fn from_imap_host(host: &str) -> Option<Self> {
+        match host {
+            "imap.gmail.com" => Some(ProviderKind::Gmail),
+            "outlook.office365.com" => Some(ProviderKind::Outlook),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProviderInfo {
     pub kind: ProviderKind,
@@ -56,7 +66,7 @@ impl ProviderInfo {
                 name: "Gmail",
                 auth_url: "https://accounts.google.com/o/oauth2/v2/auth",
                 token_url: "https://oauth2.googleapis.com/token",
-                scopes: "https://mail.google.com/ https://www.googleapis.com/auth/userinfo.email",
+                scopes: "https://mail.google.com/ https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.readonly",
                 imap_host: "imap.gmail.com",
                 smtp_host: "smtp.gmail.com",
                 sent_folder: "[Gmail]/Sent Mail",

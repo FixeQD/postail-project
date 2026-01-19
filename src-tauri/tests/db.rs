@@ -85,7 +85,7 @@ fn test_add_account_oauth() {
         credentials: Credentials::OAuth(OAuthCredentials {
             access_token: "token".to_string(),
             refresh_token: Some("refresh".to_string()),
-            expires_in: 3600,
+            expires_at: chrono::Utc::now().timestamp() + 3600,
         }),
     };
 
@@ -140,7 +140,7 @@ fn test_list_accounts() {
         credentials: Credentials::OAuth(OAuthCredentials {
             access_token: "token2".to_string(),
             refresh_token: None,
-            expires_in: 3600,
+            expires_at: chrono::Utc::now().timestamp() + 3600,
         }),
     };
     add_account(&conn, input2, &security).unwrap();

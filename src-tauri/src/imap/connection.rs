@@ -1,10 +1,36 @@
 use crate::error::ImapError;
 use crate::oauth;
 use crate::oauth::ProviderKind;
-use async_imap::{Client, Session};
+use async_imap::{Authenticator, Client, Session};
 use async_native_tls::{TlsConnector, TlsStream};
 use async_std::net::TcpStream;
 use serde_json;
+
+struct Xoauth2Authenticator {
+    email: String,
+    access_token: String,
+}
+
+impl Xoauth2Authenticator {
+    fn new(email: String, access_token: String) -> Self {
+        Self {
+            email,
+            access_token,
+        }
+    }
+}
+
+impl Authenticator for Xoauth2Authenticator {
+    type Response = String;
+
+    fn process(&mut self, _challenge: &[u8]) -> Self::Response {
+        let auth_string = format!(
+            "user={}\x01auth=Bearer {}\x01\x01",
+            self.email, self.access_token
+        );
+        auth_string
+    }
+}
 
 impl super::ImapManager {
     fn get_credentials(&self, account_id: &str) -> Result<String, ImapError> {
@@ -35,40 +61,48 @@ impl super::ImapManager {
     async fn refresh_oauth_if_needed(
         &self,
         account_id: &str,
+        auth_type: &str,
+        host: &str,
         creds: &mut serde_json::Value,
     ) -> Result<(), ImapError> {
-        let auth_type = creds
-            .get("auth_type")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        use chrono::Utc;
+
         if auth_type != "oauth2" {
             return Ok(());
         }
 
-        let expires_in = creds
-            .get("expires_in")
-            .and_then(|v| v.as_u64())
+        let expires_at = creds
+            .get("expires_at")
+            .and_then(|v| v.as_i64())
             .unwrap_or(0);
         let refresh_token = creds.get("refresh_token").and_then(|v| v.as_str());
-        let provider_type = creds
-            .get("provider_type")
-            .and_then(|v| v.as_str())
-            .unwrap_or("generic");
 
-        if expires_in < 300 {
+        tracing::debug!(target: "postail", "OAuth check for {}: expires_at={}, has_refresh={}",
+            account_id, expires_at, refresh_token.is_some());
+
+        let now = Utc::now().timestamp();
+        let seconds_until_expiry = expires_at.saturating_sub(now);
+
+        tracing::debug!(target: "postail", "Token expires in {} seconds (now={})", seconds_until_expiry, now);
+
+        let provider_kind =
+            ProviderKind::from_imap_host(&host).ok_or(ImapError::UnknownOAuthProvider)?;
+
+        if seconds_until_expiry < 300 {
             if let Some(refresh_token) = refresh_token {
-                let provider_kind =
-                    ProviderKind::parse(provider_type).ok_or(ImapError::UnknownOAuthProvider)?;
+                tracing::info!(target: "postail", "Token expiring soon ({}s), refreshing for provider: {}", seconds_until_expiry, provider_kind.as_str());
                 let provider = oauth::Provider::from_kind(provider_kind);
 
                 match oauth::refresh_access_token(provider, refresh_token.to_string()).await {
                     Ok(new_tokens) => {
+                        tracing::debug!(target: "postail", "Token refresh successful, new expires_in={}", new_tokens.expires_in);
                         creds["access_token"] = serde_json::Value::String(new_tokens.access_token);
                         if let Some(rt) = new_tokens.refresh_token {
                             creds["refresh_token"] = serde_json::Value::String(rt);
                         }
-                        creds["expires_in"] =
-                            serde_json::Number::from(new_tokens.expires_in).into();
+                        creds["expires_at"] = serde_json::Value::Number(serde_json::Number::from(
+                            Utc::now().timestamp() + new_tokens.expires_in as i64,
+                        ));
 
                         let security = self.security.lock().unwrap();
                         let creds_path: String = {
@@ -89,11 +123,16 @@ impl super::ImapManager {
                             .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
                         std::fs::write(&creds_path, encrypted)
                             .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
+
+                        tracing::info!(target: "postail", "Token refreshed successfully!");
                     }
                     Err(e) => {
+                        tracing::error!(target: "postail", "Token refresh failed: {}", e);
                         return Err(ImapError::OAuthRefresh(e.to_string()));
                     }
                 }
+            } else {
+                tracing::warn!(target: "postail", "Token expiring but no refresh token available");
             }
         }
 
@@ -104,6 +143,8 @@ impl super::ImapManager {
         &self,
         account_id: &str,
     ) -> Result<Session<TlsStream<TcpStream>>, ImapError> {
+        tracing::debug!(target: "postail", "[IMAP] connect_imap: starting for {}", account_id);
+
         let (host, port, _tls, auth_type, email) = {
             let conn_guard = self.conn.lock().unwrap();
             let conn = conn_guard.as_ref().ok_or(ImapError::Connection(
@@ -124,30 +165,75 @@ impl super::ImapManager {
             .map_err(|e| ImapError::Connection(e.to_string()))?
         };
 
+        tracing::debug!(target: "postail", "[IMAP] connect_imap: host={}, port={}, auth_type={}", host, port, auth_type);
+
         let creds_json = self.get_credentials(account_id)?;
+        tracing::debug!(target: "postail", "[IMAP] connect_imap: credentials retrieved");
+
         let mut creds: serde_json::Value =
             serde_json::from_str(&creds_json).map_err(|e| ImapError::Connection(e.to_string()))?;
-        self.refresh_oauth_if_needed(account_id, &mut creds).await?;
 
+        self.refresh_oauth_if_needed(account_id, &auth_type, &host, &mut creds)
+            .await?;
+
+        tracing::debug!(target: "postail", "[IMAP] connect_imap: connecting TCP to {}:{}", host, port);
         let tcp_stream = async_std::net::TcpStream::connect((host.as_str(), port))
             .await
             .map_err(|e| ImapError::Connection(e.to_string()))?;
+        tracing::debug!(target: "postail", "[IMAP] connect_imap: TCP connected, starting TLS");
+
         let tls_connector = TlsConnector::new();
         let tls_stream = tls_connector
             .connect(&host, tcp_stream)
             .await
             .map_err(|e| ImapError::Connection(e.to_string()))?;
-        let client = Client::new(tls_stream);
+        tracing::debug!(target: "postail", "[IMAP] connect_imap: TLS connected");
 
-        let session = if auth_type == "oauth2" {
+        let mut client = Client::new(tls_stream);
+
+        let _greeting = client
+            .read_response()
+            .await
+            .ok_or_else(|| ImapError::Connection("No greeting received".to_string()))?;
+        tracing::debug!(target: "postail", "[IMAP] connect_imap: greeting received");
+
+        if auth_type == "oauth2" {
             let access_token = creds["access_token"]
                 .as_str()
                 .ok_or_else(|| ImapError::Login("No access_token".to_string()))?;
             let username = &email;
-            match client.login(username, access_token).await {
-                Ok(session) => session,
-                Err((e, _)) => return Err(ImapError::Login(e.to_string())),
-            }
+
+            tracing::debug!(target: "postail", "[IMAP] connect_imap: XOAUTH2 via authenticate for '{}' @ '{}'", username, host);
+
+            let authenticator =
+                Xoauth2Authenticator::new(username.clone(), access_token.to_string());
+            return match client.authenticate("XOAUTH2", authenticator).await {
+                Ok(session) => {
+                    tracing::info!(target: "postail", "[IMAP] connect_imap: XOAUTH2 successful");
+                    Ok(session)
+                }
+                Err((e, client)) => {
+                    tracing::error!(target: "postail", "[IMAP] connect_imap: XOAUTH2 failed: {}", e);
+
+                    // fallback to OAUTHBEARER
+                    tracing::info!(target: "postail", "[IMAP] connect_imap: trying OAUTHBEARER");
+                    let authenticator =
+                        Xoauth2Authenticator::new(username.clone(), access_token.to_string());
+                    match client.authenticate("OAUTHBEARER", authenticator).await {
+                        Ok(session) => {
+                            tracing::info!(target: "postail", "[IMAP] connect_imap: OAUTHBEARER successful");
+                            Ok(session)
+                        }
+                        Err((e2, _)) => {
+                            tracing::error!(target: "postail", "[IMAP] connect_imap: Both methods failed. XOAUTH2: {}, OAUTHBEARER: {}", e, e2);
+                            Err(ImapError::Login(format!(
+                                "XOAUTH2: {}; OAUTHBEARER: {}",
+                                e, e2
+                            )))
+                        }
+                    }
+                }
+            };
         } else {
             let username = creds["username"]
                 .as_str()
@@ -155,12 +241,16 @@ impl super::ImapManager {
             let password = creds["password"]
                 .as_str()
                 .ok_or_else(|| ImapError::Login("No password".to_string()))?;
-            match client.login(username, password).await {
-                Ok(session) => session,
-                Err((e, _)) => return Err(ImapError::Login(e.to_string())),
-            }
-        };
-
-        Ok(session)
+            return match client.login(username, password).await {
+                Ok(session) => {
+                    tracing::info!(target: "postail", "[IMAP] connect_imap: done");
+                    Ok(session)
+                }
+                Err((e, _)) => {
+                    tracing::error!(target: "postail", "[IMAP] connect_imap: login failed: {}", e);
+                    Err(ImapError::Login(e.to_string()))
+                }
+            };
+        }
     }
 }
