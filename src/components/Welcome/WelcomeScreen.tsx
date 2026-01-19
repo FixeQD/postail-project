@@ -1,5 +1,5 @@
 import { useWelcomeTranslation } from '../../hooks/useTypedTranslation'
-import { Mail } from 'lucide-react'
+import icon from '../../assets/icon.png'
 
 export const WelcomeScreen = ({ onGetStarted }: { onGetStarted: () => void }) => {
 	const { t } = useWelcomeTranslation()
@@ -10,7 +10,7 @@ export const WelcomeScreen = ({ onGetStarted }: { onGetStarted: () => void }) =>
 			<div className='mb-8'>
 				<div className='mb-6 flex justify-center'>
 					<div className='flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-800 shadow-lg ring-1 ring-slate-700/50'>
-						<Mail className='h-10 w-10 text-slate-300' />
+						<img src={icon} alt='Mail Icon' className='h-18 w-18' />
 					</div>
 				</div>
 				<h1 className='mb-2 text-4xl font-bold tracking-tight text-slate-100'>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { platform } from '@tauri-apps/plugin-os'
-import { Mail } from 'lucide-react'
+import icon from '../assets/icon.png'
 
 export function TitleBar() {
 	const [isMobile, setIsMobile] = useState<boolean | null>(null)
@@ -32,7 +32,7 @@ export function TitleBar() {
 			className='flex h-10 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-950 select-none'
 			onMouseDown={startDrag}>
 			<div className='flex items-center gap-2 px-3'>
-				<Mail className='h-5 w-5 text-slate-500' />
+				<img src={icon} alt='Postail' className='h-9 w-9' />
 				<span className='text-sm font-medium tracking-wide text-slate-300'>Postail</span>
 			</div>
 
