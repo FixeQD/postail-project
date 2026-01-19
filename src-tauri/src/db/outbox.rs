@@ -121,7 +121,7 @@ pub fn save_attachment(
             part_id,
             filename,
             mime_type,
-            data.len(),
+            data.len() as i64,
             cache_path.to_string_lossy(),
         ],
     )?;

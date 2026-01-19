@@ -11,5 +11,5 @@ pub use db_encryption::{DbEncryption, DbEncryptionError};
 pub use manager::{PassphraseSecurityBuilder, SecurityManager};
 pub use master_key::{MasterKey, MASTER_KEY_LENGTH};
 pub use stores::{SecretStore, StorageTier};
-pub use zeroize_helpers::{secure_zeroize, secure_zeroize_vec, ZeroizingBytes};
 pub use tpm_init::{TpmAvailability, TpmInitializer};
+pub use zeroize_helpers::{secure_zeroize, secure_zeroize_vec, ZeroizingBytes};

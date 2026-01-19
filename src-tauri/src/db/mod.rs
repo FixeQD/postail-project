@@ -102,7 +102,7 @@ pub struct AccountMeta {
 pub struct Mailbox {
     pub name: String,
     pub uid_validity: Option<u32>,
-    pub highest_modseq: Option<u64>,
+    pub highest_modseq: Option<i64>,
     pub last_synced_uid: Option<u32>,
 }
 
@@ -167,23 +167,23 @@ pub fn init_db() -> Result<Connection, DBError> {
 
 fn apply_sqlcipher_key(conn: &Connection, hex_key: &str) -> Result<(), DBError> {
     println!("[DB] Setting PRAGMA key...");
-    
+
     let key_stmt = format!("PRAGMA key = \"x'{hex_key}'\"");
-    execute_pragma(&conn, &key_stmt)?;
+    execute_pragma(conn, &key_stmt)?;
     println!("[DB] Key set, setting journal_mode...");
-    
-    execute_pragma(&conn, "PRAGMA journal_mode = WAL")?;
+
+    execute_pragma(conn, "PRAGMA journal_mode = WAL")?;
     println!("[DB] Setting synchronous...");
-    
-    execute_pragma(&conn, "PRAGMA synchronous = NORMAL")?;
+
+    execute_pragma(conn, "PRAGMA synchronous = NORMAL")?;
     println!("[DB] Setting cache_size...");
-    
-    execute_pragma(&conn, "PRAGMA cache_size = -64000")?;
+
+    execute_pragma(conn, "PRAGMA cache_size = -64000")?;
     println!("[DB] Setting mmap_size...");
-    
-    execute_pragma(&conn, "PRAGMA mmap_size = 268435456")?;
+
+    execute_pragma(conn, "PRAGMA mmap_size = 268435456")?;
     println!("[DB] All pragmas set successfully!");
-    
+
     Ok(())
 }
 

@@ -18,11 +18,11 @@ use crate::db::{
     AccountMeta, Credentials, ImapConfig, MailHeader, Mailbox, MessageFull, OAuthCredentials,
     OutboxItem, SmtpConfig, SyncStatusEnum,
 };
-use chrono::Utc;
 use crate::imap::ImapManager;
 use crate::security::stores::SecretStore;
 use crate::security::SecurityManager;
 use crate::smtp::SmtpManager;
+use chrono::Utc;
 use lazy_static::lazy_static;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
@@ -304,17 +304,19 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
                 .join("postail")
                 .join("security");
 
-            let builder =
-                crate::security::manager::PassphraseSecurityBuilder::new(storage_path.clone(), pass);
+            let builder = crate::security::manager::PassphraseSecurityBuilder::new(
+                storage_path.clone(),
+                pass,
+            );
             let new_security = builder.build();
 
             let mut security_guard = SECURITY.lock().unwrap();
             *security_guard = new_security;
-            
+
             // Check if vault file exists - if yes, we MUST unlock, not initialize
             let vault_path = storage_path.join("master_key.sealed");
             let vault_exists = vault_path.exists();
-            
+
             // Try to unlock if vault exists, otherwise initialize
             if vault_exists {
                 match security_guard.unlock() {
@@ -338,7 +340,7 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
             let encryption = crate::security::DbEncryption::derive_from_master_key(&master_key_raw)
                 .map_err(|e| e.to_string())?;
             let hex_key = encryption.hex_key();
-            
+
             drop(security_guard);
 
             // Check if database already exists
@@ -346,7 +348,7 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
                 .unwrap_or_else(|| std::path::PathBuf::from("."))
                 .join("postail");
             let db_path = data_dir.join("postail.db");
-            
+
             let db = if db_path.exists() {
                 println!("Connecting to existing database...");
                 crate::db::connect_db_with_key(&hex_key).map_err(|e| e.to_string())?
@@ -361,12 +363,12 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
                 println!("SMTP worker started");
                 db
             };
-            
+
             {
                 let mut db_guard = DB_CONN.lock().unwrap();
                 *db_guard = Some(db);
             }
-            
+
             println!("Database ready!");
             println!("Initialization complete!");
             Ok(())

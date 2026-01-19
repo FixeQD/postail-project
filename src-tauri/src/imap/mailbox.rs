@@ -1,4 +1,5 @@
 use crate::imap::ImapManager;
+use rusqlite::params;
 use tracing;
 
 impl ImapManager {
@@ -106,7 +107,7 @@ impl ImapManager {
             stmt.query_row([account_id, mailbox_name], |row| {
                 Ok(MailboxMetadata {
                     uid_validity: row.get::<_, Option<i64>>(0)?.unwrap_or(0) as u32,
-                    highest_modseq: row.get::<_, Option<i64>>(1)?.unwrap_or(0) as u64,
+                    highest_modseq: row.get::<_, Option<i64>>(1)?.unwrap_or(0),
                     last_synced_uid: row.get::<_, Option<i64>>(2)?.unwrap_or(0) as u32,
                 })
             });
@@ -122,7 +123,7 @@ impl ImapManager {
         &self,
         account_id: &str,
         mailbox_name: &str,
-        modseq: u64,
+        modseq: i64,
     ) -> Result<(), String> {
         let conn_guard = self.conn.lock().unwrap();
         let conn = conn_guard
@@ -133,19 +134,14 @@ impl ImapManager {
                 "UPDATE mailboxes SET highest_modseq = ? WHERE account_id = ? AND name = ? AND highest_modseq < ?",
             )
             .map_err(|e| e.to_string())?;
-        stmt.execute([
-            &modseq.to_string(),
-            account_id,
-            mailbox_name,
-            &modseq.to_string(),
-        ])
-        .map_err(|e| e.to_string())?;
+        stmt.execute(params![modseq, account_id, mailbox_name, modseq])
+            .map_err(|e| e.to_string())?;
         Ok(())
     }
 }
 
 pub struct MailboxMetadata {
     pub uid_validity: u32,
-    pub highest_modseq: u64,
+    pub highest_modseq: i64,
     pub last_synced_uid: u32,
 }

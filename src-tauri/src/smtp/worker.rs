@@ -177,7 +177,9 @@ impl SmtpManager {
 
         let mut session = self.connect_imap_for_sent(account_id).await?;
 
-        let append_result = session.append(sent_folder, eml_content.to_vec()).await;
+        let append_result = session
+            .append(sent_folder, None, None, eml_content.to_vec())
+            .await;
 
         match append_result {
             Ok(_) => {
@@ -316,8 +318,9 @@ impl SmtpManager {
                         if let Some(rt) = new_tokens.refresh_token {
                             creds["refresh_token"] = serde_json::Value::String(rt);
                         }
-                        creds["expires_at"] =
-                            serde_json::Value::Number(serde_json::Number::from(Utc::now().timestamp() + new_tokens.expires_in as i64));
+                        creds["expires_at"] = serde_json::Value::Number(serde_json::Number::from(
+                            Utc::now().timestamp() + new_tokens.expires_in as i64,
+                        ));
 
                         let creds_path: String = {
                             let conn_guard = self.conn.lock().unwrap();

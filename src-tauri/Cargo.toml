@@ -20,7 +20,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 # OAuth
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.13", features = ["json", "form"] }
 url = "2"
 base64 = "0.22"
 sha2 = "0.10"
@@ -31,33 +31,33 @@ aes-gcm = "0.10"
 argon2 = "0.5"
 keyring = { version = "3", features = ["sync-secret-service", "vendored"] }
 zeroize = { version = "1.8", features = ["derive"] }
-rand = "0.8"
+rand = { version = "0.9", features = ["small_rng"] }
 thiserror = "2"
-dirs = "5"
+dirs = "6"
 hkdf = "0.12"
 hex = "0.4"
 
 # Database
-rusqlite = { version = "0.32", features = ["bundled-sqlcipher", "unlock_notify"] }
+rusqlite = { version = "0.38", features = ["bundled-sqlcipher", "unlock_notify"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }
 walkdir = "2"
-zip = "2"
+zip = "7"
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
 portpicker = "0.1.1"
 tiny_http = "0.12.0"
 async-native-tls = "0.5"
-async-std = { version = "1.12", features = ["attributes"] }
+async-std = { version = "1.13", features = ["attributes"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 
 # Mail handling
-async-imap = "0.5"
+async-imap = "0.11"
 lettre = { version = "0.11", features = ["tokio1-native-tls", "smtp-transport"] }
-mailparse = "0.15"
-css-inline = "0.14"
+mailparse = "0.16"
+css-inline = "0.19"
 ammonia = "4"
 
 # TPM support (Linux)

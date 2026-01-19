@@ -23,7 +23,7 @@ impl Crypto {
 
     pub fn encrypt(&self, plaintext: &[u8]) -> Result<Vec<u8>> {
         let mut nonce_bytes = [0u8; NONCE_LENGTH];
-        rand::thread_rng().fill_bytes(&mut nonce_bytes);
+        rand::rng().fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from_slice(&nonce_bytes);
 
         let ciphertext = self

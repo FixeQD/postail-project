@@ -72,13 +72,13 @@ impl LinuxTpmStore {
 
     #[cfg(feature = "tpm")]
     fn check_context_silent(&self) -> bool {
-        let tpm_dev_exists = std::path::Path::new("/dev/tpmrm0").exists() 
+        let tpm_dev_exists = std::path::Path::new("/dev/tpmrm0").exists()
             || std::path::Path::new("/dev/tpm0").exists();
-        
+
         if !tpm_dev_exists {
             return false;
         }
-        
+
         self.create_context().is_ok()
     }
 

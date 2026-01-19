@@ -9,20 +9,17 @@ pub fn get_db_version(conn: &Connection) -> Result<u32, DBError> {
             |row| row.get::<_, String>(0),
         )
         .optional();
-    
-    let table_exists = match table_exists {
-        Ok(Some(_)) => true,
-        _ => false,
-    };
-    
+
+    let table_exists = matches!(table_exists, Ok(Some(_)));
+
     if !table_exists {
         return Ok(0);
     }
-    
+
     if !table_exists {
         return Ok(0);
     }
-    
+
     let version: Option<i64> = conn
         .query_row(
             "SELECT version FROM schema_versions ORDER BY version DESC LIMIT 1",

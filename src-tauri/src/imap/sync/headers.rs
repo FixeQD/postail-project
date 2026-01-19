@@ -49,6 +49,7 @@ impl crate::imap::ImapManager {
                 let envelope = fetch.envelope().ok_or("No envelope")?;
                 let subject = envelope
                     .subject
+                    .as_ref()
                     .map(|s| String::from_utf8_lossy(s).to_string());
                 let from = envelope
                     .from
@@ -110,6 +111,7 @@ impl crate::imap::ImapManager {
                     uid,
                     message_id: envelope
                         .message_id
+                        .as_ref()
                         .map(|s| String::from_utf8_lossy(s).to_string()),
                     internal_date: header_internal_date,
                     subject,

@@ -143,11 +143,9 @@ impl DbEncryption {
     }
 
     pub fn get_hex_key() -> String {
-        Self::fresh()
-            .map(|e| e.hex_key())
-            .unwrap_or_else(|e| {
-                tracing::error!(target: "postail", "[DB] Failed to get encryption key: {}", e);
-                String::new()
-            })
+        Self::fresh().map(|e| e.hex_key()).unwrap_or_else(|e| {
+            tracing::error!(target: "postail", "[DB] Failed to get encryption key: {}", e);
+            String::new()
+        })
     }
 }

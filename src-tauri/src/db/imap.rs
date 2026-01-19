@@ -31,7 +31,7 @@ pub fn get_mailbox_metadata(
     conn: &Connection,
     account_id: &str,
     mailbox: &str,
-) -> Result<(u32, Option<u64>), DBError> {
+) -> Result<(u32, Option<i64>), DBError> {
     conn.query_row(
         "SELECT uid_validity, highest_modseq FROM mailboxes
          WHERE account_id = ? AND name = ?",
@@ -45,7 +45,7 @@ pub fn update_highest_modseq(
     conn: &Connection,
     account_id: &str,
     mailbox: &str,
-    modseq: u64,
+    modseq: i64,
 ) -> Result<(), DBError> {
     conn.execute(
         "UPDATE mailboxes SET highest_modseq = ?

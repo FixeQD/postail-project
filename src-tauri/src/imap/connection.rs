@@ -91,7 +91,7 @@ impl super::ImapManager {
         tracing::debug!(target: "postail", "Token expires in {} seconds (now={})", seconds_until_expiry, now);
 
         let provider_kind =
-            ProviderKind::from_imap_host(&host).ok_or(ImapError::UnknownOAuthProvider)?;
+            ProviderKind::from_imap_host(host).ok_or(ImapError::UnknownOAuthProvider)?;
 
         if seconds_until_expiry < 300 {
             if let Some(refresh_token) = refresh_token {
@@ -199,6 +199,7 @@ impl super::ImapManager {
         let _greeting = client
             .read_response()
             .await
+            .map_err(|e| ImapError::Connection(e.to_string()))?
             .ok_or_else(|| ImapError::Connection("No greeting received".to_string()))?;
         tracing::debug!(target: "postail", "[IMAP] connect_imap: greeting received");
 

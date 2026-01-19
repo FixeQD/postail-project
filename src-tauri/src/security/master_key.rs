@@ -11,7 +11,7 @@ pub struct MasterKey([u8; MASTER_KEY_LENGTH]);
 impl MasterKey {
     pub fn generate() -> Self {
         let mut key = [0u8; MASTER_KEY_LENGTH];
-        rand::thread_rng().fill_bytes(&mut key);
+        rand::rng().fill_bytes(&mut key);
         Self(key)
     }
 
