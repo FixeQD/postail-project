@@ -175,21 +175,60 @@ impl crate::imap::ImapManager {
     ) -> Result<(), AppError> {
         let mailboxes = self.fetch_mailboxes(account_id).await?;
 
-        for mailbox in mailboxes {
+        for mailbox in &mailboxes {
             if stop_flag.load(Ordering::SeqCst) {
                 return Ok(());
             }
 
-            match self
-                .idle_mailbox(account_id, &mailbox.name, stop_flag)
-                .await
-            {
+            match self.sync_mailbox(account_id, &mailbox.name).await {
                 Ok(()) => {}
                 Err(e) => {
-                    tracing::error!(target: "postail", "[IMAP] Mailbox error for {}: {}", mailbox.name, e);
-                    mark_sync_error(account_id, &e.to_string()).await;
+                    tracing::error!(target: "postail", "[IMAP] Mailbox error for {}@{}: {}", mailbox.name, account_id, e);
+                    // Continue with other mailboxes even if one fails
                 }
             }
+        }
+
+        if stop_flag.load(Ordering::SeqCst) {
+            return Ok(());
+        }
+
+        let inbox_name = mailboxes
+            .iter()
+            .find(|m| m.name.eq_ignore_ascii_case("INBOX"))
+            .map(|m| m.name.as_str())
+            .unwrap_or("INBOX");
+
+        tracing::info!(target: "postail", "[IMAP] Entering IDLE phase for {}", inbox_name);
+        match self.idle_mailbox(account_id, inbox_name, stop_flag).await {
+            Ok(()) => {}
+            Err(e) => {
+                tracing::error!(target: "postail", "[IMAP] IDLE error for {}@{}: {}", inbox_name, account_id, e);
+                mark_sync_error(account_id, &e.to_string()).await;
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn sync_mailbox(&self, account_id: &str, mailbox_name: &str) -> Result<(), AppError> {
+        update_sync_status(account_id, mailbox_name, 0, 0).await;
+
+        let mut session = self.connect_imap(account_id).await?;
+        let mailbox = session.select(mailbox_name).await.map_err(AppError::from)?;
+
+        let uid_validity = mailbox.uid_validity.unwrap_or(0);
+        let highest_uid = mailbox.uid_next.map(|u| u.saturating_sub(1)).unwrap_or(0);
+
+        self.check_uidvalidity(account_id, mailbox_name, uid_validity)
+            .await?;
+
+        let last_uid = self.get_last_synced_uid(account_id, mailbox_name).await?;
+
+        if highest_uid > last_uid {
+            tracing::info!(target: "postail", "[IMAP] Catching up {}@{} (local: {}, remote: {})", mailbox_name, account_id, last_uid, highest_uid);
+            self.fetch_missing_messages(account_id, mailbox_name, last_uid + 1, highest_uid)
+                .await?;
         }
 
         Ok(())
@@ -224,7 +263,7 @@ impl crate::imap::ImapManager {
 
         let mut idle = session.idle();
         if idle.init().await.is_err() {
-            session = idle.done().await?;
+            let session = idle.done().await?;
             tracing::warn!(target: "postail",
                 "[IMAP] IDLE init failed for {}@{}, switching to polling",
                 mailbox_name, account_id
@@ -252,6 +291,8 @@ impl crate::imap::ImapManager {
         stop_flag: &Arc<AtomicBool>,
     ) -> Result<(), AppError> {
         loop {
+            mark_sync_complete(account_id).await;
+
             if stop_flag.load(Ordering::SeqCst) {
                 let mut session = idle.done().await.map_err(|e| ImapError::IdleWaitError {
                     mailbox: mailbox_name.to_string(),
@@ -355,6 +396,8 @@ impl crate::imap::ImapManager {
         stop_flag: &Arc<AtomicBool>,
     ) -> Result<(), AppError> {
         loop {
+            mark_sync_complete(account_id).await;
+
             if stop_flag.load(Ordering::SeqCst) {
                 let _ = session.logout().await;
                 return Ok(());
