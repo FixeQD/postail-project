@@ -31,7 +31,8 @@
 	"list": {
 		"title": "Your Accounts",
 		"empty": "No accounts configured yet",
-		"add": "Add Another Account",
+		"add_another": "Add Another Account",
+		"add": "Add account",
 		"remove": "Remove Account",
 		"removeConfirm": "Are you sure you want to remove this account?"
 	}

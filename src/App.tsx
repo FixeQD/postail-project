@@ -13,28 +13,44 @@ import { InboxScreen } from './components/Inbox/InboxScreen'
 import type { AccountMeta } from './types/accounts'
 import './i18n'
 
-type AppState = 'init' | 'welcome' | 'security' | 'accounts' | 'argon2-setup' | 'dashboard' | 'unlock' | 'argon2-unlock' | 'settings'
+type AppState =
+	| 'init'
+	| 'welcome'
+	| 'security'
+	| 'accounts'
+	| 'argon2-setup'
+	| 'dashboard'
+	| 'unlock'
+	| 'argon2-unlock'
+	| 'settings'
 
 function App() {
 	const [currentState, setCurrentState] = useState<AppState>('init')
 	const [accounts, setAccounts] = useState<AccountMeta[]>([])
+	const [activeAccount, setActiveAccount] = useState<AccountMeta | null>(null)
 
-    useEffect(() => {
-        const init = async () => {
-            try {
-                const status = await invoke<string>('get_app_initialization_status')
-                if (status === 'Locked') {
-                    setCurrentState('unlock')
-                } else {
-                    setCurrentState('welcome')
-                }
-            } catch (e) {
-                console.error("Failed to get initialization status", e)
-                setCurrentState('welcome') // Fallback
-            }
-        }
-        init()
-    }, [])
+	useEffect(() => {
+		const init = async () => {
+			try {
+				const status = await invoke<string>('get_app_initialization_status')
+				if (status === 'Locked') {
+					setCurrentState('unlock')
+				} else {
+					setCurrentState('welcome')
+				}
+			} catch (e) {
+				console.error('Failed to get initialization status', e)
+				setCurrentState('welcome') // Fallback
+			}
+		}
+		init()
+	}, [])
+
+	useEffect(() => {
+		if (accounts.length > 0 && !activeAccount) {
+			setActiveAccount(accounts[0])
+		}
+	}, [accounts, activeAccount])
 
 	const handleGetStarted = () => {
 		setCurrentState('security')
@@ -44,17 +60,13 @@ function App() {
 		if (method === 'argon2') {
 			setCurrentState('argon2-setup')
 		} else {
-            // For TPM/Keyring, backend init happens in EncryptionChoice potentially?
-            // Actually EncryptionChoice just calls initialize_security. 
-            // After init, we should go to accounts to add one if none exist, or dashboard.
-            // But usually first run means no accounts.
 			setCurrentState('accounts')
 		}
 	}
 
-    const handleUnlockSuccess = async () => {
-        await fetchAccounts()
-    }
+	const handleUnlockSuccess = async () => {
+		await fetchAccounts()
+	}
 
 	const handleBack = () => {
 		if (currentState === 'security') {
@@ -64,24 +76,29 @@ function App() {
 		} else if (currentState === 'argon2-setup') {
 			setCurrentState('security')
 		} else if (currentState === 'argon2-unlock') {
-            setCurrentState('unlock')
-        } else if (currentState === 'settings') {
-            setCurrentState('dashboard')
-        }
+			setCurrentState('unlock')
+		} else if (currentState === 'settings') {
+			setCurrentState('dashboard')
+		}
 	}
 
 	const fetchAccounts = async () => {
 		try {
 			const fetchedAccounts = await invoke<AccountMeta[]>('list_accounts')
 			setAccounts(fetchedAccounts)
-            // Navigation logic based on accounts presence
+
 			if (fetchedAccounts.length > 0) {
 				setCurrentState('dashboard')
+				if (!activeAccount) setActiveAccount(fetchedAccounts[0])
 			} else {
-                if (currentState !== 'welcome' && currentState !== 'security' && currentState !== 'argon2-setup') {
-                     setCurrentState('accounts') // Force add account if none exist (after unlock)
-                }
-            }
+				if (
+					currentState !== 'welcome' &&
+					currentState !== 'security' &&
+					currentState !== 'argon2-setup'
+				) {
+					setCurrentState('accounts') // Force add account if none exist (after unlock)
+				}
+			}
 		} catch (error) {
 			console.error('Failed to fetch accounts:', error)
 		}
@@ -89,14 +106,17 @@ function App() {
 
 	const handleAccountAdded = async () => {
 		await fetchAccounts()
-        // If we were in settings/accounts, go to dashboard
+		// If we were in settings/accounts, go to dashboard
 		setCurrentState('dashboard')
 	}
 
 	const handleRemoveAccount = async (id: string) => {
 		try {
 			await invoke('remove_account', { id })
-			setAccounts(prev => prev.filter(a => a.id !== id))
+			setAccounts((prev) => prev.filter((a) => a.id !== id))
+			if (activeAccount?.id === id) {
+				setActiveAccount(null) // Efffect will pick next one or UI shows error
+			}
 		} catch (error) {
 			console.error('Failed to remove account:', error)
 		}
@@ -138,8 +158,12 @@ function App() {
 
 	const renderCurrentScreen = () => {
 		switch (currentState) {
-            case 'init':
-                return <div className="flex h-full items-center justify-center text-slate-500">Loading...</div>
+			case 'init':
+				return (
+					<div className='flex h-full items-center justify-center text-slate-500'>
+						Loading...
+					</div>
+				)
 			case 'welcome':
 				return <WelcomeScreen onGetStarted={handleGetStarted} />
 			case 'security':
@@ -151,56 +175,55 @@ function App() {
 					<Argon2Setup
 						onBack={handleBack}
 						onComplete={() => {
-                            fetchAccounts() 
-                            // If no accounts, will go to 'accounts' via fetchAccounts logic? 
-                            // Actually fetchAccounts updates state.
-                            setCurrentState('accounts')
-                        }}
+							fetchAccounts()
+							// If no accounts, will go to 'accounts' via fetchAccounts logic?
+							// Actually fetchAccounts updates state.
+							setCurrentState('accounts')
+						}}
 					/>
 				)
-            case 'unlock':
-                return (
-                    <UnlockScreen 
-                        onChoiceSelected={(method) => {
-                            if (method === 'argon2') {
-                                setCurrentState('argon2-unlock')
-                            }
-                        }}
-                        onSuccess={handleUnlockSuccess}
-                    />
-                )
-            case 'argon2-unlock':
-                return (
-                    <Argon2Unlock 
-                        onBack={handleBack}
-                        onUnlock={handleUnlockSuccess}
-                    />
-                )
-			case 'accounts':
-            case 'settings':
+			case 'unlock':
 				return (
-                    <div className="flex flex-col h-full">
-                        {currentState === 'settings' && (
-                            <div className="p-4 border-b border-slate-800 bg-slate-900">
-                                <button onClick={handleBack} className="text-sm text-slate-400 hover:text-white">
-                                    &larr; Back to Mail
-                                </button>
-                            </div>
-                        )}
-                        <AccountsScreen 
-                            accounts={accounts}
-                            onAccountAdded={handleAccountAdded}
-                            onRemoveAccount={handleRemoveAccount}
-                            onSyncAccount={handleSyncAccount}
-                        />
-                    </div>
+					<UnlockScreen
+						onChoiceSelected={(method) => {
+							if (method === 'argon2') {
+								setCurrentState('argon2-unlock')
+							}
+						}}
+						onSuccess={handleUnlockSuccess}
+					/>
+				)
+			case 'argon2-unlock':
+				return <Argon2Unlock onBack={handleBack} onUnlock={handleUnlockSuccess} />
+			case 'accounts':
+			case 'settings':
+				return (
+					<div className='flex h-full flex-col'>
+						{currentState === 'settings' && (
+							<div className='border-b border-slate-800 bg-slate-900 p-4'>
+								<button
+									onClick={handleBack}
+									className='text-sm text-slate-400 hover:text-white'>
+									&larr; Back to Mail
+								</button>
+							</div>
+						)}
+						<AccountsScreen
+							accounts={accounts}
+							onAccountAdded={handleAccountAdded}
+							onRemoveAccount={handleRemoveAccount}
+							onSyncAccount={handleSyncAccount}
+						/>
+					</div>
 				)
 			case 'dashboard':
 				return (
-					<InboxScreen 
-                        accounts={accounts}
-                        onOpenSettings={() => setCurrentState('settings')}
-                    />
+					<InboxScreen
+						accounts={accounts}
+						activeAccount={activeAccount}
+						setActiveAccount={setActiveAccount}
+						onOpenSettings={() => setCurrentState('settings')}
+					/>
 				)
 			default:
 				return null
@@ -212,11 +235,17 @@ function App() {
 
 	return (
 		<div className='flex h-screen flex-col bg-slate-950 text-slate-100'>
-			{shouldShowTitleBar && <TitleBar />}
+			{shouldShowTitleBar && (
+				<TitleBar
+					isDashboard={currentState === 'dashboard'}
+					activeAccount={activeAccount}
+					onOpenSettings={() => setCurrentState('settings')}
+					onSearch={(q) => console.log('Search:', q)}
+				/>
+			)}
 			<main className='flex-1 overflow-y-auto'>{renderCurrentScreen()}</main>
 		</div>
 	)
 }
 
 export default App
-

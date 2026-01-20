@@ -1,17 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sidebar } from '../Layout/Sidebar'
 import { MessageList } from './MessageList'
 import type { AccountMeta } from '../../types/accounts'
 
 interface InboxScreenProps {
 	accounts: AccountMeta[]
+    activeAccount: AccountMeta | null
+    setActiveAccount: (account: AccountMeta) => void
     onOpenSettings: () => void
 }
 
-export const InboxScreen = ({ accounts, onOpenSettings }: InboxScreenProps) => {
-    // Default to first account if available
-	const [activeAccount, _setActiveAccount] = useState<AccountMeta | null>(accounts[0] || null)
+export const InboxScreen = ({ accounts, activeAccount, setActiveAccount, onOpenSettings }: InboxScreenProps) => {
 	const [activeMailbox, setActiveMailbox] = useState('INBOX')
+
+    useEffect(() => {
+        if (!activeAccount && accounts.length > 0) {
+            setActiveAccount(accounts[0])
+        }
+    }, [accounts, activeAccount, setActiveAccount])
 
     if (!activeAccount) {
         return (
@@ -28,14 +34,9 @@ export const InboxScreen = ({ accounts, onOpenSettings }: InboxScreenProps) => {
 				activeMailbox={activeMailbox}
 				onMailboxSelect={setActiveMailbox}
                 onOpenSettings={onOpenSettings}
-                onLogout={() => {}} // TODO: Implement logout/lock
+                onLogout={() => {}} 
 			/>
 			<div className='flex flex-1 flex-col overflow-hidden'>
-                {/* Top Bar for Context (Optional, e.g. Search) */}
-                <div className="flex h-12 items-center border-b border-slate-800 bg-slate-900/30 px-4">
-                    <h3 className="font-semibold text-slate-200">{activeMailbox}</h3>
-                </div>
-
 				<MessageList
 					account={activeAccount}
 					mailbox={activeMailbox}
