@@ -9,10 +9,11 @@ import { Argon2Setup } from './components/Welcome/Argon2Setup'
 import { UnlockScreen } from './components/Welcome/UnlockScreen'
 import { Argon2Unlock } from './components/Welcome/Argon2Unlock'
 import { AccountsScreen } from './components/Account/AccountsScreen'
+import { InboxScreen } from './components/Inbox/InboxScreen'
 import type { AccountMeta } from './types/accounts'
 import './i18n'
 
-type AppState = 'init' | 'welcome' | 'security' | 'accounts' | 'argon2-setup' | 'dashboard' | 'unlock' | 'argon2-unlock'
+type AppState = 'init' | 'welcome' | 'security' | 'accounts' | 'argon2-setup' | 'dashboard' | 'unlock' | 'argon2-unlock' | 'settings'
 
 function App() {
 	const [currentState, setCurrentState] = useState<AppState>('init')
@@ -43,19 +44,16 @@ function App() {
 		if (method === 'argon2') {
 			setCurrentState('argon2-setup')
 		} else {
-			// For TPM and Keyring, proceed to accounts (initialization logic inside component would have called initialize_security)
-            // Wait, EncryptionChoice (and UnlockScreen) call initialize_security.
-            // But we need to update state here.
-            // EncryptionChoice actually only calls onChoiceSelected for argon2, but for others?
-            // Let's check EncryptionChoice logic separately if needed.
-            // Assuming invoking initialize_security matches for now.
+            // For TPM/Keyring, backend init happens in EncryptionChoice potentially?
+            // Actually EncryptionChoice just calls initialize_security. 
+            // After init, we should go to accounts to add one if none exist, or dashboard.
+            // But usually first run means no accounts.
 			setCurrentState('accounts')
 		}
 	}
 
     const handleUnlockSuccess = async () => {
         await fetchAccounts()
-        setCurrentState('dashboard')
     }
 
 	const handleBack = () => {
@@ -67,6 +65,8 @@ function App() {
 			setCurrentState('security')
 		} else if (currentState === 'argon2-unlock') {
             setCurrentState('unlock')
+        } else if (currentState === 'settings') {
+            setCurrentState('dashboard')
         }
 	}
 
@@ -74,12 +74,13 @@ function App() {
 		try {
 			const fetchedAccounts = await invoke<AccountMeta[]>('list_accounts')
 			setAccounts(fetchedAccounts)
-			if (fetchedAccounts.length > 0 && (currentState === 'welcome' || currentState === 'unlock')) {
+            // Navigation logic based on accounts presence
+			if (fetchedAccounts.length > 0) {
 				setCurrentState('dashboard')
-			} else if (currentState === 'welcome') {
-                // If accounts list is empty but we expected 'dashboard'?
-                // Logic above says if we are in welcome, go to dashboard.
-                // If we are in unlock, go to dashboard.
+			} else {
+                if (currentState !== 'welcome' && currentState !== 'security' && currentState !== 'argon2-setup') {
+                     setCurrentState('accounts') // Force add account if none exist (after unlock)
+                }
             }
 		} catch (error) {
 			console.error('Failed to fetch accounts:', error)
@@ -88,6 +89,7 @@ function App() {
 
 	const handleAccountAdded = async () => {
 		await fetchAccounts()
+        // If we were in settings/accounts, go to dashboard
 		setCurrentState('dashboard')
 	}
 
@@ -134,15 +136,10 @@ function App() {
 		}
 	}, [])
 
-	// Fetch accounts on app load - REPLACED by init effect
-	// useEffect(() => {
-	// 	fetchAccounts()
-	// }, [])
-
 	const renderCurrentScreen = () => {
 		switch (currentState) {
             case 'init':
-                return <div className="flex h-full items-center justify-center">Loading...</div>
+                return <div className="flex h-full items-center justify-center text-slate-500">Loading...</div>
 			case 'welcome':
 				return <WelcomeScreen onGetStarted={handleGetStarted} />
 			case 'security':
@@ -154,8 +151,9 @@ function App() {
 					<Argon2Setup
 						onBack={handleBack}
 						onComplete={() => {
-                            // After setup complete, maybe fetch accounts?
-                            fetchAccounts()
+                            fetchAccounts() 
+                            // If no accounts, will go to 'accounts' via fetchAccounts logic? 
+                            // Actually fetchAccounts updates state.
                             setCurrentState('accounts')
                         }}
 					/>
@@ -178,17 +176,31 @@ function App() {
                         onUnlock={handleUnlockSuccess}
                     />
                 )
-			case 'accounts': // Empty accounts list / first run
-                // AccountsScreen handles empty list case? No, AddAccountDialog usually.
-                // Re-using AccountsScreen which has add button.
+			case 'accounts':
+            case 'settings':
+				return (
+                    <div className="flex flex-col h-full">
+                        {currentState === 'settings' && (
+                            <div className="p-4 border-b border-slate-800 bg-slate-900">
+                                <button onClick={handleBack} className="text-sm text-slate-400 hover:text-white">
+                                    &larr; Back to Mail
+                                </button>
+                            </div>
+                        )}
+                        <AccountsScreen 
+                            accounts={accounts}
+                            onAccountAdded={handleAccountAdded}
+                            onRemoveAccount={handleRemoveAccount}
+                            onSyncAccount={handleSyncAccount}
+                        />
+                    </div>
+				)
 			case 'dashboard':
 				return (
-					<AccountsScreen 
-						accounts={accounts}
-						onAccountAdded={handleAccountAdded}
-						onRemoveAccount={handleRemoveAccount}
-						onSyncAccount={handleSyncAccount}
-					/>
+					<InboxScreen 
+                        accounts={accounts}
+                        onOpenSettings={() => setCurrentState('settings')}
+                    />
 				)
 			default:
 				return null
