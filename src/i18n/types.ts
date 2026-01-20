@@ -130,12 +130,45 @@ export interface ErrorTranslations {
 	}
 }
 
+export interface InboxTranslations {
+    sidebar: {
+        newMessage: string
+        mailboxes: {
+            inbox: string
+            sent: string
+            drafts: string
+            trash: string
+            archive: string
+        }
+    }
+    search: {
+        placeholder: string
+    }
+    messageList: {
+        empty: {
+            title: string
+            subtitle: string
+        }
+        error: string
+        actions: {
+            archive: string
+            delete: string
+            markRead: string
+            markUnread: string
+        }
+        date: {
+            yesterday: string
+        }
+    }
+}
+
 export interface TranslationResources {
 	common: CommonTranslations
 	welcome: WelcomeTranslations
 	security: SecurityTranslations
 	accounts: AccountTranslations
 	errors: ErrorTranslations
+    inbox: InboxTranslations
 }
 
 export type TranslationNamespace = keyof TranslationResources

@@ -1,0 +1,31 @@
+{
+  "sidebar": {
+    "newMessage": "New Message",
+    "mailboxes": {
+      "inbox": "Inbox",
+      "sent": "Sent",
+      "drafts": "Drafts",
+      "trash": "Trash",
+      "archive": "Archive"
+    }
+  },
+  "search": {
+    "placeholder": "Search in inbox..."
+  },
+  "messageList": {
+    "empty": {
+      "title": "Your inbox is empty",
+      "subtitle": "All caught up!"
+    },
+    "error": "Failed to load messages",
+    "actions": {
+      "archive": "Archive",
+      "delete": "Delete",
+      "markRead": "Mark as read",
+      "markUnread": "Mark as unread"
+    },
+    "date": {
+      "yesterday": "Yesterday"
+    }
+  }
+}

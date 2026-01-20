@@ -34,7 +34,7 @@ export function AccountsScreen({
 				<AddAccountDialog>
 					<Button className="bg-slate-100 text-slate-900 hover:bg-white shadow-lg hover:shadow-xl transition-all rounded-full px-6">
 						<Plus className="mr-2 h-4 w-4" />
-						{t('common:actions.add')}
+						{t('accounts:list.add')}
 					</Button>
 				</AddAccountDialog>
 			</motion.div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { Shield, Key, Lock, HardDrive, Cpu, AlertTriangle } from 'lucide-react'
+import { Key, Lock, HardDrive, Cpu, AlertTriangle } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useSecurityTranslation } from '../../hooks/useTypedTranslation'
 
