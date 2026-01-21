@@ -340,6 +340,8 @@ fn test_uidvalidity_mismatch() {
             uid_validity: Some(1),
             highest_modseq: None,
             last_synced_uid: None,
+            display_name: mailbox.to_string(),
+            role: "inbox".to_string(),
         },
     )
     .unwrap();
@@ -355,6 +357,8 @@ fn test_uidvalidity_mismatch() {
             uid_validity: Some(2),
             highest_modseq: None,
             last_synced_uid: None,
+            display_name: mailbox.to_string(),
+            role: "inbox".to_string(),
         },
     )
     .unwrap();

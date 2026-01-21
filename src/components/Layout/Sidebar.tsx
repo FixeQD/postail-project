@@ -66,24 +66,28 @@ export const Sidebar = ({
         }
     }, [isResizing])
 
-    const getIconForMailbox = (name: string) => {
-        const lower = name.toLowerCase()
-        if (lower === 'inbox') return <Inbox className="h-5 w-5" />
-        if (lower.includes('sent')) return <Send className="h-5 w-5" />
-        if (lower.includes('trash') || lower.includes('bin')) return <Trash2 className="h-5 w-5" />
-        if (lower.includes('archive')) return <Archive className="h-5 w-5" />
-        if (lower.includes('drafts')) return <File className="h-5 w-5" />
-        return <File className="h-5 w-5" />
+    const getIconForMailbox = (mailbox: Mailbox) => {
+        switch (mailbox.role) {
+            case 'inbox': return <Inbox className="h-5 w-5" />
+            case 'sent': return <Send className="h-5 w-5" />
+            case 'trash': return <Trash2 className="h-5 w-5" />
+            case 'archive': return <Archive className="h-5 w-5" />
+            case 'drafts': return <File className="h-5 w-5" />
+            case 'junk': return <File className="h-5 w-5" />
+            default: return <File className="h-5 w-5" />
+        }
     }
     
-    const getMailboxLabel = (name: string) => {
-        const lower = name.toLowerCase()
-        if (lower === 'inbox') return t('inbox:sidebar.mailboxes.inbox')
-        if (lower === 'sent') return t('inbox:sidebar.mailboxes.sent')
-        if (lower === 'drafts') return t('inbox:sidebar.mailboxes.drafts')
-        if (lower === 'trash') return t('inbox:sidebar.mailboxes.trash')
-        if (lower === 'archive') return t('inbox:sidebar.mailboxes.archive')
-        return name
+    const getMailboxLabel = (mailbox: Mailbox) => {
+        // Translation keys match roles usually
+        switch (mailbox.role) {
+            case 'inbox': return t('inbox:sidebar.mailboxes.inbox')
+            case 'sent': return t('inbox:sidebar.mailboxes.sent')
+            case 'drafts': return t('inbox:sidebar.mailboxes.drafts')
+            case 'trash': return t('inbox:sidebar.mailboxes.trash')
+            case 'archive': return t('inbox:sidebar.mailboxes.archive')
+            default: return mailbox.display_name
+        }
     }
 
 	return (
@@ -126,7 +130,7 @@ export const Sidebar = ({
                                 <button
                                     key={mailbox.name}
                                     onClick={() => onMailboxSelect(mailbox.name)}
-                                    title={isCollapsed ? mailbox.name : undefined}
+                                    title={isCollapsed ? mailbox.display_name : undefined}
                                     className={`relative flex w-full items-center rounded-r-3xl rounded-l-3xl px-4 py-3 text-sm font-medium transition-all ${
                                         isActive 
                                             ? 'bg-orange-500/10 text-orange-500' 
@@ -134,11 +138,11 @@ export const Sidebar = ({
                                     } ${isCollapsed ? 'justify-center px-0' : ''}`}
                                 >
                                     <div className={`shrink-0 ${isActive ? 'text-orange-500' : 'text-slate-400'}`}>
-                                        {getIconForMailbox(mailbox.name)}
+                                        {getIconForMailbox(mailbox)}
                                     </div>
                                     {!isCollapsed && (
                                         <div className="ml-4 flex flex-1 items-center justify-between truncate">
-                                            <span>{getMailboxLabel(mailbox.name)}</span>
+                                            <span>{getMailboxLabel(mailbox)}</span>
                                         </div>
                                     )}
                                 </button>

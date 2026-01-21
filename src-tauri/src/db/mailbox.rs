@@ -10,6 +10,8 @@ pub fn fetch_mailboxes(conn: &Connection, account_id: &str) -> Result<Vec<Mailbo
     let mailboxes_iter = stmt.query_map([account_id], |row| {
         Ok(Mailbox {
             name: row.get(0)?,
+            display_name: row.get(0)?, // Default to name
+            role: "other".to_string(), // Default role
             uid_validity: row.get(1)?,
             highest_modseq: row.get(2)?,
             last_synced_uid: row.get(3)?,

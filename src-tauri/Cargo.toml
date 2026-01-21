@@ -59,6 +59,7 @@ lettre = { version = "0.11", features = ["tokio1-native-tls", "smtp-transport"] 
 mailparse = "0.16"
 css-inline = "0.19"
 ammonia = "4"
+utf7-imap = "0.3.2"
 
 # TPM support (Linux)
 [target.'cfg(target_os = "linux")'.dependencies]

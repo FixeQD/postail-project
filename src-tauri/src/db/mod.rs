@@ -101,6 +101,8 @@ pub struct AccountMeta {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Mailbox {
     pub name: String,
+    pub display_name: String,
+    pub role: String, // "inbox", "sent", "trash", "drafts", "archive", "other"
     pub uid_validity: Option<u32>,
     pub highest_modseq: Option<i64>,
     pub last_synced_uid: Option<u32>,
