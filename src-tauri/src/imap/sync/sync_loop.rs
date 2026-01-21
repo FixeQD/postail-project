@@ -226,8 +226,14 @@ impl crate::imap::ImapManager {
         let last_uid = self.get_last_synced_uid(account_id, mailbox_name).await?;
 
         if highest_uid > last_uid {
-            tracing::info!(target: "postail", "[IMAP] Catching up {}@{} (local: {}, remote: {})", mailbox_name, account_id, last_uid, highest_uid);
-            self.fetch_missing_messages(account_id, mailbox_name, last_uid + 1, highest_uid)
+            let start = if highest_uid > last_uid + 50 {
+                highest_uid - 50
+            } else {
+                last_uid + 1
+            };
+            
+            tracing::info!(target: "postail", "[IMAP] Catching up {}@{} (local: {}, remote: {}, fetch_start: {})", mailbox_name, account_id, last_uid, highest_uid, start);
+            self.fetch_missing_messages(account_id, mailbox_name, start, highest_uid)
                 .await?;
         }
 

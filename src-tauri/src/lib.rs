@@ -390,7 +390,7 @@ fn fetch_mailboxes(account_id: String) -> Result<Vec<Mailbox>, String> {
 }
 
 #[tauri::command]
-fn fetch_headers(
+async fn fetch_headers(
     account_id: String,
     mailbox: String,
     anchor: Option<u64>,
@@ -399,8 +399,8 @@ fn fetch_headers(
     let anchor: Option<u32> = anchor
         .map(|a| a.try_into().map_err(|_| "Anchor too large".to_string()))
         .transpose()?;
-    let imap = IMAP_MANAGER.lock().unwrap();
-    imap.fetch_headers_sync(&account_id, &mailbox, anchor, limit)
+    let imap = IMAP_MANAGER.lock().unwrap().clone();
+    imap.fetch_headers_hybrid(&account_id, &mailbox, anchor, limit).await
 }
 
 #[tauri::command]
