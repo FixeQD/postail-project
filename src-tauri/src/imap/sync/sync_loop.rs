@@ -231,7 +231,7 @@ impl crate::imap::ImapManager {
             } else {
                 last_uid + 1
             };
-            
+
             tracing::info!(target: "postail", "[IMAP] Catching up {}@{} (local: {}, remote: {}, fetch_start: {})", mailbox_name, account_id, last_uid, highest_uid, start);
             self.fetch_missing_messages(account_id, mailbox_name, start, highest_uid)
                 .await?;

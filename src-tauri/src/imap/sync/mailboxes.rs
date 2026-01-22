@@ -27,7 +27,7 @@ impl crate::imap::ImapManager {
                 let mailbox = Mailbox {
                     name,
                     display_name: mb.name().to_string(), // Default
-                    role: "other".to_string(), // Default
+                    role: "other".to_string(),           // Default
                     uid_validity: None,
                     highest_modseq: None,
                     last_synced_uid: None,

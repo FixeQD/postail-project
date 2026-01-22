@@ -9,7 +9,7 @@ pub const PCR_SLOTS_FOR_BOOT: [PcrSlot; 1] = [
     // PcrSlot::Slot4, //-> Bootloader code
     // PcrSlot::Slot5, //-> Partition table
     // PcrSlot::Slot6, //-> State change events
-    PcrSlot::Slot7,    //-> Secure Boot state
+    PcrSlot::Slot7, //-> Secure Boot state
 ];
 
 pub fn create_pcr_selection_for_boot_state(
