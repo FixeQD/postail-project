@@ -47,10 +47,8 @@ impl crate::imap::ImapManager {
                 let fetch = fetch.map_err(|e| e.to_string())?;
                 let uid = fetch.uid.ok_or("No UID")?;
                 let envelope = fetch.envelope().ok_or("No envelope")?;
-                let subject = envelope
-                    .subject
-                    .as_ref()
-                    .map(|s| String::from_utf8_lossy(s).to_string());
+                let subject = crate::utils::mail::decode_mime_header(envelope.subject.as_deref());
+
                 let from = envelope
                     .from
                     .as_ref()
@@ -266,7 +264,8 @@ impl crate::imap::ImapManager {
             let fetch = fetch.map_err(|e| e.to_string())?;
             let uid = fetch.uid.ok_or("No UID")?;
             let envelope = fetch.envelope().ok_or("No envelope")?;
-            let subject = envelope.subject.as_ref().map(|s| String::from_utf8_lossy(s).to_string());
+            let subject = crate::utils::mail::decode_mime_header(envelope.subject.as_deref());
+
             let from: Vec<String> = envelope.from.as_ref().map(|addrs| {
                 addrs.iter().map(|a| {
                     let mailbox = a.mailbox.as_ref().map(|b| String::from_utf8_lossy(b)).unwrap_or_default();

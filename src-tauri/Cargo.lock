@@ -441,6 +441,12 @@ dependencies = [
 
 [[package]]
 name = "base64"
+version = "0.12.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3441f0f7b02788e948e47f457ca01f1d7e6d92c693bc132c22b087d3141c03ff"
+
+[[package]]
+name = "base64"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
@@ -1305,6 +1311,21 @@ name = "embed_plist"
 version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ef6b89e5b37196644d8796de5268852ff179b44e96276cf4290264843743bb7"
+
+[[package]]
+name = "encoded-words"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c1693107e6084e2b9444d34a985697f56c8832d314924d5cfb1fb7793154bef"
+dependencies = [
+ "base64 0.12.3",
+ "charset",
+ "encoding_rs",
+ "hex",
+ "lazy_static",
+ "regex",
+ "thiserror 1.0.69",
+]
 
 [[package]]
 name = "encoding_rs"
@@ -3884,6 +3905,7 @@ dependencies = [
  "chrono",
  "css-inline",
  "dirs",
+ "encoded-words",
  "hex",
  "hkdf",
  "keyring",
