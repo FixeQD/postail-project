@@ -60,24 +60,23 @@ function App() {
 	const handleSecurityChoice = async (method: string) => {
 		if (method === 'argon2') {
 			setCurrentState('argon2-setup')
-		} else if (method === 'keyring') {
-			console.log('Initializing keyring security...')
+		} else {
 			try {
-				await invoke('initialize_security', { method: 'keyring' })
-				console.log('Keyring security initialized successfully, switching to accounts')
-				setCurrentState('accounts')
+				console.log(`Initializing ${method} security...`)
+				await invoke('initialize_security', { method })
+				console.log(`${method} security initialized successfully, switching to accounts`)
+				await new Promise((resolve) => setTimeout(resolve, 100))
+				await fetchAccounts()
 			} catch (error) {
-				console.error('Failed to initialize keyring security:', error)
+				console.error(`Failed to initialize ${method} security:`, error)
 				// Reset to security screen to allow retry
 				setCurrentState('security')
 			}
-		} else {
-			setCurrentState('accounts')
 		}
 	}
 
 	const handleUnlockSuccess = async () => {
-		await fetchAccounts()
+		setCurrentState('dashboard')
 	}
 
 	const handleBack = () => {

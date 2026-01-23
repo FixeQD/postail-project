@@ -191,9 +191,7 @@ pub struct SecurityOptions {
 async fn check_security_options() -> Result<SecurityOptions, String> {
     let tpm_available = timeout(
         Duration::from_millis(500),
-        spawn_blocking(|| {
-            crate::security::stores::tpm::get_tpm_store().is_some()
-        })
+        spawn_blocking(|| crate::security::stores::tpm::get_tpm_store().is_some()),
     )
     .await
     .unwrap_or(Ok(false))
@@ -242,189 +240,117 @@ fn get_app_initialization_status() -> String {
     }
 }
 
-#[tauri::command]
-async fn initialize_security(method: String, passphrase: Option<String>) -> Result<(), String> {
-    match method.as_str() {
-        "tpm" => {
-            tracing::info!(target: "postail", "Initializing TPM security");
+fn initialize_security_and_database(
+    method: &str,
+    passphrase: Option<String>,
+) -> Result<(), String> {
+    tracing::info!(target: "postail", "Initializing security with method: {}", method);
 
+    // Create security manager based on method
+    let security = match method {
+        "tpm" => {
             if let Some(tpm_store) = crate::security::stores::tpm::get_tpm_store() {
-                let new_security = crate::security::SecurityManager::with_store(
+                let sec = crate::security::SecurityManager::with_store(
                     tpm_store.into(),
                     crate::security::stores::StorageTier::Tpm,
                 );
-
-                let mut security_guard = SECURITY.lock().unwrap();
-                *security_guard = new_security;
-                security_guard.initialize().map_err(|e| e.to_string())?;
-
-                tracing::info!(target: "postail", "TPM security initialized successfully");
-
-                // Init database after security
-                let db = crate::db::init_db().map_err(|e| e.to_string())?;
-                {
-                    let mut db_guard = DB_CONN.lock().unwrap();
-                    *db_guard = Some(db);
-                }
-
-                crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
-                let smtp = SMTP_MANAGER.lock().unwrap();
-                smtp.start_outbox_worker();
-
-                Ok(())
+                sec
             } else {
-                Err("TPM not available or not supported".to_string())
+                return Err("TPM not available or not supported".to_string());
             }
         }
-        "keyring" => {
-            tracing::info!(target: "postail", "Initializing keyring security");
-
-            match crate::security::stores::keyring::KeyringStore::new() {
-                Ok(store) if store.is_available() => {
-                    let new_security = crate::security::SecurityManager::with_store(
-                        std::sync::Arc::new(store),
-                        crate::security::stores::StorageTier::Keyring,
-                    );
-
-                    // Check if we're initializing or unlocking
-                    let is_unlocking = new_security.is_initialized();
-                    tracing::info!(target: "postail", "Keyring {}...", if is_unlocking { "unlocking" } else { "initializing" });
-
-                    {
-                        let mut security_guard = SECURITY.lock().unwrap();
-                        *security_guard = new_security;
-                        
-                        if is_unlocking {
-                            security_guard.unlock().map_err(|e| e.to_string())?;
-                        } else {
-                            security_guard.initialize().map_err(|e| e.to_string())?;
-                        }
-                    }
-
-                    tracing::info!(target: "postail", "Keyring security {} successfully", if is_unlocking { "unlocked" } else { "initialized" });
-
-                    // Derive encryption key AFTER releasing lock to avoid deadlock
-                    let security = SECURITY.lock().unwrap();
-                    let master_key_raw = security.get_master_key_raw();
-                    let encryption = crate::security::DbEncryption::derive_from_master_key(&master_key_raw)
-                        .map_err(|e| e.to_string())?;
-                    let hex_key = encryption.hex_key();
-
-                    drop(security);
-
-                    // Check if database already exists
-                    let data_dir = dirs::data_dir()
-                        .unwrap_or_else(|| std::path::PathBuf::from("."))
-                        .join("postail");
-                    let db_path = data_dir.join("postail.db");
-
-                    let db = if db_path.exists() {
-                        tracing::info!(target: "postail", "Connecting to existing database...");
-                        crate::db::connect_db_with_key(&hex_key).map_err(|e| e.to_string())?
-                    } else {
-                        tracing::info!(target: "postail", "Initializing new database...");
-                        let db = crate::db::init_db_with_key(&hex_key).map_err(|e| e.to_string())?;
-                        tracing::info!(target: "postail", "Starting maintenance scheduler...");
-                        crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
-                        tracing::info!(target: "postail", "Starting SMTP worker...");
-                        let smtp = SMTP_MANAGER.lock().unwrap();
-                        smtp.start_outbox_worker();
-                        tracing::info!(target: "postail", "SMTP worker started");
-                        db
-                    };
-
-                    {
-                        let mut db_guard = DB_CONN.lock().unwrap();
-                        *db_guard = Some(db);
-                    }
-
-                    tracing::info!(target: "postail", "Database ready!");
-                    tracing::info!(target: "postail", "Keyring initialization complete!");
-                    Ok(())
-                }
-                _ => Err("Keyring not available".to_string()),
-            }
-        }
+        "keyring" => match crate::security::stores::keyring::KeyringStore::new() {
+            Ok(store) => crate::security::SecurityManager::with_store(
+                std::sync::Arc::new(store),
+                crate::security::stores::StorageTier::Keyring,
+            ),
+            _ => return Err("Keyring not available".to_string()),
+        },
         "argon2" => {
             let pass = passphrase.ok_or("Passphrase required for Argon2")?;
-            tracing::info!(target: "postail", "Initializing Argon2 security with passphrase");
-
             let storage_path = dirs::data_dir()
                 .unwrap_or_else(|| std::path::PathBuf::from("."))
                 .join("postail")
                 .join("security");
-
             let builder = crate::security::manager::PassphraseSecurityBuilder::new(
                 storage_path.clone(),
                 pass,
             );
-            let new_security = builder.build();
-
-            let mut security_guard = SECURITY.lock().unwrap();
-            *security_guard = new_security;
-
-            // Check if vault file exists - if yes, we MUST unlock, not initialize
-            let vault_path = storage_path.join("master_key.sealed");
-            let vault_exists = vault_path.exists();
-
-            // Try to unlock if vault exists, otherwise initialize
-            if vault_exists {
-                match security_guard.unlock() {
-                    Ok(()) => {
-                        tracing::info!(target: "postail", "Argon2: Unlocked existing vault");
-                    }
-                    Err(e) => {
-                        tracing::error!(target: "postail", "Argon2: Failed to unlock vault (wrong password?): {}", e);
-                        return Err("Wrong password - could not unlock vault".to_string());
-                    }
-                }
-            } else {
-                tracing::info!(target: "postail", "Argon2: Creating new vault");
-                security_guard.initialize().map_err(|e| e.to_string())?;
-            }
-
-            tracing::info!(target: "postail", "Argon2 security initialized successfully");
-
-            // Derive encryption key BEFORE releasing lock to avoid deadlock
-            let master_key_raw = security_guard.get_master_key_raw();
-            let encryption = crate::security::DbEncryption::derive_from_master_key(&master_key_raw)
-                .map_err(|e| e.to_string())?;
-            let hex_key = encryption.hex_key();
-
-            drop(security_guard);
-
-            // Check if database already exists
-            let data_dir = dirs::data_dir()
-                .unwrap_or_else(|| std::path::PathBuf::from("."))
-                .join("postail");
-            let db_path = data_dir.join("postail.db");
-
-            let db = if db_path.exists() {
-                tracing::info!(target: "postail", "Connecting to existing database...");
-                crate::db::connect_db_with_key(&hex_key).map_err(|e| e.to_string())?
-            } else {
-                tracing::info!(target: "postail", "Initializing new database...");
-                let db = crate::db::init_db_with_key(&hex_key).map_err(|e| e.to_string())?;
-                tracing::info!(target: "postail", "Starting maintenance scheduler...");
-                crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
-                tracing::info!(target: "postail", "Starting SMTP worker...");
-                let smtp = SMTP_MANAGER.lock().unwrap();
-                smtp.start_outbox_worker();
-                tracing::info!(target: "postail", "SMTP worker started");
-                db
-            };
-
-            {
-                let mut db_guard = DB_CONN.lock().unwrap();
-                *db_guard = Some(db);
-            }
-
-            tracing::info!(target: "postail", "Database ready!");
-            tracing::info!(target: "postail", "Initialization complete!");
-            Ok(())
+            builder.build()
         }
-        _ => Err("Invalid security method".to_string()),
+        _ => return Err("Invalid security method".to_string()),
+    };
+
+    let is_unlocking = security.is_initialized();
+    tracing::info!(target: "postail", "Security {}...",
+        if is_unlocking { "unlocking" } else { "initializing" });
+
+    {
+        let mut security_guard = SECURITY.lock().unwrap();
+        *security_guard = security;
+
+        if is_unlocking {
+            security_guard.unlock().map_err(|e| e.to_string())?;
+        } else {
+            security_guard.initialize().map_err(|e| e.to_string())?;
+        }
     }
+
+    tracing::info!(target: "postail", "Security {} successfully",
+        if is_unlocking { "unlocked" } else { "initialized" });
+
+    let encryption = {
+        let security = SECURITY.lock().unwrap();
+        let master_key_raw = security.get_master_key_raw();
+        crate::security::DbEncryption::derive_from_master_key(&master_key_raw)
+            .map_err(|e| e.to_string())?
+    };
+    let hex_key = encryption.hex_key();
+
+    let data_dir = dirs::data_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("postail");
+    let db_path = data_dir.join("postail.db");
+
+    let db = if db_path.exists() {
+        tracing::info!(target: "postail", "Connecting to existing database...");
+        crate::db::connect_db_with_key(&hex_key).map_err(|e| {
+            tracing::error!(target: "postail", "Failed to connect to existing database: {}", e);
+            format!("Failed to connect to database: {}", e)
+        })?
+    } else {
+        tracing::info!(target: "postail", "Initializing new database...");
+        crate::db::init_db_with_key(&hex_key).map_err(|e| e.to_string())?
+    };
+
+    if !db_path.exists() {
+        tracing::info!(target: "postail", "Starting background services...");
+        crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
+        let smtp = SMTP_MANAGER.lock().unwrap();
+        smtp.start_outbox_worker();
+        tracing::info!(target: "postail", "Background services started");
+    }
+
+    // Store database connection
+    {
+        let mut db_guard = DB_CONN.lock().unwrap();
+        *db_guard = Some(db);
+    }
+
+    tracing::info!(target: "postail", "Database ready!");
+    tracing::info!(target: "postail", "{} initialization complete!",
+        if is_unlocking { "Unlock" } else { "Setup" });
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn initialize_security(method: String, passphrase: Option<String>) -> Result<(), String> {
+    if method == "argon2" && passphrase.is_none() {
+        return Err("Passphrase required for Argon2".to_string());
+    }
+
+    initialize_security_and_database(&method, passphrase)
 }
 
 #[tauri::command]
