@@ -141,10 +141,7 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
 
     for migration in MIGRATIONS {
         if current_version.unwrap_or(0) < migration.version {
-            println!(
-                "Running migration {}: {}",
-                migration.version, migration.name
-            );
+            tracing::info!(target: "postail", "Running migration {}: {}", migration.version, migration.name);
             (migration.up)(conn)?;
             conn.execute(
                 "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",

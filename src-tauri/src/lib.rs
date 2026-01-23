@@ -114,10 +114,7 @@ async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta,
                     .text()
                     .await
                     .unwrap_or_else(|_| "Failed to read response body".to_string());
-                println!(
-                    "Failed to fetch Gmail user info. Status: {}, Body: {}",
-                    status, body
-                );
+                tracing::error!(target: "postail", "Failed to fetch Gmail user info. Status: {}, Body: {}", status, body);
                 return Err("Failed to fetch Gmail user info".to_string());
             }
             let user_info: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
@@ -239,7 +236,7 @@ fn get_app_initialization_status() -> String {
 async fn initialize_security(method: String, passphrase: Option<String>) -> Result<(), String> {
     match method.as_str() {
         "tpm" => {
-            println!("Initializing TPM security");
+            tracing::info!(target: "postail", "Initializing TPM security");
 
             if let Some(tpm_store) = crate::security::stores::tpm::get_tpm_store() {
                 let new_security = crate::security::SecurityManager::with_store(
@@ -251,7 +248,7 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
                 *security_guard = new_security;
                 security_guard.initialize().map_err(|e| e.to_string())?;
 
-                println!("TPM security initialized successfully");
+                tracing::info!(target: "postail", "TPM security initialized successfully");
 
                 // Init database after security
                 let db = crate::db::init_db().map_err(|e| e.to_string())?;
@@ -270,7 +267,7 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
             }
         }
         "keyring" => {
-            println!("Initializing keyring security");
+            tracing::info!(target: "postail", "Initializing keyring security");
 
             match crate::security::stores::keyring::KeyringStore::new() {
                 Ok(store) if store.is_available() => {
@@ -283,7 +280,7 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
                     *security_guard = new_security;
                     security_guard.initialize().map_err(|e| e.to_string())?;
 
-                    println!("Keyring security initialized successfully");
+                    tracing::info!(target: "postail", "Keyring security initialized successfully");
 
                     // Init database after security
                     let db = crate::db::init_db().map_err(|e| e.to_string())?;
@@ -303,7 +300,7 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
         }
         "argon2" => {
             let pass = passphrase.ok_or("Passphrase required for Argon2")?;
-            println!("Initializing Argon2 security with passphrase");
+            tracing::info!(target: "postail", "Initializing Argon2 security with passphrase");
 
             let storage_path = dirs::data_dir()
                 .unwrap_or_else(|| std::path::PathBuf::from("."))
@@ -327,7 +324,7 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
             if vault_exists {
                 match security_guard.unlock() {
                     Ok(()) => {
-                        println!("Argon2: Unlocked existing vault");
+                        tracing::info!(target: "postail", "Argon2: Unlocked existing vault");
                     }
                     Err(e) => {
                         tracing::error!(target: "postail", "Argon2: Failed to unlock vault (wrong password?): {}", e);
@@ -335,11 +332,11 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
                     }
                 }
             } else {
-                println!("Argon2: Creating new vault");
+                tracing::info!(target: "postail", "Argon2: Creating new vault");
                 security_guard.initialize().map_err(|e| e.to_string())?;
             }
 
-            println!("Argon2 security initialized successfully");
+            tracing::info!(target: "postail", "Argon2 security initialized successfully");
 
             // Derive encryption key BEFORE releasing lock to avoid deadlock
             let master_key_raw = security_guard.get_master_key_raw();
@@ -356,17 +353,17 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
             let db_path = data_dir.join("postail.db");
 
             let db = if db_path.exists() {
-                println!("Connecting to existing database...");
+                tracing::info!(target: "postail", "Connecting to existing database...");
                 crate::db::connect_db_with_key(&hex_key).map_err(|e| e.to_string())?
             } else {
-                println!("Initializing new database...");
+                tracing::info!(target: "postail", "Initializing new database...");
                 let db = crate::db::init_db_with_key(&hex_key).map_err(|e| e.to_string())?;
-                println!("Starting maintenance scheduler...");
+                tracing::info!(target: "postail", "Starting maintenance scheduler...");
                 crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
-                println!("Starting SMTP worker...");
+                tracing::info!(target: "postail", "Starting SMTP worker...");
                 let smtp = SMTP_MANAGER.lock().unwrap();
                 smtp.start_outbox_worker();
-                println!("SMTP worker started");
+                tracing::info!(target: "postail", "SMTP worker started");
                 db
             };
 
@@ -375,8 +372,8 @@ async fn initialize_security(method: String, passphrase: Option<String>) -> Resu
                 *db_guard = Some(db);
             }
 
-            println!("Database ready!");
-            println!("Initialization complete!");
+            tracing::info!(target: "postail", "Database ready!");
+            tracing::info!(target: "postail", "Initialization complete!");
             Ok(())
         }
         _ => Err("Invalid security method".to_string()),
