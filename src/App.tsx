@@ -66,8 +66,7 @@ function App() {
 				await invoke('initialize_security', { method })
 				console.log(`${method} security initialized successfully, switching to accounts`)
 				await new Promise((resolve) => setTimeout(resolve, 100))
-				await fetchAccounts()
-				setCurrentState('accounts')
+				await fetchAccounts({ forceShowAccountsOnEmpty: true })
 			} catch (error) {
 				console.error(`Failed to initialize ${method} security:`, error)
 				// Reset to security screen to allow retry
@@ -78,7 +77,6 @@ function App() {
 
 	const handleUnlockSuccess = async () => {
 		await fetchAccounts()
-		setCurrentState('dashboard')
 	}
 
 	const handleBack = () => {
@@ -95,32 +93,34 @@ function App() {
 		}
 	}
 
-	const fetchAccounts = useCallback(async () => {
-		try {
-			const fetchedAccounts = await invoke<AccountMeta[]>('list_accounts')
-			setAccounts(fetchedAccounts)
+	const fetchAccounts = useCallback(
+		async (options?: { forceShowAccountsOnEmpty?: boolean }) => {
+			try {
+				const fetchedAccounts = await invoke<AccountMeta[]>('list_accounts')
+				setAccounts(fetchedAccounts)
 
-			if (fetchedAccounts.length > 0) {
-				setCurrentState('dashboard')
-				if (!activeAccount) setActiveAccount(fetchedAccounts[0])
-			} else {
-				if (
-					currentState !== 'welcome' &&
-					currentState !== 'security' &&
-					currentState !== 'argon2-setup'
-				) {
-					setCurrentState('accounts') // Force add account if none exist (after unlock)
+				if (fetchedAccounts.length > 0) {
+					setCurrentState('dashboard')
+					if (!activeAccount) setActiveAccount(fetchedAccounts[0])
+				} else {
+					if (
+						options?.forceShowAccountsOnEmpty ||
+						(currentState !== 'welcome' &&
+							currentState !== 'security' &&
+							currentState !== 'argon2-setup')
+					) {
+						setCurrentState('accounts')
+					}
 				}
+			} catch (error) {
+				console.error('Failed to fetch accounts:', error)
 			}
-		} catch (error) {
-			console.error('Failed to fetch accounts:', error)
-		}
-	}, [currentState, activeAccount])
+		},
+		[currentState, activeAccount]
+	)
 
 	const handleAccountAdded = useCallback(async () => {
 		await fetchAccounts()
-		// If we were in settings/accounts, go to dashboard
-		setCurrentState('dashboard')
 	}, [fetchAccounts])
 
 	const handleRemoveAccount = async (id: string) => {
@@ -188,10 +188,7 @@ function App() {
 					<Argon2Setup
 						onBack={handleBack}
 						onComplete={() => {
-							fetchAccounts()
-							// If no accounts, will go to 'accounts' via fetchAccounts logic?
-							// Actually fetchAccounts updates state.
-							setCurrentState('accounts')
+							fetchAccounts({ forceShowAccountsOnEmpty: true })
 						}}
 					/>
 				)
