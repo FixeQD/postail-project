@@ -322,17 +322,15 @@ fn initialize_security_and_database(
         crate::db::init_db_with_key(&hex_key).map_err(|e| e.to_string())?
     };
 
-    tracing::info!(target: "postail", "Starting background services...");
-    crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
-    let smtp = SMTP_MANAGER.lock().unwrap();
-    smtp.start_outbox_worker();
-    tracing::info!(target: "postail", "Background services started");
-
-    // Store database connection
     {
         let mut db_guard = DB_CONN.lock().unwrap();
         *db_guard = Some(db);
     }
+
+    tracing::info!(target: "postail", "Starting background services...");
+    crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
+    SMTP_MANAGER.lock().unwrap().start_outbox_worker();
+    tracing::info!(target: "postail", "Background services started");
 
     tracing::info!(target: "postail", "Database ready!");
     tracing::info!(target: "postail", "{} initialization complete!",
