@@ -67,6 +67,7 @@ function App() {
 				console.log(`${method} security initialized successfully, switching to accounts`)
 				await new Promise((resolve) => setTimeout(resolve, 100))
 				await fetchAccounts()
+				setCurrentState('accounts')
 			} catch (error) {
 				console.error(`Failed to initialize ${method} security:`, error)
 				// Reset to security screen to allow retry
