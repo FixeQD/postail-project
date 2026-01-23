@@ -4,15 +4,20 @@ import { Key, Check, X, ShieldCheck } from 'lucide-react'
 export const KeyringOption = ({
 	available,
 	onSelect,
+	disabled = false,
+	loading = false,
 }: {
 	available: boolean
 	onSelect: () => void
+	disabled?: boolean
+	loading?: boolean
 }) => {
 	const { t } = useSecurityTranslation()
 
-	const cardClasses = available
-		? 'cursor-pointer bg-slate-800/50 ring-slate-700/50 hover:bg-slate-800 hover:ring-blue-400/50'
-		: 'cursor-not-allowed bg-slate-800/20 ring-slate-800/50 opacity-60'
+	const isDisabled = !available || disabled
+	const cardClasses = isDisabled
+		? 'cursor-not-allowed bg-slate-800/20 ring-slate-800/50 opacity-60'
+		: 'cursor-pointer bg-slate-800/50 ring-slate-700/50 hover:bg-slate-800 hover:ring-blue-400/50'
 
 	const accentClasses = available ? 'text-blue-400' : 'text-slate-500'
 
@@ -20,12 +25,17 @@ export const KeyringOption = ({
 		<button
 			type='button'
 			className={`relative flex h-full w-full flex-col justify-between rounded-xl p-6 text-left ring-1 transition-all duration-200 ${cardClasses}`}
-			onClick={available ? onSelect : undefined}
-			disabled={!available}>
+			onClick={isDisabled ? undefined : onSelect}
+			disabled={isDisabled}>
 			<div>
 				{/* Status Badge */}
 				<div className='absolute top-4 right-4'>
-					{available ? (
+					{loading ? (
+						<div className='flex items-center rounded-full bg-slate-800/50 px-2 py-1 text-xs font-medium text-slate-400 ring-1 ring-slate-700/50'>
+							<div className='mr-1 h-3 w-3 animate-spin rounded-full border-2 border-slate-400 border-t-transparent'></div>
+							{t('common:status.loading')}
+						</div>
+					) : available ? (
 						<div className='flex items-center rounded-full bg-blue-900/50 px-2 py-1 text-xs font-medium text-blue-400 ring-1 ring-blue-400/20'>
 							<Check className='mr-1 h-3 w-3' />
 							{t('common:status.available')}
