@@ -168,23 +168,23 @@ pub fn init_db() -> Result<Connection, DBError> {
 }
 
 fn apply_sqlcipher_key(conn: &Connection, hex_key: &str) -> Result<(), DBError> {
-    println!("[DB] Setting PRAGMA key...");
+    tracing::info!(target: "postail", "[DB] Setting PRAGMA key...");
 
     let key_stmt = format!("PRAGMA key = \"x'{hex_key}'\"");
     execute_pragma(conn, &key_stmt)?;
-    println!("[DB] Key set, setting journal_mode...");
+    tracing::info!(target: "postail", "[DB] Key set, setting journal_mode...");
 
     execute_pragma(conn, "PRAGMA journal_mode = WAL")?;
-    println!("[DB] Setting synchronous...");
+    tracing::info!(target: "postail", "[DB] Setting synchronous...");
 
     execute_pragma(conn, "PRAGMA synchronous = NORMAL")?;
-    println!("[DB] Setting cache_size...");
+    tracing::info!(target: "postail", "[DB] Setting cache_size...");
 
     execute_pragma(conn, "PRAGMA cache_size = -64000")?;
-    println!("[DB] Setting mmap_size...");
+    tracing::info!(target: "postail", "[DB] Setting mmap_size...");
 
     execute_pragma(conn, "PRAGMA mmap_size = 268435456")?;
-    println!("[DB] All pragmas set successfully!");
+    tracing::info!(target: "postail", "[DB] All pragmas set successfully!");
 
     Ok(())
 }
@@ -198,31 +198,31 @@ fn execute_pragma(conn: &Connection, pragma: &str) -> Result<(), DBError> {
 }
 
 pub fn init_db_with_key(hex_key: &str) -> Result<Connection, DBError> {
-    println!("[DB] Creating data directory...");
+    tracing::info!(target: "postail", "[DB] Creating data directory...");
     let data_dir = dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("postail");
     fs::create_dir_all(&data_dir).map_err(DBError::Io)?;
     let db_path = data_dir.join("postail.db");
-    println!("[DB] Opening database at {:?}", db_path);
+    tracing::info!(target: "postail", "[DB] Opening database at {:?}", db_path);
 
     let conn = Connection::open(&db_path)?;
-    println!("[DB] Database opened, applying key...");
+    tracing::info!(target: "postail", "[DB] Database opened, applying key...");
 
     apply_sqlcipher_key(&conn, hex_key)?;
-    println!("[DB] Key applied, creating tables...");
+    tracing::info!(target: "postail", "[DB] Key applied, creating tables...");
 
     tables::create_tables(&conn)?;
-    println!("[DB] Tables created, creating indexes...");
+    tracing::info!(target: "postail", "[DB] Tables created, creating indexes...");
 
     tables::create_indexes(&conn)?;
-    println!("[DB] Indexes created, creating FTS triggers...");
+    tracing::info!(target: "postail", "[DB] Indexes created, creating FTS triggers...");
 
     tables::create_fts_triggers(&conn)?;
-    println!("[DB] FTS triggers created, running migrations...");
+    tracing::info!(target: "postail", "[DB] FTS triggers created, running migrations...");
 
     run_migrations(&conn)?;
-    println!("[DB] Migrations complete!");
+    tracing::info!(target: "postail", "[DB] Migrations complete!");
 
     Ok(conn)
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useCallback } from 'react'
 import { listen, Event } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -56,11 +57,21 @@ function App() {
 		setCurrentState('security')
 	}
 
-	const handleSecurityChoice = (method: string) => {
+	const handleSecurityChoice = async (method: string) => {
 		if (method === 'argon2') {
 			setCurrentState('argon2-setup')
 		} else {
-			setCurrentState('accounts')
+			try {
+				console.log(`Initializing ${method} security...`)
+				await invoke('initialize_security', { method })
+				console.log(`${method} security initialized successfully, switching to accounts`)
+				await new Promise((resolve) => setTimeout(resolve, 100))
+				await fetchAccounts({ forceShowAccountsOnEmpty: true })
+			} catch (error) {
+				console.error(`Failed to initialize ${method} security:`, error)
+				// Reset to security screen to allow retry
+				setCurrentState('security')
+			}
 		}
 	}
 
@@ -82,33 +93,35 @@ function App() {
 		}
 	}
 
-	const fetchAccounts = async () => {
-		try {
-			const fetchedAccounts = await invoke<AccountMeta[]>('list_accounts')
-			setAccounts(fetchedAccounts)
+	const fetchAccounts = useCallback(
+		async (options?: { forceShowAccountsOnEmpty?: boolean }) => {
+			try {
+				const fetchedAccounts = await invoke<AccountMeta[]>('list_accounts')
+				setAccounts(fetchedAccounts)
 
-			if (fetchedAccounts.length > 0) {
-				setCurrentState('dashboard')
-				if (!activeAccount) setActiveAccount(fetchedAccounts[0])
-			} else {
-				if (
-					currentState !== 'welcome' &&
-					currentState !== 'security' &&
-					currentState !== 'argon2-setup'
-				) {
-					setCurrentState('accounts') // Force add account if none exist (after unlock)
+				if (fetchedAccounts.length > 0) {
+					setCurrentState('dashboard')
+					if (!activeAccount) setActiveAccount(fetchedAccounts[0])
+				} else {
+					if (
+						options?.forceShowAccountsOnEmpty ||
+						(currentState !== 'welcome' &&
+							currentState !== 'security' &&
+							currentState !== 'argon2-setup')
+					) {
+						setCurrentState('accounts')
+					}
 				}
+			} catch (error) {
+				console.error('Failed to fetch accounts:', error)
 			}
-		} catch (error) {
-			console.error('Failed to fetch accounts:', error)
-		}
-	}
+		},
+		[currentState, activeAccount]
+	)
 
-	const handleAccountAdded = async () => {
+	const handleAccountAdded = useCallback(async () => {
 		await fetchAccounts()
-		// If we were in settings/accounts, go to dashboard
-		setCurrentState('dashboard')
-	}
+	}, [fetchAccounts])
 
 	const handleRemoveAccount = async (id: string) => {
 		try {
@@ -154,7 +167,7 @@ function App() {
 		return () => {
 			unlisten.then((fn) => fn())
 		}
-	}, [])
+	}, [handleAccountAdded])
 
 	const renderCurrentScreen = () => {
 		switch (currentState) {
@@ -175,10 +188,7 @@ function App() {
 					<Argon2Setup
 						onBack={handleBack}
 						onComplete={() => {
-							fetchAccounts()
-							// If no accounts, will go to 'accounts' via fetchAccounts logic?
-							// Actually fetchAccounts updates state.
-							setCurrentState('accounts')
+							fetchAccounts({ forceShowAccountsOnEmpty: true })
 						}}
 					/>
 				)
@@ -202,6 +212,7 @@ function App() {
 						{currentState === 'settings' && (
 							<div className='border-b border-slate-800 bg-slate-900 p-4'>
 								<button
+									type='button'
 									onClick={handleBack}
 									className='text-sm text-slate-400 hover:text-white'>
 									&larr; Back to Mail

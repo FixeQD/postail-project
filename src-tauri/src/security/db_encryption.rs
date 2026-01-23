@@ -55,17 +55,19 @@ impl DbEncryption {
         let entry = Entry::new(DB_ENC_SALT_SERVICE, DB_ENC_SALT_KEY)
             .map_err(|e| DbEncryptionError::Keyring(e.to_string()))?;
 
-        if let Ok(salt_hex) = entry.get_password() {
-            hex::decode(salt_hex).map_err(DbEncryptionError::Hex)
-        } else {
-            let salt: Vec<u8> = (0..32).map(|_| rand::random::<u8>()).collect();
-            let salt_hex = hex::encode(&salt);
+        match entry.get_password() {
+            Ok(salt_hex) => hex::decode(salt_hex).map_err(DbEncryptionError::Hex),
+            Err(keyring::Error::NoEntry) => {
+                let salt: Vec<u8> = (0..32).map(|_| rand::random::<u8>()).collect();
+                let salt_hex = hex::encode(&salt);
 
-            entry
-                .set_password(&salt_hex)
-                .map_err(|e| DbEncryptionError::Keyring(e.to_string()))?;
+                entry
+                    .set_password(&salt_hex)
+                    .map_err(|e| DbEncryptionError::Keyring(e.to_string()))?;
 
-            Ok(salt)
+                Ok(salt)
+            }
+            Err(e) => Err(DbEncryptionError::Keyring(e.to_string())),
         }
     }
 

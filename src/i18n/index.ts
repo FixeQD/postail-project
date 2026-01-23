@@ -17,7 +17,7 @@ const resources = {
 		security,
 		accounts,
 		errors,
-        inbox,
+		inbox,
 	},
 }
 

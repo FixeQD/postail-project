@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { MoreVertical, RefreshCw, CheckCircle2, Mail, Trash2, AlertTriangle, Loader2 } from 'lucide-react'
+import {
+	MoreVertical,
+	RefreshCw,
+	CheckCircle2,
+	Mail,
+	Trash2,
+	AlertTriangle,
+	Loader2,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
@@ -43,33 +51,33 @@ export function AccountCard({ account, onRemove, onSync }: AccountCardProps) {
 
 	const getProviderIcon = (type: string) => {
 		const lower = type.toLowerCase()
-		if (lower.includes('gmail')) return <Mail className="h-5 w-5 text-red-500" />
-		if (lower.includes('outlook')) return <Mail className="h-5 w-5 text-blue-500" />
-		return <Mail className="h-5 w-5 text-slate-400" />
+		if (lower.includes('gmail')) return <Mail className='h-5 w-5 text-red-500' />
+		if (lower.includes('outlook')) return <Mail className='h-5 w-5 text-blue-500' />
+		return <Mail className='h-5 w-5 text-slate-400' />
 	}
 
 	const getStatusBadge = () => {
 		if (status === 'Syncing') {
 			return (
-				<span className="inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-500 ring-1 ring-inset ring-blue-500/20">
-					<Loader2 className="mr-1 h-3 w-3 animate-spin" />
+				<span className='inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-500 ring-1 ring-blue-500/20 ring-inset'>
+					<Loader2 className='mr-1 h-3 w-3 animate-spin' />
 					Syncing...
 				</span>
 			)
 		}
-		
+
 		if (typeof status === 'object' && 'Error' in status) {
 			return (
-				<span className="inline-flex items-center rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-500 ring-1 ring-inset ring-red-500/20">
-					<AlertTriangle className="mr-1 h-3 w-3" />
+				<span className='inline-flex items-center rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-500 ring-1 ring-red-500/20 ring-inset'>
+					<AlertTriangle className='mr-1 h-3 w-3' />
 					Error
 				</span>
 			)
 		}
 
 		return (
-			<span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-500 ring-1 ring-inset ring-emerald-500/20">
-				<CheckCircle2 className="mr-1 h-3 w-3" />
+			<span className='inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-500 ring-1 ring-emerald-500/20 ring-inset'>
+				<CheckCircle2 className='mr-1 h-3 w-3' />
 				Synced
 			</span>
 		)
@@ -81,57 +89,60 @@ export function AccountCard({ account, onRemove, onSync }: AccountCardProps) {
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			exit={{ opacity: 0, scale: 0.95 }}
-			transition={{ duration: 0.2 }}
-		>
-			<Card className="group relative overflow-hidden border-white/5 bg-white/5 backdrop-blur-md transition-all hover:bg-white/10 hover:shadow-lg hover:shadow-black/20 hover:border-white/10">
-				<div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-				
-				<div className="relative flex items-center justify-between p-5">
-					<div className="flex items-center gap-4">
-						<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/50 ring-1 ring-white/10 transition-transform group-hover:scale-110">
+			transition={{ duration: 0.2 }}>
+			<Card className='group relative overflow-hidden border-white/5 bg-white/5 backdrop-blur-md transition-all hover:border-white/10 hover:bg-white/10 hover:shadow-lg hover:shadow-black/20'>
+				<div className='absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100' />
+
+				<div className='relative flex items-center justify-between p-5'>
+					<div className='flex items-center gap-4'>
+						<div className='flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/50 ring-1 ring-white/10 transition-transform group-hover:scale-110'>
 							{getProviderIcon(account.provider_type)}
 						</div>
-						
-						<div className="flex flex-col">
-							<h3 className="font-semibold text-slate-100">{account.name}</h3>
-							<p className="text-sm text-slate-400 font-medium">{account.email}</p>
-							<div className="flex items-center gap-2 mt-1">
+
+						<div className='flex flex-col'>
+							<h3 className='font-semibold text-slate-100'>{account.name}</h3>
+							<p className='text-sm font-medium text-slate-400'>{account.email}</p>
+							<div className='mt-1 flex items-center gap-2'>
 								{getStatusBadge()}
-								<span className="text-xs text-slate-600">
-									{account.auth_type}
-								</span>
+								<span className='text-xs text-slate-600'>{account.auth_type}</span>
 							</div>
 						</div>
 					</div>
 
-					<div className="flex items-center gap-2">
+					<div className='flex items-center gap-2'>
 						<Button
-							variant="ghost"
-							size="icon"
-							className={cn("h-8 w-8 text-slate-400 hover:text-slate-100 hover:bg-white/5", status === "Syncing" && "animate-spin")}
+							variant='ghost'
+							size='icon'
+							className={cn(
+								'h-8 w-8 text-slate-400 hover:bg-white/5 hover:text-slate-100',
+								status === 'Syncing' && 'animate-spin'
+							)}
 							onClick={() => onSync(account.id)}
-							disabled={status === "Syncing"}
-						>
-							<RefreshCw className="h-4 w-4" />
+							disabled={status === 'Syncing'}>
+							<RefreshCw className='h-4 w-4' />
 						</Button>
 
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
-								<Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-100 hover:bg-white/5">
-									<MoreVertical className="h-4 w-4" />
+								<Button
+									variant='ghost'
+									size='icon'
+									className='h-8 w-8 text-slate-400 hover:bg-white/5 hover:text-slate-100'>
+									<MoreVertical className='h-4 w-4' />
 								</Button>
 							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end" className="w-48 bg-slate-900 border-slate-800 text-slate-200">
+							<DropdownMenuContent
+								align='end'
+								className='w-48 border-slate-800 bg-slate-900 text-slate-200'>
 								<DropdownMenuLabel>Actions</DropdownMenuLabel>
-								<DropdownMenuSeparator className="bg-slate-800" />
-								<DropdownMenuItem className="focus:bg-slate-800 focus:text-slate-100 cursor-pointer">
+								<DropdownMenuSeparator className='bg-slate-800' />
+								<DropdownMenuItem className='cursor-pointer focus:bg-slate-800 focus:text-slate-100'>
 									Edit settings
 								</DropdownMenuItem>
-								<DropdownMenuItem 
-									className="text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer"
-									onClick={() => onRemove(account.id)}
-								>
-									<Trash2 className="mr-2 h-4 w-4" />
+								<DropdownMenuItem
+									className='cursor-pointer text-red-400 focus:bg-red-500/10 focus:text-red-300'
+									onClick={() => onRemove(account.id)}>
+									<Trash2 className='mr-2 h-4 w-4' />
 									Remove account
 								</DropdownMenuItem>
 							</DropdownMenuContent>

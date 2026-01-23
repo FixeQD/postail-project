@@ -17,13 +17,14 @@ export const EncryptionChoice = ({
 	onChoiceSelected,
 	onBack,
 }: {
-	onChoiceSelected: (method: string) => void
+	onChoiceSelected: (method: string) => Promise<void>
 	onBack: () => void
 }) => {
 	const { t } = useSecurityTranslation()
 	const [securityOptions, setSecurityOptions] = useState<SecurityOptions | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [tpmDialogOpen, setTpmDialogOpen] = useState(false)
+	const [loadingMethod, setLoadingMethod] = useState<string | null>(null)
 
 	const checkOptions = useCallback(async () => {
 		try {
@@ -95,7 +96,16 @@ export const EncryptionChoice = ({
 							/>
 							<KeyringOption
 								available={securityOptions?.keyring_available ?? false}
-								onSelect={() => onChoiceSelected('keyring')}
+								onSelect={async () => {
+									setLoadingMethod('keyring')
+									try {
+										await onChoiceSelected('keyring')
+									} finally {
+										setLoadingMethod(null)
+									}
+								}}
+								disabled={loadingMethod !== null}
+								loading={loadingMethod === 'keyring'}
 							/>
 							<Argon2Option
 								available={securityOptions?.argon2_available ?? true}

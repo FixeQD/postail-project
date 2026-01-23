@@ -1,4 +1,5 @@
 use keyring::Entry;
+use std::path::PathBuf;
 
 use crate::error::{Result, SecurityError};
 use crate::security::master_key::MasterKey;
@@ -9,19 +10,37 @@ const KEY_NAME: &str = "master_key";
 
 pub struct KeyringStore {
     entry: Entry,
+    creds_dir: PathBuf,
 }
 
 impl KeyringStore {
     pub fn new() -> Result<Self> {
         let entry = Entry::new(SERVICE_NAME, KEY_NAME)
             .map_err(|e| SecurityError::Keyring(e.to_string()))?;
-        Ok(Self { entry })
+
+        let creds_dir = dirs::data_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("postail")
+            .join("creds");
+
+        Ok(Self { entry, creds_dir })
     }
 
     pub fn with_user(user: &str) -> Result<Self> {
         let entry =
             Entry::new(SERVICE_NAME, user).map_err(|e| SecurityError::Keyring(e.to_string()))?;
-        Ok(Self { entry })
+
+        let creds_dir = dirs::data_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("postail")
+            .join("creds");
+
+        Ok(Self { entry, creds_dir })
+    }
+
+    fn ensure_creds_dir_exists(&self) -> Result<()> {
+        std::fs::create_dir_all(&self.creds_dir)?;
+        Ok(())
     }
 }
 
@@ -37,6 +56,9 @@ impl SecretStore for KeyringStore {
         self.entry
             .set_password(&hex_key)
             .map_err(|e| SecurityError::Keyring(e.to_string()))?;
+
+        self.ensure_creds_dir_exists()?;
+
         Ok(())
     }
 
@@ -56,6 +78,14 @@ impl SecretStore for KeyringStore {
             _ => SecurityError::Keyring(e.to_string()),
         })?;
         Ok(())
+    }
+
+    fn exists(&self) -> bool {
+        match self.entry.get_password() {
+            Ok(_) => true,
+            Err(keyring::Error::NoEntry) => false,
+            _ => true, // locked or other error means it's there
+        }
     }
 
     fn is_available(&self) -> bool {

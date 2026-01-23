@@ -5,27 +5,32 @@ import type { AccountMeta } from '../../types/accounts'
 
 interface InboxScreenProps {
 	accounts: AccountMeta[]
-    activeAccount: AccountMeta | null
-    setActiveAccount: (account: AccountMeta) => void
-    onOpenSettings: () => void
+	activeAccount: AccountMeta | null
+	setActiveAccount: (account: AccountMeta) => void
+	onOpenSettings: () => void
 }
 
-export const InboxScreen = ({ accounts, activeAccount, setActiveAccount, onOpenSettings }: InboxScreenProps) => {
+export const InboxScreen = ({
+	accounts,
+	activeAccount,
+	setActiveAccount,
+	onOpenSettings,
+}: InboxScreenProps) => {
 	const [activeMailbox, setActiveMailbox] = useState('INBOX')
 
-    useEffect(() => {
-        if (!activeAccount && accounts.length > 0) {
-            setActiveAccount(accounts[0])
-        }
-    }, [accounts, activeAccount, setActiveAccount])
+	useEffect(() => {
+		if (!activeAccount && accounts.length > 0) {
+			setActiveAccount(accounts[0])
+		}
+	}, [accounts, activeAccount, setActiveAccount])
 
-    if (!activeAccount) {
-        return (
-            <div className="flex h-full items-center justify-center text-slate-400">
-                No accounts configured.
-            </div>
-        )
-    }
+	if (!activeAccount) {
+		return (
+			<div className='flex h-full items-center justify-center text-slate-400'>
+				No accounts configured.
+			</div>
+		)
+	}
 
 	return (
 		<div className='flex h-full overflow-hidden bg-slate-950'>
@@ -33,8 +38,8 @@ export const InboxScreen = ({ accounts, activeAccount, setActiveAccount, onOpenS
 				activeAccount={activeAccount}
 				activeMailbox={activeMailbox}
 				onMailboxSelect={setActiveMailbox}
-                onOpenSettings={onOpenSettings}
-                onLogout={() => {}} 
+				onOpenSettings={onOpenSettings}
+				onLogout={() => {}}
 			/>
 			<div className='flex flex-1 flex-col overflow-hidden'>
 				<MessageList

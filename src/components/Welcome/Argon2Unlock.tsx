@@ -30,7 +30,7 @@ export const Argon2Unlock = ({
 			onUnlock()
 		} catch (err) {
 			console.error('Failed to unlock with Argon2:', err)
-			setError("Failed to unlock database. Incorrect password?")
+			setError('Failed to unlock database. Incorrect password?')
 		} finally {
 			setLoading(false)
 		}
@@ -51,7 +51,9 @@ export const Argon2Unlock = ({
 					<h1 className='text-4xl font-bold tracking-tight text-slate-100'>
 						Unlock Database
 					</h1>
-					<p className='mt-2 text-slate-400'>Enter your password to decrypt your mail database.</p>
+					<p className='mt-2 text-slate-400'>
+						Enter your password to decrypt your mail database.
+					</p>
 				</div>
 			</div>
 
@@ -75,7 +77,7 @@ export const Argon2Unlock = ({
 									className='w-full rounded-lg bg-slate-800/50 px-4 py-3 pr-12 text-slate-100 placeholder-slate-500 ring-1 ring-slate-700 focus:ring-orange-400 focus:outline-none'
 									placeholder={t('security:argon2.passphrase.placeholder')}
 									required
-                                    autoFocus
+									autoFocus
 								/>
 								<button
 									type='button'
