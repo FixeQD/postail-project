@@ -250,11 +250,10 @@ fn initialize_security_and_database(
     let security = match method {
         "tpm" => {
             if let Some(tpm_store) = crate::security::stores::tpm::get_tpm_store() {
-                let sec = crate::security::SecurityManager::with_store(
+                crate::security::SecurityManager::with_store(
                     tpm_store.into(),
                     crate::security::stores::StorageTier::Tpm,
-                );
-                sec
+                )
             } else {
                 return Err("TPM not available or not supported".to_string());
             }
@@ -323,13 +322,11 @@ fn initialize_security_and_database(
         crate::db::init_db_with_key(&hex_key).map_err(|e| e.to_string())?
     };
 
-    if !db_path.exists() {
-        tracing::info!(target: "postail", "Starting background services...");
-        crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
-        let smtp = SMTP_MANAGER.lock().unwrap();
-        smtp.start_outbox_worker();
-        tracing::info!(target: "postail", "Background services started");
-    }
+    tracing::info!(target: "postail", "Starting background services...");
+    crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
+    let smtp = SMTP_MANAGER.lock().unwrap();
+    smtp.start_outbox_worker();
+    tracing::info!(target: "postail", "Background services started");
 
     // Store database connection
     {

@@ -24,6 +24,10 @@ impl SecretStore for NoSecureStorageStore {
         Ok(())
     }
 
+    fn exists(&self) -> bool {
+        false
+    }
+
     fn is_available(&self) -> bool {
         false
     }
@@ -119,7 +123,7 @@ impl SecurityManager {
     }
 
     pub fn is_initialized(&self) -> bool {
-        self.store.retrieve().is_ok()
+        self.store.exists()
     }
 
     pub fn destroy(&mut self) -> Result<()> {

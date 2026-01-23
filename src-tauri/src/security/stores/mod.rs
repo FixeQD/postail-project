@@ -9,6 +9,7 @@ pub trait SecretStore: Send + Sync {
     fn store(&self, key: &MasterKey) -> Result<()>;
     fn retrieve(&self) -> Result<MasterKey>;
     fn delete(&self) -> Result<()>;
+    fn exists(&self) -> bool;
     fn is_available(&self) -> bool;
     fn name(&self) -> &'static str;
 }

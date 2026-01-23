@@ -77,6 +77,7 @@ function App() {
 	}
 
 	const handleUnlockSuccess = async () => {
+		await fetchAccounts()
 		setCurrentState('dashboard')
 	}
 

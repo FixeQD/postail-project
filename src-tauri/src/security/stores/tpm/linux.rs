@@ -369,6 +369,10 @@ impl SecretStore for LinuxTpmStore {
         Ok(())
     }
 
+    fn exists(&self) -> bool {
+        self.get_sealed_path().exists()
+    }
+
     fn is_available(&self) -> bool {
         #[cfg(feature = "tpm")]
         {

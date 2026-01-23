@@ -117,6 +117,10 @@ impl SecretStore for Argon2Store {
         Ok(())
     }
 
+    fn exists(&self) -> bool {
+        self.get_sealed_path().exists()
+    }
+
     fn is_available(&self) -> bool {
         !self.passphrase.is_empty()
     }

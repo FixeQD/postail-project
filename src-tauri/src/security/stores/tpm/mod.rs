@@ -47,6 +47,10 @@ impl SecretStore for NoTpmStore {
         Err(SecurityError::NoSecureStorageAvailable)
     }
 
+    fn exists(&self) -> bool {
+        false
+    }
+
     fn is_available(&self) -> bool {
         false
     }
