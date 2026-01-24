@@ -129,7 +129,7 @@ export function TitleBar({ isDashboard, activeAccount, onSearch, onOpenSettings 
 							close()
 						}}
 						onMouseDown={(e) => e.stopPropagation()}
-						className='group flex h-8 w-8 items-center justify-center rounded-full hover:bg-red-500/10 hover:bg-red-600'>
+						className='group flex h-8 w-8 items-center justify-center rounded-full hover:bg-red-600'>
 						<svg
 							className='h-4 w-4 text-slate-400 group-hover:text-white'
 							fill='none'
