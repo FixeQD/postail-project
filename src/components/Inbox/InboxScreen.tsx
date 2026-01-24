@@ -10,12 +10,7 @@ interface InboxScreenProps {
 	onOpenSettings: () => void
 }
 
-export const InboxScreen = ({
-	accounts,
-	activeAccount,
-	setActiveAccount,
-	onOpenSettings,
-}: InboxScreenProps) => {
+export const InboxScreen = ({ accounts, activeAccount, setActiveAccount }: InboxScreenProps) => {
 	const [activeMailbox, setActiveMailbox] = useState('INBOX')
 
 	useEffect(() => {
@@ -38,8 +33,6 @@ export const InboxScreen = ({
 				activeAccount={activeAccount}
 				activeMailbox={activeMailbox}
 				onMailboxSelect={setActiveMailbox}
-				onOpenSettings={onOpenSettings}
-				onLogout={() => {}}
 			/>
 			<div className='flex flex-1 flex-col overflow-hidden'>
 				<MessageList

@@ -11,8 +11,6 @@ interface SidebarProps {
 	activeAccount: AccountMeta | null
 	activeMailbox: string
 	onMailboxSelect: (mailbox: string) => void
-	onOpenSettings: () => void
-	onLogout: () => void
 }
 
 const MIN_WIDTH = 80
