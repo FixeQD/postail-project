@@ -258,29 +258,30 @@ fn initialize_security_and_database(
                 return Err("TPM not available or not supported".to_string());
             }
         }
-        "keyring" => {
-            let store = crate::security::stores::keyring::KeyringStore::new()
-                .map_err(|e| {
-                    tracing::warn!(target: "postail", "Keyring initialization failed: {}", e);
-                    format!("Keyring not available: {}", e)
-                })?;
-            crate::security::SecurityManager::with_store(
+        "keyring" => match crate::security::stores::keyring::KeyringStore::new() {
+            Ok(store) => crate::security::SecurityManager::with_store(
                 std::sync::Arc::new(store),
                 crate::security::stores::StorageTier::Keyring,
-            )
+            ),
+            Err(e) => {
+                tracing::warn!(target: "postail", "Keyring initialization failed: {}", e);
+                return Err(format!("Keyring not available: {}", e));
+            }
         },
-        "argon2" => {
-            let pass = passphrase.ok_or("Passphrase required for Argon2")?;
-            let storage_path = dirs::data_dir()
-                .unwrap_or_else(|| std::path::PathBuf::from("."))
-                .join("postail")
-                .join("security");
-            let builder = crate::security::manager::PassphraseSecurityBuilder::new(
-                storage_path.clone(),
-                pass,
-            );
-            builder.build()
-        }
+        "argon2" => match passphrase {
+            Some(pass) => {
+                let storage_path = dirs::data_dir()
+                    .unwrap_or_else(|| std::path::PathBuf::from("."))
+                    .join("postail")
+                    .join("security");
+                let builder = crate::security::manager::PassphraseSecurityBuilder::new(
+                    storage_path.clone(),
+                    pass,
+                );
+                builder.build()
+            }
+            None => return Err("Passphrase required for Argon2".to_string()),
+        },
         _ => return Err("Invalid security method".to_string()),
     };
 
