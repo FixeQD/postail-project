@@ -4,15 +4,20 @@ import { Lock, Check, KeyRound } from 'lucide-react'
 export const Argon2Option = ({
 	available,
 	onSelect,
+	disabled = false,
+	loading = false,
 }: {
 	available: boolean
 	onSelect: () => void
+	disabled?: boolean
+	loading?: boolean
 }) => {
 	const { t } = useSecurityTranslation()
 
-	const cardClasses = available
-		? 'cursor-pointer bg-slate-800/50 ring-slate-700/50 hover:bg-slate-800 hover:ring-orange-400/50'
-		: 'cursor-not-allowed bg-slate-800/20 ring-slate-800/50 opacity-60'
+	const cardClasses =
+		available && !disabled
+			? 'cursor-pointer bg-slate-800/50 ring-slate-700/50 hover:bg-slate-800 hover:ring-orange-400/50'
+			: 'cursor-not-allowed bg-slate-800/20 ring-slate-800/50 opacity-60'
 
 	const accentClasses = available ? 'text-orange-400' : 'text-slate-500'
 
@@ -20,8 +25,8 @@ export const Argon2Option = ({
 		<button
 			type='button'
 			className={`relative flex h-full w-full flex-col justify-between rounded-xl p-6 text-left ring-1 transition-all duration-200 ${cardClasses}`}
-			onClick={onSelect}
-			disabled={!available}>
+			onClick={available && !disabled ? onSelect : undefined}
+			disabled={!available || disabled}>
 			<div>
 				{/* Status Badge */}
 				<div className='absolute top-4 right-4'>
@@ -53,10 +58,19 @@ export const Argon2Option = ({
 				<p className={`text-xs ${accentClasses}`}>
 					{t('security:options.argon2.status.available')}
 				</p>
-				<div className='mt-2 flex items-center text-xs text-slate-400'>
-					<KeyRound className={`mr-1.5 h-3 w-3 ${accentClasses}`} />
-					Password-based encryption
-				</div>
+				{!loading && (
+					<div className='mt-2 flex items-center text-xs text-slate-400'>
+						<KeyRound className={`mr-1.5 h-3 w-3 ${accentClasses}`} />
+						Password-based encryption
+					</div>
+				)}
+
+				{loading && (
+					<div className='mt-2 flex items-center text-xs text-orange-400'>
+						<div className='mr-1.5 h-3 w-3 animate-spin rounded-full border border-orange-400 border-t-transparent'></div>
+						Initializing...
+					</div>
+				)}
 			</div>
 		</button>
 	)

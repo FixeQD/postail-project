@@ -46,12 +46,17 @@ export const EncryptionChoice = ({
 		checkOptions()
 	}, [checkOptions])
 
-	const handleTpmSuccess = useCallback(() => {
-		setTpmDialogOpen(false)
-		onChoiceSelected('tpm')
+	const handleTpmSuccess = useCallback(async () => {
+		try {
+			await onChoiceSelected('tpm')
+		} finally {
+			setLoadingMethod(null)
+			setTpmDialogOpen(false)
+		}
 	}, [onChoiceSelected])
 
 	const handleTpmSelect = () => {
+		setLoadingMethod('tpm')
 		setTpmDialogOpen(true)
 	}
 
@@ -93,6 +98,8 @@ export const EncryptionChoice = ({
 							<TPMOption
 								available={securityOptions?.tpm_available ?? false}
 								onSelect={handleTpmSelect}
+								disabled={loadingMethod !== null}
+								loading={loadingMethod === 'tpm'}
 							/>
 							<KeyringOption
 								available={securityOptions?.keyring_available ?? false}
@@ -109,7 +116,16 @@ export const EncryptionChoice = ({
 							/>
 							<Argon2Option
 								available={securityOptions?.argon2_available ?? true}
-								onSelect={() => onChoiceSelected('argon2')}
+								onSelect={async () => {
+									setLoadingMethod('argon2')
+									try {
+										await onChoiceSelected('argon2')
+									} finally {
+										setLoadingMethod(null)
+									}
+								}}
+								disabled={loadingMethod !== null}
+								loading={loadingMethod === 'argon2'}
 							/>
 						</div>
 					</div>

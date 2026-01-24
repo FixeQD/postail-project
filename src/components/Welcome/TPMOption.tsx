@@ -4,15 +4,20 @@ import { Cpu, Shield, Check, X } from 'lucide-react'
 export const TPMOption = ({
 	available,
 	onSelect,
+	disabled = false,
+	loading = false,
 }: {
 	available: boolean
 	onSelect: () => void
+	disabled?: boolean
+	loading?: boolean
 }) => {
 	const { t } = useSecurityTranslation()
 
-	const cardClasses = available
-		? 'cursor-pointer bg-slate-800/50 ring-slate-700/50 hover:bg-slate-800 hover:ring-green-400/50'
-		: 'cursor-not-allowed bg-slate-800/20 ring-slate-800/50 opacity-60'
+	const cardClasses =
+		available && !disabled
+			? 'cursor-pointer bg-slate-800/50 ring-slate-700/50 hover:bg-slate-800 hover:ring-green-400/50'
+			: 'cursor-not-allowed bg-slate-800/20 ring-slate-800/50 opacity-60'
 
 	const accentClasses = available ? 'text-green-400' : 'text-slate-500'
 
@@ -20,8 +25,8 @@ export const TPMOption = ({
 		<button
 			type='button'
 			className={`relative flex h-full w-full flex-col justify-between rounded-xl p-6 text-left ring-1 transition-all duration-200 ${cardClasses}`}
-			onClick={available ? onSelect : undefined}
-			disabled={!available}>
+			onClick={available && !disabled ? onSelect : undefined}
+			disabled={!available || disabled}>
 			<div>
 				{/* Status Badge */}
 				<div className='absolute top-4 right-4'>
@@ -70,10 +75,17 @@ export const TPMOption = ({
 					)}
 				</p>
 
-				{available && (
+				{available && !loading && (
 					<div className='mt-2 flex items-center text-xs text-slate-400'>
 						<Shield className={`mr-1.5 h-3 w-3 ${accentClasses}`} />
 						Hardware-based encryption
+					</div>
+				)}
+
+				{loading && (
+					<div className='mt-2 flex items-center text-xs text-green-400'>
+						<div className='mr-1.5 h-3 w-3 animate-spin rounded-full border border-green-400 border-t-transparent'></div>
+						Initializing...
 					</div>
 				)}
 			</div>
