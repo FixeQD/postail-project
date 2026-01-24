@@ -13,29 +13,32 @@ pub struct KeyringStore {
     creds_dir: PathBuf,
 }
 
+fn default_creds_dir() -> PathBuf {
+    dirs::data_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("postail")
+        .join("creds")
+}
+
 impl KeyringStore {
     pub fn new() -> Result<Self> {
         let entry = Entry::new(SERVICE_NAME, KEY_NAME)
             .map_err(|e| SecurityError::Keyring(e.to_string()))?;
 
-        let creds_dir = dirs::data_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("postail")
-            .join("creds");
-
-        Ok(Self { entry, creds_dir })
+        Ok(Self {
+            entry,
+            creds_dir: default_creds_dir(),
+        })
     }
 
     pub fn with_user(user: &str) -> Result<Self> {
         let entry =
             Entry::new(SERVICE_NAME, user).map_err(|e| SecurityError::Keyring(e.to_string()))?;
 
-        let creds_dir = dirs::data_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("postail")
-            .join("creds");
-
-        Ok(Self { entry, creds_dir })
+        Ok(Self {
+            entry,
+            creds_dir: default_creds_dir(),
+        })
     }
 
     fn ensure_creds_dir_exists(&self) -> Result<()> {
