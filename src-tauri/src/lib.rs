@@ -258,12 +258,16 @@ fn initialize_security_and_database(
                 return Err("TPM not available or not supported".to_string());
             }
         }
-        "keyring" => match crate::security::stores::keyring::KeyringStore::new() {
-            Ok(store) => crate::security::SecurityManager::with_store(
+        "keyring" => {
+            let store = crate::security::stores::keyring::KeyringStore::new()
+                .map_err(|e| {
+                    tracing::warn!(target: "postail", "Keyring initialization failed: {}", e);
+                    format!("Keyring not available: {}", e)
+                })?;
+            crate::security::SecurityManager::with_store(
                 std::sync::Arc::new(store),
                 crate::security::stores::StorageTier::Keyring,
-            ),
-            _ => return Err("Keyring not available".to_string()),
+            )
         },
         "argon2" => {
             let pass = passphrase.ok_or("Passphrase required for Argon2")?;
