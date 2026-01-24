@@ -221,7 +221,6 @@ function App() {
 						)}
 						<AccountsScreen
 							accounts={accounts}
-							onAccountAdded={handleAccountAdded}
 							onRemoveAccount={handleRemoveAccount}
 							onSyncAccount={handleSyncAccount}
 						/>
