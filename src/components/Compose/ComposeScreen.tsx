@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	X,
@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useDraftStore } from '@/stores/draftStore'
 
 interface ComposeScreenProps {
 	open: boolean
@@ -24,25 +25,34 @@ interface ComposeScreenProps {
 
 export function ComposeScreen({ open, onOpenChange }: ComposeScreenProps) {
 	const { t } = useTranslation()
-	const [to, setTo] = useState('')
-	const [subject, setSubject] = useState('')
+	const {
+		currentDraft,
+		isComposing,
+		isDirty,
+		isSaving,
+		setSubject,
+		setBody,
+		updateCurrentDraft,
+		startComposing,
+		stopComposing,
+		saveDraft,
+	} = useDraftStore()
+
 	const [isDragging, setIsDragging] = useState(false)
 	const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
 	const [isResizing, setIsResizing] = useState(false)
 	const [resizeStart, setResizeStart] = useState({ mouseX: 0, mouseY: 0, width: 0, height: 0 })
-	const [position, setPosition] = useState({ x: 100, y: 100 })
-	const [size, setSize] = useState({ width: 672, height: 600 })
-	const modalRef = useRef<HTMLDivElement>(null)
 
-	const handleMouseDown = (e: React.MouseEvent) => {
-		e.preventDefault()
-		setIsDragging(true)
-		setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y })
-	}
+	const [position, setPosition] = useState({
+		x: window.innerWidth - 720,
+		y: window.innerHeight - 650,
+	})
+	const [size, setSize] = useState({ width: 672, height: 600 })
+
+	const editorRef = useRef<HTMLDivElement>(null)
 
 	const handleResizeMouseDown = (e: React.MouseEvent) => {
 		e.preventDefault()
-		e.stopPropagation()
 		setIsResizing(true)
 		setResizeStart({
 			mouseX: e.clientX,
@@ -52,179 +62,170 @@ export function ComposeScreen({ open, onOpenChange }: ComposeScreenProps) {
 		})
 	}
 
-	const handleMouseMove = (e: MouseEvent) => {
-		if (isDragging) {
-			const newX = Math.max(
-				0,
-				Math.min(e.clientX - dragStart.x, window.innerWidth - size.width)
-			)
-			const newY = Math.max(
-				0,
-				Math.min(e.clientY - dragStart.y, window.innerHeight - size.height)
-			)
-			setPosition({ x: newX, y: newY })
-		}
-		if (isResizing) {
-			const newWidth = Math.max(
-				400,
-				Math.min(
-					resizeStart.width + (e.clientX - resizeStart.mouseX),
-					window.innerWidth - position.x
+	const handleMouseMove = useCallback(
+		(e: MouseEvent) => {
+			if (isDragging) {
+				const newX = Math.max(
+					0,
+					Math.min(e.clientX - dragStart.x, window.innerWidth - size.width)
 				)
-			)
-			const newHeight = Math.max(
-				300,
-				Math.min(
-					resizeStart.height + (e.clientY - resizeStart.mouseY),
-					window.innerHeight - position.y
+				const newY = Math.max(
+					0,
+					Math.min(e.clientY - dragStart.y, window.innerHeight - size.height)
 				)
-			)
-			setSize({ width: newWidth, height: newHeight })
-		}
-	}
+				setPosition({ x: newX, y: newY })
+			}
+			if (isResizing) {
+				const newWidth = Math.max(450, resizeStart.width + (e.clientX - resizeStart.mouseX))
+				const newHeight = Math.max(
+					400,
+					resizeStart.height + (e.clientY - resizeStart.mouseY)
+				)
+				setSize({ width: newWidth, height: newHeight })
+			}
+		},
+		[isDragging, isResizing, dragStart, resizeStart, size.width, size.height]
+	)
 
-	const handleMouseUp = () => {
+	const handleMouseUp = useCallback(() => {
 		setIsDragging(false)
 		setIsResizing(false)
-	}
+	}, [])
 
 	useEffect(() => {
 		if (isDragging || isResizing) {
-			document.addEventListener('mousemove', handleMouseMove)
-			document.addEventListener('mouseup', handleMouseUp)
-			return () => {
-				document.removeEventListener('mousemove', handleMouseMove)
-				document.removeEventListener('mouseup', handleMouseUp)
-			}
+			window.addEventListener('mousemove', handleMouseMove)
+			window.addEventListener('mouseup', handleMouseUp)
 		}
-	}, [isDragging, isResizing])
+		return () => {
+			window.removeEventListener('mousemove', handleMouseMove)
+			window.removeEventListener('mouseup', handleMouseUp)
+		}
+	}, [isDragging, isResizing, handleMouseMove, handleMouseUp])
+
+	useEffect(() => {
+		if (open && !isComposing) {
+			startComposing('default-account')
+		}
+	}, [open, isComposing, startComposing])
+
+	// Auto-save
+	useEffect(() => {
+		if (!isDirty || !currentDraft) return
+		const timer = setTimeout(() => saveDraft(), 3000)
+		return () => clearTimeout(timer)
+	}, [isDirty, currentDraft?.subject, currentDraft?.body, saveDraft])
 
 	if (!open) return null
 
 	return (
 		<div
-			ref={modalRef}
-			className='fixed z-50 flex flex-col overflow-hidden rounded-xl bg-zinc-950 text-zinc-100 shadow-2xl ring-1 ring-zinc-800'
+			className={`fixed z-50 flex flex-col overflow-hidden rounded-t-xl bg-zinc-950 text-zinc-100 shadow-2xl ring-1 ring-zinc-800 transition-shadow ${isDragging ? 'shadow-blue-900/20' : ''}`}
 			style={{
-				transform: `translate(${position.x}px, ${position.y}px)`,
+				left: `${position.x}px`,
+				top: `${position.y}px`,
 				width: `${size.width}px`,
 				height: `${size.height}px`,
-				willChange: 'transform',
 				userSelect: isDragging || isResizing ? 'none' : 'auto',
+				cursor: isDragging ? 'grabbing' : 'auto',
 			}}>
 			{/* Header */}
 			<div
-				className='flex items-center justify-between bg-zinc-900 px-4 py-3'
-				onMouseDown={handleMouseDown}
+				className='flex w-full items-center justify-between bg-zinc-900 px-4 py-3 select-none'
+				onMouseDown={(e) => {
+					e.preventDefault()
+					setIsDragging(true)
+					setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y })
+				}}
 				style={{ cursor: isDragging ? 'grabbing' : 'grab' }}>
 				<h2 className='text-sm font-medium text-zinc-300'>{t('compose.newMessage')}</h2>
 				<div className='flex items-center gap-1'>
 					<Button
 						variant='ghost'
 						size='icon'
-						className='h-6 w-6 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'>
+						className='h-7 w-7 text-zinc-400 hover:bg-zinc-800'>
 						<Minimize2 className='h-4 w-4' />
 					</Button>
 					<Button
 						variant='ghost'
 						size='icon'
-						onClick={() => onOpenChange(false)}
-						className='h-6 w-6 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'>
+						className='h-7 w-7 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
+						onClick={() => {
+							saveDraft()
+							onOpenChange(false)
+							stopComposing()
+						}}>
 						<X className='h-4 w-4' />
 					</Button>
 				</div>
 			</div>
 
 			{/* Form Fields */}
-			<div className='flex flex-col gap-1 px-4 pt-2'>
-				<div className='relative'>
-					<Input
-						placeholder={t('compose.recipients')}
-						value={to}
-						onChange={(e) => setTo(e.target.value)}
-						className='h-auto border-0 border-b border-zinc-800 bg-transparent px-0 py-3 text-sm placeholder:text-zinc-500 focus-visible:ring-0'
-					/>
-				</div>
-				<div>
-					<Input
-						placeholder={t('compose.subject')}
-						value={subject}
-						onChange={(e) => setSubject(e.target.value)}
-						className='h-auto border-0 border-b border-zinc-800 bg-transparent px-0 py-3 text-sm font-medium placeholder:text-zinc-500 focus-visible:ring-0'
-					/>
-				</div>
-			</div>
-
-			{/* Editor Area */}
-			<div className='flex-1 overflow-y-auto p-4'>
-				<div
-					className='h-full min-h-[200px] w-full resize-none border-0 bg-transparent text-sm text-zinc-200 outline-none'
-					contentEditable
-					suppressContentEditableWarning
-					data-placeholder={t('compose.writeSomething')}
+			<div className='flex flex-col px-4 pt-1'>
+				<Input
+					placeholder={t('compose.recipients')}
+					value={currentDraft?.to.map((r) => r.email).join(', ') || ''}
+					onChange={(e) => {
+						const emails = e.target.value
+							.split(',')
+							.map((s) => s.trim())
+							.filter(Boolean)
+						updateCurrentDraft({ to: emails.map((email) => ({ email })) })
+					}}
+					className='h-11 rounded-none border-0 border-b border-zinc-900 bg-transparent px-0 text-sm placeholder:text-zinc-600 focus-visible:ring-0'
+				/>
+				<Input
+					placeholder={t('compose.subject')}
+					value={currentDraft?.subject || ''}
+					onChange={(e) => setSubject(e.target.value)}
+					className='h-11 rounded-none border-0 border-b border-zinc-900 bg-transparent px-0 text-sm font-medium placeholder:text-zinc-600 focus-visible:ring-0'
 				/>
 			</div>
 
-			{/* Footer / Toolbar */}
-			<div className='mt-auto flex flex-col gap-2 border-t border-zinc-800 p-3'>
-				{/* Formatting Icons Row */}
-				<div className='flex items-center gap-1 overflow-x-auto pb-2 sm:pb-0'>
-					<Button
-						variant='ghost'
-						size='icon'
-						className='h-8 w-8 text-zinc-400 hover:bg-zinc-800'>
-						<Bold className='h-4 w-4' />
-					</Button>
-					<Button
-						variant='ghost'
-						size='icon'
-						className='h-8 w-8 text-zinc-400 hover:bg-zinc-800'>
-						<Italic className='h-4 w-4' />
-					</Button>
-					<Button
-						variant='ghost'
-						size='icon'
-						className='h-8 w-8 text-zinc-400 hover:bg-zinc-800'>
-						<Underline className='h-4 w-4' />
-					</Button>
-					<div className='mx-1 h-4 w-[1px] bg-zinc-800' />
-					<Button
-						variant='ghost'
-						size='icon'
-						className='h-8 w-8 text-zinc-400 hover:bg-zinc-800'>
-						<AlignLeft className='h-4 w-4' />
-					</Button>
-					<Button
-						variant='ghost'
-						size='icon'
-						className='h-8 w-8 text-zinc-400 hover:bg-zinc-800'>
-						<List className='h-4 w-4' />
-					</Button>
-					<Button
-						variant='ghost'
-						size='icon'
-						className='h-8 w-8 text-zinc-400 hover:bg-zinc-800'>
-						<ListOrdered className='h-4 w-4' />
-					</Button>
-				</div>
+			{/* Editor Area */}
+			<div className='custom-scrollbar flex-1 overflow-y-auto p-4'>
+				<div
+					ref={editorRef}
+					className='h-full min-h-[200px] w-full text-sm text-zinc-200 outline-none focus:outline-none'
+					contentEditable
+					suppressContentEditableWarning
+					onInput={(e) => setBody(e.currentTarget.innerHTML)}
+					dangerouslySetInnerHTML={{ __html: currentDraft?.body || '' }}
+				/>
+				{!currentDraft?.body && (
+					<div className='pointer-events-none absolute top-[164px] left-4 text-sm text-zinc-600'>
+						{t('compose.writeSomething')}
+					</div>
+				)}
+			</div>
 
-				{/* Action Row */}
-				<div className='flex items-center justify-between pt-1'>
-					<div className='flex items-center gap-2'>
-						<Button className='rounded-full bg-blue-600 px-6 font-medium text-white hover:bg-blue-700'>
-							{t('actions.send')}
+			{/* Footer */}
+			<div className='mt-auto border-t border-zinc-900 bg-zinc-950/50 p-3'>
+				<div className='flex items-center justify-between'>
+					<div className='flex items-center gap-1'>
+						<Button
+							onClick={() => console.log('Sending...', currentDraft)}
+							className='h-9 rounded-full bg-blue-600 px-6 font-semibold text-white hover:bg-blue-500'
+							disabled={isSaving}>
+							{isSaving ? '...' : t('actions.send')}
 						</Button>
 						<Button
 							variant='ghost'
 							size='icon'
-							className='h-9 w-9 text-zinc-400 hover:bg-zinc-800'>
+							className='h-9 w-9 text-zinc-400 hover:bg-zinc-900'>
 							<Paperclip className='h-5 w-5' />
 						</Button>
 						<Button
 							variant='ghost'
 							size='icon'
-							className='h-9 w-9 text-zinc-400 hover:bg-zinc-800'>
-							<Link className='h-5 w-5' />
+							className='h-9 w-9 text-zinc-400 hover:bg-zinc-900'>
+							<Bold className='h-4 w-4' />
+						</Button>
+						<Button
+							variant='ghost'
+							size='icon'
+							className='h-9 w-9 text-zinc-400 hover:bg-zinc-900'>
+							<Italic className='h-4 w-4' />
 						</Button>
 					</div>
 
@@ -232,23 +233,17 @@ export function ComposeScreen({ open, onOpenChange }: ComposeScreenProps) {
 						<Button
 							variant='ghost'
 							size='icon'
-							className='h-9 w-9 text-zinc-400 hover:bg-zinc-800 hover:text-red-400'>
+							className='h-9 w-9 text-zinc-400 hover:bg-zinc-900 hover:text-red-400'>
 							<Trash2 className='h-4 w-4' />
-						</Button>
-						<Button
-							variant='ghost'
-							size='icon'
-							className='h-9 w-9 text-zinc-400 hover:bg-zinc-800'>
-							<MoreVertical className='h-4 w-4' />
 						</Button>
 					</div>
 				</div>
 			</div>
+
 			{/* Resize Handle */}
 			<div
 				className='absolute right-0 bottom-0 h-4 w-4 cursor-se-resize'
 				onMouseDown={handleResizeMouseDown}
-				style={{ background: 'transparent' }}
 			/>
 		</div>
 	)
