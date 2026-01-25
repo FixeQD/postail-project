@@ -1,5 +1,6 @@
 pub mod accounts;
 pub mod backup;
+pub mod drafts;
 pub mod imap;
 pub mod mailbox;
 pub mod message_bodies;
@@ -21,6 +22,7 @@ use serde::{Deserialize, Serialize};
 
 pub use crate::db::accounts::*;
 pub use crate::db::backup::{export_backup, import_backup, run_maintenance};
+pub use crate::db::drafts::*;
 pub use crate::db::imap::*;
 pub use crate::db::mailbox::{fetch_mailboxes, upsert_mailbox};
 pub use crate::db::message_bodies::*;

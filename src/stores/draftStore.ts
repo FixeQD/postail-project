@@ -164,9 +164,20 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		if (!currentDraft || !isDirty) return
 
 		set({ isSaving: true })
+		console.log('Zapisuję draft do bazy...', currentDraft)
 
 		try {
-			await invoke('save_draft', { draft: currentDraft })
+			const draftForRust = {
+				id: currentDraft.id!,
+				account_id: currentDraft.accountId,
+				subject: currentDraft.subject || null,
+				body: currentDraft.body || null,
+				to: currentDraft.to.map((r) => r.email),
+				created_at: Math.floor(Date.parse(currentDraft.createdAt) / 1000),
+				updated_at: Math.floor(Date.parse(currentDraft.updatedAt) / 1000),
+			}
+
+			await invoke('save_draft', { draft: draftForRust })
 
 			set({
 				isSaving: false,
@@ -181,7 +192,20 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 
 	loadDrafts: async (accountId: string) => {
 		try {
-			const drafts = await invoke<ComposeDraft[]>('list_drafts', { accountId })
+			const draftsFromRust = await invoke<any[]>('list_drafts', { accountId })
+			const drafts: ComposeDraft[] = draftsFromRust.map((d) => ({
+				id: d.id,
+				accountId: d.account_id,
+				to: d.to.map((email: string) => ({ email })),
+				cc: [],
+				bcc: [],
+				subject: d.subject || '',
+				body: d.body || '',
+				bodyType: 'html',
+				attachments: [],
+				createdAt: new Date(d.created_at * 1000).toISOString(),
+				updatedAt: new Date(d.updated_at * 1000).toISOString(),
+			}))
 			set({ drafts })
 		} catch (error) {
 			console.error('Failed to load drafts:', error)

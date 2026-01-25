@@ -81,6 +81,24 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
 
     create_table_if_not_exists(
         conn,
+        "drafts",
+        &[
+            ("id", "TEXT PRIMARY KEY"),
+            ("account_id", "TEXT NOT NULL"),
+            ("subject", "TEXT"),
+            ("body", "TEXT"),
+            ("to_json", "TEXT"),
+            ("created_at", "INTEGER NOT NULL"),
+            ("updated_at", "INTEGER NOT NULL"),
+            (
+                "FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE",
+                "",
+            ),
+        ],
+    )?;
+
+    create_table_if_not_exists(
+        conn,
         "outbox",
         &[
             ("id", "TEXT PRIMARY KEY"),

@@ -620,6 +620,42 @@ async fn run_maintenance() -> Result<(), String> {
     .map_err(|e| e.to_string())?
 }
 
+#[tauri::command]
+async fn save_draft(draft: crate::db::Draft) -> Result<(), String> {
+    let db_conn = Arc::clone(&DB_CONN);
+    tokio::task::spawn_blocking(move || {
+        let conn_guard = db_conn.lock().unwrap();
+        let conn = conn_guard.as_ref().expect("Database not initialized");
+        crate::db::save_draft(conn, &draft).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn list_drafts(account_id: String) -> Result<Vec<crate::db::Draft>, String> {
+    let db_conn = Arc::clone(&DB_CONN);
+    tokio::task::spawn_blocking(move || {
+        let conn_guard = db_conn.lock().unwrap();
+        let conn = conn_guard.as_ref().expect("Database not initialized");
+        crate::db::list_drafts(conn, &account_id).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn delete_draft(id: String) -> Result<(), String> {
+    let db_conn = Arc::clone(&DB_CONN);
+    tokio::task::spawn_blocking(move || {
+        let conn_guard = db_conn.lock().unwrap();
+        let conn = conn_guard.as_ref().expect("Database not initialized");
+        crate::db::delete_draft(conn, &id).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()
@@ -664,7 +700,10 @@ pub fn run() {
             cancel_sending,
             export_backup,
             import_backup,
-            run_maintenance
+            run_maintenance,
+            save_draft,
+            list_drafts,
+            delete_draft
         ])
         .register_uri_scheme_protocol("postail", protocol::handler)
         .run(tauri::generate_context!())
