@@ -116,6 +116,13 @@ export function ComposeScreen({ open, onOpenChange }: ComposeScreenProps) {
 		return () => clearTimeout(timer)
 	}, [isDirty, currentDraft?.subject, currentDraft?.body, saveDraft])
 
+	// Set initial content without resetting cursor
+	useEffect(() => {
+		if (editorRef.current && currentDraft?.body && editorRef.current.innerHTML === '') {
+			editorRef.current.innerHTML = currentDraft.body
+		}
+	}, [currentDraft?.body])
+
 	if (!open) return null
 
 	return (
@@ -183,17 +190,16 @@ export function ComposeScreen({ open, onOpenChange }: ComposeScreenProps) {
 			</div>
 
 			{/* Editor Area */}
-			<div className='custom-scrollbar flex-1 overflow-y-auto p-4'>
+			<div className='custom-scrollbar relative flex-1 overflow-y-auto p-4'>
 				<div
 					ref={editorRef}
 					className='h-full min-h-[200px] w-full text-sm text-zinc-200 outline-none focus:outline-none'
 					contentEditable
 					suppressContentEditableWarning
 					onInput={(e) => setBody(e.currentTarget.innerHTML)}
-					dangerouslySetInnerHTML={{ __html: currentDraft?.body || '' }}
 				/>
 				{!currentDraft?.body && (
-					<div className='pointer-events-none absolute top-[164px] left-4 text-sm text-zinc-600'>
+					<div className='pointer-events-none absolute top-4 left-4 text-sm text-zinc-600'>
 						{t('compose.writeSomething')}
 					</div>
 				)}
