@@ -139,6 +139,14 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		})
 	},
 
+	loadDraft: (draft: ComposeDraft) => {
+		set({
+			currentDraft: draft,
+			isComposing: true,
+			isDirty: false,
+		})
+	},
+
 	stopComposing: () => {
 		set({
 			currentDraft: null,
@@ -215,7 +223,7 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 
 	deleteDraft: async (draftId: string) => {
 		try {
-			await invoke('delete_draft', { draftId })
+			await invoke('delete_draft', { id: draftId })
 
 			const { drafts, currentDraft } = get()
 			const updatedDrafts = drafts.filter((d) => d.id !== draftId)

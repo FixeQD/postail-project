@@ -21,9 +21,10 @@ import { useDraftStore } from '@/stores/draftStore'
 interface ComposeScreenProps {
 	open: boolean
 	onOpenChange: (open: boolean) => void
+	accountId?: string
 }
 
-export function ComposeScreen({ open, onOpenChange }: ComposeScreenProps) {
+export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenProps) {
 	const { t } = useTranslation()
 	const {
 		currentDraft,
@@ -36,6 +37,7 @@ export function ComposeScreen({ open, onOpenChange }: ComposeScreenProps) {
 		startComposing,
 		stopComposing,
 		saveDraft,
+		deleteDraft,
 	} = useDraftStore()
 
 	const [isDragging, setIsDragging] = useState(false)
@@ -104,10 +106,10 @@ export function ComposeScreen({ open, onOpenChange }: ComposeScreenProps) {
 	}, [isDragging, isResizing, handleMouseMove, handleMouseUp])
 
 	useEffect(() => {
-		if (open && !isComposing) {
-			startComposing('default-account')
+		if (open && !isComposing && accountId) {
+			startComposing(accountId)
 		}
-	}, [open, isComposing, startComposing])
+	}, [open, isComposing, startComposing, accountId])
 
 	// Auto-save
 	useEffect(() => {
@@ -210,7 +212,14 @@ export function ComposeScreen({ open, onOpenChange }: ComposeScreenProps) {
 				<div className='flex items-center justify-between'>
 					<div className='flex items-center gap-1'>
 						<Button
-							onClick={() => console.log('Sending...', currentDraft)}
+							onClick={async () => {
+								// After sending, delete the draft if it exists
+								if (currentDraft?.id) {
+									await deleteDraft(currentDraft.id)
+								}
+								stopComposing()
+								onOpenChange(false)
+							}}
 							className='h-9 rounded-full bg-blue-600 px-6 font-semibold text-white hover:bg-blue-500'
 							disabled={isSaving}>
 							{isSaving ? '...' : t('actions.send')}

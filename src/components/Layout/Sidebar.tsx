@@ -6,23 +6,27 @@ import { useQuery } from '@tanstack/react-query'
 import type { Mailbox } from '../../types/mail'
 import type { AccountMeta } from '../../types/accounts'
 import { useTypedTranslation } from '../../hooks/useTypedTranslation'
-import { ComposeScreen } from '../Compose/ComposeScreen'
 
 interface SidebarProps {
 	activeAccount: AccountMeta | null
 	activeMailbox: string
 	onMailboxSelect: (mailbox: string) => void
+	onCompose: () => void
 }
 
 const MIN_WIDTH = 80
 const MAX_WIDTH = 320
 const DEFAULT_WIDTH = 260
 
-export const Sidebar = ({ activeAccount, activeMailbox, onMailboxSelect }: SidebarProps) => {
+export const Sidebar = ({
+	activeAccount,
+	activeMailbox,
+	onMailboxSelect,
+	onCompose,
+}: SidebarProps) => {
 	const { t } = useTypedTranslation()
 	const [width, setWidth] = useState(DEFAULT_WIDTH)
 	const [isResizing, setIsResizing] = useState(false)
-	const [isComposeOpen, setIsComposeOpen] = useState(false)
 	const sidebarRef = useRef<HTMLDivElement>(null)
 
 	const isCollapsed = width < 120
@@ -32,6 +36,19 @@ export const Sidebar = ({ activeAccount, activeMailbox, onMailboxSelect }: Sideb
 		queryFn: () => invoke<Mailbox[]>('fetch_mailboxes', { accountId: activeAccount?.id }),
 		enabled: !!activeAccount,
 	})
+
+	// Add virtual Drafts mailbox if not present
+	const allMailboxes = mailboxes ? [...mailboxes] : []
+	if (!allMailboxes.some((m) => m.role === 'drafts')) {
+		allMailboxes.push({
+			name: 'Drafts',
+			display_name: t('inbox:sidebar.mailboxes.drafts'),
+			role: 'drafts',
+			uid_validity: undefined,
+			highest_modseq: undefined,
+			last_synced_uid: undefined,
+		})
+	}
 
 	const startResizing = (e: React.MouseEvent) => {
 		e.preventDefault()
@@ -110,7 +127,7 @@ export const Sidebar = ({ activeAccount, activeMailbox, onMailboxSelect }: Sideb
 				<div className='mb-2 flex flex-col gap-4'>
 					<button
 						type='button'
-						onClick={() => setIsComposeOpen(true)}
+						onClick={onCompose}
 						className={`group flex items-center rounded-xl bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 shadow-sm transition-all hover:bg-slate-700 hover:shadow-md active:scale-[0.98] ${isCollapsed ? 'mx-auto aspect-square h-12 w-12 justify-center px-0' : 'w-full'}`}>
 						<Pencil className='h-4 w-4 shrink-0 transition-transform group-hover:scale-110' />
 						{!isCollapsed && (
@@ -138,9 +155,11 @@ export const Sidebar = ({ activeAccount, activeMailbox, onMailboxSelect }: Sideb
 						</div>
 					) : (
 						<>
-							{mailboxes
-								?.sort((a, b) => {
+							{allMailboxes
+								.sort((a, b) => {
 									if (a.name.toLowerCase() === 'inbox') return -1
+									if (a.role === 'drafts') return 1
+									if (b.role === 'drafts') return -1
 									return a.name.localeCompare(b.name)
 								})
 								.map((mailbox) => {
@@ -178,7 +197,6 @@ export const Sidebar = ({ activeAccount, activeMailbox, onMailboxSelect }: Sideb
 					onMouseDown={startResizing}
 				/>
 			</motion.div>
-			<ComposeScreen open={isComposeOpen} onOpenChange={setIsComposeOpen} />
 		</>
 	)
 }

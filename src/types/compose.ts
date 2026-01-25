@@ -55,6 +55,7 @@ export interface DraftState {
 	markDirty: () => void
 	markClean: () => void
 	saveDraft: () => Promise<void>
+	loadDraft: (draft: ComposeDraft) => void
 	loadDrafts: (accountId: string) => Promise<void>
 	deleteDraft: (draftId: string) => Promise<void>
 }

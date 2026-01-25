@@ -26,6 +26,8 @@
 		"newMessage": "New message",
 		"recipients": "Recipients",
 		"subject": "Subject",
-		"writeSomething": "Write something..."
+		"writeSomething": "Write something...",
+		"noSubject": "No subject",
+		"to": "To"
 	}
 }
