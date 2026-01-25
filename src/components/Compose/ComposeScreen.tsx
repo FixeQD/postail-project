@@ -117,9 +117,7 @@ export function ComposeScreen({ open, onOpenChange }: ComposeScreenProps) {
 				className='flex items-center justify-between bg-zinc-900 px-4 py-3'
 				onMouseDown={handleMouseDown}
 				style={{ cursor: isDragging ? 'grabbing' : 'grab' }}>
-				<h2 className='text-sm font-medium text-zinc-300'>
-					{t('common.compose.newMessage')}
-				</h2>
+				<h2 className='text-sm font-medium text-zinc-300'>{t('compose.newMessage')}</h2>
 				<div className='flex items-center gap-1'>
 					<Button
 						variant='ghost'
@@ -141,7 +139,7 @@ export function ComposeScreen({ open, onOpenChange }: ComposeScreenProps) {
 			<div className='flex flex-col gap-1 px-4 pt-2'>
 				<div className='relative'>
 					<Input
-						placeholder={t('common.compose.recipients')}
+						placeholder={t('compose.recipients')}
 						value={to}
 						onChange={(e) => setTo(e.target.value)}
 						className='h-auto border-0 border-b border-zinc-800 bg-transparent px-0 py-3 text-sm placeholder:text-zinc-500 focus-visible:ring-0'
@@ -149,7 +147,7 @@ export function ComposeScreen({ open, onOpenChange }: ComposeScreenProps) {
 				</div>
 				<div>
 					<Input
-						placeholder={t('common.compose.subject')}
+						placeholder={t('compose.subject')}
 						value={subject}
 						onChange={(e) => setSubject(e.target.value)}
 						className='h-auto border-0 border-b border-zinc-800 bg-transparent px-0 py-3 text-sm font-medium placeholder:text-zinc-500 focus-visible:ring-0'
@@ -163,7 +161,7 @@ export function ComposeScreen({ open, onOpenChange }: ComposeScreenProps) {
 					className='h-full min-h-[200px] w-full resize-none border-0 bg-transparent text-sm text-zinc-200 outline-none'
 					contentEditable
 					suppressContentEditableWarning
-					data-placeholder={t('common.compose.writeSomething')}
+					data-placeholder={t('compose.writeSomething')}
 				/>
 			</div>
 
@@ -214,7 +212,7 @@ export function ComposeScreen({ open, onOpenChange }: ComposeScreenProps) {
 				<div className='flex items-center justify-between pt-1'>
 					<div className='flex items-center gap-2'>
 						<Button className='rounded-full bg-blue-600 px-6 font-medium text-white hover:bg-blue-700'>
-							{t('common.actions.send')}
+							{t('actions.send')}
 						</Button>
 						<Button
 							variant='ghost'
