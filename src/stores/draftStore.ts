@@ -166,20 +166,21 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		})
 	},
 
-	saveDraft: async () => {
-		const { currentDraft, isDirty } = get()
+	saveDraft: async (html?: string) => {
+		const { currentDraft, isDirty, isSaving } = get()
 
-		if (!currentDraft || !isDirty) return
+		if (!currentDraft || !isDirty || isSaving) return
 
 		set({ isSaving: true })
-		console.log('Zapisuję draft do bazy...', currentDraft)
+		const bodyToSave = html || currentDraft.body
+		console.log('Zapisuję draft do bazy...', { ...currentDraft, body: bodyToSave })
 
 		try {
 			const draftForRust = {
 				id: currentDraft.id!,
 				account_id: currentDraft.accountId,
 				subject: currentDraft.subject || null,
-				body: currentDraft.body || null,
+				body: bodyToSave || null,
 				to: currentDraft.to.map((r) => r.email),
 				created_at: Math.floor(Date.parse(currentDraft.createdAt) / 1000),
 				updated_at: Math.floor(Date.parse(currentDraft.updatedAt) / 1000),

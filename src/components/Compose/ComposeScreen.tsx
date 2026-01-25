@@ -1,30 +1,16 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useRef, useCallback, useMemo, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LexicalComposer } from '@lexical/react/LexicalComposer'
-import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
-import { ContentEditable } from '@lexical/react/LexicalContentEditable'
-import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
-import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
-import { $getRoot, $createParagraphNode, $createTextNode, EditorState } from 'lexical'
 import { HeadingNode, QuoteNode } from '@lexical/rich-text'
 import { ListNode, ListItemNode } from '@lexical/list'
-import {
-	X,
-	Paperclip,
-	Bold,
-	Italic,
-	Underline,
-	Link,
-	List,
-	ListOrdered,
-	AlignLeft,
-	MoreVertical,
-	Trash2,
-	Minimize2,
-} from 'lucide-react'
+import { LinkNode } from '@lexical/link'
+import { X, Minimize2 } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useDraftStore } from '@/stores/draftStore'
+import { useDragging, useLinkTooltip } from './useCompose'
+import EditorContent from './EditorContent'
 
 interface ComposeScreenProps {
 	open: boolean
@@ -38,167 +24,89 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		currentDraft,
 		isComposing,
 		isDirty,
-		isSaving,
 		setSubject,
-		setBody,
 		updateCurrentDraft,
 		startComposing,
 		stopComposing,
 		saveDraft,
-		deleteDraft,
+		markDirty,
 	} = useDraftStore()
 
-	const [isDragging, setIsDragging] = useState(false)
-	const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-	const [isResizing, setIsResizing] = useState(false)
-	const [resizeStart, setResizeStart] = useState({ mouseX: 0, mouseY: 0, width: 0, height: 0 })
-
-	const [position, setPosition] = useState({
-		x: window.innerWidth - 720,
-		y: window.innerHeight - 650,
-	})
-	const [size, setSize] = useState({ width: 672, height: 600 })
-
 	const editorRef = useRef<HTMLDivElement>(null)
+	const { position, size, isDragging, startDrag, handleResizeMouseDown } = useDragging()
+	const tooltipData = useLinkTooltip(editorRef)
 
-	// Lexical initial config
-	const initialConfig = {
-		namespace: 'ComposeEditor',
-		theme: {
-			text: {
-				bold: 'font-bold',
-				italic: 'italic',
-				underline: 'underline',
-			},
-		},
-		// Register commonly needed nodes so editor supports headings, quotes and lists
-		nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode],
-		onError: (error: Error) => {
-			console.error('Lexical error:', error)
-		},
-	}
+	const htmlRef = useRef('')
+	const isHydratingRef = useRef(false)
+	const [changeCount, setChangeCount] = useState(0)
 
-	// Handle Lexical editor changes
 	const handleEditorChange = useCallback(
-		(editorState: EditorState) => {
+		(editorState: any, editor: any) => {
+			if (isHydratingRef.current) return
 			editorState.read(() => {
-				const root = $getRoot()
-				const content = root.getTextContent()
-				setBody(content) // For now, just text content; later HTML
+				// Note: using $generateHtmlFromNodes directly if possible
+				import('@lexical/html').then(({ $generateHtmlFromNodes }) => {
+					editorState.read(() => {
+						htmlRef.current = $generateHtmlFromNodes(editor)
+						setChangeCount((c) => c + 1)
+						markDirty()
+					})
+				})
 			})
 		},
-		[setBody]
+		[markDirty]
 	)
 
-	const handleResizeMouseDown = (e: React.MouseEvent) => {
-		e.preventDefault()
-		setIsResizing(true)
-		setResizeStart({
-			mouseX: e.clientX,
-			mouseY: e.clientY,
-			width: size.width,
-			height: size.height,
-		})
-	}
-
-	const handleMouseMove = useCallback(
-		(e: MouseEvent) => {
-			if (isDragging) {
-				const newX = Math.max(
-					0,
-					Math.min(e.clientX - dragStart.x, window.innerWidth - size.width)
-				)
-				const newY = Math.max(
-					0,
-					Math.min(e.clientY - dragStart.y, window.innerHeight - size.height)
-				)
-				setPosition({ x: newX, y: newY })
-			}
-			if (isResizing) {
-				const newWidth = Math.max(450, resizeStart.width + (e.clientX - resizeStart.mouseX))
-				const newHeight = Math.max(
-					400,
-					resizeStart.height + (e.clientY - resizeStart.mouseY)
-				)
-				setSize({ width: newWidth, height: newHeight })
-			}
-		},
-		[isDragging, isResizing, dragStart, resizeStart, size.width, size.height]
+	// Lexical initial config
+	const initialConfig = useMemo(
+		() => ({
+			namespace: 'ComposeEditor',
+			theme: {
+				text: { bold: 'font-bold', italic: 'italic', underline: 'underline', strikethrough: 'line-through' },
+				list: { listitem: '!ml-4', nested: { listitem: '!ml-8' }, ol: '!list-decimal !ml-4', ul: '!list-disc !ml-4' },
+				link: 'underline text-cyan-400',
+			},
+			nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, LinkNode],
+			onError: (err: Error) => console.error(err),
+		}),
+		[]
 	)
 
-	const handleMouseUp = useCallback(() => {
-		setIsDragging(false)
-		setIsResizing(false)
-	}, [])
-
 	useEffect(() => {
-		if (isDragging || isResizing) {
-			window.addEventListener('mousemove', handleMouseMove)
-			window.addEventListener('mouseup', handleMouseUp)
-		}
-		return () => {
-			window.removeEventListener('mousemove', handleMouseMove)
-			window.removeEventListener('mouseup', handleMouseUp)
-		}
-	}, [isDragging, isResizing, handleMouseMove, handleMouseUp])
-
-	useEffect(() => {
-		if (open && !isComposing && accountId) {
-			startComposing(accountId)
-		}
+		if (open && !isComposing && accountId) startComposing(accountId)
 	}, [open, isComposing, startComposing, accountId])
 
-	// Auto-save
 	useEffect(() => {
-		if (!isDirty || !currentDraft) return
-		const timer = setTimeout(() => saveDraft(), 3000)
+		if (!isDirty || !currentDraft || htmlRef.current === currentDraft.body) return
+		const timer = setTimeout(() => saveDraft(htmlRef.current), 3000)
 		return () => clearTimeout(timer)
-	}, [isDirty, currentDraft?.subject, currentDraft?.body, saveDraft])
-
-	// Set initial content for Lexical
-	useEffect(() => {
-		if (currentDraft?.body) {
-			// TODO: Load HTML content into Lexical editor
-			// For now, skip initial content loading
-		}
-	}, [currentDraft?.body])
+	}, [isDirty, currentDraft, saveDraft, changeCount])
 
 	if (!open) return null
 
 	return (
 		<div
-			className={`fixed z-50 flex flex-col overflow-hidden rounded-t-xl bg-zinc-950 text-zinc-100 shadow-2xl ring-1 ring-zinc-800 transition-shadow ${isDragging ? 'shadow-blue-900/20' : ''}`}
+			className={`fixed z-50 flex flex-col overflow-hidden rounded-t-xl bg-zinc-950 text-zinc-100 shadow-2xl ring-1 ring-zinc-800 ${isDragging ? 'shadow-blue-900/20' : ''}`}
 			style={{
 				left: `${position.x}px`,
 				top: `${position.y}px`,
 				width: `${size.width}px`,
 				height: `${size.height}px`,
-				userSelect: isDragging || isResizing ? 'none' : 'auto',
 				cursor: isDragging ? 'grabbing' : 'auto',
 			}}>
-			{/* Header */}
 			<div
 				className='flex w-full items-center justify-between bg-zinc-900 px-4 py-3 select-none'
-				onMouseDown={(e) => {
-					e.preventDefault()
-					setIsDragging(true)
-					setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y })
-				}}
+				onMouseDown={startDrag}
 				style={{ cursor: isDragging ? 'grabbing' : 'grab' }}>
 				<h2 className='text-sm font-medium text-zinc-300'>{t('compose.newMessage')}</h2>
 				<div className='flex items-center gap-1'>
+					<Button variant='ghost' size='icon' className='h-7 w-7 text-zinc-400'><Minimize2 className='h-4 w-4' /></Button>
 					<Button
 						variant='ghost'
 						size='icon'
-						className='h-7 w-7 text-zinc-400 hover:bg-zinc-800'>
-						<Minimize2 className='h-4 w-4' />
-					</Button>
-					<Button
-						variant='ghost'
-						size='icon'
-						className='h-7 w-7 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
+						className='h-7 w-7 text-zinc-400 hover:text-zinc-100'
 						onClick={() => {
-							saveDraft()
+							saveDraft(htmlRef.current)
 							onOpenChange(false)
 							stopComposing()
 						}}>
@@ -207,100 +115,47 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 				</div>
 			</div>
 
-			{/* Form Fields */}
 			<div className='flex flex-col px-4 pt-1'>
 				<Input
 					placeholder={t('compose.recipients')}
 					value={currentDraft?.to.map((r) => r.email).join(', ') || ''}
 					onChange={(e) => {
-						const emails = e.target.value
-							.split(',')
-							.map((s) => s.trim())
-							.filter(Boolean)
+						const emails = e.target.value.split(',').map((s) => s.trim()).filter(Boolean)
 						updateCurrentDraft({ to: emails.map((email) => ({ email })) })
 					}}
-					className='h-11 rounded-none border-0 border-b border-zinc-900 bg-transparent px-0 text-sm placeholder:text-zinc-600 focus-visible:ring-0'
+					className='h-11 rounded-none border-0 border-b border-zinc-900 bg-transparent px-0 text-sm focus-visible:ring-0'
 				/>
 				<Input
 					placeholder={t('compose.subject')}
 					value={currentDraft?.subject || ''}
 					onChange={(e) => setSubject(e.target.value)}
-					className='h-11 rounded-none border-0 border-b border-zinc-900 bg-transparent px-0 text-sm font-medium placeholder:text-zinc-600 focus-visible:ring-0'
+					className='h-11 rounded-none border-0 border-b border-zinc-900 bg-transparent px-0 text-sm font-medium focus-visible:ring-0'
 				/>
 			</div>
 
-			{/* Editor Area */}
-			<div className='custom-scrollbar relative flex-1 overflow-y-auto p-4'>
-				<LexicalComposer initialConfig={initialConfig}>
-					<RichTextPlugin
-						contentEditable={
-							<ContentEditable className='h-full min-h-[200px] w-full text-sm text-zinc-200 outline-none focus:outline-none' />
-						}
-						placeholder={
-							<div className='pointer-events-none absolute top-4 left-4 text-sm text-zinc-600'>
-								{t('compose.writeSomething')}
-							</div>
-						}
-						ErrorBoundary={() => <div>Error loading editor</div>}
-					/>
-					<HistoryPlugin />
-					<OnChangePlugin onChange={handleEditorChange} />
-				</LexicalComposer>
-			</div>
+			<LexicalComposer initialConfig={initialConfig}>
+				<EditorContent
+					onOpenChange={onOpenChange}
+					editorRef={editorRef}
+					htmlRef={htmlRef}
+					isHydratingRef={isHydratingRef}
+					handleEditorChange={handleEditorChange}
+				/>
+			</LexicalComposer>
 
-			{/* Footer */}
-			<div className='mt-auto border-t border-zinc-900 bg-zinc-950/50 p-3'>
-				<div className='flex items-center justify-between'>
-					<div className='flex items-center gap-1'>
-						<Button
-							onClick={async () => {
-								// After sending, delete the draft if it exists
-								if (currentDraft?.id) {
-									await deleteDraft(currentDraft.id)
-								}
-								stopComposing()
-								onOpenChange(false)
-							}}
-							className='h-9 rounded-full bg-blue-600 px-6 font-semibold text-white hover:bg-blue-500'
-							disabled={isSaving}>
-							{isSaving ? '...' : t('actions.send')}
-						</Button>
-						<Button
-							variant='ghost'
-							size='icon'
-							className='h-9 w-9 text-zinc-400 hover:bg-zinc-900'>
-							<Paperclip className='h-5 w-5' />
-						</Button>
-						<Button
-							variant='ghost'
-							size='icon'
-							className='h-9 w-9 text-zinc-400 hover:bg-zinc-900'>
-							<Bold className='h-4 w-4' />
-						</Button>
-						<Button
-							variant='ghost'
-							size='icon'
-							className='h-9 w-9 text-zinc-400 hover:bg-zinc-900'>
-							<Italic className='h-4 w-4' />
-						</Button>
-					</div>
-
-					<div className='flex items-center gap-1'>
-						<Button
-							variant='ghost'
-							size='icon'
-							className='h-9 w-9 text-zinc-400 hover:bg-zinc-900 hover:text-red-400'>
-							<Trash2 className='h-4 w-4' />
-						</Button>
-					</div>
+			{tooltipData.visible && tooltipData.rect && (
+				<div
+					className='bg-popover text-popover-foreground fixed z-50 max-w-md truncate rounded-md px-3 py-1.5 text-xs'
+					style={{
+						left: `${tooltipData.rect.left + tooltipData.rect.width / 2}px`,
+						top: `${tooltipData.rect.top > 40 ? tooltipData.rect.top - 8 : tooltipData.rect.bottom + 8}px`,
+						transform: tooltipData.rect.top > 40 ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+					}}>
+					{tooltipData.url.length > 120 ? tooltipData.url.slice(0, 116) + '…' : tooltipData.url}
 				</div>
-			</div>
+			)}
 
-			{/* Resize Handle */}
-			<div
-				className='absolute right-0 bottom-0 h-4 w-4 cursor-se-resize'
-				onMouseDown={handleResizeMouseDown}
-			/>
+			<div className='absolute right-0 bottom-0 h-4 w-4 cursor-se-resize' onMouseDown={handleResizeMouseDown} />
 		</div>
 	)
 }
