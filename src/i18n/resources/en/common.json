@@ -11,7 +11,8 @@
 		"save": "Save",
 		"continue": "Continue",
 		"retry": "Retry",
-		"close": "Close"
+		"close": "Close",
+		"send": "Send"
 	},
 	"status": {
 		"loading": "Loading...",
@@ -20,5 +21,11 @@
 		"available": "Available",
 		"unavailable": "Unavailable",
 		"recommended": "Recommended"
+	},
+	"compose": {
+		"newMessage": "New message",
+		"recipients": "Recipients",
+		"subject": "Subject",
+		"writeSomething": "Write something..."
 	}
 }
