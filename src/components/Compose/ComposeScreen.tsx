@@ -1,5 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import { LexicalComposer } from '@lexical/react/LexicalComposer'
+import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
+import { ContentEditable } from '@lexical/react/LexicalContentEditable'
+import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
+import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
+import { $getRoot, $createParagraphNode, $createTextNode, EditorState } from 'lexical'
+import { HeadingNode, QuoteNode } from '@lexical/rich-text'
+import { ListNode, ListItemNode } from '@lexical/list'
 import {
 	X,
 	Paperclip,
@@ -52,6 +60,35 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	const [size, setSize] = useState({ width: 672, height: 600 })
 
 	const editorRef = useRef<HTMLDivElement>(null)
+
+	// Lexical initial config
+	const initialConfig = {
+		namespace: 'ComposeEditor',
+		theme: {
+			text: {
+				bold: 'font-bold',
+				italic: 'italic',
+				underline: 'underline',
+			},
+		},
+		// Register commonly needed nodes so editor supports headings, quotes and lists
+		nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode],
+		onError: (error: Error) => {
+			console.error('Lexical error:', error)
+		},
+	}
+
+	// Handle Lexical editor changes
+	const handleEditorChange = useCallback(
+		(editorState: EditorState) => {
+			editorState.read(() => {
+				const root = $getRoot()
+				const content = root.getTextContent()
+				setBody(content) // For now, just text content; later HTML
+			})
+		},
+		[setBody]
+	)
 
 	const handleResizeMouseDown = (e: React.MouseEvent) => {
 		e.preventDefault()
@@ -118,10 +155,11 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		return () => clearTimeout(timer)
 	}, [isDirty, currentDraft?.subject, currentDraft?.body, saveDraft])
 
-	// Set initial content without resetting cursor
+	// Set initial content for Lexical
 	useEffect(() => {
-		if (editorRef.current && currentDraft?.body && editorRef.current.innerHTML === '') {
-			editorRef.current.innerHTML = currentDraft.body
+		if (currentDraft?.body) {
+			// TODO: Load HTML content into Lexical editor
+			// For now, skip initial content loading
 		}
 	}, [currentDraft?.body])
 
@@ -193,18 +231,21 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 
 			{/* Editor Area */}
 			<div className='custom-scrollbar relative flex-1 overflow-y-auto p-4'>
-				<div
-					ref={editorRef}
-					className='h-full min-h-[200px] w-full text-sm text-zinc-200 outline-none focus:outline-none'
-					contentEditable
-					suppressContentEditableWarning
-					onInput={(e) => setBody(e.currentTarget.innerHTML)}
-				/>
-				{!currentDraft?.body && (
-					<div className='pointer-events-none absolute top-4 left-4 text-sm text-zinc-600'>
-						{t('compose.writeSomething')}
-					</div>
-				)}
+				<LexicalComposer initialConfig={initialConfig}>
+					<RichTextPlugin
+						contentEditable={
+							<ContentEditable className='h-full min-h-[200px] w-full text-sm text-zinc-200 outline-none focus:outline-none' />
+						}
+						placeholder={
+							<div className='pointer-events-none absolute top-4 left-4 text-sm text-zinc-600'>
+								{t('compose.writeSomething')}
+							</div>
+						}
+						ErrorBoundary={() => <div>Error loading editor</div>}
+					/>
+					<HistoryPlugin />
+					<OnChangePlugin onChange={handleEditorChange} />
+				</LexicalComposer>
 			</div>
 
 			{/* Footer */}
