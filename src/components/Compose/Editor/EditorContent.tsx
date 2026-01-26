@@ -2,17 +2,14 @@ import { useRef, useEffect, memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LexicalEditor, EditorState, $getRoot } from 'lexical'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
-import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
 import { ContentEditable } from '@lexical/react/LexicalContentEditable'
-import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
-import { ListPlugin } from '@lexical/react/LexicalListPlugin'
-import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
 import { $generateNodesFromDOM } from '@lexical/html'
 import { Trash2 } from 'lucide-react'
-
 import { Button } from '@/components/ui/button'
 import { useDraftStore } from '@/stores/draftStore'
 import EditorToolbar from './EditorToolbar'
+import RichTextEditor from './Modes/RichTextEditor'
+import SourceEditor from './Modes/SourceEditor'
 
 interface EditorContentProps {
 	onOpenChange: (open: boolean) => void
@@ -21,11 +18,6 @@ interface EditorContentProps {
 	isHydratingRef: React.MutableRefObject<boolean>
 	handleEditorChange: (editorState: EditorState, editor: LexicalEditor) => void
 }
-
-const MemoRichTextPlugin = memo(RichTextPlugin)
-const MemoHistoryPlugin = memo(HistoryPlugin)
-const MemoListPlugin = memo(ListPlugin)
-const MemoOnChangePlugin = memo(OnChangePlugin)
 
 export const EditorContent = memo(
 	({
@@ -42,10 +34,29 @@ export const EditorContent = memo(
 			stopComposing,
 			deleteDraft,
 			markClean,
+			editorMode,
 		} = useDraftStore()
 
 		const [editor] = useLexicalComposerContext()
 		const lastHydratedIdRef = useRef<string | null>(null)
+
+		const contentEditable = useMemo(
+			() => (
+				<ContentEditable className='h-full min-h-50 w-full text-sm text-zinc-200 outline-none focus:outline-none' />
+			),
+			[]
+		)
+
+		const placeholder = useMemo(
+			() => (
+				<div className='pointer-events-none absolute top-4 left-4 text-sm text-zinc-600'>
+					{t('compose.writeSomething')}
+				</div>
+			),
+			[t]
+		)
+
+		const errorBoundary = useMemo(() => () => <div>Error loading editor</div>, [])
 
 		useEffect(() => {
 			if (
@@ -53,7 +64,8 @@ export const EditorContent = memo(
 				!currentDraft.body ||
 				currentDraft.body.trim() === '' ||
 				!editor ||
-				currentDraft.id === lastHydratedIdRef.current
+				currentDraft.id === lastHydratedIdRef.current ||
+				editorMode !== 'rich-text'
 			)
 				return
 
@@ -78,34 +90,31 @@ export const EditorContent = memo(
 				}
 			}, 100)
 			return () => clearTimeout(timeoutId)
-		}, [currentDraft?.id, currentDraft?.body, editor, isHydratingRef, htmlRef, markClean])
+		}, [
+			currentDraft?.id,
+			currentDraft?.body,
+			editor,
+			isHydratingRef,
+			htmlRef,
+			markClean,
+			editorMode,
+		])
 
 		return (
 			<>
 				<div
 					ref={editorRef}
-					className='editor-content custom-scrollbar relative flex-1 overflow-y-auto p-4'>
-					<MemoRichTextPlugin
-						contentEditable={useMemo(
-							() => (
-								<ContentEditable className='h-full min-h-50 w-full text-sm text-zinc-200 outline-none focus:outline-none' />
-							),
-							[]
-						)}
-						placeholder={useMemo(
-							() => (
-								<div className='pointer-events-none absolute top-4 left-4 text-sm text-zinc-600'>
-									{t('compose.writeSomething')}
-								</div>
-							),
-							[t]
-						)}
-						ErrorBoundary={useMemo(() => () => <div>Error loading editor</div>, [])}
-					/>
-					<style>{`.editor-content ul ::marker, .editor-content ol ::marker { color: #e4e4e7; }`}</style>
-					<MemoHistoryPlugin />
-					<MemoListPlugin />
-					<MemoOnChangePlugin onChange={handleEditorChange} />
+					className={`editor-content custom-scrollbar relative flex flex-1 flex-col ${editorMode === 'rich-text' ? 'overflow-y-auto' : 'overflow-hidden'} min-h-0 p-0`}>
+					{editorMode === 'rich-text' ? (
+						<RichTextEditor
+							contentEditable={contentEditable}
+							placeholder={placeholder}
+							errorBoundary={errorBoundary}
+							handleEditorChange={handleEditorChange}
+						/>
+					) : (
+						<SourceEditor htmlRef={htmlRef} />
+					)}
 				</div>
 
 				<div className='mt-auto border-t border-zinc-900 bg-zinc-950/50 p-3'>

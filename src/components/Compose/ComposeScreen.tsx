@@ -1,16 +1,18 @@
 import { useRef, useCallback, useMemo, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LexicalComposer } from '@lexical/react/LexicalComposer'
+import { EditorState, LexicalEditor } from 'lexical'
 import { HeadingNode, QuoteNode } from '@lexical/rich-text'
 import { ListNode, ListItemNode } from '@lexical/list'
 import { LinkNode } from '@lexical/link'
+import { $generateHtmlFromNodes } from '@lexical/html'
 import { X, Minimize2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useDraftStore } from '@/stores/draftStore'
 import { useDragging, useLinkTooltip } from './useCompose'
-import EditorContent from './EditorContent'
+import EditorContent from './Editor/EditorContent'
 
 interface ComposeScreenProps {
 	open: boolean
@@ -41,17 +43,12 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	const [changeCount, setChangeCount] = useState(0)
 
 	const handleEditorChange = useCallback(
-		(editorState: any, editor: any) => {
+		(editorState: EditorState, editor: LexicalEditor) => {
 			if (isHydratingRef.current) return
 			editorState.read(() => {
-				// Note: using $generateHtmlFromNodes directly if possible
-				import('@lexical/html').then(({ $generateHtmlFromNodes }) => {
-					editorState.read(() => {
-						htmlRef.current = $generateHtmlFromNodes(editor)
-						setChangeCount((c) => c + 1)
-						markDirty()
-					})
-				})
+				htmlRef.current = $generateHtmlFromNodes(editor)
+				setChangeCount((c) => c + 1)
+				markDirty()
 			})
 		},
 		[markDirty]

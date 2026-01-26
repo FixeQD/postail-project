@@ -10,10 +10,15 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 	isDirty: false,
 	isSaving: false,
 	lastSavedAt: undefined,
+	editorMode: 'rich-text',
 
 	// Actions
 	setCurrentDraft: (draft: ComposeDraft | null) => {
 		set({ currentDraft: draft })
+	},
+
+	setEditorMode: (mode: 'rich-text' | 'source') => {
+		set({ editorMode: mode })
 	},
 
 	updateCurrentDraft: (updates: Partial<ComposeDraft>) => {

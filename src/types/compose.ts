@@ -40,10 +40,12 @@ export interface DraftState {
 	isDirty: boolean
 	isSaving: boolean
 	lastSavedAt?: Date
+	editorMode: 'rich-text' | 'source'
 
 	// Actions
 	setCurrentDraft: (draft: ComposeDraft | null) => void
 	updateCurrentDraft: (updates: Partial<ComposeDraft>) => void
+	setEditorMode: (mode: 'rich-text' | 'source') => void
 	addRecipient: (type: 'to' | 'cc' | 'bcc', recipient: EmailAddress) => void
 	removeRecipient: (type: 'to' | 'cc' | 'bcc', email: string) => void
 	setSubject: (subject: string) => void
