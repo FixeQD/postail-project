@@ -16,6 +16,7 @@ fn main() {
 
             let mut child = Command::new(&current_exe)
                 .args(&args)
+                .env("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
                 .env("POSTAIL_RECOVERY_MODE", "0")
                 .spawn()
                 .expect("Failed to spawn process");
