@@ -1,15 +1,15 @@
 import { useRef, useEffect, memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { LexicalEditor, EditorState, $getRoot } from 'lexical'
+import { LexicalEditor, EditorState } from 'lexical'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { ContentEditable } from '@lexical/react/LexicalContentEditable'
-import { $generateNodesFromDOM } from '@lexical/html'
 import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useDraftStore } from '@/stores/draftStore'
 import EditorToolbar from './EditorToolbar'
 import RichTextEditor from './Modes/RichTextEditor'
 import SourceEditor from './Modes/SourceEditor'
+import { htmlToLexical } from './utils/conversion'
 
 interface EditorContentProps {
 	onOpenChange: (open: boolean) => void
@@ -72,15 +72,8 @@ export const EditorContent = memo(
 			const timeoutId = setTimeout(() => {
 				try {
 					isHydratingRef.current = true
-					editor.update(() => {
-						const root = $getRoot()
-						const parser = new DOMParser()
-						const dom = parser.parseFromString(currentDraft.body, 'text/html')
-						const nodes = $generateNodesFromDOM(editor, dom.body)
-						root.clear()
-						root.append(...nodes)
-						lastHydratedIdRef.current = currentDraft!.id || null
-					})
+					htmlToLexical(editor, currentDraft.body)
+					lastHydratedIdRef.current = currentDraft!.id || null
 					htmlRef.current = currentDraft!.body
 					markClean()
 					isHydratingRef.current = false
@@ -99,6 +92,16 @@ export const EditorContent = memo(
 			markClean,
 			editorMode,
 		])
+
+		// Synchronize Source -> Rich Text when switching modes
+		useEffect(() => {
+			if (editorMode !== 'rich-text' || !editor) return
+
+			const currentMonacoHtml = htmlRef.current
+			if (!currentMonacoHtml) return
+
+			htmlToLexical(editor, currentMonacoHtml)
+		}, [editorMode, editor, htmlRef])
 
 		return (
 			<>
