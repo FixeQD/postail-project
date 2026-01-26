@@ -33,9 +33,9 @@
     - [x] 10.2 — State: Set up Zustand/Redux store for draft state (recipients, subject, body)
     - [x] 10.3 — Editor: Basic Lexical setup with RichTextPlugin and ContentEditable
     - [x] 10.4 — Editor: Implement Toolbar component with Bold, Italic, Underline, and Strikethrough (plus active states, lists & link support)
-        - [x] 10.5 — Editor: Add ListPlugin (Ordered/Unordered) and LinkPlugin support
-    - [ ] 10.6 — Editor: Implement "Source Mode" skeleton using Monaco Editor (basic mounting)
-    - [ ] 10.7 — Editor: Create ModeToggle UI and logic for switching between Lexical and Monaco
+    - [x] 10.5 — Editor: Add ListPlugin (Ordered/Unordered) and LinkPlugin support
+    - [x] 10.6 — Editor: Implement "Source Mode" skeleton using Monaco Editor (basic mounting)
+    - [x] 10.7 — Editor: Create ModeToggle UI and logic for switching between Lexical and Monaco
     - [x] 10.8 — Rust: Implement `process_email_html` command with `css-inline` basic integration
     - [x] 10.9 — Rust: Configure `ammonia` Builder with strict whitelist for email safety
     - [ ] 10.10 — Rust: Add custom `attribute_filter` in Ammonia to catch and sanitize style properties
