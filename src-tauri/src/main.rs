@@ -2,7 +2,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::env;
-use std::panic;
 use std::process::{Command, exit};
 
 fn main() {
@@ -17,6 +16,7 @@ fn main() {
 
             let mut child = Command::new(&current_exe)
                 .args(&args)
+                .env("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
                 .env("POSTAIL_RECOVERY_MODE", "0")
                 .spawn()
                 .expect("Failed to spawn process");
