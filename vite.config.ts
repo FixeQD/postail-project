@@ -1,13 +1,23 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type UserConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import monacoEditorPluginModule from 'vite-plugin-monaco-editor'
 import path from 'path'
+
+// fix for ESM/CommonJS mismatch in some environments
+const monacoEditorPlugin = (monacoEditorPluginModule as any).default || monacoEditorPluginModule
 
 const host = process.env.TAURI_DEV_HOST
 
 // https://vite.dev/config/
-export default defineConfig(async () => ({
-	plugins: [react(), tailwindcss()],
+export default defineConfig((): UserConfig => ({
+	plugins: [
+		react(),
+		tailwindcss(),
+		monacoEditorPlugin({
+			languages: ['html', 'css'],
+		}),
+	],
 
 	// Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
 	//
@@ -33,6 +43,25 @@ export default defineConfig(async () => ({
 	resolve: {
 		alias: {
 			'@': path.resolve(__dirname, './src'),
+		},
+	},
+	build: {
+		minify: 'terser',
+		terserOptions: {
+			compress: {
+				drop_console: true,
+				drop_debugger: true,
+			},
+		},
+		chunkSizeWarningLimit: 1000,
+		rollupOptions: {
+			output: {
+				manualChunks: {
+					monaco: ['monaco-editor/esm/vs/editor/editor.api', 'monaco-editor/esm/vs/language/html/monaco.contribution', 'monaco-editor/esm/vs/language/css/monaco.contribution'],
+					lexical: ['lexical', '@lexical/html'],
+					vendor: ['react', 'react-dom', 'framer-motion', 'lucide-react'],
+				},
+			},
 		},
 	},
 }))
