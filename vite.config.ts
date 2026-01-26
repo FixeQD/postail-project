@@ -53,7 +53,7 @@ export default defineConfig((): UserConfig => ({
 				drop_debugger: true,
 			},
 		},
-		chunkSizeWarningLimit: 1000,
+		chunkSizeWarningLimit: 4000,
 		rollupOptions: {
 			output: {
 				manualChunks: {
