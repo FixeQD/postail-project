@@ -656,6 +656,16 @@ async fn delete_draft(id: String) -> Result<(), String> {
     .map_err(|e| e.to_string())?
 }
 
+#[tauri::command]
+fn sanitize_email_html(html: String) -> String {
+    crate::utils::sanitizer::sanitize_email_html(&html)
+}
+
+#[tauri::command]
+fn process_email_content(html: String) -> crate::utils::sanitizer::SanitizeResult {
+    crate::utils::sanitizer::sanitize_email_html_with_details(&html)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()
@@ -703,7 +713,9 @@ pub fn run() {
             run_maintenance,
             save_draft,
             list_drafts,
-            delete_draft
+            delete_draft,
+            sanitize_email_html,
+            process_email_content
         ])
         .register_uri_scheme_protocol("postail", protocol::handler)
         .run(tauri::generate_context!())

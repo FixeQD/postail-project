@@ -3912,6 +3912,7 @@ dependencies = [
  "lazy_static",
  "lettre",
  "mailparse",
+ "maplit",
  "portpicker",
  "rand 0.9.2",
  "reqwest 0.13.1",

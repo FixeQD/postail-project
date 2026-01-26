@@ -38,7 +38,7 @@
     - [x] 10.7 — Editor: Create ModeToggle UI and logic for switching between Lexical and Monaco
     - [x] 10.8 — Rust: Implement `process_email_html` command with `css-inline` basic integration
     - [x] 10.9 — Rust: Configure `ammonia` Builder with strict whitelist for email safety
-    - [ ] 10.10 — Rust: Add custom `attribute_filter` in Ammonia to catch and sanitize style properties
+    - [x] 10.10 — Rust: Add custom `attribute_filter` in Ammonia to catch and sanitize style properties
     - [ ] 10.11 — Translation: Implement Lexical -> HTML serializer (using @lexical/html)
     - [ ] 10.12 — Translation: Implement HTML -> Lexical deserializer for loading drafts/source mode
     - [ ] 10.13 — UI: Build AddressInput component for "To" field with chip-style rendering
