@@ -664,6 +664,24 @@ fn search_contacts(query: String, limit: u32) -> Result<Vec<crate::db::Contact>,
 }
 
 #[tauri::command]
+async fn add_attachment(path: String) -> Result<crate::db::DraftAttachment, String> {
+    tokio::task::spawn_blocking(move || {
+        crate::db::attachments::add_attachment(&path).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn remove_attachment(id: String) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        crate::db::attachments::remove_attachment(&id).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 fn sanitize_email_html(html: String) -> String {
     crate::utils::sanitizer::sanitize_email_html(&html)
 }
@@ -686,6 +704,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             utils::oauth_server::start(app.handle().clone());
 
@@ -722,6 +741,8 @@ pub fn run() {
             list_drafts,
             delete_draft,
             search_contacts,
+            add_attachment,
+            remove_attachment,
             sanitize_email_html,
             process_email_content
         ])

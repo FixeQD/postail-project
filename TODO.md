@@ -47,7 +47,7 @@
     - [x] 10.16 — UI: Create SubjectInput with auto-focus and "Tab" navigation logic
     - [x] 10.17 — DB: Implement `save_draft` Tauri command (SQL INSERT/UPDATE for drafts table)
     - [x] 10.18 — Logic: Add debounced auto-save effect to the Compose screen (30s interval)
-    - [ ] 10.19 — Attachments: Create `upload_attachment` command (move file to encrypted storage)
+    - [x] 10.19 — Attachments: Create `upload_attachment` command (move file to encrypted storage)
     - [ ] 10.20 — UI: Build AttachmentList component with file metadata and "Remove" action
     - [ ] 10.21 — Editor: Implement Drag-and-Drop file listener for the editor area
     - [ ] 10.22 — Editor: Handle inline image pasting (Clipboard API -> Asset URL conversion)

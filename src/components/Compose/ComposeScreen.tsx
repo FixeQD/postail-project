@@ -35,6 +35,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		markDirty,
 		addRecipient,
 		removeRecipient,
+		removeAttachment,
 	} = useDraftStore()
 
 	const editorRef = useRef<HTMLDivElement>(null)
@@ -196,6 +197,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 				/>
 			</div>
 
+
 			<LexicalComposer initialConfig={initialConfig}>
 				<EditorContent
 					onOpenChange={onOpenChange}
@@ -203,6 +205,8 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 					htmlRef={htmlRef}
 					isHydratingRef={isHydratingRef}
 					handleEditorChange={handleEditorChange}
+					attachments={currentDraft?.attachments || []}
+					onRemoveAttachment={removeAttachment}
 				/>
 			</LexicalComposer>
 

@@ -1,5 +1,8 @@
 import { useEffect, useState, useCallback, useRef, memo } from 'react'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
+import { open } from '@tauri-apps/plugin-dialog'
+import { invoke } from '@tauri-apps/api/core'
+import type { EmailAttachment } from '@/types/compose'
 import {
 	$getSelection,
 	$isRangeSelection,
@@ -139,18 +142,47 @@ const LinkPopover = memo(({ editor, formats, linkData }: any) => {
 export function EditorToolbar() {
 	const [editor] = useLexicalComposerContext()
 	const { formats, linkData } = useEditorFormats(editor, false)
-	const { editorMode, setEditorMode } = useDraftStore()
+	const { editorMode, setEditorMode, addAttachment } = useDraftStore()
 
 	const exec = (cmd: any, val?: any) => {
 		editor.dispatchCommand(cmd, val)
 		editor.focus()
 	}
 
+	const handleAttachment = async () => {
+		try {
+			const selected = await open({
+				multiple: true,
+				title: 'Select attachments',
+			})
+
+			if (!selected) return
+
+			const paths = Array.isArray(selected) ? selected : [selected]
+
+			for (const path of paths) {
+				if (!path) continue
+				try {
+					const attachment = await invoke<EmailAttachment>('add_attachment', { path })
+					addAttachment({ ...attachment, path })
+				} catch (err) {
+					console.error('Failed to add attachment:', err)
+				}
+			}
+		} catch (err) {
+			console.error('Failed to open file picker:', err)
+		}
+	}
+
 	return (
 		<div className='flex items-center gap-2'>
 			{editorMode === 'rich-text' && (
 				<>
-					<Button variant='ghost' size='icon' className='h-9 w-9 text-zinc-400 hover:bg-zinc-800'>
+					<Button
+						variant='ghost'
+						size='icon'
+						className='h-9 w-9 text-zinc-400 hover:bg-zinc-800'
+						onClick={handleAttachment}>
 						<Paperclip className='h-5 w-5' />
 					</Button>
 					<Button

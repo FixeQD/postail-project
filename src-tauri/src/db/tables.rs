@@ -88,6 +88,9 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
             ("subject", "TEXT"),
             ("body", "TEXT"),
             ("to_json", "TEXT"),
+            ("cc_json", "TEXT"),
+            ("bcc_json", "TEXT"),
+            ("attachments_json", "TEXT"),
             ("created_at", "INTEGER NOT NULL"),
             ("updated_at", "INTEGER NOT NULL"),
             (

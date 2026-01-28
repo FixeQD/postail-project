@@ -10,6 +10,7 @@ export interface EmailAttachment {
 	size: number
 	cid?: string
 	inline: boolean
+	path?: string
 }
 
 export interface ComposeDraft {

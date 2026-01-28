@@ -1,4 +1,5 @@
 pub mod accounts;
+pub mod attachments;
 pub mod backup;
 pub mod contacts;
 pub mod drafts;

@@ -10,6 +10,7 @@ import EditorToolbar from './EditorToolbar'
 import RichTextEditor from './Modes/RichTextEditor'
 import SourceEditor from './Modes/SourceEditor'
 import { htmlToLexical } from './utils/conversion'
+import { AttachmentList } from '../AttachmentList'
 
 interface EditorContentProps {
 	onOpenChange: (open: boolean) => void
@@ -17,6 +18,8 @@ interface EditorContentProps {
 	htmlRef: React.MutableRefObject<string>
 	isHydratingRef: React.MutableRefObject<boolean>
 	handleEditorChange: (editorState: EditorState, editor: LexicalEditor) => void
+	attachments: any[]
+	onRemoveAttachment: (id: string) => void
 }
 
 export const EditorContent = memo(
@@ -26,6 +29,8 @@ export const EditorContent = memo(
 		htmlRef,
 		isHydratingRef,
 		handleEditorChange,
+		attachments,
+		onRemoveAttachment,
 	}: EditorContentProps) => {
 		const { t } = useTranslation()
 		const {
@@ -119,6 +124,8 @@ export const EditorContent = memo(
 						<SourceEditor htmlRef={htmlRef} />
 					)}
 				</div>
+
+				<AttachmentList attachments={attachments} onRemove={onRemoveAttachment} />
 
 				<div className='mt-auto border-t border-zinc-900 bg-zinc-950/50 p-3'>
 					<div className='flex items-center justify-between'>
