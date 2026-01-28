@@ -28,6 +28,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		isComposing,
 		isDirty,
 		setSubject,
+		updateCurrentDraft,
 		startComposing,
 		stopComposing,
 		saveDraft,
@@ -43,6 +44,8 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	const htmlRef = useRef('')
 	const isHydratingRef = useRef(false)
 	const [changeCount, setChangeCount] = useState(0)
+	const [showCc, setShowCc] = useState(false)
+	const [showBcc, setShowBcc] = useState(false)
 
 	const handleEditorChange = useCallback(
 		(editorState: EditorState, editor: LexicalEditor) => {
@@ -80,6 +83,12 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		const timer = setTimeout(() => saveDraft(htmlRef.current), 3000)
 		return () => clearTimeout(timer)
 	}, [isDirty, currentDraft, saveDraft, changeCount])
+
+	// Automatically show Cc/Bcc fields if they have recipients
+	useEffect(() => {
+		if (currentDraft?.cc && currentDraft.cc.length > 0) setShowCc(true)
+		if (currentDraft?.bcc && currentDraft.bcc.length > 0) setShowBcc(true)
+	}, [currentDraft])
 
 	if (!open) return null
 
@@ -121,7 +130,65 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 					onAdd={(recipient) => addRecipient('to', recipient)}
 					onRemove={(email) => removeRecipient('to', email)}
 					placeholder={t('compose.recipients')}
+					rightElement={
+						<div className='flex gap-2 mr-2'>
+							{!showCc && (
+								<button
+									type='button'
+									onClick={() => setShowCc(true)}
+									className='text-xs font-medium text-zinc-500 hover:text-zinc-300 transition-colors'>
+									{t('compose.cc')}
+								</button>
+							)}
+							{!showBcc && (
+								<button
+									type='button'
+									onClick={() => setShowBcc(true)}
+									className='text-xs font-medium text-zinc-500 hover:text-zinc-300 transition-colors'>
+									{t('compose.bcc')}
+								</button>
+							)}
+						</div>
+					}
 				/>
+				{showCc && (
+					<AddressInput
+						label={t('compose.cc')}
+						recipients={currentDraft?.cc || []}
+						onAdd={(recipient) => addRecipient('cc', recipient)}
+						onRemove={(email) => removeRecipient('cc', email)}
+						rightElement={
+							<button
+								type='button'
+								onClick={() => {
+									setShowCc(false)
+									updateCurrentDraft({ cc: [] })
+								}}
+								className='mr-2 text-zinc-500 hover:text-zinc-300 transition-colors'>
+								<X className='h-3.5 w-3.5' />
+							</button>
+						}
+					/>
+				)}
+				{showBcc && (
+					<AddressInput
+						label={t('compose.bcc')}
+						recipients={currentDraft?.bcc || []}
+						onAdd={(recipient) => addRecipient('bcc', recipient)}
+						onRemove={(email) => removeRecipient('bcc', email)}
+						rightElement={
+							<button
+								type='button'
+								onClick={() => {
+									setShowBcc(false)
+									updateCurrentDraft({ bcc: [] })
+								}}
+								className='mr-2 text-zinc-500 hover:text-zinc-300 transition-colors'>
+								<X className='h-3.5 w-3.5' />
+							</button>
+						}
+					/>
+				)}
 				<Input
 					placeholder={t('compose.subject')}
 					value={currentDraft?.subject || ''}

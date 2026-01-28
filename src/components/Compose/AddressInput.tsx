@@ -11,6 +11,7 @@ interface AddressInputProps {
 	onRemove: (email: string) => void
 	placeholder?: string
 	className?: string
+	rightElement?: React.ReactNode
 }
 
 export function AddressInput({
@@ -20,6 +21,7 @@ export function AddressInput({
 	onRemove,
 	placeholder,
 	className,
+	rightElement,
 }: AddressInputProps) {
 	const [inputValue, setInputValue] = useState('')
 	const [isFocused, setIsFocused] = useState(false)
@@ -104,6 +106,8 @@ export function AddressInput({
 				placeholder={recipients.length === 0 ? placeholder : ''}
 				className='min-w-[120px] flex-1 bg-transparent py-1 text-sm text-zinc-100 outline-none placeholder:text-zinc-600'
 			/>
+
+			{rightElement && <div className='ml-auto flex items-center pl-2'>{rightElement}</div>}
 		</div>
 	)
 }

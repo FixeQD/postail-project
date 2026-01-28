@@ -42,7 +42,7 @@
     - [x] 10.11 — Translation: Implement Lexical -> HTML serializer (using @lexical/html)
     - [x] 10.12 — Translation: Implement HTML -> Lexical deserializer for loading drafts/source mode
     - [x] 10.13 — UI: Build AddressInput component for "To" field with chip-style rendering
-    - [ ] 10.14 — UI: Extend AddressInput to support Cc and Bcc toggle-able fields
+    - [x] 10.14 — UI: Extend AddressInput to support Cc and Bcc toggle-able fields
     - [ ] 10.15 — Logic: Implement local SQLite contact suggestions for AddressInput autocomplete
     - [ ] 10.16 — UI: Create SubjectInput with auto-focus and "Tab" navigation logic
     - [x] 10.17 — DB: Implement `save_draft` Tauri command (SQL INSERT/UPDATE for drafts table)

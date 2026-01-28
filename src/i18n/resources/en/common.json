@@ -28,6 +28,8 @@
 		"subject": "Subject",
 		"writeSomething": "Write something...",
 		"noSubject": "No subject",
-		"to": "To"
+		"to": "To",
+		"cc": "Cc",
+		"bcc": "Bcc"
 	}
 }
