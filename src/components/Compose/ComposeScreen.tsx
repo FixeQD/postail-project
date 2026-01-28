@@ -8,12 +8,12 @@ import { LinkNode } from '@lexical/link'
 import { X, Minimize2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { useDraftStore } from '@/stores/draftStore'
 import { useDragging, useLinkTooltip } from './useCompose'
 import EditorContent from './Editor/EditorContent'
 import { lexicalToHtml } from './Editor/utils/conversion'
 import { AddressInput } from './AddressInput'
+import { SubjectInput } from './SubjectInput'
 
 interface ComposeScreenProps {
 	open: boolean
@@ -189,11 +189,10 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 						}
 					/>
 				)}
-				<Input
+				<SubjectInput
 					placeholder={t('compose.subject')}
 					value={currentDraft?.subject || ''}
-					onChange={(e) => setSubject(e.target.value)}
-					className='h-11 rounded-none border-0 border-b border-zinc-900 bg-transparent px-0 text-sm font-medium focus-visible:ring-0'
+					onChange={setSubject}
 				/>
 			</div>
 

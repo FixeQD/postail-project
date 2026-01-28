@@ -44,7 +44,7 @@
     - [x] 10.13 — UI: Build AddressInput component for "To" field with chip-style rendering
     - [x] 10.14 — UI: Extend AddressInput to support Cc and Bcc toggle-able fields
     - [x] 10.15 — Logic: Implement local SQLite contact suggestions for AddressInput autocomplete with FTS5
-    - [ ] 10.16 — UI: Create SubjectInput with auto-focus and "Tab" navigation logic
+    - [x] 10.16 — UI: Create SubjectInput with auto-focus and "Tab" navigation logic
     - [x] 10.17 — DB: Implement `save_draft` Tauri command (SQL INSERT/UPDATE for drafts table)
     - [x] 10.18 — Logic: Add debounced auto-save effect to the Compose screen (30s interval)
     - [ ] 10.19 — Attachments: Create `upload_attachment` command (move file to encrypted storage)
