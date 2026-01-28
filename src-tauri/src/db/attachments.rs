@@ -1,7 +1,10 @@
 use crate::error::DBError;
+use dirs;
 use std::fs;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
+use sha2::{Sha256, Digest};
+use std::io::{Read, BufReader};
 
 pub fn get_attachments_dir() -> Result<PathBuf, DBError> {
     let data_dir = dirs::data_dir()
@@ -43,6 +46,18 @@ pub fn add_attachment(source_path: &str) -> Result<crate::db::DraftAttachment, D
 
     let size = fs::metadata(source).map_err(DBError::Io)?.len();
 
+    // Compute SHA-256 hash
+    let file = fs::File::open(source).map_err(DBError::Io)?;
+    let mut reader = BufReader::new(file);
+    let mut hasher = Sha256::new();
+    let mut buffer = [0; 8192];
+    loop {
+        let count = reader.read(&mut buffer).map_err(DBError::Io)?;
+        if count == 0 { break; }
+        hasher.update(&buffer[..count]);
+    }
+    let hash = format!("{:x}", hasher.finalize());
+
     let target_dir = get_attachments_dir()?;
     let target_path = target_dir.join(&id);
 
@@ -53,6 +68,7 @@ pub fn add_attachment(source_path: &str) -> Result<crate::db::DraftAttachment, D
         filename,
         content_type: content_type.to_string(),
         size,
+        hash,
     })
 }
 

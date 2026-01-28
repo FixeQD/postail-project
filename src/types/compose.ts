@@ -11,6 +11,7 @@ export interface EmailAttachment {
 	cid?: string
 	inline: boolean
 	path?: string
+	hash: string
 }
 
 export interface ComposeDraft {

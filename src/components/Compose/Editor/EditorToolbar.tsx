@@ -2,7 +2,9 @@ import { useEffect, useState, useCallback, useRef, memo } from 'react'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { open } from '@tauri-apps/plugin-dialog'
 import { invoke } from '@tauri-apps/api/core'
+import { useTranslation } from 'react-i18next'
 import type { EmailAttachment } from '@/types/compose'
+import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 import {
 	$getSelection,
 	$isRangeSelection,
@@ -140,9 +142,13 @@ const LinkPopover = memo(({ editor, formats, linkData }: any) => {
 })
 
 export function EditorToolbar() {
+	const { t } = useTranslation()
 	const [editor] = useLexicalComposerContext()
 	const { formats, linkData } = useEditorFormats(editor, false)
-	const { editorMode, setEditorMode, addAttachment } = useDraftStore()
+	const { currentDraft, editorMode, setEditorMode, addAttachment } = useDraftStore()
+
+	const [pendingAttachment, setPendingAttachment] = useState<{ attachment: EmailAttachment, path: string } | null>(null)
+	const [dialogOpen, setDialogOpen] = useState(false)
 
 	const exec = (cmd: any, val?: any) => {
 		editor.dispatchCommand(cmd, val)
@@ -164,7 +170,16 @@ export function EditorToolbar() {
 				if (!path) continue
 				try {
 					const attachment = await invoke<EmailAttachment>('add_attachment', { path })
-					addAttachment({ ...attachment, path })
+					const isDuplicate = currentDraft?.attachments?.some(a => a.hash === attachment.hash)
+					
+					if (isDuplicate) {
+						setPendingAttachment({ attachment, path })
+						setDialogOpen(true)
+						// For simplicity in this session, we stop at the first duplicate. 
+						break;
+					} else {
+						addAttachment({ ...attachment, path })
+					}
 				} catch (err) {
 					console.error('Failed to add attachment:', err)
 				}
@@ -172,6 +187,14 @@ export function EditorToolbar() {
 		} catch (err) {
 			console.error('Failed to open file picker:', err)
 		}
+	}
+
+	const confirmDuplicate = () => {
+		if (pendingAttachment) {
+			addAttachment({ ...pendingAttachment.attachment, path: pendingAttachment.path })
+			setPendingAttachment(null)
+		}
+		setDialogOpen(false)
 	}
 
 	return (
@@ -242,6 +265,16 @@ export function EditorToolbar() {
 				onClick={() => setEditorMode(editorMode === 'rich-text' ? 'source' : 'rich-text')}>
 				{editorMode === 'rich-text' ? <Code className='h-4 w-4' /> : <FileType className='h-4 w-4' />}
 			</Button>
+
+			<ConfirmationDialog
+				open={dialogOpen}
+				onOpenChange={setDialogOpen}
+				title={t('compose.duplicateTitle')}
+				description={t('compose.duplicateMessage', { filename: pendingAttachment?.attachment.filename })}
+				confirmLabel={t('compose.addAnyway')}
+				cancelLabel={t('actions.cancel')}
+				onConfirm={confirmDuplicate}
+			/>
 		</div>
 	)
 }

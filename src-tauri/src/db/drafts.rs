@@ -10,6 +10,7 @@ pub struct DraftAttachment {
     pub filename: String,
     pub content_type: String,
     pub size: u64,
+    pub hash: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
