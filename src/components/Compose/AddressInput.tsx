@@ -1,8 +1,15 @@
-import React, { useState, useRef, KeyboardEvent } from 'react'
-import { X } from 'lucide-react'
+import React, { useState, useRef, KeyboardEvent, useEffect } from 'react'
+import { X, User } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { invoke } from '@tauri-apps/api/core'
 import { cn } from '@/lib/utils'
 import type { EmailAddress } from '@/types/compose'
+
+interface Contact {
+	id: number
+	email: string
+	name: string | null
+}
 
 interface AddressInputProps {
 	label: string
@@ -25,7 +32,34 @@ export function AddressInput({
 }: AddressInputProps) {
 	const [inputValue, setInputValue] = useState('')
 	const [isFocused, setIsFocused] = useState(false)
+	const [suggestions, setSuggestions] = useState<Contact[]>([])
+	const [selectedIndex, setSelectedIndex] = useState(0)
 	const inputRef = useRef<HTMLInputElement>(null)
+
+	useEffect(() => {
+		if (inputValue.length < 2) {
+			setSuggestions([])
+			return
+		}
+
+		const fetchSuggestions = async () => {
+			try {
+				const results = await invoke<Contact[]>('search_contacts', {
+					query: inputValue,
+					limit: 5,
+				})
+				// Filter out already added recipients
+				const filtered = results.filter((c) => !recipients.some((r) => r.email === c.email))
+				setSuggestions(filtered)
+				setSelectedIndex(0)
+			} catch (err) {
+				console.error('Failed to fetch suggestions:', err)
+			}
+		}
+
+		const timer = setTimeout(fetchSuggestions, 150)
+		return () => clearTimeout(timer)
+	}, [inputValue, recipients])
 
 	const validateEmail = (email: string) => {
 		return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -41,13 +75,31 @@ export function AddressInput({
 
 	const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
 		if (e.key === 'Enter' || e.key === ',' || e.key === 'Tab') {
-			if (inputValue) {
+			if (suggestions.length > 0 && isFocused) {
+				e.preventDefault()
+				const contact = suggestions[selectedIndex]
+				handleAddRecipientWithContact(contact)
+			} else if (inputValue) {
 				e.preventDefault()
 				handleAddRecipient(inputValue)
 			}
+		} else if (e.key === 'ArrowDown') {
+			e.preventDefault()
+			setSelectedIndex((prev) => (prev + 1) % suggestions.length)
+		} else if (e.key === 'ArrowUp') {
+			e.preventDefault()
+			setSelectedIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length)
 		} else if (e.key === 'Backspace' && !inputValue && recipients.length > 0) {
 			onRemove(recipients[recipients.length - 1].email)
+		} else if (e.key === 'Escape') {
+			setSuggestions([])
 		}
+	}
+
+	const handleAddRecipientWithContact = (contact: Contact) => {
+		onAdd({ email: contact.email, name: contact.name || undefined })
+		setInputValue('')
+		setSuggestions([])
 	}
 
 	const handlePaste = (e: React.ClipboardEvent) => {
@@ -60,7 +112,7 @@ export function AddressInput({
 	return (
 		<div
 			className={cn(
-				'flex min-h-11 w-full flex-wrap items-center gap-2 border-b border-zinc-900 bg-transparent px-0 py-1.5 transition-colors',
+				'relative flex min-h-11 w-full flex-wrap items-center gap-2 border-b border-zinc-900 bg-transparent px-0 py-1.5 transition-colors',
 				isFocused && 'border-zinc-700',
 				className
 			)}
@@ -108,6 +160,39 @@ export function AddressInput({
 			/>
 
 			{rightElement && <div className='ml-auto flex items-center pl-2'>{rightElement}</div>}
+
+			<AnimatePresence>
+				{isFocused && suggestions.length > 0 && (
+					<motion.div
+						initial={{ opacity: 0, y: -10 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -10 }}
+						className='absolute top-full left-0 z-[60] mt-1 w-full overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 shadow-xl'>
+						{suggestions.map((contact, index) => (
+							<div
+								key={contact.id}
+								className={cn(
+									'flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors',
+									index === selectedIndex ? 'bg-zinc-800' : 'hover:bg-zinc-800/50'
+								)}
+								onMouseDown={(e) => {
+									e.preventDefault() // Prevents focus loss before selection
+									handleAddRecipientWithContact(contact)
+								}}>
+								<div className='flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-zinc-400'>
+									<User className='h-4 w-4' />
+								</div>
+								<div className='flex flex-col'>
+									<span className='text-sm font-medium text-zinc-200'>
+										{contact.name || contact.email.split('@')[0]}
+									</span>
+									<span className='text-xs text-zinc-500'>{contact.email}</span>
+								</div>
+							</div>
+						))}
+					</motion.div>
+				)}
+			</AnimatePresence>
 		</div>
 	)
 }

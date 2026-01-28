@@ -657,6 +657,13 @@ async fn delete_draft(id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn search_contacts(query: String, limit: u32) -> Result<Vec<crate::db::Contact>, String> {
+    let conn_guard = DB_CONN.lock().unwrap();
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+    crate::db::search_contacts(conn, &query, limit).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn sanitize_email_html(html: String) -> String {
     crate::utils::sanitizer::sanitize_email_html(&html)
 }
@@ -714,6 +721,7 @@ pub fn run() {
             save_draft,
             list_drafts,
             delete_draft,
+            search_contacts,
             sanitize_email_html,
             process_email_content
         ])
