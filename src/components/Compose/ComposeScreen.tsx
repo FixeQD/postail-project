@@ -12,8 +12,8 @@ import { useDraftStore } from '@/stores/draftStore'
 import { useDragging, useLinkTooltip } from './useCompose'
 import EditorContent from './Editor/EditorContent'
 import { lexicalToHtml } from './Editor/utils/conversion'
-import { AddressInput } from './AddressInput'
-import { SubjectInput } from './SubjectInput'
+import { AddressInput } from './Inputs/AddressInput'
+import { SubjectInput } from './Inputs/SubjectInput'
 
 interface ComposeScreenProps {
 	open: boolean
