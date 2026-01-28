@@ -13,6 +13,7 @@ import { useDraftStore } from '@/stores/draftStore'
 import { useDragging, useLinkTooltip } from './useCompose'
 import EditorContent from './Editor/EditorContent'
 import { lexicalToHtml } from './Editor/utils/conversion'
+import { AddressInput } from './AddressInput'
 
 interface ComposeScreenProps {
 	open: boolean
@@ -27,11 +28,12 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		isComposing,
 		isDirty,
 		setSubject,
-		updateCurrentDraft,
 		startComposing,
 		stopComposing,
 		saveDraft,
 		markDirty,
+		addRecipient,
+		removeRecipient,
 	} = useDraftStore()
 
 	const editorRef = useRef<HTMLDivElement>(null)
@@ -113,14 +115,12 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 			</div>
 
 			<div className='flex flex-col px-4 pt-1'>
-				<Input
+				<AddressInput
+					label={t('compose.to')}
+					recipients={currentDraft?.to || []}
+					onAdd={(recipient) => addRecipient('to', recipient)}
+					onRemove={(email) => removeRecipient('to', email)}
 					placeholder={t('compose.recipients')}
-					value={currentDraft?.to.map((r) => r.email).join(', ') || ''}
-					onChange={(e) => {
-						const emails = e.target.value.split(',').map((s) => s.trim()).filter(Boolean)
-						updateCurrentDraft({ to: emails.map((email) => ({ email })) })
-					}}
-					className='h-11 rounded-none border-0 border-b border-zinc-900 bg-transparent px-0 text-sm focus-visible:ring-0'
 				/>
 				<Input
 					placeholder={t('compose.subject')}
