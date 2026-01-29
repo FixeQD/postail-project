@@ -33,6 +33,11 @@
 		"bcc": "Bcc",
 		"duplicateTitle": "Duplicate Attachment",
 		"duplicateMessage": "The file '{{filename}}' has already been attached. Do you want to add it again?",
-		"addAnyway": "Add anyway"
+		"addAnyway": "Add anyway",
+		"fileInfo": {
+			"hash": "Hash",
+			"type": "Type",
+			"path": "Path"
+		}
 	}
 }
