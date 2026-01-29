@@ -14,6 +14,7 @@ import EditorContent from './Editor/EditorContent'
 import { lexicalToHtml } from './Editor/utils/conversion'
 import { AddressInput } from './Inputs/AddressInput'
 import { SubjectInput } from './Inputs/SubjectInput'
+import { ImageNode } from './Editor/Nodes/ImageNode'
 
 interface ComposeScreenProps {
 	open: boolean
@@ -69,7 +70,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 				list: { listitem: '!ml-4', nested: { listitem: '!ml-8' }, ol: '!list-decimal !ml-4', ul: '!list-disc !ml-4' },
 				link: 'underline text-cyan-400',
 			},
-			nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, LinkNode],
+			nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, LinkNode, ImageNode],
 			onError: (err: Error) => console.error(err),
 		}),
 		[]
