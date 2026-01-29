@@ -32,6 +32,7 @@ impl WindowsTpmStore {
         use windows::Win32::Foundation::HWND;
         use windows::Win32::Security::Cryptography::NCryptCreateProtectionDescriptor;
         use windows::Win32::Security::Cryptography::NCryptProtectSecret;
+        use windows::Win32::Security::Cryptography::NCryptFreeBuffer;
 
         let descriptor_string: Vec<u16> = "LOCAL=user\0".encode_utf16().collect();
 
@@ -61,7 +62,7 @@ impl WindowsTpmStore {
             let sealed =
                 std::slice::from_raw_parts(protected_blob, protected_size as usize).to_vec();
 
-            libc::free(protected_blob as *mut libc::c_void);
+            let _ = NCryptFreeBuffer(protected_blob as *mut _);
 
             Ok(sealed)
         }
@@ -72,6 +73,7 @@ impl WindowsTpmStore {
         use windows::Win32::Foundation::HWND;
         use windows::Win32::Security::Cryptography::NCryptUnprotectSecret;
         use windows::Win32::Security::Cryptography::NCRYPT_SILENT_FLAG;
+        use windows::Win32::Security::Cryptography::NCryptFreeBuffer;
 
         unsafe {
             let mut unprotected_blob: *mut u8 = std::ptr::null_mut();
@@ -91,7 +93,7 @@ impl WindowsTpmStore {
             let unsealed =
                 std::slice::from_raw_parts(unprotected_blob, unprotected_size as usize).to_vec();
 
-            libc::free(unprotected_blob as *mut libc::c_void);
+            let _ = NCryptFreeBuffer(unprotected_blob as *mut _);
 
             Ok(unsealed)
         }
@@ -146,6 +148,10 @@ impl SecretStore for WindowsTpmStore {
             fs::remove_file(&path)?;
         }
         Ok(())
+    }
+
+    fn exists(&self) -> bool {
+        self.get_sealed_path().exists()
     }
 
     fn is_available(&self) -> bool {
