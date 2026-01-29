@@ -4,7 +4,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 use sha2::{Sha256, Digest};
-use std::io::{Read, BufReader};
 
 pub fn get_attachments_dir() -> Result<PathBuf, DBError> {
     let data_dir = dirs::data_dir()
@@ -28,48 +27,68 @@ pub fn add_attachment(source_path: &str) -> Result<crate::db::DraftAttachment, D
         )));
     }
 
-    let id = Uuid::new_v4().to_string();
     let filename = source
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("unknown")
         .to_string();
-    
-    let extension = source.extension().and_then(|e| e.to_str()).unwrap_or("");
-    let content_type = match extension.to_lowercase().as_str() {
-        "jpg" | "jpeg" => "image/jpeg",
-        "png" => "image/png",
-        "pdf" => "application/pdf",
-        "txt" => "text/plain",
-        _ => "application/octet-stream",
-    };
 
-    let size = fs::metadata(source).map_err(DBError::Io)?.len();
+    let bytes = fs::read(source).map_err(DBError::Io)?;
+    let extension = source.extension().and_then(|e| e.to_str()).unwrap_or("");
+    let content_type = infer_mime(extension);
+
+    save_attachment_data(&bytes, &filename, &content_type)
+}
+
+pub fn add_attachment_bytes(
+    bytes: Vec<u8>,
+    filename: String,
+    content_type: String,
+) -> Result<crate::db::DraftAttachment, DBError> {
+    save_attachment_data(&bytes, &filename, &content_type)
+}
+
+fn save_attachment_data(
+    bytes: &[u8],
+    filename: &str,
+    content_type: &str,
+) -> Result<crate::db::DraftAttachment, DBError> {
+    let id = Uuid::new_v4().to_string();
+    let size = bytes.len() as u64;
 
     // Compute SHA-256 hash
-    let file = fs::File::open(source).map_err(DBError::Io)?;
-    let mut reader = BufReader::new(file);
     let mut hasher = Sha256::new();
-    let mut buffer = [0; 8192];
-    loop {
-        let count = reader.read(&mut buffer).map_err(DBError::Io)?;
-        if count == 0 { break; }
-        hasher.update(&buffer[..count]);
-    }
+    hasher.update(bytes);
     let hash = format!("{:x}", hasher.finalize());
 
     let target_dir = get_attachments_dir()?;
     let target_path = target_dir.join(&id);
 
-    fs::copy(source, &target_path).map_err(DBError::Io)?;
+    fs::write(&target_path, bytes).map_err(DBError::Io)?;
 
     Ok(crate::db::DraftAttachment {
         id,
-        filename,
+        filename: filename.to_string(),
         content_type: content_type.to_string(),
         size,
         hash,
+        path: target_path.to_string_lossy().to_string(),
+        cid: None,
+        inline: false,
     })
+}
+
+fn infer_mime(extension: &str) -> String {
+    match extension.to_lowercase().as_str() {
+        "jpg" | "jpeg" => "image/jpeg",
+        "png" => "image/png",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "pdf" => "application/pdf",
+        "txt" => "text/plain",
+        _ => "application/octet-stream",
+    }
+    .to_string()
 }
 
 pub fn remove_attachment(id: &str) -> Result<(), DBError> {

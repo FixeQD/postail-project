@@ -183,12 +183,15 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		try {
 			const draftForRust = {
 				id: currentDraft.id!,
-				account_id: currentDraft.accountId,
+				accountId: currentDraft.accountId,
 				subject: currentDraft.subject || null,
 				body: bodyToSave || null,
 				to: currentDraft.to.map((r) => r.email),
-				created_at: Math.floor(Date.parse(currentDraft.createdAt) / 1000),
-				updated_at: Math.floor(Date.parse(currentDraft.updatedAt) / 1000),
+				cc: currentDraft.cc?.map((r) => r.email) || [],
+				bcc: currentDraft.bcc?.map((r) => r.email) || [],
+				attachments: currentDraft.attachments || [],
+				createdAt: Math.floor(Date.parse(currentDraft.createdAt) / 1000),
+				updatedAt: Math.floor(Date.parse(currentDraft.updatedAt) / 1000),
 			}
 
 			await invoke('save_draft', { draft: draftForRust })
@@ -209,16 +212,16 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 			const draftsFromRust = await invoke<any[]>('list_drafts', { accountId })
 			const drafts: ComposeDraft[] = draftsFromRust.map((d) => ({
 				id: d.id,
-				accountId: d.account_id,
+				accountId: d.accountId,
 				to: d.to.map((email: string) => ({ email })),
-				cc: [],
-				bcc: [],
+				cc: d.cc?.map((email: string) => ({ email })) || [],
+				bcc: d.bcc?.map((email: string) => ({ email })) || [],
 				subject: d.subject || '',
 				body: d.body || '',
 				bodyType: 'html',
-				attachments: [],
-				createdAt: new Date(d.created_at * 1000).toISOString(),
-				updatedAt: new Date(d.updated_at * 1000).toISOString(),
+				attachments: d.attachments || [],
+				createdAt: new Date(d.createdAt * 1000).toISOString(),
+				updatedAt: new Date(d.updatedAt * 1000).toISOString(),
 			}))
 			set({ drafts })
 		} catch (error) {

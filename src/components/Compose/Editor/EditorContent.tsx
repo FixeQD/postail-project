@@ -1,4 +1,4 @@
-import { useRef, useEffect, memo, useMemo } from 'react'
+import React, { useRef, useEffect, memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LexicalEditor, EditorState } from 'lexical'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
@@ -61,7 +61,28 @@ export const EditorContent = memo(
 			[t]
 		)
 
-		const errorBoundary = useMemo(() => () => <div>Error loading editor</div>, [])
+		const errorBoundary = useMemo(() => {
+			return class ErrorBoundary extends React.Component<
+				{ children: React.ReactNode },
+				{ hasError: boolean }
+			> {
+				constructor(props: { children: React.ReactNode }) {
+					super(props)
+					this.state = { hasError: false }
+				}
+
+				static getDerivedStateFromError() {
+					return { hasError: true }
+				}
+
+				render() {
+					if (this.state.hasError) {
+						return <div className='p-4 text-red-500'>Editor crashed.</div>
+					}
+					return this.props.children
+				}
+			}
+		}, [])
 
 		useEffect(() => {
 			if (

@@ -1,4 +1,6 @@
 import {
+	DOMConversionMap,
+	DOMConversionOutput,
 	DOMExportOutput,
 	DecoratorNode,
 	EditorConfig,
@@ -28,6 +30,42 @@ export type SerializedImageNode = Spread<
 	},
 	SerializedLexicalNode
 >
+
+function convertImageElement(domNode: Node): null | DOMConversionOutput {
+	if (domNode instanceof HTMLImageElement) {
+		const { alt: altText, src, width, height } = domNode
+		const node = $createImageNode({ altText, height, src, width })
+		return { node }
+	}
+	return null
+}
+
+function ImageComponent({
+	src,
+	altText,
+	width,
+	height,
+}: {
+	src: string
+	altText: string
+	width?: number
+	height?: number
+}) {
+	return (
+		<img
+			src={src}
+			alt={altText}
+			style={{
+				display: 'block',
+				maxWidth: '100%',
+				width: width || 'auto',
+				height: height || 'auto',
+				borderRadius: '8px',
+				margin: '8px 0',
+			}}
+		/>
+	)
+}
 
 export class ImageNode extends DecoratorNode<React.ReactNode> {
 	__src: string
@@ -63,13 +101,13 @@ export class ImageNode extends DecoratorNode<React.ReactNode> {
 		return node
 	}
 
-	exportDOM(): DOMExportOutput {
-		const element = document.createElement('img')
-		element.setAttribute('src', this.__src)
-		element.setAttribute('alt', this.__altText)
-		if (this.__width) element.setAttribute('width', this.__width.toString())
-		if (this.__height) element.setAttribute('height', this.__height.toString())
-		return { element }
+	static importDOM(): DOMConversionMap | null {
+		return {
+			img: () => ({
+				conversion: convertImageElement,
+				priority: 0,
+			}),
+		}
 	}
 
 	constructor(
@@ -91,13 +129,22 @@ export class ImageNode extends DecoratorNode<React.ReactNode> {
 	exportJSON(): SerializedImageNode {
 		return {
 			altText: this.getAltText(),
-			height: this.__height,
-			maxWidth: this.__maxWidth,
+			height: this.__height || 0,
+			maxWidth: this.__maxWidth || 500,
 			src: this.getSrc(),
 			type: 'image',
 			version: 1,
-			width: this.__width,
+			width: this.__width || 0,
 		}
+	}
+
+	exportDOM(): DOMExportOutput {
+		const element = document.createElement('img')
+		element.setAttribute('src', this.__src)
+		element.setAttribute('alt', this.__altText)
+		if (this.__width) element.setAttribute('width', this.__width.toString())
+		if (this.__height) element.setAttribute('height', this.__height.toString())
+		return { element }
 	}
 
 	getSrc(): string {
@@ -124,17 +171,11 @@ export class ImageNode extends DecoratorNode<React.ReactNode> {
 
 	decorate(): React.ReactNode {
 		return (
-			<img
+			<ImageComponent
 				src={this.__src}
-				alt={this.__altText}
-				style={{
-					display: 'block',
-					maxWidth: '100%',
-					width: this.__width,
-					height: this.__height,
-					borderRadius: '8px',
-					margin: '8px 0',
-				}}
+				altText={this.__altText}
+				width={this.__width}
+				height={this.__height}
 			/>
 		)
 	}

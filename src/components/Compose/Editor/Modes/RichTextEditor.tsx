@@ -4,6 +4,7 @@ import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
 import { ListPlugin } from '@lexical/react/LexicalListPlugin'
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
 import { LexicalEditor, EditorState } from 'lexical'
+import PastePlugin from '../Plugins/PastePlugin'
 
 interface RichTextEditorProps {
 	contentEditable: any
@@ -35,6 +36,7 @@ export const RichTextEditor = memo(
 				<MemoHistoryPlugin />
 				<MemoListPlugin />
 				<MemoOnChangePlugin onChange={handleEditorChange} />
+				<PastePlugin />
 			</div>
 		)
 	}

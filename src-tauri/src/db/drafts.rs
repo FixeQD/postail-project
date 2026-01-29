@@ -11,6 +11,9 @@ pub struct DraftAttachment {
     pub content_type: String,
     pub size: u64,
     pub hash: String,
+    pub path: String,
+    pub cid: Option<String>,
+    pub inline: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
