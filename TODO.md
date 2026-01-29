@@ -49,8 +49,8 @@
     - [x] 10.18 — Logic: Add debounced auto-save effect to the Compose screen (30s interval)
     - [x] 10.19 — Attachments: Create `upload_attachment` command (move file to encrypted storage)
     - [x] 10.20 — UI: Build AttachmentList component with file metadata and "Remove" action
-    - [ ] 10.21 — Editor: Implement Drag-and-Drop file listener for the editor area
-    - [ ] 10.22 — Editor: Handle inline image pasting (Clipboard API -> Asset URL conversion)
+    - [x] 10.21 — Editor: Implement Drag-and-Drop file listener for the editor area
+    - [x] 10.22 — Editor: Handle inline image pasting (Clipboard API -> Asset URL conversion)
     - [ ] 10.23 — Logic: Generate Content-ID (CID) for inline images and update HTML references
     - [ ] 10.24 — Validation: Implement Rust-side check for common CSS issues (z-index, position, etc.)
     - [ ] 10.25 — UI: Create Sidebar/Floating panel for "Email Compatibility" warnings
