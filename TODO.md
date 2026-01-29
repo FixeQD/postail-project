@@ -48,7 +48,7 @@
     - [x] 10.17 — DB: Implement `save_draft` Tauri command (SQL INSERT/UPDATE for drafts table)
     - [x] 10.18 — Logic: Add debounced auto-save effect to the Compose screen (30s interval)
     - [x] 10.19 — Attachments: Create `upload_attachment` command (move file to encrypted storage)
-    - [ ] 10.20 — UI: Build AttachmentList component with file metadata and "Remove" action
+    - [x] 10.20 — UI: Build AttachmentList component with file metadata and "Remove" action
     - [ ] 10.21 — Editor: Implement Drag-and-Drop file listener for the editor area
     - [ ] 10.22 — Editor: Handle inline image pasting (Clipboard API -> Asset URL conversion)
     - [ ] 10.23 — Logic: Generate Content-ID (CID) for inline images and update HTML references
