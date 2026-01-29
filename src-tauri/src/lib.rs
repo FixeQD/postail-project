@@ -696,6 +696,75 @@ async fn remove_attachment(id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn add_inline_attachment(
+    bytes: Vec<u8>,
+    filename: String,
+    content_type: String,
+) -> Result<crate::db::DraftAttachment, String> {
+    tokio::task::spawn_blocking(move || {
+        crate::db::attachments::add_inline_attachment_bytes(bytes, filename, content_type)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[derive(serde::Serialize)]
+pub struct BuildEmailResult {
+    pub eml_bytes: Vec<u8>,
+    pub html_with_cids: String,
+}
+
+#[tauri::command]
+async fn build_email_from_draft(draft_id: String) -> Result<BuildEmailResult, String> {
+    let db_conn = Arc::clone(&DB_CONN);
+
+    tokio::task::spawn_blocking(move || {
+        let conn_guard = db_conn.lock().unwrap();
+        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+
+        let draft = crate::db::load_draft(conn, &draft_id)
+            .map_err(|e| e.to_string())?
+            .ok_or("Draft not found")?;
+
+        let from_email: String = {
+            let mut stmt = conn
+                .prepare("SELECT email FROM accounts WHERE id = ?")
+                .map_err(|e| e.to_string())?;
+            stmt.query_row([&draft.account_id], |row| row.get(0))
+                .map_err(|e| e.to_string())?
+        };
+
+        let html_body = draft.body.unwrap_or_default();
+        let html_with_cids =
+            crate::smtp::mime_builder::replace_asset_urls_with_cids(&html_body, &draft.attachments);
+
+        let to: Vec<&str> = draft.to.iter().map(|s| s.as_str()).collect();
+        let cc: Vec<&str> = draft.cc.iter().map(|s| s.as_str()).collect();
+        let bcc: Vec<&str> = draft.bcc.iter().map(|s| s.as_str()).collect();
+        let subject = draft.subject.unwrap_or_default();
+
+        let eml_bytes = crate::smtp::mime_builder::build_multipart_email(
+            &from_email,
+            to,
+            cc,
+            bcc,
+            &subject,
+            &html_with_cids,
+            &draft.attachments,
+        )
+        .map_err(|e| e.to_string())?;
+
+        Ok(BuildEmailResult {
+            eml_bytes,
+            html_with_cids,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 fn sanitize_email_html(html: String) -> String {
     crate::utils::sanitizer::sanitize_email_html(&html)
 }
@@ -757,7 +826,9 @@ pub fn run() {
             search_contacts,
             add_attachment,
             add_attachment_bytes,
+            add_inline_attachment,
             remove_attachment,
+            build_email_from_draft,
             sanitize_email_html,
             process_email_content
         ])

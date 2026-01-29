@@ -245,4 +245,40 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 			console.error('Failed to delete draft:', error)
 		}
 	},
+
+	sendDraft: async () => {
+		const { currentDraft } = get()
+		if (!currentDraft || !currentDraft.id) {
+			throw new Error('No draft to send')
+		}
+
+		try {
+			await get().saveDraft()
+
+			const result = await invoke<{ emlBytes: number[]; htmlWithCids: string }>(
+				'build_email_from_draft',
+				{ draftId: currentDraft.id }
+			)
+
+			const emlBytes = new Uint8Array(result.emlBytes)
+
+			const outboxId = await invoke<string>('enqueue_message', {
+				accountId: currentDraft.accountId,
+				rawEml: Array.from(emlBytes),
+			})
+
+			console.log('Draft sent, outbox ID:', outboxId)
+
+			set({
+				currentDraft: null,
+				isComposing: false,
+				isDirty: false,
+			})
+
+			return outboxId
+		} catch (error) {
+			console.error('Failed to send draft:', error)
+			throw error
+		}
+	},
 }))

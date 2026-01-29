@@ -20,12 +20,7 @@ const MemoListPlugin = memo(ListPlugin)
 const MemoOnChangePlugin = memo(OnChangePlugin)
 
 export const RichTextEditor = memo(
-	({
-		contentEditable,
-		placeholder,
-		errorBoundary,
-		handleEditorChange,
-	}: RichTextEditorProps) => {
+	({ contentEditable, placeholder, errorBoundary, handleEditorChange }: RichTextEditorProps) => {
 		return (
 			<div className='flex-1 p-4'>
 				<MemoRichTextPlugin

@@ -110,7 +110,8 @@ export default function PastePlugin(): null {
 					? file.name
 					: `pasted_image_${Date.now()}.${file.type.split('/')[1] || 'png'}`
 
-			const attachment = await invoke<EmailAttachment>('add_attachment_bytes', {
+
+			const attachment = await invoke<EmailAttachment>('add_inline_attachment', {
 				bytes,
 				filename,
 				contentType: file.type,
@@ -130,6 +131,8 @@ export default function PastePlugin(): null {
 					const assetUrl = convertFileSrc(attachment.path!)
 					const node = $createImageNode({
 						altText: 'Pasted image',
+						attachmentId: attachment.id,
+						cid: attachment.cid,
 						src: assetUrl,
 					})
 					selection.insertNodes([node])

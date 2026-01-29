@@ -10,11 +10,11 @@ pub fn get_attachments_dir() -> Result<PathBuf, DBError> {
         .unwrap_or_else(|| PathBuf::from("."))
         .join("postail")
         .join("attachments");
-    
+
     if !data_dir.exists() {
         fs::create_dir_all(&data_dir).map_err(DBError::Io)?;
     }
-    
+
     Ok(data_dir)
 }
 
@@ -37,7 +37,7 @@ pub fn add_attachment(source_path: &str) -> Result<crate::db::DraftAttachment, D
     let extension = source.extension().and_then(|e| e.to_str()).unwrap_or("");
     let content_type = infer_mime(extension);
 
-    save_attachment_data(&bytes, &filename, &content_type)
+    save_attachment_data(&bytes, &filename, &content_type, false)
 }
 
 pub fn add_attachment_bytes(
@@ -45,13 +45,26 @@ pub fn add_attachment_bytes(
     filename: String,
     content_type: String,
 ) -> Result<crate::db::DraftAttachment, DBError> {
-    save_attachment_data(&bytes, &filename, &content_type)
+    save_attachment_data(&bytes, &filename, &content_type, false)
+}
+
+pub fn add_inline_attachment_bytes(
+    bytes: Vec<u8>,
+    filename: String,
+    content_type: String,
+) -> Result<crate::db::DraftAttachment, DBError> {
+    save_attachment_data(&bytes, &filename, &content_type, true)
+}
+
+fn generate_cid() -> String {
+    format!("{}@postail.local", Uuid::new_v4())
 }
 
 fn save_attachment_data(
     bytes: &[u8],
     filename: &str,
     content_type: &str,
+    inline: bool,
 ) -> Result<crate::db::DraftAttachment, DBError> {
     let id = Uuid::new_v4().to_string();
     let size = bytes.len() as u64;
@@ -66,6 +79,8 @@ fn save_attachment_data(
 
     fs::write(&target_path, bytes).map_err(DBError::Io)?;
 
+    let cid = if inline { Some(generate_cid()) } else { None };
+
     Ok(crate::db::DraftAttachment {
         id,
         filename: filename.to_string(),
@@ -73,8 +88,8 @@ fn save_attachment_data(
         size,
         hash,
         path: target_path.to_string_lossy().to_string(),
-        cid: None,
-        inline: false,
+        cid,
+        inline,
     })
 }
 

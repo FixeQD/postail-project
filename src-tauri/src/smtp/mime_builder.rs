@@ -1,0 +1,159 @@
+use crate::db::DraftAttachment;
+use lettre::message::{header, Attachment, Body, Message, MultiPart, SinglePart};
+use std::fs;
+
+#[derive(Debug)]
+pub struct EmailBuildError(String);
+
+impl std::fmt::Display for EmailBuildError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::error::Error for EmailBuildError {}
+
+pub fn build_multipart_email(
+    from: &str,
+    to: Vec<&str>,
+    cc: Vec<&str>,
+    bcc: Vec<&str>,
+    subject: &str,
+    html_body: &str,
+    attachments: &[DraftAttachment],
+) -> Result<Vec<u8>, EmailBuildError> {
+    let (inline_attachments, regular_attachments): (Vec<&DraftAttachment>, Vec<&DraftAttachment>) =
+        attachments.iter().partition(|att| att.inline);
+
+    let mut message_builder = Message::builder()
+        .from(
+            from.parse()
+                .map_err(|e| EmailBuildError(format!("Invalid from address: {}", e)))?,
+        )
+        .subject(subject);
+
+    for recipient in to {
+        message_builder = message_builder.to(recipient
+            .parse()
+            .map_err(|e| EmailBuildError(format!("Invalid to address '{}': {}", recipient, e)))?);
+    }
+
+    for recipient in cc {
+        message_builder = message_builder.cc(recipient
+            .parse()
+            .map_err(|e| EmailBuildError(format!("Invalid cc address '{}': {}", recipient, e)))?);
+    }
+
+    for recipient in bcc {
+        message_builder =
+            message_builder.bcc(recipient.parse().map_err(|e| {
+                EmailBuildError(format!("Invalid bcc address '{}': {}", recipient, e))
+            })?);
+    }
+
+    let mut multipart_mixed = MultiPart::mixed().build();
+
+    if !inline_attachments.is_empty() {
+        let mut multipart_related = MultiPart::related().build();
+        multipart_related = multipart_related.singlepart(
+            SinglePart::builder()
+                .header(header::ContentType::parse("text/html; charset=utf-8").unwrap())
+                .body(html_body.to_string()),
+        );
+
+        for attachment in inline_attachments {
+            let cid = attachment.cid.as_ref().ok_or_else(|| {
+                EmailBuildError(format!(
+                    "Missing CID for inline attachment {}",
+                    attachment.id
+                ))
+            })?;
+
+            let file_data = fs::read(&attachment.path).map_err(|e| {
+                EmailBuildError(format!(
+                    "Failed to read attachment {}: {}",
+                    attachment.id, e
+                ))
+            })?;
+
+            let body = Body::new(file_data);
+
+            let content_type = attachment
+                .content_type
+                .parse()
+                .map_err(|e| EmailBuildError(format!("Invalid content type: {}", e)))?;
+
+            let inline_attachment = Attachment::new_inline(cid.clone()).body(body, content_type);
+
+            multipart_related = multipart_related.singlepart(inline_attachment);
+        }
+
+        multipart_mixed = multipart_mixed.multipart(multipart_related);
+    } else {
+        multipart_mixed = multipart_mixed.singlepart(
+            SinglePart::builder()
+                .header(header::ContentType::parse("text/html; charset=utf-8").unwrap())
+                .body(html_body.to_string()),
+        );
+    }
+
+    for attachment in regular_attachments {
+        let file_data = fs::read(&attachment.path).map_err(|e| {
+            EmailBuildError(format!(
+                "Failed to read attachment {}: {}",
+                attachment.id, e
+            ))
+        })?;
+
+        let body = Body::new(file_data);
+
+        let content_type = attachment
+            .content_type
+            .parse()
+            .map_err(|e| EmailBuildError(format!("Invalid content type: {}", e)))?;
+
+        let file_attachment = Attachment::new(attachment.filename.clone()).body(body, content_type);
+
+        multipart_mixed = multipart_mixed.singlepart(file_attachment);
+    }
+
+    let message = message_builder
+        .multipart(multipart_mixed)
+        .map_err(|e| EmailBuildError(format!("Failed to build message: {}", e)))?;
+
+    let email_bytes = message.formatted();
+    Ok(email_bytes)
+}
+
+pub fn replace_asset_urls_with_cids(html: &str, attachments: &[DraftAttachment]) -> String {
+    let mut result = html.to_string();
+
+    let cid_map: std::collections::HashMap<&str, &str> = attachments
+        .iter()
+        .filter(|att| att.inline && att.cid.is_some())
+        .map(|att| (att.id.as_str(), att.cid.as_deref().unwrap()))
+        .collect();
+
+    for (attachment_id, cid) in &cid_map {
+        let mut start = 0;
+        while let Some(pos) = result[start..].find("asset://") {
+            let absolute_pos = start + pos;
+            let end_pos = result[absolute_pos..]
+                .find('"')
+                .map(|p| absolute_pos + p)
+                .unwrap_or(result.len());
+
+            let url = &result[absolute_pos..end_pos];
+
+            if url.contains(attachment_id) {
+                let cid_ref = format!("cid:{}", cid);
+                result.replace_range(absolute_pos..end_pos, &cid_ref);
+                continue;
+            }
+
+            start = end_pos;
+        }
+    }
+
+    result
+}

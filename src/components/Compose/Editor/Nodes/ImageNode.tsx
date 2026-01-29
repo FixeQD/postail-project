@@ -13,6 +13,8 @@ import React from 'react'
 
 export interface ImagePayload {
 	altText: string
+	attachmentId?: string
+	cid?: string
 	height?: number
 	key?: NodeKey
 	maxWidth?: number
@@ -23,6 +25,8 @@ export interface ImagePayload {
 export type SerializedImageNode = Spread<
 	{
 		altText: string
+		attachmentId?: string
+		cid?: string
 		height?: number
 		maxWidth?: number
 		src: string
@@ -34,7 +38,17 @@ export type SerializedImageNode = Spread<
 function convertImageElement(domNode: Node): null | DOMConversionOutput {
 	if (domNode instanceof HTMLImageElement) {
 		const { alt: altText, src, width, height } = domNode
-		const node = $createImageNode({ altText, height, src, width })
+
+		const attachmentId = domNode.getAttribute('data-attachment-id') || undefined
+		const cid = domNode.getAttribute('data-cid') || undefined
+		const node = $createImageNode({
+			altText,
+			attachmentId,
+			cid,
+			height,
+			src,
+			width,
+		})
 		return { node }
 	}
 	return null
@@ -70,6 +84,8 @@ function ImageComponent({
 export class ImageNode extends DecoratorNode<React.ReactNode> {
 	__src: string
 	__altText: string
+	__attachmentId?: string
+	__cid?: string
 	__width?: number
 	__height?: number
 	__maxWidth?: number
@@ -82,6 +98,8 @@ export class ImageNode extends DecoratorNode<React.ReactNode> {
 		return new ImageNode(
 			node.__src,
 			node.__altText,
+			node.__attachmentId,
+			node.__cid,
 			node.__width,
 			node.__height,
 			node.__maxWidth,
@@ -90,9 +108,11 @@ export class ImageNode extends DecoratorNode<React.ReactNode> {
 	}
 
 	static importJSON(serializedNode: SerializedImageNode): ImageNode {
-		const { altText, height, width, maxWidth, src } = serializedNode
+		const { altText, attachmentId, cid, height, width, maxWidth, src } = serializedNode
 		const node = $createImageNode({
 			altText,
+			attachmentId,
+			cid,
 			height,
 			maxWidth,
 			src,
@@ -113,6 +133,8 @@ export class ImageNode extends DecoratorNode<React.ReactNode> {
 	constructor(
 		src: string,
 		altText: string,
+		attachmentId?: string,
+		cid?: string,
 		width?: number,
 		height?: number,
 		maxWidth?: number,
@@ -121,6 +143,8 @@ export class ImageNode extends DecoratorNode<React.ReactNode> {
 		super(key)
 		this.__src = src
 		this.__altText = altText
+		this.__attachmentId = attachmentId
+		this.__cid = cid
 		this.__width = width
 		this.__height = height
 		this.__maxWidth = maxWidth
@@ -129,6 +153,8 @@ export class ImageNode extends DecoratorNode<React.ReactNode> {
 	exportJSON(): SerializedImageNode {
 		return {
 			altText: this.getAltText(),
+			attachmentId: this.__attachmentId,
+			cid: this.__cid,
 			height: this.__height || 0,
 			maxWidth: this.__maxWidth || 500,
 			src: this.getSrc(),
@@ -142,6 +168,8 @@ export class ImageNode extends DecoratorNode<React.ReactNode> {
 		const element = document.createElement('img')
 		element.setAttribute('src', this.__src)
 		element.setAttribute('alt', this.__altText)
+		if (this.__attachmentId) element.setAttribute('data-attachment-id', this.__attachmentId)
+		if (this.__cid) element.setAttribute('data-cid', this.__cid)
 		if (this.__width) element.setAttribute('width', this.__width.toString())
 		if (this.__height) element.setAttribute('height', this.__height.toString())
 		return { element }
@@ -183,13 +211,15 @@ export class ImageNode extends DecoratorNode<React.ReactNode> {
 
 export function $createImageNode({
 	altText,
+	attachmentId,
+	cid,
 	height,
 	maxWidth = 500,
 	src,
 	width,
 	key,
 }: ImagePayload): ImageNode {
-	return new ImageNode(src, altText, width, height, maxWidth, key)
+	return new ImageNode(src, altText, attachmentId, cid, width, height, maxWidth, key)
 }
 
 export function $isImageNode(node: LexicalNode | null | undefined): node is ImageNode {

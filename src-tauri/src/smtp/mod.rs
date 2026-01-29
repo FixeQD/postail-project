@@ -4,6 +4,7 @@ use rusqlite::Connection;
 
 use crate::security::SecurityManager;
 
+pub mod mime_builder;
 pub mod outbox;
 pub mod sender;
 pub mod worker;
