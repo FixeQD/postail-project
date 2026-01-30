@@ -51,9 +51,9 @@
     - [x] 10.20 — UI: Build AttachmentList component with file metadata and "Remove" action
     - [x] 10.21 — Editor: Implement Drag-and-Drop file listener for the editor area
     - [x] 10.22 — Editor: Handle inline image pasting (Clipboard API -> Asset URL conversion)
-    - [ ] 10.23 — Logic: Generate Content-ID (CID) for inline images and update HTML references
-    - [ ] 10.24 — Validation: Implement Rust-side check for common CSS issues (z-index, position, etc.)
-    - [ ] 10.25 — UI: Create Sidebar/Floating panel for "Email Compatibility" warnings
+    - [x] 10.23 — Logic: Generate Content-ID (CID) for inline images and update HTML references
+    - [x] 10.24 — Validation: Implement Rust-side check for common CSS issues (z-index, position, etc.)
+    - [x] 10.25 — UI: Create Sidebar/Floating panel for "Email Compatibility" warnings
     - [ ] 10.26 — Logic: Implement "Auto-fix" button to strip problematic CSS via Rust backend
     - [ ] 10.27 — Integration: Connect "Send" button to SMTP worker and Outbox queue
     - [ ] 10.28 — UI: Implement "Discard Draft" with confirmation dialog and DB cleanup

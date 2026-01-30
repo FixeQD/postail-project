@@ -9,6 +9,7 @@ import security from './resources/en/security.json'
 import accounts from './resources/en/accounts.json'
 import errors from './resources/en/errors.json'
 import inbox from './resources/en/inbox.json'
+import validation from './resources/en/validation.json'
 
 const resources = {
 	en: {
@@ -18,6 +19,7 @@ const resources = {
 		accounts,
 		errors,
 		inbox,
+		validation,
 	},
 }
 
@@ -29,7 +31,7 @@ i18n.use(LanguageDetector)
 		fallbackLng: 'en',
 		debug: import.meta.env.DEV,
 
-		ns: ['common', 'welcome', 'security', 'accounts', 'errors', 'inbox'],
+		ns: ['common', 'welcome', 'security', 'accounts', 'errors', 'inbox', 'validation'],
 		defaultNS: 'common',
 
 		interpolation: {

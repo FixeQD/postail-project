@@ -5,6 +5,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { useTranslation } from 'react-i18next'
 import type { EmailAttachment } from '@/types/compose'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
+import { CompatibilityButton } from '@/components/Compose/CompatibilityButton'
 import {
 	$getSelection,
 	$isRangeSelection,
@@ -121,19 +122,42 @@ const LinkPopover = memo(({ editor, formats, linkData }: any) => {
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
-				<Button variant='ghost' size='icon' className={`h-9 w-9 ${formats.link ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400 hover:bg-zinc-800'}`}>
+				<Button
+					variant='ghost'
+					size='icon'
+					className={`h-9 w-9 ${formats.link ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400 hover:bg-zinc-800'}`}>
 					<LinkIcon className='h-4 w-4' />
 				</Button>
 			</PopoverTrigger>
-			<PopoverContent side='bottom' align='start' className='rounded-md border border-zinc-800 bg-zinc-900 p-3 text-zinc-200 shadow-md'>
+			<PopoverContent
+				side='bottom'
+				align='start'
+				className='rounded-md border border-zinc-800 bg-zinc-900 p-3 text-zinc-200 shadow-md'>
 				<div className='flex flex-col gap-2'>
 					<label className='text-xs text-zinc-400'>Text</label>
-					<Input ref={textInputRef} value={localText} onChange={e => setLocalText(e.target.value)} className='bg-transparent' />
+					<Input
+						ref={textInputRef}
+						value={localText}
+						onChange={(e) => setLocalText(e.target.value)}
+						className='bg-transparent'
+					/>
 					<label className='text-xs text-zinc-400'>URL</label>
-					<Input value={localUrl} onChange={e => setLocalUrl(e.target.value)} className='bg-transparent' onKeyDown={e => e.key === 'Enter' && applyLink()} />
+					<Input
+						value={localUrl}
+						onChange={(e) => setLocalUrl(e.target.value)}
+						className='bg-transparent'
+						onKeyDown={(e) => e.key === 'Enter' && applyLink()}
+					/>
 					<div className='mt-2 flex justify-end gap-2'>
 						<Button onClick={applyLink}>Apply</Button>
-						<Button variant='ghost' onClick={() => { editor.dispatchCommand(TOGGLE_LINK_COMMAND, null); setOpen(false); }}>Remove</Button>
+						<Button
+							variant='ghost'
+							onClick={() => {
+								editor.dispatchCommand(TOGGLE_LINK_COMMAND, null)
+								setOpen(false)
+							}}>
+							Remove
+						</Button>
 					</div>
 				</div>
 			</PopoverContent>
@@ -147,7 +171,10 @@ export function EditorToolbar() {
 	const { formats, linkData } = useEditorFormats(editor, false)
 	const { currentDraft, editorMode, setEditorMode, addAttachment } = useDraftStore()
 
-	const [pendingAttachment, setPendingAttachment] = useState<{ attachment: EmailAttachment, path: string } | null>(null)
+	const [pendingAttachment, setPendingAttachment] = useState<{
+		attachment: EmailAttachment
+		path: string
+	} | null>(null)
 	const [dialogOpen, setDialogOpen] = useState(false)
 
 	const exec = (cmd: any, val?: any) => {
@@ -170,13 +197,15 @@ export function EditorToolbar() {
 				if (!path) continue
 				try {
 					const attachment = await invoke<EmailAttachment>('add_attachment', { path })
-					const isDuplicate = currentDraft?.attachments?.some(a => a.hash === attachment.hash)
-					
+					const isDuplicate = currentDraft?.attachments?.some(
+						(a) => a.hash === attachment.hash
+					)
+
 					if (isDuplicate) {
 						setPendingAttachment({ attachment, path })
 						setDialogOpen(true)
-						// For simplicity in this session, we stop at the first duplicate. 
-						break;
+
+						break
 					} else {
 						addAttachment({ ...attachment, path })
 					}
@@ -263,14 +292,33 @@ export function EditorToolbar() {
 				title={editorMode === 'rich-text' ? 'Switch to Source' : 'Switch to Rich Text'}
 				className={`h-9 w-9 text-zinc-400 hover:bg-zinc-800 ${editorMode === 'source' ? 'bg-zinc-800 text-blue-400' : ''}`}
 				onClick={() => setEditorMode(editorMode === 'rich-text' ? 'source' : 'rich-text')}>
-				{editorMode === 'rich-text' ? <Code className='h-4 w-4' /> : <FileType className='h-4 w-4' />}
+				{editorMode === 'rich-text' ? (
+					<Code className='h-4 w-4' />
+				) : (
+					<FileType className='h-4 w-4' />
+				)}
 			</Button>
+
+			{/* Compatibility panel button - only in source mode */}
+			{editorMode === 'source' && (
+				<>
+					<div className='mx-1 h-4 w-px bg-zinc-800' />
+					<CompatibilityButton
+						isOpen={useDraftStore.getState().compatibilityPanelOpen}
+						onClick={() => useDraftStore.getState().toggleCompatibilityPanel()}
+						issues={useDraftStore.getState().compatibilityIssues}
+						isLoading={useDraftStore.getState().isValidating}
+					/>
+				</>
+			)}
 
 			<ConfirmationDialog
 				open={dialogOpen}
 				onOpenChange={setDialogOpen}
 				title={t('compose.duplicateTitle')}
-				description={t('compose.duplicateMessage', { filename: pendingAttachment?.attachment.filename })}
+				description={t('compose.duplicateMessage', {
+					filename: pendingAttachment?.attachment.filename,
+				})}
 				confirmLabel={t('compose.addAnyway')}
 				cancelLabel={t('actions.cancel')}
 				onConfirm={confirmDuplicate}

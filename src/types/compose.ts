@@ -30,6 +30,14 @@ export interface ComposeDraft {
 	updatedAt: string
 }
 
+export type IssueSeverity = 'Info' | 'Warning' | 'Error'
+
+export interface SanitizeIssue {
+	property: string
+	reason: string
+	severity: IssueSeverity
+}
+
 export interface DraftState {
 	// Current draft being edited
 	currentDraft: ComposeDraft | null
@@ -43,6 +51,13 @@ export interface DraftState {
 	isSaving: boolean
 	lastSavedAt?: Date
 	editorMode: 'rich-text' | 'source'
+
+	compatibilityPanelOpen: boolean
+	compatibilityPanelWidth: number
+	compatibilityIssues: SanitizeIssue[]
+	isValidating: boolean
+	validationDismissed: boolean
+	showSendWarning: boolean
 
 	// Actions
 	setCurrentDraft: (draft: ComposeDraft | null) => void
@@ -63,4 +78,11 @@ export interface DraftState {
 	loadDrafts: (accountId: string) => Promise<void>
 	deleteDraft: (draftId: string) => Promise<void>
 	sendDraft: () => Promise<string>
+
+	toggleCompatibilityPanel: () => void
+	setCompatibilityPanelWidth: (width: number) => void
+	validateCompatibility: (html: string) => Promise<void>
+	dismissValidationWarning: () => void
+	resetValidationDismissed: () => void
+	setShowSendWarning: (show: boolean) => void
 }

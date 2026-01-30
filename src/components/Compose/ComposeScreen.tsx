@@ -15,6 +15,8 @@ import { lexicalToHtml } from './Editor/utils/conversion'
 import { AddressInput } from './Inputs/AddressInput'
 import { SubjectInput } from './Inputs/SubjectInput'
 import { ImageNode } from './Editor/Nodes/ImageNode'
+import { CompatibilityPanel } from './CompatibilityPanel'
+import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 
 interface ComposeScreenProps {
 	open: boolean
@@ -28,6 +30,12 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		currentDraft,
 		isComposing,
 		isDirty,
+		editorMode,
+		compatibilityPanelOpen,
+		compatibilityPanelWidth,
+		compatibilityIssues,
+		isValidating,
+		showSendWarning,
 		setSubject,
 		updateCurrentDraft,
 		startComposing,
@@ -37,6 +45,12 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		addRecipient,
 		removeRecipient,
 		removeAttachment,
+		validateCompatibility,
+		toggleCompatibilityPanel,
+		setCompatibilityPanelWidth,
+		dismissValidationWarning,
+		setShowSendWarning,
+		sendDraft,
 	} = useDraftStore()
 
 	const editorRef = useRef<HTMLDivElement>(null)
@@ -66,8 +80,18 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		() => ({
 			namespace: 'ComposeEditor',
 			theme: {
-				text: { bold: 'font-bold', italic: 'italic', underline: 'underline', strikethrough: 'line-through' },
-				list: { listitem: '!ml-4', nested: { listitem: '!ml-8' }, ol: '!list-decimal !ml-4', ul: '!list-disc !ml-4' },
+				text: {
+					bold: 'font-bold',
+					italic: 'italic',
+					underline: 'underline',
+					strikethrough: 'line-through',
+				},
+				list: {
+					listitem: '!ml-4',
+					nested: { listitem: '!ml-8' },
+					ol: '!list-decimal !ml-4',
+					ul: '!list-disc !ml-4',
+				},
 				link: 'underline text-cyan-400',
 			},
 			nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, LinkNode, ImageNode],
@@ -85,6 +109,16 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		const timer = setTimeout(() => saveDraft(htmlRef.current), 3000)
 		return () => clearTimeout(timer)
 	}, [isDirty, currentDraft, saveDraft, changeCount])
+
+	useEffect(() => {
+		if (editorMode !== 'source' || !currentDraft?.body) return
+
+		const timer = setTimeout(() => {
+			validateCompatibility(currentDraft.body)
+		}, 800)
+
+		return () => clearTimeout(timer)
+	}, [editorMode, currentDraft?.body, validateCompatibility])
 
 	// Automatically show Cc/Bcc fields if they have recipients
 	useEffect(() => {
@@ -110,7 +144,9 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 				style={{ cursor: isDragging ? 'grabbing' : 'grab' }}>
 				<h2 className='text-sm font-medium text-zinc-300'>{t('compose.newMessage')}</h2>
 				<div className='flex items-center gap-1'>
-					<Button variant='ghost' size='icon' className='h-7 w-7 text-zinc-400'><Minimize2 className='h-4 w-4' /></Button>
+					<Button variant='ghost' size='icon' className='h-7 w-7 text-zinc-400'>
+						<Minimize2 className='h-4 w-4' />
+					</Button>
 					<Button
 						variant='ghost'
 						size='icon'
@@ -133,12 +169,12 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 					onRemove={(email) => removeRecipient('to', email)}
 					placeholder={t('compose.recipients')}
 					rightElement={
-						<div className='flex gap-2 mr-2'>
+						<div className='mr-2 flex gap-2'>
 							{!showCc && (
 								<button
 									type='button'
 									onClick={() => setShowCc(true)}
-									className='text-xs font-medium text-zinc-500 hover:text-zinc-300 transition-colors'>
+									className='text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-300'>
 									{t('compose.cc')}
 								</button>
 							)}
@@ -146,7 +182,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 								<button
 									type='button'
 									onClick={() => setShowBcc(true)}
-									className='text-xs font-medium text-zinc-500 hover:text-zinc-300 transition-colors'>
+									className='text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-300'>
 									{t('compose.bcc')}
 								</button>
 							)}
@@ -166,7 +202,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 									setShowCc(false)
 									updateCurrentDraft({ cc: [] })
 								}}
-								className='mr-2 text-zinc-500 hover:text-zinc-300 transition-colors'>
+								className='mr-2 text-zinc-500 transition-colors hover:text-zinc-300'>
 								<X className='h-3.5 w-3.5' />
 							</button>
 						}
@@ -185,7 +221,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 									setShowBcc(false)
 									updateCurrentDraft({ bcc: [] })
 								}}
-								className='mr-2 text-zinc-500 hover:text-zinc-300 transition-colors'>
+								className='mr-2 text-zinc-500 transition-colors hover:text-zinc-300'>
 								<X className='h-3.5 w-3.5' />
 							</button>
 						}
@@ -198,6 +234,22 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 				/>
 			</div>
 
+			<CompatibilityPanel
+				isOpen={compatibilityPanelOpen && editorMode === 'source'}
+				onClose={toggleCompatibilityPanel}
+				width={compatibilityPanelWidth}
+				onWidthChange={setCompatibilityPanelWidth}
+				issues={compatibilityIssues}
+				isLoading={isValidating}
+				onCheckAgain={() => {
+					if (currentDraft?.body) {
+						validateCompatibility(currentDraft.body)
+					}
+				}}
+				composeX={position.x}
+				composeY={position.y}
+				composeHeight={size.height}
+			/>
 
 			<LexicalComposer initialConfig={initialConfig}>
 				<EditorContent
@@ -217,13 +269,39 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 					style={{
 						left: `${tooltipData.rect.left + tooltipData.rect.width / 2}px`,
 						top: `${tooltipData.rect.top > 40 ? tooltipData.rect.top - 8 : tooltipData.rect.bottom + 8}px`,
-						transform: tooltipData.rect.top > 40 ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+						transform:
+							tooltipData.rect.top > 40
+								? 'translate(-50%, -100%)'
+								: 'translate(-50%, 0)',
 					}}>
-					{tooltipData.url.length > 120 ? tooltipData.url.slice(0, 116) + '…' : tooltipData.url}
+					{tooltipData.url.length > 120
+						? tooltipData.url.slice(0, 116) + '…'
+						: tooltipData.url}
 				</div>
 			)}
 
-			<div className='absolute right-0 bottom-0 h-4 w-4 cursor-se-resize' onMouseDown={handleResizeMouseDown} />
+			<div
+				className='absolute right-0 bottom-0 h-4 w-4 cursor-se-resize'
+				onMouseDown={handleResizeMouseDown}
+			/>
+
+			{/* Send Warning Dialog */}
+			<ConfirmationDialog
+				open={showSendWarning}
+				onOpenChange={setShowSendWarning}
+				title={t('validation:sendWarning.title')}
+				description={t('validation:sendWarning.description', {
+					count: compatibilityIssues.length,
+				})}
+				confirmLabel={t('validation:sendWarning.confirm')}
+				cancelLabel={t('validation:sendWarning.cancel')}
+				onConfirm={() => {
+					dismissValidationWarning()
+					sendDraft().then(() => {
+						onOpenChange(false)
+					})
+				}}
+			/>
 		</div>
 	)
 }

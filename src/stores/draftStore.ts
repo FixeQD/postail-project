@@ -1,6 +1,14 @@
 import { create } from 'zustand'
 import { invoke } from '@tauri-apps/api/core'
-import type { ComposeDraft, EmailAddress, EmailAttachment, DraftState } from '@/types/compose'
+import type {
+	ComposeDraft,
+	EmailAddress,
+	EmailAttachment,
+	DraftState,
+	SanitizeIssue,
+} from '@/types/compose'
+
+let validationTimer: ReturnType<typeof setTimeout> | null = null
 
 export const useDraftStore = create<DraftState>((set, get) => ({
 	// Initial state
@@ -11,6 +19,13 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 	isSaving: false,
 	lastSavedAt: undefined,
 	editorMode: 'rich-text',
+
+	compatibilityPanelOpen: false,
+	compatibilityPanelWidth: 280,
+	compatibilityIssues: [],
+	isValidating: false,
+	validationDismissed: false,
+	showSendWarning: false,
 
 	// Actions
 	setCurrentDraft: (draft: ComposeDraft | null) => {
@@ -247,9 +262,19 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 	},
 
 	sendDraft: async () => {
-		const { currentDraft } = get()
+		const { currentDraft, compatibilityIssues, validationDismissed } = get()
 		if (!currentDraft || !currentDraft.id) {
 			throw new Error('No draft to send')
+		}
+
+		const hasErrors = compatibilityIssues.some((i) => i.severity === 'Error')
+		const hasWarnings = compatibilityIssues.some(
+			(i) => i.severity === 'Warning' || i.severity === 'Info'
+		)
+
+		if (hasErrors || (hasWarnings && !validationDismissed)) {
+			set({ showSendWarning: true })
+			throw new Error('Compatibility issues found')
 		}
 
 		try {
@@ -273,6 +298,9 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 				currentDraft: null,
 				isComposing: false,
 				isDirty: false,
+				compatibilityPanelOpen: false,
+				compatibilityIssues: [],
+				validationDismissed: false,
 			})
 
 			return outboxId
@@ -280,5 +308,53 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 			console.error('Failed to send draft:', error)
 			throw error
 		}
+	},
+
+	toggleCompatibilityPanel: () => {
+		const { compatibilityPanelOpen, editorMode } = get()
+		if (!compatibilityPanelOpen && editorMode !== 'source') return
+		set({ compatibilityPanelOpen: !compatibilityPanelOpen })
+	},
+
+	setCompatibilityPanelWidth: (width: number) => {
+		set({ compatibilityPanelWidth: Math.max(200, Math.min(500, width)) })
+	},
+
+	validateCompatibility: async (html: string) => {
+		if (validationTimer) {
+			clearTimeout(validationTimer)
+		}
+
+		validationTimer = setTimeout(async () => {
+			set({ isValidating: true })
+			try {
+				const result = await invoke<{
+					html: string
+					issues: SanitizeIssue[]
+				}>('process_email_content', { html })
+
+				set({
+					compatibilityIssues: result.issues,
+					isValidating: false,
+					validationDismissed:
+						result.issues.length === 0 ? false : get().validationDismissed,
+				})
+			} catch (error) {
+				console.error('Failed to validate compatibility:', error)
+				set({ isValidating: false })
+			}
+		}, 800)
+	},
+
+	dismissValidationWarning: () => {
+		set({ validationDismissed: true, showSendWarning: false })
+	},
+
+	resetValidationDismissed: () => {
+		set({ validationDismissed: false })
+	},
+
+	setShowSendWarning: (show: boolean) => {
+		set({ showSendWarning: show })
 	},
 }))
