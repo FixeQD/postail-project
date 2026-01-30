@@ -1,6 +1,5 @@
-import { memo, useState, useCallback, useRef } from 'react'
+import { memo, useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { motion, AnimatePresence } from 'framer-motion'
 import {
 	X,
 	AlertTriangle,
@@ -119,26 +118,18 @@ const IssueGroup = memo(function IssueGroup({
 					{issues.length}
 				</Badge>
 			</button>
-			<AnimatePresence>
-				{isExpanded && (
-					<motion.div
-						initial={{ height: 0, opacity: 0 }}
-						animate={{ height: 'auto', opacity: 1 }}
-						exit={{ height: 0, opacity: 0 }}
-						transition={{ duration: 0.2 }}
-						className='overflow-hidden'>
-						<div className='mt-1 rounded-md border border-zinc-800/50 bg-zinc-900/50'>
-							{issues.map((issue, index) => (
-								<IssueItem
-									key={`${issue.property}-${index}`}
-									issue={issue}
-									isLast={index === issues.length - 1}
-								/>
-							))}
-						</div>
-					</motion.div>
-				)}
-			</AnimatePresence>
+			<div
+				className={`overflow-hidden transition-all duration-200 ${isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+				<div className='mt-1 rounded-md border border-zinc-800/50 bg-zinc-900/50'>
+					{issues.map((issue, index) => (
+						<IssueItem
+							key={`${issue.property}-${index}`}
+							issue={issue}
+							isLast={index === issues.length - 1}
+						/>
+					))}
+				</div>
+			</div>
 		</div>
 	)
 })
@@ -159,11 +150,14 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 	const resizerRef = useRef<HTMLDivElement>(null)
 	const [isResizing, setIsResizing] = useState(false)
 
-	const groupedIssues = {
-		Error: issues.filter((i) => i.severity === 'Error'),
-		Warning: issues.filter((i) => i.severity === 'Warning'),
-		Info: issues.filter((i) => i.severity === 'Info'),
-	}
+	const groupedIssues = useMemo(
+		() => ({
+			Error: issues.filter((i) => i.severity === 'Error'),
+			Warning: issues.filter((i) => i.severity === 'Warning'),
+			Info: issues.filter((i) => i.severity === 'Info'),
+		}),
+		[issues]
+	)
 
 	const totalIssues = issues.length
 	const hasIssues = totalIssues > 0
@@ -185,7 +179,7 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 		setIsResizing(false)
 	}, [])
 
-	useState(() => {
+	useEffect(() => {
 		if (isResizing) {
 			document.addEventListener('mousemove', handleResizeMove)
 			document.addEventListener('mouseup', handleResizeEnd)
@@ -194,141 +188,140 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 				document.removeEventListener('mouseup', handleResizeEnd)
 			}
 		}
-	})
+	}, [isResizing, handleResizeMove, handleResizeEnd])
+
+
+	const panelStyle: React.CSSProperties = {
+		width,
+		left: composeX - width,
+		top: composeY,
+		height: composeHeight,
+		transform: isOpen ? 'translateX(0)' : `translateX(-${width}px)`,
+		opacity: isOpen ? 1 : 0,
+		transition: 'transform 200ms ease-out, opacity 200ms ease-out',
+		pointerEvents: isOpen ? 'auto' : 'none',
+	}
 
 	return (
-		<AnimatePresence>
-			{isOpen && (
-				<motion.div
-					initial={{ x: -width, opacity: 0 }}
-					animate={{ x: 0, opacity: 1 }}
-					exit={{ x: -width, opacity: 0 }}
-					transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-					className='fixed z-[60] flex flex-col border-r border-zinc-800 bg-zinc-950 shadow-2xl'
-					style={{
-						width,
-						left: composeX - width,
-						top: composeY,
-						height: composeHeight,
-					}}>
-					{/* Resizer handle */}
-					<div
-						ref={resizerRef}
-						role='separator'
-						aria-orientation='vertical'
-						aria-label='Resize panel'
-						onMouseDown={handleResizeStart}
-						className={`absolute top-0 right-0 bottom-0 z-10 w-1 cursor-col-resize transition-colors ${
-							isResizing ? 'bg-blue-500' : 'hover:bg-blue-500/50'
-						}`}
-					/>
+		<div
+			className='fixed z-[60] flex flex-col border-r border-zinc-800 bg-zinc-950 shadow-2xl'
+			style={panelStyle}>
+			{/* Resizer handle */}
+			<div
+				ref={resizerRef}
+				role='separator'
+				aria-orientation='vertical'
+				aria-label='Resize panel'
+				aria-valuenow={width}
+				tabIndex={0}
+				onMouseDown={handleResizeStart}
+				className={`absolute top-0 right-0 bottom-0 z-10 w-1 cursor-col-resize transition-colors ${
+					isResizing ? 'bg-blue-500' : 'hover:bg-blue-500/50'
+				}`}
+			/>
 
-					<Card className='flex flex-1 flex-col overflow-hidden rounded-none border-0 bg-transparent'>
-						<CardHeader className='flex-shrink-0 border-b border-zinc-800/50 px-4 py-3 pb-3'>
-							<div className='flex items-center justify-between'>
-								<CardTitle className='flex items-center gap-2 text-sm font-semibold text-zinc-200'>
-									{t('compatibilityPanel.title')}
-									{isLoading && (
-										<span className='h-2 w-2 animate-pulse rounded-full bg-blue-500' />
-									)}
-								</CardTitle>
-								<Button
-									variant='ghost'
-									size='icon'
-									className='h-7 w-7 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
-									onClick={onClose}>
-									<X className='h-4 w-4' />
-								</Button>
-							</div>
-
-							{/* Summary badges */}
-							<div className='mt-2 flex items-center gap-2'>
-								{groupedIssues.Error.length > 0 && (
-									<Badge
-										variant='outline'
-										className='border-red-500/30 bg-red-500/10 text-[10px] text-red-500'>
-										{t('compatibilityPanel.issues.error', {
-											count: groupedIssues.Error.length,
-										})}
-									</Badge>
-								)}
-								{groupedIssues.Warning.length > 0 && (
-									<Badge
-										variant='outline'
-										className='border-yellow-500/30 bg-yellow-500/10 text-[10px] text-yellow-500'>
-										{t('compatibilityPanel.issues.warning', {
-											count: groupedIssues.Warning.length,
-										})}
-									</Badge>
-								)}
-								{groupedIssues.Info.length > 0 && (
-									<Badge
-										variant='outline'
-										className='border-blue-500/30 bg-blue-500/10 text-[10px] text-blue-500'>
-										{t('compatibilityPanel.issues.info', {
-											count: groupedIssues.Info.length,
-										})}
-									</Badge>
-								)}
-								{!hasIssues && !isLoading && (
-									<span className='flex items-center gap-1 text-[10px] text-green-500'>
-										<Info className='h-3 w-3' />
-										{t('compatibilityPanel.issues.none')}
-									</span>
-								)}
-							</div>
-						</CardHeader>
-
-						<CardContent className='custom-scrollbar flex-1 space-y-1 overflow-y-auto p-3'>
-							{hasIssues ? (
-								<>
-									<IssueGroup severity='Error' issues={groupedIssues.Error} />
-									<IssueGroup severity='Warning' issues={groupedIssues.Warning} />
-									<IssueGroup severity='Info' issues={groupedIssues.Info} />
-								</>
-							) : (
-								<div className='flex h-32 flex-col items-center justify-center text-center'>
-									<div className='mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10'>
-										<Info className='h-5 w-5 text-green-500' />
-									</div>
-									<p className='text-sm text-zinc-400'>
-										{t('compatibilityPanel.issues.none')}
-									</p>
-									<p className='mt-1 text-xs text-zinc-600'>
-										Your email looks good!
-									</p>
-								</div>
+			<Card className='flex flex-1 flex-col overflow-hidden rounded-none border-0 bg-transparent'>
+				<CardHeader className='flex-shrink-0 border-b border-zinc-800/50 px-4 py-3 pb-3'>
+					<div className='flex items-center justify-between'>
+						<CardTitle className='flex items-center gap-2 text-sm font-semibold text-zinc-200'>
+							{t('compatibilityPanel.title')}
+							{isLoading && (
+								<span className='h-2 w-2 animate-pulse rounded-full bg-blue-500' />
 							)}
-						</CardContent>
+						</CardTitle>
+						<Button
+							variant='ghost'
+							size='icon'
+							className='h-7 w-7 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
+							onClick={onClose}>
+							<X className='h-4 w-4' />
+						</Button>
+					</div>
 
-						{/* Action buttons */}
-						<div className='flex-shrink-0 space-y-2 border-t border-zinc-800/50 p-3'>
-							<Button
+					{/* Summary badges */}
+					<div className='mt-2 flex items-center gap-2'>
+						{groupedIssues.Error.length > 0 && (
+							<Badge
 								variant='outline'
-								size='sm'
-								className='h-8 w-full border-zinc-700 bg-zinc-900 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-200'
-								onClick={onCheckAgain}
-								disabled={isLoading}>
-								<RefreshCw
-									className={`mr-1.5 h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`}
-								/>
-								{t('compatibilityPanel.actions.checkAgain')}
-							</Button>
+								className='border-red-500/30 bg-red-500/10 text-[10px] text-red-500'>
+								{t('compatibilityPanel.issues.error', {
+									count: groupedIssues.Error.length,
+								})}
+							</Badge>
+						)}
+						{groupedIssues.Warning.length > 0 && (
+							<Badge
+								variant='outline'
+								className='border-yellow-500/30 bg-yellow-500/10 text-[10px] text-yellow-500'>
+								{t('compatibilityPanel.issues.warning', {
+									count: groupedIssues.Warning.length,
+								})}
+							</Badge>
+						)}
+						{groupedIssues.Info.length > 0 && (
+							<Badge
+								variant='outline'
+								className='border-blue-500/30 bg-blue-500/10 text-[10px] text-blue-500'>
+								{t('compatibilityPanel.issues.info', {
+									count: groupedIssues.Info.length,
+								})}
+							</Badge>
+						)}
+						{!hasIssues && !isLoading && (
+							<span className='flex items-center gap-1 text-[10px] text-green-500'>
+								<Info className='h-3 w-3' />
+								{t('compatibilityPanel.issues.none')}
+							</span>
+						)}
+					</div>
+				</CardHeader>
 
-							{/* Auto-fix placeholder */}
-							<Button
-								variant='outline'
-								size='sm'
-								className='h-8 w-full cursor-not-allowed border-zinc-700 bg-zinc-900 text-xs text-zinc-500 opacity-50 hover:bg-zinc-800 hover:text-zinc-400'
-								disabled>
-								<Wand2 className='mr-1.5 h-3.5 w-3.5' />
-								{t('compatibilityPanel.actions.autoFix')}
-								<span className='ml-1.5 text-[10px] opacity-60'>(soon)</span>
-							</Button>
+				<CardContent className='custom-scrollbar flex-1 space-y-1 overflow-y-auto p-3'>
+					{hasIssues ? (
+						<>
+							<IssueGroup severity='Error' issues={groupedIssues.Error} />
+							<IssueGroup severity='Warning' issues={groupedIssues.Warning} />
+							<IssueGroup severity='Info' issues={groupedIssues.Info} />
+						</>
+					) : (
+						<div className='flex h-32 flex-col items-center justify-center text-center'>
+							<div className='mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10'>
+								<Info className='h-5 w-5 text-green-500' />
+							</div>
+							<p className='text-sm text-zinc-400'>
+								{t('compatibilityPanel.issues.none')}
+							</p>
+							<p className='mt-1 text-xs text-zinc-600'>Your email looks good!</p>
 						</div>
-					</Card>
-				</motion.div>
-			)}
-		</AnimatePresence>
+					)}
+				</CardContent>
+
+				{/* Action buttons */}
+				<div className='flex-shrink-0 space-y-2 border-t border-zinc-800/50 p-3'>
+					<Button
+						variant='outline'
+						size='sm'
+						className='h-8 w-full border-zinc-700 bg-zinc-900 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-200'
+						onClick={onCheckAgain}
+						disabled={isLoading}>
+						<RefreshCw
+							className={`mr-1.5 h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`}
+						/>
+						{t('compatibilityPanel.actions.checkAgain')}
+					</Button>
+
+					{/* Auto-fix placeholder */}
+					<Button
+						variant='outline'
+						size='sm'
+						className='h-8 w-full cursor-not-allowed border-zinc-700 bg-zinc-900 text-xs text-zinc-500 opacity-50 hover:bg-zinc-800 hover:text-zinc-400'
+						disabled>
+						<Wand2 className='mr-1.5 h-3.5 w-3.5' />
+						{t('compatibilityPanel.actions.autoFix')}
+						<span className='ml-1.5 text-[10px] opacity-60'>(soon)</span>
+					</Button>
+				</div>
+			</Card>
+		</div>
 	)
 })

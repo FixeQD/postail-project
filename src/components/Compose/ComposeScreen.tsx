@@ -54,7 +54,23 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	} = useDraftStore()
 
 	const editorRef = useRef<HTMLDivElement>(null)
-	const { position, size, isDragging, startDrag, handleResizeMouseDown } = useDragging()
+	const { position, size, isDragging, isResizing, startDrag, handleResizeMouseDown } =
+		useDragging()
+
+	// Disable all interactions during drag/resize
+	useEffect(() => {
+		if (isDragging || isResizing) {
+			document.body.style.pointerEvents = 'none'
+			document.body.style.userSelect = 'none'
+		} else {
+			document.body.style.pointerEvents = ''
+			document.body.style.userSelect = ''
+		}
+		return () => {
+			document.body.style.pointerEvents = ''
+			document.body.style.userSelect = ''
+		}
+	}, [isDragging, isResizing])
 	const tooltipData = useLinkTooltip(editorRef)
 
 	const htmlRef = useRef('')
@@ -108,6 +124,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		if (!isDirty || !currentDraft || htmlRef.current === currentDraft.body) return
 		const timer = setTimeout(() => saveDraft(htmlRef.current), 3000)
 		return () => clearTimeout(timer)
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [isDirty, currentDraft, saveDraft, changeCount])
 
 	useEffect(() => {
@@ -137,6 +154,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 				width: `${size.width}px`,
 				height: `${size.height}px`,
 				cursor: isDragging ? 'grabbing' : 'auto',
+				pointerEvents: 'auto',
 			}}>
 			<div
 				className='flex w-full items-center justify-between bg-zinc-900 px-4 py-3 select-none'

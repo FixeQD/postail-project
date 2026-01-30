@@ -317,7 +317,12 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 	},
 
 	setCompatibilityPanelWidth: (width: number) => {
-		set({ compatibilityPanelWidth: Math.max(200, Math.min(500, width)) })
+
+		const clampedWidth = Math.max(200, Math.min(500, width))
+		const current = get().compatibilityPanelWidth
+		if (Math.abs(current - clampedWidth) > 5) {
+			set({ compatibilityPanelWidth: clampedWidth })
+		}
 	},
 
 	validateCompatibility: async (html: string) => {

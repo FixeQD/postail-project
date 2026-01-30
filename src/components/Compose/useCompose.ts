@@ -1,75 +1,116 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
+export interface DraggingState {
+	x: number
+	y: number
+	width: number
+	height: number
+	isDragging: boolean
+	isResizing: boolean
+}
+
 export const useDragging = () => {
-	const [isDragging, setIsDragging] = useState(false)
-	const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-	const [isResizing, setIsResizing] = useState(false)
-	const [resizeStart, setResizeStart] = useState({ mouseX: 0, mouseY: 0, width: 0, height: 0 })
-
-	const [position, setPosition] = useState({
-		x: window.innerWidth - 720,
-		y: window.innerHeight - 650,
+	const [state, setState] = useState<DraggingState>({
+		x: 100,
+		y: 100,
+		width: 672,
+		height: 600,
+		isDragging: false,
+		isResizing: false,
 	})
-	const [size, setSize] = useState({ width: 672, height: 600 })
 
-	const handleResizeMouseDown = (e: React.MouseEvent) => {
-		e.preventDefault()
-		setIsResizing(true)
-		setResizeStart({
-			mouseX: e.clientX,
-			mouseY: e.clientY,
-			width: size.width,
-			height: size.height,
-		})
-	}
+
+	const dragOffsetRef = useRef({ x: 0, y: 0 })
+	const resizeStartRef = useRef({ mouseX: 0, mouseY: 0, width: 0, height: 0 })
+	const isDraggingRef = useRef(false)
+	const isResizingRef = useRef(false)
+
+	useEffect(() => {
+		setState((s) => ({
+			...s,
+			x: Math.max(50, window.innerWidth - 750),
+			y: Math.max(50, window.innerHeight - 650),
+		}))
+	}, [])
 
 	const handleMouseMove = useCallback(
 		(e: MouseEvent) => {
-			if (isDragging) {
+			if (isDraggingRef.current) {
 				const newX = Math.max(
 					0,
-					Math.min(e.clientX - dragStart.x, window.innerWidth - size.width)
+					Math.min(e.clientX - dragOffsetRef.current.x, window.innerWidth - state.width)
 				)
 				const newY = Math.max(
 					0,
-					Math.min(e.clientY - dragStart.y, window.innerHeight - size.height)
+					Math.min(e.clientY - dragOffsetRef.current.y, window.innerHeight - state.height)
 				)
-				setPosition({ x: newX, y: newY })
+				setState((s) => ({ ...s, x: newX, y: newY }))
 			}
-			if (isResizing) {
-				const newWidth = Math.max(450, resizeStart.width + (e.clientX - resizeStart.mouseX))
+
+			if (isResizingRef.current) {
+				const newWidth = Math.max(
+					450,
+					resizeStartRef.current.width + (e.clientX - resizeStartRef.current.mouseX)
+				)
 				const newHeight = Math.max(
 					400,
-					resizeStart.height + (e.clientY - resizeStart.mouseY)
+					resizeStartRef.current.height + (e.clientY - resizeStartRef.current.mouseY)
 				)
-				setSize({ width: newWidth, height: newHeight })
+				setState((s) => ({ ...s, width: newWidth, height: newHeight }))
 			}
 		},
-		[isDragging, isResizing, dragStart, resizeStart, size.width, size.height]
+		[state.width, state.height]
 	)
 
-	const handleMouseUp = useCallback(() => {
-		setIsDragging(false)
-		setIsResizing(false)
-	}, [])
+	const stopDrag = useCallback(() => {
+		isDraggingRef.current = false
+		isResizingRef.current = false
+		setState((s) => ({ ...s, isDragging: false, isResizing: false }))
+		window.removeEventListener('mousemove', handleMouseMove)
+		window.removeEventListener('mouseup', stopDrag)
+	}, [handleMouseMove])
 
-	useEffect(() => {
-		if (isDragging || isResizing) {
+	const startDrag = useCallback(
+		(e: React.MouseEvent) => {
+			const target = e.target as HTMLElement
+			if (target.closest('button') || target.closest('[role="button"]')) {
+				return
+			}
+
+			dragOffsetRef.current = {
+				x: e.clientX - state.x,
+				y: e.clientY - state.y,
+			}
+			isDraggingRef.current = true
+			setState((s) => ({ ...s, isDragging: true }))
 			window.addEventListener('mousemove', handleMouseMove)
-			window.addEventListener('mouseup', handleMouseUp)
-		}
-		return () => {
-			window.removeEventListener('mousemove', handleMouseMove)
-			window.removeEventListener('mouseup', handleMouseUp)
-		}
-	}, [isDragging, isResizing, handleMouseMove, handleMouseUp])
+			window.addEventListener('mouseup', stopDrag)
+		},
+		[state.x, state.y, handleMouseMove, stopDrag]
+	)
 
-	const startDrag = (e: React.MouseEvent) => {
-		setIsDragging(true)
-		setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y })
+	const handleResizeMouseDown = (e: React.MouseEvent) => {
+		e.preventDefault()
+		resizeStartRef.current = {
+			mouseX: e.clientX,
+			mouseY: e.clientY,
+			width: state.width,
+			height: state.height,
+		}
+		isResizingRef.current = true
+		setState((s) => ({ ...s, isResizing: true }))
+		window.addEventListener('mousemove', handleMouseMove)
+		window.addEventListener('mouseup', stopDrag)
 	}
 
-	return { position, size, isDragging, isResizing, startDrag, handleResizeMouseDown }
+	return {
+		position: { x: state.x, y: state.y },
+		size: { width: state.width, height: state.height },
+		isDragging: state.isDragging,
+		isResizing: state.isResizing,
+		startDrag,
+		handleResizeMouseDown,
+	}
 }
 
 export const useLinkTooltip = (editorRef: React.RefObject<HTMLDivElement | null>) => {
