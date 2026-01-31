@@ -1,8 +1,14 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
+use std::sync::LazyLock;
 
 use ammonia::Builder;
 use maplit::hashset;
+
+
+static TAG_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"<([a-zA-Z][a-zA-Z0-9]*)[^>]*>").expect("Invalid regex pattern")
+});
 
 const DANGEROUS_CSS_PROPS: &[&str] = &[
     "position",
@@ -246,9 +252,8 @@ thread_local! {
 
 fn detect_unsupported_tags(html: &str) -> Vec<(String, String)> {
     let mut unsupported = Vec::new();
-    let tag_regex = regex::Regex::new(r"<([a-zA-Z][a-zA-Z0-9]*)[^>]*>").unwrap();
 
-    for cap in tag_regex.captures_iter(html) {
+    for cap in TAG_REGEX.captures_iter(html) {
         if let Some(tag_match) = cap.get(1) {
             let tag = tag_match.as_str().to_lowercase();
             if !ALLOWED_TAGS.contains(&tag.as_str()) {
