@@ -81,7 +81,7 @@ export interface DraftState {
 
 	toggleCompatibilityPanel: () => void
 	setCompatibilityPanelWidth: (width: number) => void
-	validateCompatibility: (html: string) => Promise<void>
+	validateCompatibility: (html: string, immediate?: boolean) => Promise<void>
 	dismissValidationWarning: () => void
 	resetValidationDismissed: () => void
 	setShowSendWarning: (show: boolean) => void

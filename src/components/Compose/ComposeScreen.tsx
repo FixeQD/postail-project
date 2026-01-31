@@ -91,6 +91,11 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		[markDirty]
 	)
 
+	const triggerValidation = useCallback(() => {
+		setChangeCount((c) => c + 1)
+		markDirty()
+	}, [markDirty])
+
 	// Lexical initial config
 	const initialConfig = useMemo(
 		() => ({
@@ -128,14 +133,14 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	}, [isDirty, currentDraft, saveDraft, changeCount])
 
 	useEffect(() => {
-		if (editorMode !== 'source' || !currentDraft?.body) return
+		if (editorMode !== 'source') return
 
 		const timer = setTimeout(() => {
-			validateCompatibility(currentDraft.body)
+			validateCompatibility(htmlRef.current || '')
 		}, 800)
 
 		return () => clearTimeout(timer)
-	}, [editorMode, currentDraft?.body, validateCompatibility])
+	}, [editorMode, changeCount, validateCompatibility])
 
 	// Automatically show Cc/Bcc fields if they have recipients
 	useEffect(() => {
@@ -260,8 +265,8 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 				issues={compatibilityIssues}
 				isLoading={isValidating}
 				onCheckAgain={() => {
-					if (currentDraft?.body) {
-						validateCompatibility(currentDraft.body)
+					if (htmlRef.current) {
+						validateCompatibility(htmlRef.current, true)
 					}
 				}}
 				composeX={position.x}
@@ -278,6 +283,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 					handleEditorChange={handleEditorChange}
 					attachments={currentDraft?.attachments || []}
 					onRemoveAttachment={removeAttachment}
+					onSourceChange={triggerValidation}
 				/>
 			</LexicalComposer>
 

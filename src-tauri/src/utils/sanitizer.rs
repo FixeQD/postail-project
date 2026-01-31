@@ -60,6 +60,59 @@ const WEB_SAFE_FONTS: &[&str] = &[
     "system-ui",
 ];
 
+const ALLOWED_TAGS: &[&str] = &[
+    "a",
+    "abbr",
+    "b",
+    "blockquote",
+    "br",
+    "caption",
+    "center",
+    "cite",
+    "code",
+    "col",
+    "colgroup",
+    "dd",
+    "del",
+    "div",
+    "dl",
+    "dt",
+    "em",
+    "font",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "hr",
+    "i",
+    "img",
+    "ins",
+    "li",
+    "ol",
+    "p",
+    "pre",
+    "q",
+    "s",
+    "small",
+    "span",
+    "strike",
+    "strong",
+    "sub",
+    "sup",
+    "table",
+    "tbody",
+    "td",
+    "tfoot",
+    "th",
+    "thead",
+    "tr",
+    "tt",
+    "u",
+    "ul",
+];
+
 #[derive(Debug, Clone, Default)]
 pub struct StyleSanitizeResult {
     pub cleaned_style: String,
@@ -191,115 +244,45 @@ thread_local! {
     static COLLECTED_ISSUES: RefCell<Vec<SanitizeIssue>> = const { RefCell::new(Vec::new()) };
 }
 
-fn create_email_sanitizer_with_tracking<'a>() -> Builder<'a> {
-    let mut builder = Builder::default();
+fn detect_unsupported_tags(html: &str) -> Vec<(String, String)> {
+    let mut unsupported = Vec::new();
+    let tag_regex = regex::Regex::new(r"<([a-zA-Z][a-zA-Z0-9]*)[^>]*>").unwrap();
 
-    builder.tags(hashset![
-        "a",
-        "abbr",
-        "b",
-        "blockquote",
-        "br",
-        "caption",
-        "center",
-        "cite",
-        "code",
-        "col",
-        "colgroup",
-        "dd",
-        "del",
-        "div",
-        "dl",
-        "dt",
-        "em",
-        "font",
-        "h1",
-        "h2",
-        "h3",
-        "h4",
-        "h5",
-        "h6",
-        "hr",
-        "i",
-        "img",
-        "ins",
-        "li",
-        "ol",
-        "p",
-        "pre",
-        "q",
-        "s",
-        "small",
-        "span",
-        "strike",
-        "strong",
-        "sub",
-        "sup",
-        "table",
-        "tbody",
-        "td",
-        "tfoot",
-        "th",
-        "thead",
-        "tr",
-        "tt",
-        "u",
-        "ul"
-    ]);
-
-    builder.tag_attributes(maplit::hashmap![
-        "a" => hashset!["href", "title", "target", "style"],
-        "img" => hashset!["src", "alt", "width", "height", "style"],
-        "table" => hashset!["width", "height", "border", "cellpadding", "cellspacing", "align", "bgcolor", "style"],
-        "td" => hashset!["width", "height", "align", "valign", "bgcolor", "colspan", "rowspan", "style"],
-        "th" => hashset!["width", "height", "align", "valign", "bgcolor", "colspan", "rowspan", "style"],
-        "tr" => hashset!["align", "valign", "bgcolor", "style"],
-        "div" => hashset!["align", "style"],
-        "span" => hashset!["style"],
-        "p" => hashset!["align", "style"],
-        "font" => hashset!["color", "face", "size", "style"],
-        "hr" => hashset!["width", "size", "color", "style"],
-        "col" => hashset!["width", "span", "style"],
-        "colgroup" => hashset!["width", "span", "style"]
-    ]);
-
-    builder.generic_attributes(hashset!["style", "class", "id", "align", "valign"]);
-    builder.link_rel(Some("noopener noreferrer"));
-
-    builder.attribute_filter(|_element: &str, attribute: &str, value: &'_ str| {
-        if attribute == "style" {
-            let result = sanitize_style_attribute(value);
-
-            COLLECTED_ISSUES.with(|issues| {
-                let mut issues = issues.borrow_mut();
-                for prop in &result.removed_properties {
-                    let (reason, severity) = get_issue_details(prop);
-                    issues.push(SanitizeIssue {
-                        property: prop.clone(),
-                        reason,
-                        severity,
-                    });
-                }
-                if result.added_font_fallback {
-                    issues.push(SanitizeIssue {
-                        property: "font-family".to_string(),
-                        reason: "Added web-safe font fallback".to_string(),
-                        severity: IssueSeverity::Info,
-                    });
-                }
-            });
-
-            if result.cleaned_style.is_empty() {
-                None
-            } else {
-                Some(Cow::Owned(result.cleaned_style))
+    for cap in tag_regex.captures_iter(html) {
+        if let Some(tag_match) = cap.get(1) {
+            let tag = tag_match.as_str().to_lowercase();
+            if !ALLOWED_TAGS.contains(&tag.as_str()) {
+                let reason = match tag.as_str() {
+                    "!doctype" => "DOCTYPE declaration is not needed in email HTML",
+                    "head" => "<head> section is ignored by most email clients",
+                    "title" => "<title> is not displayed in email clients",
+                    "meta" => "<meta> tags are ignored in email HTML",
+                    "link" => "<link> tags for external stylesheets are not supported",
+                    "script" => "<script> tags are removed for security",
+                    "style" => "<style> tags have limited support, use inline styles instead",
+                    "iframe" => "<iframe> is not supported in emails",
+                    "form" => "<form> elements have very limited support",
+                    "input" => "<input> elements are not supported",
+                    "button" => "<button> is not supported, use styled <a> instead",
+                    "nav" => "<nav> semantic tag is not supported",
+                    "header" => "<header> semantic tag is not supported",
+                    "footer" => "<footer> semantic tag is not supported",
+                    "article" => "<article> semantic tag is not supported",
+                    "section" => "<section> semantic tag is not supported",
+                    "aside" => "<aside> semantic tag is not supported",
+                    "main" => "<main> semantic tag is not supported",
+                    "figure" => "<figure> semantic tag is not supported",
+                    "figcaption" => "<figcaption> semantic tag is not supported",
+                    _ => "This tag is not supported by most email clients",
+                };
+                unsupported.push((tag, reason.to_string()));
             }
-        } else {
-            Some(Cow::Borrowed(value))
         }
-    });
+    }
 
-    builder
+    unsupported.sort();
+    unsupported.dedup_by(|a, b| a.0 == b.0);
+    unsupported
 }
 
 fn get_issue_details(prop: &str) -> (String, IssueSeverity) {
@@ -338,58 +321,8 @@ fn get_issue_details(prop: &str) -> (String, IssueSeverity) {
 pub fn create_email_sanitizer<'a>() -> Builder<'a> {
     let mut builder = Builder::default();
 
-    builder.tags(hashset![
-        "a",
-        "abbr",
-        "b",
-        "blockquote",
-        "br",
-        "caption",
-        "center",
-        "cite",
-        "code",
-        "col",
-        "colgroup",
-        "dd",
-        "del",
-        "div",
-        "dl",
-        "dt",
-        "em",
-        "font",
-        "h1",
-        "h2",
-        "h3",
-        "h4",
-        "h5",
-        "h6",
-        "hr",
-        "i",
-        "img",
-        "ins",
-        "li",
-        "ol",
-        "p",
-        "pre",
-        "q",
-        "s",
-        "small",
-        "span",
-        "strike",
-        "strong",
-        "sub",
-        "sup",
-        "table",
-        "tbody",
-        "td",
-        "tfoot",
-        "th",
-        "thead",
-        "tr",
-        "tt",
-        "u",
-        "ul"
-    ]);
+    let allowed_tags: std::collections::HashSet<&str> = ALLOWED_TAGS.iter().cloned().collect();
+    builder.tags(allowed_tags);
 
     builder.tag_attributes(maplit::hashmap![
         "a" => hashset!["href", "title", "target", "style"],
@@ -436,11 +369,71 @@ pub fn sanitize_email_html(html: &str) -> String {
     builder.clean(&inlined).to_string()
 }
 
+fn create_sanitizer_with_tracking<'a>() -> Builder<'a> {
+    let mut builder = Builder::default();
+
+    builder.link_rel(Some("noopener noreferrer"));
+
+    builder.attribute_filter(|_element: &str, attribute: &str, value: &'_ str| {
+        if attribute == "style" {
+            let result = sanitize_style_attribute(value);
+
+            COLLECTED_ISSUES.with(|issues| {
+                let mut issues = issues.borrow_mut();
+                for prop in &result.removed_properties {
+                    let (reason, severity) = get_issue_details(prop);
+                    issues.push(SanitizeIssue {
+                        property: prop.clone(),
+                        reason,
+                        severity,
+                    });
+                }
+                if result.added_font_fallback {
+                    issues.push(SanitizeIssue {
+                        property: "font-family".to_string(),
+                        reason: "Added web-safe font fallback".to_string(),
+                        severity: IssueSeverity::Info,
+                    });
+                }
+            });
+
+            if result.cleaned_style.is_empty() {
+                None
+            } else {
+                Some(Cow::Owned(result.cleaned_style))
+            }
+        } else {
+            Some(Cow::Borrowed(value))
+        }
+    });
+
+    builder
+}
+
 pub fn sanitize_email_html_with_details(html: &str) -> SanitizeResult {
     COLLECTED_ISSUES.with(|issues| issues.borrow_mut().clear());
 
+    let unsupported_tags = detect_unsupported_tags(html);
+
     let inlined = inline_css_styles(html);
-    let builder = create_email_sanitizer_with_tracking();
+
+    COLLECTED_ISSUES.with(|issues| {
+        let mut issues = issues.borrow_mut();
+        for (tag, reason) in unsupported_tags {
+            let severity = match tag.as_str() {
+                "script" | "iframe" | "object" | "embed" => IssueSeverity::Error,
+                "!doctype" => IssueSeverity::Info,
+                _ => IssueSeverity::Warning,
+            };
+            issues.push(SanitizeIssue {
+                property: format!("<{}>", tag),
+                reason: reason.to_string(),
+                severity,
+            });
+        }
+    });
+
+    let builder = create_sanitizer_with_tracking();
     let sanitized = builder.clean(&inlined).to_string();
 
     let issues = COLLECTED_ISSUES.with(|issues| issues.borrow().clone());

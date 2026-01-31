@@ -8,8 +8,27 @@ import { loader, Editor } from '@monaco-editor/react'
 import { useDraftStore } from '@/stores/draftStore'
 import { memo, useCallback } from 'react'
 
+// @ts-ignore
+import htmlWorkerUrl from 'monaco-editor/esm/vs/language/html/html.worker?url'
+// @ts-ignore
+import cssWorkerUrl from 'monaco-editor/esm/vs/language/css/css.worker?url'
+// @ts-ignore
+import editorWorkerUrl from 'monaco-editor/esm/vs/editor/editor.worker?url'
+
 // mass magic - manual minimal import (only HTML & CSS) to keep the bundle tiny
 if (typeof window !== 'undefined') {
+	;(window as any).MonacoEnvironment = {
+		getWorkerUrl: (_moduleId: string, label: string) => {
+			switch (label) {
+				case 'html':
+					return htmlWorkerUrl
+				case 'css':
+					return cssWorkerUrl
+				default:
+					return editorWorkerUrl
+			}
+		},
+	}
 	loader.config({ monaco })
 }
 

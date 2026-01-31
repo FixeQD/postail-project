@@ -20,6 +20,7 @@ interface EditorContentProps {
 	handleEditorChange: (editorState: EditorState, editor: LexicalEditor) => void
 	attachments: any[]
 	onRemoveAttachment: (id: string) => void
+	onSourceChange?: () => void
 }
 
 export const EditorContent = memo(
@@ -31,16 +32,11 @@ export const EditorContent = memo(
 		handleEditorChange,
 		attachments,
 		onRemoveAttachment,
+		onSourceChange,
 	}: EditorContentProps) => {
 		const { t } = useTranslation()
-		const {
-			currentDraft,
-			isSaving,
-			stopComposing,
-			deleteDraft,
-			markClean,
-			editorMode,
-		} = useDraftStore()
+		const { currentDraft, isSaving, stopComposing, deleteDraft, markClean, editorMode } =
+			useDraftStore()
 
 		const [editor] = useLexicalComposerContext()
 		const lastHydratedIdRef = useRef<string | null>(null)
@@ -142,7 +138,7 @@ export const EditorContent = memo(
 							handleEditorChange={handleEditorChange}
 						/>
 					) : (
-						<SourceEditor htmlRef={htmlRef} />
+						<SourceEditor htmlRef={htmlRef} onChange={onSourceChange} />
 					)}
 				</div>
 

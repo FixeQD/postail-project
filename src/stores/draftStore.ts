@@ -317,7 +317,6 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 	},
 
 	setCompatibilityPanelWidth: (width: number) => {
-
 		const clampedWidth = Math.max(200, Math.min(500, width))
 		const current = get().compatibilityPanelWidth
 		if (Math.abs(current - clampedWidth) > 5) {
@@ -325,12 +324,12 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		}
 	},
 
-	validateCompatibility: async (html: string) => {
+	validateCompatibility: async (html: string, immediate = false) => {
 		if (validationTimer) {
 			clearTimeout(validationTimer)
 		}
 
-		validationTimer = setTimeout(async () => {
+		const runValidation = async () => {
 			set({ isValidating: true })
 			try {
 				const result = await invoke<{
@@ -348,7 +347,15 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 				console.error('Failed to validate compatibility:', error)
 				set({ isValidating: false })
 			}
-		}, 800)
+		}
+
+		set({ compatibilityIssues: [] })
+
+		if (immediate) {
+			runValidation()
+		} else {
+			validationTimer = setTimeout(runValidation, 800)
+		}
 	},
 
 	dismissValidationWarning: () => {
