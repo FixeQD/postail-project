@@ -376,7 +376,6 @@ pub fn sanitize_email_html(html: &str) -> String {
 fn create_sanitizer_with_tracking<'a>() -> Builder<'a> {
     let mut builder = Builder::default();
 
-    // Set up allowed tags and attributes (same as create_email_sanitizer)
     let allowed_tags: std::collections::HashSet<&str> = ALLOWED_TAGS.iter().cloned().collect();
     builder.tags(allowed_tags);
 
