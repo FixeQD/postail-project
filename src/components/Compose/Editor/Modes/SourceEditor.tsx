@@ -6,7 +6,8 @@ import 'monaco-editor/esm/vs/language/html/monaco.contribution'
 import 'monaco-editor/esm/vs/language/css/monaco.contribution'
 import { loader, Editor } from '@monaco-editor/react'
 import { useDraftStore } from '@/stores/draftStore'
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useEffect } from 'react'
+import { html_beautify } from 'js-beautify'
 
 // @ts-ignore
 import htmlWorkerUrl from 'monaco-editor/esm/vs/language/html/html.worker?url'
@@ -37,6 +38,19 @@ interface SourceEditorProps {
 	onChange?: (value: string | undefined) => void
 }
 
+const formatOptions: import('js-beautify').HTMLBeautifyOptions = {
+	indent_size: 1,
+	indent_char: '\t',
+	max_preserve_newlines: 1,
+	preserve_newlines: false,
+	wrap_line_length: 0,
+	wrap_attributes: 'auto',
+	wrap_attributes_indent_size: 1,
+	end_with_newline: false,
+	indent_inner_html: true,
+	extra_liners: [],
+}
+
 export const SourceEditor = memo(({ htmlRef, onChange }: SourceEditorProps) => {
 	const { markDirty } = useDraftStore()
 
@@ -50,6 +64,20 @@ export const SourceEditor = memo(({ htmlRef, onChange }: SourceEditorProps) => {
 		},
 		[htmlRef, markDirty, onChange]
 	)
+
+	useEffect(() => {
+		const currentHtml = htmlRef.current
+		if (!currentHtml || !onChange) return
+
+		const needsFormatting = !currentHtml.includes('\n') || currentHtml.length > 200
+		if (!needsFormatting) return
+
+		const formatted = html_beautify(currentHtml, formatOptions)
+
+		htmlRef.current = formatted
+		onChange(formatted)
+		markDirty()
+	}, [])
 
 	return (
 		<div className='flex min-h-0 flex-1 flex-col overflow-hidden bg-[#1e1e1e]'>
