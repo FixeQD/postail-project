@@ -4,6 +4,8 @@ import * as monaco from 'monaco-editor/esm/vs/editor/editor.api'
 import 'monaco-editor/esm/vs/language/html/monaco.contribution'
 // @ts-ignore
 import 'monaco-editor/esm/vs/language/css/monaco.contribution'
+// @ts-ignore
+import 'monaco-editor/esm/vs/basic-languages/html/html.contribution'
 import { loader, Editor } from '@monaco-editor/react'
 import { useDraftStore } from '@/stores/draftStore'
 import { memo, useCallback, useEffect } from 'react'
