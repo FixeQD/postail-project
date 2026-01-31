@@ -23,6 +23,8 @@ interface CompatibilityPanelProps {
 	issues: SanitizeIssue[]
 	isLoading: boolean
 	onCheckAgain: () => void
+	onAutoFix?: () => void
+	hasIssues: boolean
 	composeX: number
 	composeY: number
 	composeHeight: number
@@ -142,6 +144,8 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 	issues,
 	isLoading,
 	onCheckAgain,
+	onAutoFix,
+	hasIssues: hasIssuesProp,
 	composeX,
 	composeY,
 	composeHeight,
@@ -160,7 +164,7 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 	)
 
 	const totalIssues = issues.length
-	const hasIssues = totalIssues > 0
+	const hasIssues = hasIssuesProp || totalIssues > 0
 
 	const handleResizeStart = useCallback(() => {
 		setIsResizing(true)
@@ -189,7 +193,6 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 			}
 		}
 	}, [isResizing, handleResizeMove, handleResizeEnd])
-
 
 	const panelStyle: React.CSSProperties = {
 		width,
@@ -310,15 +313,21 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 						{t('compatibilityPanel.actions.checkAgain')}
 					</Button>
 
-					{/* Auto-fix placeholder */}
+					{/* Auto-fix button */}
 					<Button
 						variant='outline'
 						size='sm'
-						className='h-8 w-full cursor-not-allowed border-zinc-700 bg-zinc-900 text-xs text-zinc-500 opacity-50 hover:bg-zinc-800 hover:text-zinc-400'
-						disabled>
-						<Wand2 className='mr-1.5 h-3.5 w-3.5' />
+						className={`h-8 w-full border-zinc-700 bg-zinc-900 text-xs hover:bg-zinc-800 ${
+							hasIssues
+								? 'text-yellow-400 hover:text-yellow-300'
+								: 'cursor-not-allowed text-zinc-500 opacity-50'
+						}`}
+						onClick={onAutoFix}
+						disabled={!hasIssues || isLoading}>
+						<Wand2
+							className={`mr-1.5 h-3.5 w-3.5 ${isLoading ? 'animate-pulse' : ''}`}
+						/>
 						{t('compatibilityPanel.actions.autoFix')}
-						<span className='ml-1.5 text-[10px] opacity-60'>(soon)</span>
 					</Button>
 				</div>
 			</Card>

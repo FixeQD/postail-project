@@ -774,6 +774,11 @@ fn process_email_content(html: String) -> crate::utils::sanitizer::SanitizeResul
     crate::utils::sanitizer::sanitize_email_html_with_details(&html)
 }
 
+#[tauri::command]
+fn auto_fix_email_html(html: String) -> String {
+    crate::utils::sanitizer::auto_fix_email_html(&html)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()
@@ -830,7 +835,8 @@ pub fn run() {
             remove_attachment,
             build_email_from_draft,
             sanitize_email_html,
-            process_email_content
+            process_email_content,
+            auto_fix_email_html
         ])
         .register_uri_scheme_protocol("postail", protocol::handler)
         .run(tauri::generate_context!())

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { invoke } from '@tauri-apps/api/core'
+import { html_beautify } from 'js-beautify'
 import type {
 	ComposeDraft,
 	EmailAddress,
@@ -7,6 +8,19 @@ import type {
 	DraftState,
 	SanitizeIssue,
 } from '@/types/compose'
+
+const formatOptions: import('js-beautify').HTMLBeautifyOptions = {
+	indent_size: 1,
+	indent_char: '\t',
+	max_preserve_newlines: 1,
+	preserve_newlines: true,
+	wrap_line_length: 0,
+	wrap_attributes: 'auto',
+	wrap_attributes_indent_size: 1,
+	end_with_newline: false,
+	indent_inner_html: true,
+	extra_liners: [],
+}
 
 let validationTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -355,6 +369,45 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 			runValidation()
 		} else {
 			validationTimer = setTimeout(runValidation, 800)
+		}
+	},
+
+	applyAutoFix: async (html: string) => {
+		set({ isValidating: true })
+		try {
+			const fixedHtml = await invoke<string>('auto_fix_email_html', { html })
+
+			const formattedHtml = html_beautify(fixedHtml, formatOptions)
+
+			// Update draft body with fixed HTML
+			const { currentDraft } = get()
+			if (currentDraft) {
+				set({
+					currentDraft: {
+						...currentDraft,
+						body: formattedHtml,
+						updatedAt: new Date().toISOString(),
+					},
+					isDirty: true,
+				})
+			}
+
+			// Re-run validation to show if there are still issues
+			const validationResult = await invoke<{
+				html: string
+				issues: SanitizeIssue[]
+			}>('process_email_content', { html: formattedHtml })
+
+			set({
+				compatibilityIssues: validationResult.issues,
+				isValidating: false,
+			})
+
+			return formattedHtml
+		} catch (error) {
+			console.error('Failed to apply auto-fix:', error)
+			set({ isValidating: false })
+			throw error
 		}
 	},
 

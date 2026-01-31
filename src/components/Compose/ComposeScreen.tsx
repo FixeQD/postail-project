@@ -46,6 +46,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		removeRecipient,
 		removeAttachment,
 		validateCompatibility,
+		applyAutoFix,
 		toggleCompatibilityPanel,
 		setCompatibilityPanelWidth,
 		dismissValidationWarning,
@@ -76,6 +77,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	const htmlRef = useRef('')
 	const isHydratingRef = useRef(false)
 	const [changeCount, setChangeCount] = useState(0)
+	const [autoFixKey, setAutoFixKey] = useState(0)
 	const [showCc, setShowCc] = useState(false)
 	const [showBcc, setShowBcc] = useState(false)
 
@@ -269,6 +271,14 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 						validateCompatibility(htmlRef.current, true)
 					}
 				}}
+				onAutoFix={async () => {
+					if (htmlRef.current) {
+						const fixedHtml = await applyAutoFix(htmlRef.current)
+						htmlRef.current = fixedHtml
+						setAutoFixKey((k) => k + 1) // Force SourceEditor re-render with new HTML
+					}
+				}}
+				hasIssues={compatibilityIssues.length > 0}
 				composeX={position.x}
 				composeY={position.y}
 				composeHeight={size.height}
@@ -284,6 +294,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 					attachments={currentDraft?.attachments || []}
 					onRemoveAttachment={removeAttachment}
 					onSourceChange={triggerValidation}
+					autoFixKey={autoFixKey}
 				/>
 			</LexicalComposer>
 

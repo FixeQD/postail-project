@@ -5,7 +5,6 @@ use std::sync::LazyLock;
 use ammonia::Builder;
 use maplit::hashset;
 
-
 static TAG_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
     regex::Regex::new(r"<([a-zA-Z][a-zA-Z0-9]*)[^>]*>").expect("Invalid regex pattern")
 });
@@ -377,6 +376,27 @@ pub fn sanitize_email_html(html: &str) -> String {
 fn create_sanitizer_with_tracking<'a>() -> Builder<'a> {
     let mut builder = Builder::default();
 
+    // Set up allowed tags and attributes (same as create_email_sanitizer)
+    let allowed_tags: std::collections::HashSet<&str> = ALLOWED_TAGS.iter().cloned().collect();
+    builder.tags(allowed_tags);
+
+    builder.tag_attributes(maplit::hashmap![
+        "a" => hashset!["href", "title", "target", "style"],
+        "img" => hashset!["src", "alt", "width", "height", "style"],
+        "table" => hashset!["width", "height", "border", "cellpadding", "cellspacing", "align", "bgcolor", "style"],
+        "td" => hashset!["width", "height", "align", "valign", "bgcolor", "colspan", "rowspan", "style"],
+        "th" => hashset!["width", "height", "align", "valign", "bgcolor", "colspan", "rowspan", "style"],
+        "tr" => hashset!["align", "valign", "bgcolor", "style"],
+        "div" => hashset!["align", "style"],
+        "span" => hashset!["style"],
+        "p" => hashset!["align", "style"],
+        "font" => hashset!["color", "face", "size", "style"],
+        "hr" => hashset!["width", "size", "color", "style"],
+        "col" => hashset!["width", "span", "style"],
+        "colgroup" => hashset!["width", "span", "style"]
+    ]);
+
+    builder.generic_attributes(hashset!["style", "class", "id", "align", "valign"]);
     builder.link_rel(Some("noopener noreferrer"));
 
     builder.attribute_filter(|_element: &str, attribute: &str, value: &'_ str| {
@@ -413,6 +433,32 @@ fn create_sanitizer_with_tracking<'a>() -> Builder<'a> {
     });
 
     builder
+}
+
+static IMPORT_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r#"@import\s+[^;]+;?"#).expect("Invalid @import regex pattern")
+});
+
+static FONT_FACE_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"@font-face\s*\{[^}]*\}").expect("Invalid @font-face regex pattern")
+});
+
+pub fn auto_fix_email_html(html: &str) -> String {
+    let without_imports = IMPORT_REGEX.replace_all(html, "");
+    let without_font_faces = FONT_FACE_REGEX.replace_all(&without_imports, "");
+    let inlined = inline_css_styles(&without_font_faces);
+    let builder = create_email_sanitizer();
+    let sanitized = builder.clean(&inlined).to_string();
+
+    cleanup_html_whitespace(&sanitized)
+}
+
+fn cleanup_html_whitespace(html: &str) -> String {
+    html.lines()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 pub fn sanitize_email_html_with_details(html: &str) -> SanitizeResult {

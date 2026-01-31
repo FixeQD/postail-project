@@ -21,6 +21,7 @@ interface EditorContentProps {
 	attachments: any[]
 	onRemoveAttachment: (id: string) => void
 	onSourceChange?: () => void
+	autoFixKey?: number
 }
 
 export const EditorContent = memo(
@@ -33,6 +34,7 @@ export const EditorContent = memo(
 		attachments,
 		onRemoveAttachment,
 		onSourceChange,
+		autoFixKey,
 	}: EditorContentProps) => {
 		const { t } = useTranslation()
 		const { currentDraft, isSaving, stopComposing, deleteDraft, markClean, editorMode } =
@@ -138,7 +140,11 @@ export const EditorContent = memo(
 							handleEditorChange={handleEditorChange}
 						/>
 					) : (
-						<SourceEditor htmlRef={htmlRef} onChange={onSourceChange} />
+						<SourceEditor
+							htmlRef={htmlRef}
+							onChange={onSourceChange}
+							key={autoFixKey}
+						/>
 					)}
 				</div>
 
