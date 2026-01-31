@@ -67,6 +67,8 @@ pub struct OAuthCredentials {
     pub access_token: String,
     pub refresh_token: Option<String>,
     pub expires_at: i64,
+    pub auth_type: String,
+    pub provider_type: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

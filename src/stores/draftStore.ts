@@ -275,7 +275,7 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		}
 	},
 
-	sendDraft: async () => {
+	sendDraft: async (html?: string) => {
 		const { currentDraft, compatibilityIssues, validationDismissed } = get()
 		if (!currentDraft || !currentDraft.id) {
 			throw new Error('No draft to send')
@@ -292,14 +292,14 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		}
 
 		try {
-			await get().saveDraft()
+			await get().saveDraft(html)
 
-			const result = await invoke<{ emlBytes: number[]; htmlWithCids: string }>(
+			const result = await invoke<{ eml_bytes: number[]; html_with_cids: string }>(
 				'build_email_from_draft',
 				{ draftId: currentDraft.id }
 			)
 
-			const emlBytes = new Uint8Array(result.emlBytes)
+			const emlBytes = new Uint8Array(result.eml_bytes)
 
 			const outboxId = await invoke<string>('enqueue_message', {
 				accountId: currentDraft.accountId,

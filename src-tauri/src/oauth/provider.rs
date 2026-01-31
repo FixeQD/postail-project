@@ -66,7 +66,7 @@ impl ProviderInfo {
                 name: "Gmail",
                 auth_url: "https://accounts.google.com/o/oauth2/v2/auth",
                 token_url: "https://oauth2.googleapis.com/token",
-                scopes: "https://mail.google.com/ https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.readonly",
+                scopes: "https://mail.google.com/ https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.readonly",
                 imap_host: "imap.gmail.com",
                 smtp_host: "smtp.gmail.com",
                 sent_folder: "[Gmail]/Sent Mail",

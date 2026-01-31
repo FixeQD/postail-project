@@ -1,9 +1,9 @@
 use crate::error::DBError;
 use dirs;
+use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
-use sha2::{Sha256, Digest};
 
 pub fn get_attachments_dir() -> Result<PathBuf, DBError> {
     let data_dir = dirs::data_dir()

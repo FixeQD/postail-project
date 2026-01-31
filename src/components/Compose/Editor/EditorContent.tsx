@@ -37,8 +37,17 @@ export const EditorContent = memo(
 		autoFixKey,
 	}: EditorContentProps) => {
 		const { t } = useTranslation()
-		const { currentDraft, isSaving, stopComposing, deleteDraft, markClean, editorMode } =
-			useDraftStore()
+		const { currentDraft, isSaving, sendDraft, markClean, editorMode } = useDraftStore()
+
+		const isValid = useMemo(() => {
+			const bodyContent = htmlRef.current
+			if (!currentDraft) return false
+			const hasRecipients = currentDraft.to && currentDraft.to.length > 0
+			const hasSubject = currentDraft.subject && currentDraft.subject.trim() !== ''
+			const hasBody =
+				bodyContent && bodyContent.trim() !== '' && bodyContent !== '<p><br></p>'
+			return hasRecipients && hasSubject && hasBody
+		}, [currentDraft, htmlRef.current])
 
 		const [editor] = useLexicalComposerContext()
 		const lastHydratedIdRef = useRef<string | null>(null)
@@ -102,7 +111,6 @@ export const EditorContent = memo(
 					markClean()
 					isHydratingRef.current = false
 				} catch (error) {
-					console.error('Draft hydration error:', error)
 					isHydratingRef.current = false
 				}
 			}, 100)
@@ -155,14 +163,16 @@ export const EditorContent = memo(
 						<div className='flex items-center gap-1'>
 							<Button
 								onClick={async () => {
-									if (currentDraft?.id) {
-										await deleteDraft(currentDraft.id)
+									try {
+										await sendDraft(htmlRef.current)
+										onOpenChange(false)
+									} catch {
+										// Error handling is in sendDraft
 									}
-									stopComposing()
-									onOpenChange(false)
 								}}
 								className='h-9 rounded-full bg-blue-600 px-6 font-semibold text-white hover:bg-blue-500'
-								disabled={isSaving}>
+								disabled={isSaving || !isValid}
+								title={!isValid ? t('compose.validation.missingFields') : ''}>
 								{isSaving ? '...' : t('actions.send')}
 							</Button>
 							<EditorToolbar />

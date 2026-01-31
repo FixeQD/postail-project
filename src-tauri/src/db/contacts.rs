@@ -11,13 +11,9 @@ pub struct Contact {
     pub frequency: i32,
 }
 
-pub fn upsert_contact(
-    conn: &Connection,
-    email: &str,
-    name: Option<&str>,
-) -> Result<(), DBError> {
+pub fn upsert_contact(conn: &Connection, email: &str, name: Option<&str>) -> Result<(), DBError> {
     let now = Utc::now().timestamp();
-    
+
     conn.execute(
         "INSERT INTO contacts (email, name, last_contact_at, frequency) 
          VALUES (?, ?, ?, 1) 
@@ -27,7 +23,7 @@ pub fn upsert_contact(
             frequency = frequency + 1",
         params![email, name, now],
     )?;
-    
+
     Ok(())
 }
 
@@ -47,8 +43,12 @@ fn parse_address(address: &str) -> Option<(Option<String>, String)> {
     if let (Some(start), Some(end)) = (address.find('<'), address.find('>')) {
         let name = address[..start].trim().trim_matches('"').trim();
         let email = address[start + 1..end].trim();
-        
-        let name_opt = if name.is_empty() { None } else { Some(name.to_string()) };
+
+        let name_opt = if name.is_empty() {
+            None
+        } else {
+            Some(name.to_string())
+        };
         return Some((name_opt, email.to_string()));
     }
 
@@ -72,7 +72,7 @@ pub fn search_contacts(
          ORDER BY c.frequency DESC, c.last_contact_at DESC 
          LIMIT ?",
     )?;
-    
+
     let fts_query = format!("{}*", crate::db::search::escape_fts_query(query));
     let contact_iter = stmt.query_map(params![fts_query, limit], |row| {
         Ok(Contact {
@@ -82,11 +82,11 @@ pub fn search_contacts(
             frequency: row.get(3)?,
         })
     })?;
-    
+
     let mut contacts = Vec::new();
     for contact in contact_iter {
         contacts.push(contact?);
     }
-    
+
     Ok(contacts)
 }

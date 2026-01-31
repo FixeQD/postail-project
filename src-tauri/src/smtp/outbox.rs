@@ -6,29 +6,46 @@ use crate::db::{enqueue_message, extract_headers_from_eml, list_outbox, OutboxIt
 
 impl super::SmtpManager {
     pub fn enqueue_message(&self, account_id: &str, raw_eml: &[u8]) -> Result<String, String> {
+        tracing::info!(target: "postail", "[Outbox] Enqueueing message for account: {}, size: {} bytes", account_id, raw_eml.len());
+
         let data_dir = dirs::data_dir()
             .unwrap_or_else(|| std::path::PathBuf::from("."))
             .join("postail")
             .join("outbox");
-        fs::create_dir_all(&data_dir).map_err(|e| e.to_string())?;
+        fs::create_dir_all(&data_dir).map_err(|e| {
+            tracing::error!(target: "postail", "[Outbox] Failed to create outbox dir: {}", e);
+            e.to_string()
+        })?;
         let eml_path = data_dir.join(format!("{}.eml", Uuid::new_v4()));
 
         let security = self.security.lock().unwrap();
-        let encrypted_eml = security.encrypt(raw_eml).map_err(|e| e.to_string())?;
+        let encrypted_eml = security.encrypt(raw_eml).map_err(|e| {
+            tracing::error!(target: "postail", "[Outbox] Failed to encrypt EML: {}", e);
+            e.to_string()
+        })?;
         drop(security);
-        fs::write(&eml_path, encrypted_eml).map_err(|e| e.to_string())?;
 
-        let (_subject, _recipient) =
-            extract_headers_from_eml(&eml_path.to_string_lossy()).map_err(|e| e.to_string())?;
+        fs::write(&eml_path, encrypted_eml).map_err(|e| {
+            tracing::error!(target: "postail", "[Outbox] Failed to write EML file: {}", e);
+            e.to_string()
+        })?;
+        tracing::info!(target: "postail", "[Outbox] EML file written successfully");
 
         let conn_guard = self.conn.lock().unwrap();
         let conn = conn_guard
             .as_ref()
             .ok_or("Database not initialized".to_string())?;
-        let id = enqueue_message(conn, account_id, &eml_path.to_string_lossy())
-            .map_err(|e| e.to_string());
-        drop(conn_guard);
-        id
+
+        match enqueue_message(conn, account_id, &eml_path.to_string_lossy()) {
+            Ok(id) => {
+                tracing::info!(target: "postail", "[Outbox] Message enqueued successfully with ID: {}", id);
+                Ok(id)
+            }
+            Err(e) => {
+                tracing::error!(target: "postail", "[Outbox] Failed to enqueue message in DB: {}", e);
+                Err(e.to_string())
+            }
+        }
     }
 
     pub fn list_outbox(&self, account_id: &str) -> Result<Vec<OutboxItem>, String> {

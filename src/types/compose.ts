@@ -77,7 +77,7 @@ export interface DraftState {
 	loadDraft: (draft: ComposeDraft) => void
 	loadDrafts: (accountId: string) => Promise<void>
 	deleteDraft: (draftId: string) => Promise<void>
-	sendDraft: () => Promise<string>
+	sendDraft: (html?: string) => Promise<string>
 
 	toggleCompatibilityPanel: () => void
 	setCompatibilityPanelWidth: (width: number) => void

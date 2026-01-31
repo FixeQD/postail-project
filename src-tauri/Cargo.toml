@@ -64,6 +64,7 @@ utf7-imap = "0.3.2"
 encoded-words = "0.2" 
 maplit = "1.0.2"
 regex = "1"
+async-smtp = "0.10.2"
 
 # TPM support (Linux)
 [target.'cfg(target_os = "linux")'.dependencies]

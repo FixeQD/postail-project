@@ -16,7 +16,11 @@ export function SubjectInput({
 	autoFocus,
 }: SubjectInputProps) {
 	return (
-		<div className={cn('flex h-11 w-full items-center gap-2 border-b border-zinc-900 bg-transparent px-0 transition-colors focus-within:border-zinc-700', className)}>
+		<div
+			className={cn(
+				'flex h-11 w-full items-center gap-2 border-b border-zinc-900 bg-transparent px-0 transition-colors focus-within:border-zinc-700',
+				className
+			)}>
 			<input
 				type='text'
 				value={value}

@@ -110,7 +110,6 @@ export default function PastePlugin(): null {
 					? file.name
 					: `pasted_image_${Date.now()}.${file.type.split('/')[1] || 'png'}`
 
-
 			const attachment = await invoke<EmailAttachment>('add_inline_attachment', {
 				bytes,
 				filename,

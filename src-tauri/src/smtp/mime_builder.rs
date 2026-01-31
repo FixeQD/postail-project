@@ -1,4 +1,3 @@
-use crate::db::DraftAttachment;
 use lettre::message::{header, Attachment, Body, Message, MultiPart, SinglePart};
 use std::fs;
 
@@ -20,10 +19,18 @@ pub fn build_multipart_email(
     bcc: Vec<&str>,
     subject: &str,
     html_body: &str,
-    attachments: &[DraftAttachment],
+    attachments: &[crate::db::DraftAttachment],
 ) -> Result<Vec<u8>, EmailBuildError> {
-    let (inline_attachments, regular_attachments): (Vec<&DraftAttachment>, Vec<&DraftAttachment>) =
-        attachments.iter().partition(|att| att.inline);
+    tracing::info!(target: "postail", "[MimeBuilder] Building email - from={}, to_count={}, cc_count={}, bcc_count={}, subject='{}'",
+		from, to.len(), cc.len(), bcc.len(), subject);
+
+    let (inline_attachments, regular_attachments): (
+        Vec<&crate::db::DraftAttachment>,
+        Vec<&crate::db::DraftAttachment>,
+    ) = attachments.iter().partition(|att| att.inline);
+
+    tracing::debug!(target: "postail", "[MimeBuilder] Attachments - inline: {}, regular: {}",
+		inline_attachments.len(), regular_attachments.len());
 
     let mut message_builder = Message::builder()
         .from(
@@ -122,10 +129,14 @@ pub fn build_multipart_email(
         .map_err(|e| EmailBuildError(format!("Failed to build message: {}", e)))?;
 
     let email_bytes = message.formatted();
+    tracing::info!(target: "postail", "[MimeBuilder] Email built successfully, size={} bytes", email_bytes.len());
     Ok(email_bytes)
 }
 
-pub fn replace_asset_urls_with_cids(html: &str, attachments: &[DraftAttachment]) -> String {
+pub fn replace_asset_urls_with_cids(
+    html: &str,
+    attachments: &[crate::db::DraftAttachment],
+) -> String {
     let mut result = html.to_string();
 
     let cid_map: std::collections::HashMap<&str, &str> = attachments

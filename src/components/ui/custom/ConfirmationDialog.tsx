@@ -29,13 +29,16 @@ export function ConfirmationDialog({
 }: ConfirmationDialogProps) {
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className='sm:max-w-[425px] border-zinc-800 bg-zinc-900 text-zinc-100'>
+			<DialogContent className='border-zinc-800 bg-zinc-900 text-zinc-100 sm:max-w-[425px]'>
 				<DialogHeader>
 					<DialogTitle>{title}</DialogTitle>
 					<DialogDescription className='text-zinc-400'>{description}</DialogDescription>
 				</DialogHeader>
 				<DialogFooter className='gap-2 sm:gap-0'>
-					<Button variant='ghost' onClick={() => onOpenChange(false)} className='text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'>
+					<Button
+						variant='ghost'
+						onClick={() => onOpenChange(false)}
+						className='text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'>
 						{cancelLabel}
 					</Button>
 					<Button onClick={onConfirm} className='bg-blue-600 hover:bg-blue-500'>

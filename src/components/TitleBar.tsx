@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { platform } from '@tauri-apps/plugin-os'
-import { Search, Bell, Settings } from 'lucide-react'
+import { Search, Bell, Settings, Send } from 'lucide-react'
 import icon from '../assets/icon.png'
 import type { AccountMeta } from '../types/accounts'
 import { useTypedTranslation } from '../hooks/useTypedTranslation'
@@ -11,9 +11,16 @@ interface TitleBarProps {
 	activeAccount?: AccountMeta | null
 	onSearch?: (query: string) => void
 	onOpenSettings?: () => void
+	onOpenOutbox?: () => void
 }
 
-export function TitleBar({ isDashboard, activeAccount, onSearch, onOpenSettings }: TitleBarProps) {
+export function TitleBar({
+	isDashboard,
+	activeAccount,
+	onSearch,
+	onOpenSettings,
+	onOpenOutbox,
+}: TitleBarProps) {
 	const { t } = useTypedTranslation()
 	const [isMobile, setIsMobile] = useState<boolean | null>(null)
 	const [searchQuery, setSearchQuery] = useState('')
@@ -80,6 +87,15 @@ export function TitleBar({ isDashboard, activeAccount, onSearch, onOpenSettings 
 							onMouseDown={(e) => e.stopPropagation()}>
 							<Bell className='h-5 w-5' />
 							<span className='absolute top-0 right-0 h-2 w-2 rounded-full bg-orange-500'></span>
+						</button>
+						<button
+							className='text-slate-400 hover:text-slate-200'
+							onClick={(e) => {
+								e.stopPropagation()
+								onOpenOutbox?.()
+							}}
+							onMouseDown={(e) => e.stopPropagation()}>
+							<Send className='h-5 w-5' />
 						</button>
 						<button
 							className='text-slate-400 hover:text-slate-200'

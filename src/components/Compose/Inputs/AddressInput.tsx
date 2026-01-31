@@ -117,7 +117,7 @@ export function AddressInput({
 				className
 			)}
 			onClick={() => inputRef.current?.focus()}>
-			<span className='mr-1 select-none text-sm font-medium text-zinc-500'>{label}</span>
+			<span className='mr-1 text-sm font-medium text-zinc-500 select-none'>{label}</span>
 
 			<AnimatePresence initial={false}>
 				{recipients.map((recipient) => (
@@ -127,16 +127,18 @@ export function AddressInput({
 						animate={{ opacity: 1, scale: 1 }}
 						exit={{ opacity: 0, scale: 0.8 }}
 						transition={{ duration: 0.15 }}
-						className='flex items-center gap-1.5 rounded-full bg-zinc-800 py-0.5 pl-2.5 pr-1 text-sm text-zinc-200 ring-1 ring-zinc-700 hover:bg-zinc-700'
+						className='flex items-center gap-1.5 rounded-full bg-zinc-800 py-0.5 pr-1 pl-2.5 text-sm text-zinc-200 ring-1 ring-zinc-700 hover:bg-zinc-700'
 						onClick={(e) => e.stopPropagation()}>
-						<span className='max-w-[200px] truncate'>{recipient.name || recipient.email}</span>
+						<span className='max-w-[200px] truncate'>
+							{recipient.name || recipient.email}
+						</span>
 						<button
 							type='button'
 							onClick={(e) => {
 								e.stopPropagation()
 								onRemove(recipient.email)
 							}}
-							className='hover:bg-zinc-600 flex h-4 w-4 items-center justify-center rounded-full text-zinc-400 hover:text-white'>
+							className='flex h-4 w-4 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-600 hover:text-white'>
 							<X className='h-3 w-3' />
 						</button>
 					</motion.div>

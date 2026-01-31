@@ -19,7 +19,6 @@ export const useDragging = () => {
 		isResizing: false,
 	})
 
-
 	const dragOffsetRef = useRef({ x: 0, y: 0 })
 	const resizeStartRef = useRef({ mouseX: 0, mouseY: 0, width: 0, height: 0 })
 	const isDraggingRef = useRef(false)

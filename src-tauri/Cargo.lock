@@ -338,6 +338,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-smtp"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "55219982f938e74491ba85dc4e49cefe8096b1e8f49348c67180a7d244988dca"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "futures",
+ "log",
+ "nom 8.0.0",
+ "pin-project",
+ "thiserror 2.0.17",
+ "tokio",
+]
+
+[[package]]
 name = "async-std"
 version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3908,6 +3924,7 @@ dependencies = [
  "argon2",
  "async-imap",
  "async-native-tls",
+ "async-smtp",
  "async-std",
  "base64 0.22.1",
  "chrono",

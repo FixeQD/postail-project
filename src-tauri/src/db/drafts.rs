@@ -40,7 +40,8 @@ pub fn save_draft(conn: &Connection, draft: &Draft) -> Result<(), DBError> {
     let to_json = serde_json::to_string(&draft.to).map_err(|e| DBError::Json(e))?;
     let cc_json = serde_json::to_string(&draft.cc).map_err(|e| DBError::Json(e))?;
     let bcc_json = serde_json::to_string(&draft.bcc).map_err(|e| DBError::Json(e))?;
-    let attachments_json = serde_json::to_string(&draft.attachments).map_err(|e| DBError::Json(e))?;
+    let attachments_json =
+        serde_json::to_string(&draft.attachments).map_err(|e| DBError::Json(e))?;
 
     conn.execute(
         "INSERT OR REPLACE INTO drafts (id, account_id, subject, body, to_json, cc_json, bcc_json, attachments_json, created_at, updated_at)
@@ -75,10 +76,18 @@ pub fn load_draft(conn: &Connection, id: &str) -> Result<Option<Draft>, DBError>
             account_id: row.get(1)?,
             subject: row.get(2)?,
             body: row.get(3)?,
-            to: to_json.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default(),
-            cc: cc_json.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default(),
-            bcc: bcc_json.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default(),
-            attachments: attachments_json.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default(),
+            to: to_json
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default(),
+            cc: cc_json
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default(),
+            bcc: bcc_json
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default(),
+            attachments: attachments_json
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default(),
             created_at: row.get(8)?,
             updated_at: row.get(9)?,
         })
@@ -104,10 +113,18 @@ pub fn list_drafts(conn: &Connection, account_id: &str) -> Result<Vec<Draft>, DB
             account_id: row.get(1)?,
             subject: row.get(2)?,
             body: row.get(3)?,
-            to: to_json.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default(),
-            cc: cc_json.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default(),
-            bcc: bcc_json.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default(),
-            attachments: attachments_json.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default(),
+            to: to_json
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default(),
+            cc: cc_json
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default(),
+            bcc: bcc_json
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default(),
+            attachments: attachments_json
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default(),
             created_at: row.get(8)?,
             updated_at: row.get(9)?,
         })

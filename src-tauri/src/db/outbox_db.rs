@@ -19,6 +19,8 @@ pub fn enqueue_message(
 }
 
 pub fn list_outbox(conn: &Connection, account_id: &str) -> Result<Vec<OutboxItem>, DBError> {
+    tracing::info!(target: "postail", "[OutboxDB] Listing outbox for account: {}", account_id);
+
     let mut stmt = conn.prepare(
         "SELECT id, raw_eml_path, status, attempts, last_error FROM outbox WHERE account_id = ?",
     )?;
@@ -33,5 +35,11 @@ pub fn list_outbox(conn: &Connection, account_id: &str) -> Result<Vec<OutboxItem
         })
     })?;
     let items: Result<Vec<OutboxItem>, _> = items_iter.collect();
+
+    match &items {
+        Ok(vec) => tracing::info!(target: "postail", "[OutboxDB] Found {} items", vec.len()),
+        Err(e) => tracing::error!(target: "postail", "[OutboxDB] Error listing outbox: {}", e),
+    }
+
     items.map_err(DBError::Sqlite)
 }

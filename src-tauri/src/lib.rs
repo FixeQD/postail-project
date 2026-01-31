@@ -156,6 +156,8 @@ async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta,
             access_token: tokens.access_token,
             refresh_token: tokens.refresh_token,
             expires_at: Utc::now().timestamp() + tokens.expires_in as i64,
+            auth_type: "oauth2".to_string(),
+            provider_type: provider.kind.as_str().to_string(),
         }),
         imap_config: ImapConfig {
             host: oauth::ProviderInfo::get(provider.kind)
@@ -552,9 +554,9 @@ fn move_to_trash(account_id: String, mailbox: String, uids: Vec<u64>) -> Result<
 }
 
 #[tauri::command]
-fn enqueue_message(account_id: String, raw_eml: String) -> Result<String, String> {
+fn enqueue_message(account_id: String, raw_eml: Vec<u8>) -> Result<String, String> {
     let smtp = SMTP_MANAGER.lock().unwrap();
-    smtp.enqueue_message(&account_id, raw_eml.as_bytes())
+    smtp.enqueue_message(&account_id, &raw_eml)
 }
 
 #[tauri::command]
@@ -622,6 +624,10 @@ async fn run_maintenance() -> Result<(), String> {
 
 #[tauri::command]
 async fn save_draft(draft: crate::db::Draft) -> Result<(), String> {
+    let body_len = draft.body.as_ref().map(|b| b.len()).unwrap_or(0);
+    tracing::info!(target: "postail", "[save_draft] Received draft from frontend - id={}, subject={:?}, body_len={}, to_count={}, cc_count={}, bcc_count={}",
+        draft.id, draft.subject, body_len, draft.to.len(), draft.cc.len(), draft.bcc.len());
+
     let db_conn = Arc::clone(&DB_CONN);
     tokio::task::spawn_blocking(move || {
         let conn_guard = db_conn.lock().unwrap();
@@ -629,7 +635,10 @@ async fn save_draft(draft: crate::db::Draft) -> Result<(), String> {
         crate::db::save_draft(conn, &draft).map_err(|e| e.to_string())
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())?;
+
+    tracing::info!(target: "postail", "[save_draft] Draft saved successfully");
+    Ok(())
 }
 
 #[tauri::command]
@@ -717,6 +726,7 @@ pub struct BuildEmailResult {
 
 #[tauri::command]
 async fn build_email_from_draft(draft_id: String) -> Result<BuildEmailResult, String> {
+    tracing::info!(target: "postail", "[build_email_from_draft] Starting for draft_id={}", draft_id);
     let db_conn = Arc::clone(&DB_CONN);
 
     tokio::task::spawn_blocking(move || {
@@ -743,6 +753,9 @@ async fn build_email_from_draft(draft_id: String) -> Result<BuildEmailResult, St
         let cc: Vec<&str> = draft.cc.iter().map(|s| s.as_str()).collect();
         let bcc: Vec<&str> = draft.bcc.iter().map(|s| s.as_str()).collect();
         let subject = draft.subject.unwrap_or_default();
+
+        tracing::info!(target: "postail", "[build_email_from_draft] Building email with {} to, {} cc, {} bcc recipients, subject='{}'",
+            to.len(), cc.len(), bcc.len(), subject);
 
         let eml_bytes = crate::smtp::mime_builder::build_multipart_email(
             &from_email,
@@ -794,7 +807,10 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            utils::oauth_server::start(app.handle().clone());
+            let handle = app.handle().clone();
+            utils::oauth_server::start(handle.clone());
+
+            SMTP_MANAGER.lock().unwrap().set_app_handle(handle);
 
             Ok(())
         })
