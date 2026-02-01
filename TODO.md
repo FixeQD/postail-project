@@ -57,7 +57,11 @@
     - [x] 10.26 — Logic: Implement "Auto-fix" button to strip problematic CSS via Rust backend (and inline CSS values)
     - [x] 10.27 — Integration: Connect "Send" button to SMTP worker and Outbox queue
     - [x] 10.28 — UI: Implement "Discard Draft" with confirmation dialog and DB cleanup
-    - [ ] 10.29 — UX: Add keyboard shortcuts: Ctrl+Enter (Send), Ctrl+S (Manual Save), Esc (Close)
+    - [x] 10.29 — UX: Add keyboard shortcuts: Ctrl+Enter (Send), Ctrl+S (Manual Save), Esc (Close)
+          + Additional shortcuts: Ctrl+N (New), Ctrl+F (Search), Ctrl+R (Refresh), Ctrl+1/2/3/4 (Navigation)
+          + Compose: Ctrl+Shift+A (Attach), Ctrl+K (Link), Ctrl+Shift+C/B (Toggle Cc/Bcc), Esc (Close)
+          + Inbox Gmail-style: J/K (Navigate), Enter (Open), Delete/# (Trash), R/Shift+R (Reply/All), F (Forward)
+          + N (New), U/Shift+U (Read/Unread), S (Star), / (Search focus)
     - [ ] 10.30 — UI: Polish: Add sending animations, success/error toasts, and focus management
 
 - [ ] 11 — Release Prep

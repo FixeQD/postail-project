@@ -93,6 +93,15 @@ const LinkPopover = memo(({ editor, formats, linkData }: any) => {
 		}
 	}, [open, linkData])
 
+	// Listen for kbd shortcut trigger
+	useEffect(() => {
+		const handleInsertLink = () => {
+			setOpen(true)
+		}
+		window.addEventListener('compose:insert-link', handleInsertLink)
+		return () => window.removeEventListener('compose:insert-link', handleInsertLink)
+	}, [])
+
 	const applyLink = useCallback(() => {
 		const url = formatUrl(localUrl.trim())
 		if (!url) {
@@ -225,6 +234,15 @@ export function EditorToolbar() {
 		}
 		setDialogOpen(false)
 	}
+
+	// Listen for kbd shortcut trigger
+	useEffect(() => {
+		const handleAttachFile = () => {
+			handleAttachment()
+		}
+		window.addEventListener('compose:attach-file', handleAttachFile)
+		return () => window.removeEventListener('compose:attach-file', handleAttachFile)
+	}, [handleAttachment])
 
 	return (
 		<div className='flex items-center gap-2'>

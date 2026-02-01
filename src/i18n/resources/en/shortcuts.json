@@ -1,0 +1,45 @@
+{
+	"shortcuts": {
+		"title": "Keyboard Shortcuts",
+		"global": "Global Shortcuts",
+		"compose": "Compose Shortcuts",
+		"inbox": "Inbox Shortcuts",
+		"actions": {
+			"newMessage": "New message",
+			"focusSearch": "Focus search",
+			"refresh": "Refresh / Sync",
+			"goInbox": "Go to Inbox",
+			"goOutbox": "Go to Outbox",
+			"goDrafts": "Go to Drafts",
+			"goAccounts": "Go to Accounts",
+			"openSettings": "Open settings",
+			"send": "Send message",
+			"saveDraft": "Save draft",
+			"close": "Close / Discard",
+			"attachFile": "Attach file",
+			"insertLink": "Insert link",
+			"toggleCc": "Toggle Cc field",
+			"toggleBcc": "Toggle Bcc field",
+			"nextMessage": "Next message",
+			"prevMessage": "Previous message",
+			"openMessage": "Open selected message",
+			"deleteMessage": "Move to trash",
+			"reply": "Reply",
+			"replyAll": "Reply all",
+			"forward": "Forward",
+			"toggleRead": "Toggle read/unread",
+			"markUnread": "Mark as unread",
+			"toggleStar": "Star / Flag message"
+		},
+		"keys": {
+			"ctrl": "Ctrl",
+			"cmd": "⌘",
+			"shift": "Shift",
+			"enter": "↵",
+			"esc": "Esc",
+			"space": "Space",
+			"delete": "Del",
+			"plus": "+"
+		}
+	}
+}

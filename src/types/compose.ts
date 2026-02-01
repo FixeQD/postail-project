@@ -86,4 +86,8 @@ export interface DraftState {
 	dismissValidationWarning: () => void
 	resetValidationDismissed: () => void
 	setShowSendWarning: (show: boolean) => void
+
+	// Keyboard shortcut triggers
+	triggerAttachFile: () => void
+	triggerInsertLink: () => void
 }

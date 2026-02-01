@@ -422,4 +422,12 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 	setShowSendWarning: (show: boolean) => {
 		set({ showSendWarning: show })
 	},
+
+	triggerAttachFile: () => {
+		window.dispatchEvent(new CustomEvent('compose:attach-file'))
+	},
+
+	triggerInsertLink: () => {
+		window.dispatchEvent(new CustomEvent('compose:insert-link'))
+	},
 }))

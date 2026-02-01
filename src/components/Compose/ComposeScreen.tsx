@@ -9,6 +9,7 @@ import { X, Minimize2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { useDraftStore } from '@/stores/draftStore'
+import { useComposeShortcuts } from '@/hooks/useComposeShortcuts'
 import { useDragging, useLinkTooltip } from './useCompose'
 import EditorContent from './Editor/EditorContent'
 import { lexicalToHtml } from './Editor/utils/conversion'
@@ -80,6 +81,58 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	const [autoFixKey, setAutoFixKey] = useState(0)
 	const [showCc, setShowCc] = useState(false)
 	const [showBcc, setShowBcc] = useState(false)
+	const [showDiscardDialog, setShowDiscardDialog] = useState(false)
+
+	const handleClose = useCallback(() => {
+		if (isDirty) {
+			setShowDiscardDialog(true)
+		} else {
+			saveDraft(htmlRef.current)
+			onOpenChange(false)
+			stopComposing()
+		}
+	}, [isDirty, saveDraft, onOpenChange, stopComposing])
+
+	const handleSend = useCallback(async () => {
+		try {
+			await sendDraft(htmlRef.current)
+			onOpenChange(false)
+		} catch {
+			// Error handling is in sendDraft
+		}
+	}, [sendDraft, onOpenChange])
+
+	const handleSaveDraft = useCallback(() => {
+		saveDraft(htmlRef.current)
+	}, [saveDraft])
+
+	const handleAttachFile = useCallback(() => {
+		useDraftStore.getState().triggerAttachFile()
+	}, [])
+
+	const handleInsertLink = useCallback(() => {
+		useDraftStore.getState().triggerInsertLink()
+	}, [])
+
+	const handleToggleCc = useCallback(() => {
+		setShowCc((prev) => !prev)
+	}, [])
+
+	const handleToggleBcc = useCallback(() => {
+		setShowBcc((prev) => !prev)
+	}, [])
+
+	// Register them
+	useComposeShortcuts({
+		onSend: handleSend,
+		onSaveDraft: handleSaveDraft,
+		onClose: handleClose,
+		onAttachFile: handleAttachFile,
+		onInsertLink: handleInsertLink,
+		onToggleCc: handleToggleCc,
+		onToggleBcc: handleToggleBcc,
+		enabled: open,
+	})
 
 	const handleEditorChange = useCallback(
 		(editorState: EditorState, editor: LexicalEditor) => {
@@ -176,11 +229,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 						variant='ghost'
 						size='icon'
 						className='h-7 w-7 text-zinc-400 hover:text-zinc-100'
-						onClick={() => {
-							saveDraft(htmlRef.current)
-							onOpenChange(false)
-							stopComposing()
-						}}>
+						onClick={handleClose}>
 						<X className='h-4 w-4' />
 					</Button>
 				</div>
@@ -335,6 +384,20 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 					sendDraft().then(() => {
 						onOpenChange(false)
 					})
+				}}
+			/>
+
+			{/* Discard Draft Dialog */}
+			<ConfirmationDialog
+				open={showDiscardDialog}
+				onOpenChange={setShowDiscardDialog}
+				title={t('compose.discard.title')}
+				description={t('compose.discard.description')}
+				confirmLabel={t('compose.discard.confirm')}
+				cancelLabel={t('compose.discard.cancel')}
+				onConfirm={() => {
+					onOpenChange(false)
+					stopComposing()
 				}}
 			/>
 		</div>
