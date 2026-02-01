@@ -386,7 +386,7 @@ fn replace_body_with_div_dom(document: &NodeRef, body_styles: String) {
                     }
                 }
 
-                let div = NodeRef::new_element(QualName::new(None, ns!(), "div".into()), None);
+                let div = NodeRef::new_element(QualName::new(None, ns!(html), "div".into()), None);
 
                 {
                     let div_element = div.as_element().unwrap();
