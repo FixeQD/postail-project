@@ -41,6 +41,12 @@
 		},
 		"validation": {
 			"missingFields": "Please fill in recipient, subject and message body before sending"
+		},
+		"discard": {
+			"title": "Discard Draft?",
+			"description": "This draft will be permanently deleted. This action cannot be undone.",
+			"confirm": "Discard",
+			"cancel": "Keep Draft"
 		}
 	},
 	"outbox": {

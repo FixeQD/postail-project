@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, memo, useMemo } from 'react'
+import React, { useRef, useEffect, memo, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LexicalEditor, EditorState } from 'lexical'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
@@ -6,6 +6,7 @@ import { ContentEditable } from '@lexical/react/LexicalContentEditable'
 import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useDraftStore } from '@/stores/draftStore'
+import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 import EditorToolbar from './EditorToolbar'
 import RichTextEditor from './Modes/RichTextEditor'
 import SourceEditor from './Modes/SourceEditor'
@@ -37,7 +38,16 @@ export const EditorContent = memo(
 		autoFixKey,
 	}: EditorContentProps) => {
 		const { t } = useTranslation()
-		const { currentDraft, isSaving, sendDraft, markClean, editorMode } = useDraftStore()
+		const {
+			currentDraft,
+			isSaving,
+			sendDraft,
+			markClean,
+			editorMode,
+			deleteDraft,
+			stopComposing,
+		} = useDraftStore()
+		const [showDiscardDialog, setShowDiscardDialog] = useState(false)
 
 		const isValid = useMemo(() => {
 			const bodyContent = htmlRef.current
@@ -182,12 +192,30 @@ export const EditorContent = memo(
 							<Button
 								variant='ghost'
 								size='icon'
-								className='h-9 w-9 text-zinc-400 hover:bg-zinc-900 hover:text-red-400'>
+								className='h-9 w-9 text-zinc-400 hover:bg-zinc-900 hover:text-red-400'
+								onClick={() => setShowDiscardDialog(true)}
+								title={t('compose.discard.title')}>
 								<Trash2 className='h-4 w-4' />
 							</Button>
 						</div>
 					</div>
 				</div>
+
+				<ConfirmationDialog
+					open={showDiscardDialog}
+					onOpenChange={setShowDiscardDialog}
+					title={t('compose.discard.title')}
+					description={t('compose.discard.description')}
+					confirmLabel={t('compose.discard.confirm')}
+					cancelLabel={t('compose.discard.cancel')}
+					onConfirm={async () => {
+						if (currentDraft?.id) {
+							await deleteDraft(currentDraft.id)
+						}
+						stopComposing()
+						onOpenChange(false)
+					}}
+				/>
 			</>
 		)
 	}
