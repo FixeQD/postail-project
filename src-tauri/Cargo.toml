@@ -66,6 +66,9 @@ regex = "1"
 async-smtp = "0.10.2"
 lettre = { version = "0.11.19", default-features = false, features = ["builder"] }
 tokio-native-tls = "0.3.1"
+kuchiki = "0.8.1"
+html5ever = "0.25"
+markup5ever = "0.10"
 
 # TPM support (Linux)
 [target.'cfg(target_os = "linux")'.dependencies]

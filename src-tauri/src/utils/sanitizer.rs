@@ -3,7 +3,11 @@ use std::cell::RefCell;
 use std::sync::LazyLock;
 
 use ammonia::Builder;
+use html5ever::QualName;
+use kuchiki::traits::*;
+use kuchiki::NodeRef;
 use maplit::hashset;
+use markup5ever::{namespace_url, ns};
 
 static TAG_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
     regex::Regex::new(r"<([a-zA-Z][a-zA-Z0-9]*)[^>]*>").expect("Invalid regex pattern")
@@ -120,40 +124,89 @@ const ALLOWED_TAGS: &[&str] = &[
 // ─── Main Flow Functions ──────────────────────────────────────────────
 
 pub fn auto_fix_email_html(html: &str) -> String {
-    let resolved = resolve_css_variables(html);
+    // Stage 1: Parse to DOM and replace body with div
+    let document = kuchiki::parse_html().one(html);
 
-    let body_styles = extract_body_styles_from_css(&resolved);
+    // Extract body styles
+    let body_styles = extract_body_styles_from_css(html);
 
-    let with_div = replace_body_with_div(&resolved, body_styles);
+    // Replace body with div
+    replace_body_with_div_dom(&document, body_styles);
 
-    let expanded = expand_pseudo_elements(&with_div);
+    // Serialize for CSS processing
+    let html_str = document.to_string();
+    let html_content = extract_body_content(&html_str);
+
+    // Stage 2: CSS processing
+    let positioned = convert_positioning_to_email_safe(&html_content);
+
+    // Stage 3: Z-index sorting
+    let z_sorted = sort_elements_by_z_index(&positioned);
+
+    // Stage 4: Pseudo-elements expansion
+    let expanded = expand_pseudo_elements(&z_sorted);
+
+    // Stage 5: Inline CSS styles
     let without_imports = IMPORT_REGEX.replace_all(&expanded, "");
     let without_font_faces = FONT_FACE_REGEX.replace_all(&without_imports, "");
     let inlined = inline_css_styles(&without_font_faces);
-    let stripped_tags = strip_content_tags(&inlined);
-    let marked = mark_positioned_elements(&stripped_tags);
-    let builder = create_email_sanitizer();
-    let sanitized = builder.clean(&marked).to_string();
-    let stripped = strip_dead_elements(&sanitized);
 
-    cleanup_html_whitespace(&stripped)
+    // Stage 6: Parse again and strip content tags
+    let document2 = kuchiki::parse_html().one(inlined.to_string());
+    strip_content_tags_dom(&document2);
+
+    // Stage 7: Mark positioned elements
+    mark_positioned_elements_dom(&document2);
+
+    // Stage 8: Ammonia sanitization
+    let serialized = serialize_clean(&document2);
+    let content_for_ammonia = extract_body_content(&serialized);
+    let builder = create_email_sanitizer();
+    let sanitized = builder.clean(&content_for_ammonia).to_string();
+
+    // Stage 9: Strip dead elements using DOM
+    let document3 = kuchiki::parse_html().one(sanitized);
+    strip_dead_elements_dom(&document3);
+    let final_serialized = serialize_clean(&document3);
+    let result = extract_body_content(&final_serialized);
+
+    // Stage 10: Aaaaaaand cleanup HTML whitespace
+    cleanup_html_whitespace(&result)
 }
 
 pub fn sanitize_email_html(html: &str) -> String {
     let resolved = resolve_css_variables(html);
+    let document = kuchiki::parse_html().one(resolved.clone());
 
     let body_styles = extract_body_styles_from_css(&resolved);
+    replace_body_with_div_dom(&document, body_styles);
 
-    let with_div = replace_body_with_div(&resolved, body_styles.clone());
+    let html_str = document.to_string();
+    let html_content = extract_body_content(&html_str);
 
-    let expanded = expand_pseudo_elements(&with_div);
+    let positioned = convert_positioning_to_email_safe(&html_content);
+
+    let z_sorted = sort_elements_by_z_index(&positioned);
+
+    let expanded = expand_pseudo_elements(&z_sorted);
     let inlined = inline_css_styles(&expanded);
-    let stripped_tags = strip_content_tags(&inlined);
-    let marked = mark_positioned_elements(&stripped_tags);
-    let builder = create_email_sanitizer();
-    let sanitized = builder.clean(&marked).to_string();
 
-    strip_dead_elements(&sanitized)
+    let document2 = kuchiki::parse_html().one(inlined);
+    strip_content_tags_dom(&document2);
+
+    mark_positioned_elements_dom(&document2);
+
+    let serialized = serialize_clean(&document2);
+    let content_for_ammonia = extract_body_content(&serialized);
+    let builder = create_email_sanitizer();
+    let sanitized = builder.clean(&content_for_ammonia).to_string();
+
+    let document3 = kuchiki::parse_html().one(sanitized);
+    strip_dead_elements_dom(&document3);
+    let final_serialized = serialize_clean(&document3);
+    let result = extract_body_content(&final_serialized);
+
+    cleanup_html_whitespace(&result)
 }
 
 pub fn sanitize_email_html_with_details(html: &str) -> SanitizeResult {
@@ -162,14 +215,26 @@ pub fn sanitize_email_html_with_details(html: &str) -> SanitizeResult {
     let unsupported_tags = detect_unsupported_tags(html);
 
     let resolved = resolve_css_variables(html);
+    let document = kuchiki::parse_html().one(resolved.clone());
 
     let body_styles = extract_body_styles_from_css(&resolved);
-    let with_div = replace_body_with_div(&resolved, body_styles);
+    replace_body_with_div_dom(&document, body_styles);
 
-    let expanded = expand_pseudo_elements(&with_div);
+    let html_str = document.to_string();
+    let html_content = extract_body_content(&html_str);
+
+    let positioned = convert_positioning_to_email_safe(&html_content);
+
+    let z_sorted = sort_elements_by_z_index(&positioned);
+
+    let expanded = expand_pseudo_elements(&z_sorted);
+
     let inlined = inline_css_styles(&expanded);
-    let stripped_tags = strip_content_tags(&inlined);
-    let marked = mark_positioned_elements(&stripped_tags);
+
+    let document2 = kuchiki::parse_html().one(inlined);
+    strip_content_tags_dom(&document2);
+
+    mark_positioned_elements_dom(&document2);
 
     COLLECTED_ISSUES.with(|issues| {
         let mut issues = issues.borrow_mut();
@@ -187,14 +252,22 @@ pub fn sanitize_email_html_with_details(html: &str) -> SanitizeResult {
         }
     });
 
+    let serialized = serialize_clean(&document2);
+    let content_for_ammonia = extract_body_content(&serialized);
     let builder = create_sanitizer_with_tracking();
-    let sanitized = builder.clean(&marked).to_string();
-    let stripped = strip_dead_elements(&sanitized);
+    let sanitized = builder.clean(&content_for_ammonia).to_string();
+
+    let document3 = kuchiki::parse_html().one(sanitized);
+    strip_dead_elements_dom(&document3);
+    let final_serialized = serialize_clean(&document3);
+    let result = extract_body_content(&final_serialized);
+
+    let cleaned = cleanup_html_whitespace(&result);
 
     let issues = COLLECTED_ISSUES.with(|issues| issues.borrow().clone());
 
     SanitizeResult {
-        html: stripped,
+        html: cleaned,
         issues,
     }
 }
@@ -294,20 +367,233 @@ fn extract_body_styles_from_css(html: &str) -> String {
     }
 }
 
-fn replace_body_with_div(html: &str, body_styles: String) -> String {
-    let body_start_re = regex::Regex::new(r"<body[^>]*>").unwrap();
-    let body_end_re = regex::Regex::new(r"</body>").unwrap();
+fn replace_body_with_div_dom(document: &NodeRef, body_styles: String) {
+    for node in document.descendants() {
+        if let Some(element) = node.as_element() {
+            let tag_name = element.name.local.to_string().to_lowercase();
+            if tag_name == "body" {
+                let attrs = element.attributes.borrow();
+                let mut style_attr = attrs
+                    .get("style")
+                    .map(|s| s.to_string())
+                    .unwrap_or_default();
 
-    let div_start = if body_styles.is_empty() {
-        "<div>".to_string()
-    } else {
-        format!("<div style=\"{}\">", body_styles)
-    };
+                if !body_styles.is_empty() {
+                    if !style_attr.is_empty() {
+                        style_attr = format!("{}; {}", body_styles, style_attr);
+                    } else {
+                        style_attr = body_styles.clone();
+                    }
+                }
 
-    let html_with_div = body_start_re.replace_all(html, &div_start);
-    body_end_re
-        .replace_all(&html_with_div, "</div>")
-        .to_string()
+                let div = NodeRef::new_element(QualName::new(None, ns!(), "div".into()), None);
+
+                {
+                    let div_element = div.as_element().unwrap();
+                    let mut div_attrs = div_element.attributes.borrow_mut();
+
+                    for (key, attr) in attrs.map.iter() {
+                        let key_str = key.local.to_string();
+                        if key_str != "style" {
+                            div_attrs.insert(key.local.clone(), attr.value.clone());
+                        }
+                    }
+
+                    // Set the merged style
+                    if !style_attr.is_empty() {
+                        div_attrs.insert("style", style_attr);
+                    }
+                }
+
+                for child in node.children() {
+                    div.append(child.clone());
+                }
+
+                // Replace body with div
+                node.insert_before(div.clone());
+                node.detach();
+
+                break; // Only one body
+            }
+        }
+    }
+}
+
+fn convert_positioning_to_email_safe(html: &str) -> String {
+    let position_re = regex::Regex::new(r"(?s)([.#][^{]+)\{([^}]*)\}").unwrap();
+
+    let result = position_re
+        .replace_all(html, |caps: &regex::Captures| {
+            let selector = &caps[1];
+            let declarations = &caps[2];
+
+            let has_position = declarations.contains("position: fixed")
+                || declarations.contains("position: absolute");
+            let has_transform = declarations.contains("transform:");
+
+            if !has_position && !has_transform {
+                return caps[0].to_string();
+            }
+
+            let has_any_animation = declarations.contains("animation:");
+
+            let mut new_decls: Vec<String> = Vec::new();
+            let mut top_val: Option<String> = None;
+            let mut left_val: Option<String> = None;
+            let mut bottom_val: Option<String> = None;
+            let mut right_val: Option<String> = None;
+
+            for decl in declarations.split(';') {
+                let decl = decl.trim();
+                if decl.is_empty() {
+                    continue;
+                }
+
+                let parts: Vec<&str> = decl.splitn(2, ':').collect();
+                if parts.len() != 2 {
+                    continue;
+                }
+
+                let prop = parts[0].trim();
+                let val = parts[1].trim();
+
+                match prop {
+                    "position" => {
+                        new_decls.push("display: block".to_string());
+                    }
+                    "top" => {
+                        top_val = Some(val.to_string());
+                    }
+                    "left" => {
+                        left_val = Some(val.to_string());
+                    }
+                    "bottom" => {
+                        bottom_val = Some(val.to_string());
+                    }
+                    "right" => {
+                        right_val = Some(val.to_string());
+                    }
+                    "z-index" => {
+                        // Skip - z-index doesn't work without position
+                    }
+                    "animation" => {
+                        // Skip - animations don't work in emails
+                    }
+                    "opacity" => {
+                        let opacity_val = val.parse::<f64>().unwrap_or(1.0);
+                        if has_any_animation || opacity_val < 1.0 {
+                            new_decls.push("opacity: 1".to_string());
+                        } else {
+                            new_decls.push(format!("{}: {}", prop, val));
+                        }
+                    }
+                    "transform" => {
+                        if val.contains("translateY") {
+                            let re = regex::Regex::new(r"translateY\s*\(\s*(-?\d+(?:\.\d+)?(?:px|%)?)\s*\)").unwrap();
+                            if let Some(cap) = re.captures(val) {
+                                new_decls.push(format!("margin-top: {}", &cap[1]));
+                            }
+                        } else if val.contains("translate") {
+                            let re = regex::Regex::new(r"translate\s*\(\s*(-?\d+(?:\.\d+)?(?:px|%)?)\s*,\s*(-?\d+(?:\.\d+)?(?:px|%)?)\s*\)").unwrap();
+                            if let Some(cap) = re.captures(val) {
+                                new_decls.push(format!("margin-left: {}", &cap[1]));
+                                new_decls.push(format!("margin-top: {}", &cap[2]));
+                            }
+                        }
+                        // Skip other transforms - they don't work in emails
+                    }
+                    _ => {
+                        new_decls.push(format!("{}: {}", prop, val));
+                    }
+                }
+            }
+
+            // Apply positioning as margins
+            if let Some(top) = top_val {
+                new_decls.push(format!("margin-top: {}", top));
+            }
+            if let Some(left) = left_val {
+                new_decls.push(format!("margin-left: {}", left));
+            }
+            if let Some(bottom) = bottom_val {
+                new_decls.push(format!("margin-bottom: {}", bottom));
+            }
+            if let Some(right) = right_val {
+                new_decls.push(format!("margin-right: {}", right));
+            }
+
+            format!("{} {{ {} }}", selector, new_decls.join("; "))
+        })
+        .to_string();
+
+    result
+}
+
+fn sort_elements_by_z_index(html: &str) -> String {
+    use std::collections::HashMap;
+
+    let document = kuchiki::parse_html().one(html);
+    let mut parent_children: HashMap<*const kuchiki::Node, Vec<(i32, NodeRef)>> = HashMap::new();
+
+    for node in document.descendants() {
+        if let Some(element) = node.as_element() {
+            let style = element
+                .attributes
+                .borrow()
+                .get("style")
+                .map(|s| s.to_string());
+
+            if let Some(style_str) = style {
+                if let Some(z_index) = parse_z_index(&style_str) {
+                    if let Some(parent) = node.parent() {
+                        let parent_ptr = std::rc::Rc::as_ptr(&parent.0);
+                        parent_children
+                            .entry(parent_ptr)
+                            .or_default()
+                            .push((z_index, node.clone()));
+                    }
+                }
+            }
+        }
+    }
+
+    for (_, mut children) in parent_children {
+        // Sort by z-index
+        children.sort_by_key(|(z, _)| *z);
+
+        // Get the sorted z-index nodes
+        let z_nodes: Vec<NodeRef> = children.into_iter().map(|(_, node)| node).collect();
+
+        for (new_pos, node) in z_nodes.iter().enumerate().rev() {
+            if let Some(parent) = node.parent() {
+                node.detach();
+
+                let parent_children: Vec<NodeRef> = parent.children().collect();
+
+                if new_pos >= parent_children.len() {
+                    parent.append(node.clone());
+                } else {
+                    let target = &parent_children[new_pos];
+                    target.insert_before(node.clone());
+                }
+            }
+        }
+    }
+
+    // Serialize back to HTML
+    document.to_string()
+}
+
+fn parse_z_index(style: &str) -> Option<i32> {
+    for (prop, value) in parse_css_declarations(style) {
+        if prop == "z-index" {
+            let cleaned = value.trim();
+            if cleaned != "auto" {
+                return cleaned.parse::<i32>().ok();
+            }
+        }
+    }
+    None
 }
 
 fn expand_pseudo_elements(html: &str) -> String {
@@ -510,21 +796,29 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
     (rules, cleaned_css)
 }
 
-fn strip_content_tags(html: &str) -> String {
-    let patterns: &[&str] = &[
-        r"(?si)<head\b[^>]*>.*?</head>",
-        r"(?si)<script\b[^>]*>.*?</script>",
-        r"(?si)<style\b[^>]*>.*?</style>",
-        r"(?si)<title\b[^>]*>.*?</title>",
-        r"(?si)<noscript\b[^>]*>.*?</noscript>",
-    ];
+fn strip_content_tags_dom(document: &NodeRef) {
+    // Tags to remove: head, script, style, title, noscript
+    let tags_to_remove: std::collections::HashSet<&str> =
+        ["head", "script", "style", "title", "noscript"]
+            .iter()
+            .cloned()
+            .collect();
 
-    let mut result = html.to_string();
-    for pat in patterns {
-        let re = regex::Regex::new(pat).expect("invalid content-tag regex");
-        result = re.replace_all(&result, "").to_string();
+    let mut nodes_to_remove: Vec<NodeRef> = Vec::new();
+
+    for node in document.descendants() {
+        if let Some(element) = node.as_element() {
+            let tag_name = element.name.local.to_string().to_lowercase();
+            if tags_to_remove.contains(tag_name.as_str()) {
+                nodes_to_remove.push(node.clone());
+            }
+        }
     }
-    result
+
+    // Remove collected nodes
+    for node in nodes_to_remove {
+        node.detach();
+    }
 }
 
 fn detect_unsupported_tags(html: &str) -> Vec<(String, String)> {
@@ -567,31 +861,23 @@ fn detect_unsupported_tags(html: &str) -> Vec<(String, String)> {
     unsupported
 }
 
-fn mark_positioned_elements(html: &str) -> String {
-    let tag_re = regex::Regex::new(r#"(?s)<([a-zA-Z][a-zA-Z0-9]*)(\s[^>]*)?(/?>\s*)"#)
-        .expect("invalid tag regex");
-
-    let style_re = regex::Regex::new(r#"style="([^"]*)"#).unwrap();
-
-    tag_re
-        .replace_all(html, |caps: &regex::Captures| {
-            let tag_name = &caps[1];
-            let attrs = caps.get(2).map(|m| m.as_str()).unwrap_or("");
-            let close = &caps[3];
-
-            let has_position = style_re.captures(attrs).is_some_and(|sc| {
-                parse_css_declarations(&sc[1])
+fn mark_positioned_elements_dom(document: &NodeRef) {
+    for node in document.descendants() {
+        if let Some(element) = node.as_element() {
+            let attrs = element.attributes.borrow();
+            if let Some(style) = attrs.get("style") {
+                let has_position = parse_css_declarations(style)
                     .iter()
-                    .any(|(p, _)| p == "position")
-            });
+                    .any(|(p, _)| p == "position");
 
-            if has_position {
-                format!("<{}{} {}=\"\"{}", tag_name, attrs, DEAD_MARKER, close)
-            } else {
-                caps[0].to_string()
+                if has_position {
+                    drop(attrs);
+                    let mut attrs_mut = element.attributes.borrow_mut();
+                    attrs_mut.insert("data-dead-if-empty", "".to_string());
+                }
             }
-        })
-        .to_string()
+        }
+    }
 }
 
 // ─── Stage 2: CSS Processing ──────────────────────────────────────────
@@ -945,53 +1231,27 @@ fn create_sanitizer_with_tracking<'a>() -> Builder<'a> {
 
 // ─── Stage 4: Postprocessing ──────────────────────────────────────────
 
-fn strip_dead_elements(html: &str) -> String {
-    let open_re =
-        regex::Regex::new(r#"<([a-zA-Z][a-zA-Z0-9]*)\s([^>]*)data-dead-if-empty="[^"]*"[^>]*>"#)
-            .expect("invalid dead-element open regex");
-
-    let mut result = html.to_string();
-
-    loop {
-        let mut removed = false;
-
-        if let Some(caps) = open_re.captures(&result) {
-            let full_open = caps.get(0).unwrap();
-            let tag_name = &caps[1];
-            let attrs = &caps[2];
-            let open_start = full_open.start();
-            let open_end = full_open.end();
-
-            let closing = format!("</{}>", tag_name);
-            if let Some(close_pos) = result[open_end..].find(&closing) {
-                let between = &result[open_end..open_end + close_pos];
-                let has_content = !between.trim().is_empty();
-                let has_visual = has_visual_content(attrs);
-
-                // Only remove if truly empty (no content AND no visual properties)
-                if !has_content && !has_visual {
-                    let remove_end = open_end + close_pos + closing.len();
-                    result = format!("{}{}", &result[..open_start], &result[remove_end..]);
-                    removed = true;
-                }
-            }
-        }
-
-        if !removed {
-            break;
-        }
-    }
-
-    result
-        .replace(&format!(" {}=\"true\"", DEAD_MARKER), "")
-        .replace(&format!(" {}", DEAD_MARKER), "")
+fn serialize_clean(document: &NodeRef) -> String {
+    let html = document.to_string();
+    let clean_re = regex::Regex::new(r#"(\s+[a-zA-Z-]+)="""#).expect("invalid clean regex");
+    clean_re.replace_all(&html, "$1").to_string()
 }
 
-fn has_visual_content(attrs: &str) -> bool {
-    let style_re = regex::Regex::new(r#"style="([^"]*)"#).unwrap();
+fn extract_body_content(html: &str) -> String {
+    let body_re = regex::Regex::new(r"(?s)<body[^>]*>(.*)</body>").unwrap();
 
-    if let Some(sc) = style_re.captures(attrs) {
-        let styles = parse_css_declarations(&sc[1]);
+    if let Some(caps) = body_re.captures(html) {
+        caps[1].trim().to_string()
+    } else {
+        html.to_string()
+    }
+}
+
+fn has_visual_content_dom(element: &kuchiki::ElementData) -> bool {
+    let attrs = element.attributes.borrow();
+
+    if let Some(style) = attrs.get("style") {
+        let styles = parse_css_declarations(style);
         let visual_props = [
             "background",
             "background-color",
@@ -1011,18 +1271,54 @@ fn has_visual_content(attrs: &str) -> bool {
                 && val != "0"
                 && val != "none"
                 && val != "transparent"
+                && val != "auto"
+                && val != "0px"
+                && val != "0%"
+                && !val.is_empty()
             {
                 return true;
             }
         }
     }
 
-    // Check for background/bgcolor attributes
-    if attrs.contains("background=") || attrs.contains("bgcolor=") {
+    if attrs.get("background").is_some() || attrs.get("bgcolor").is_some() {
         return true;
     }
 
     false
+}
+
+fn strip_dead_elements_dom(document: &NodeRef) {
+    let mut nodes_to_remove: Vec<NodeRef> = Vec::new();
+    let mut nodes_to_cleanup: Vec<kuchiki::ElementData> = Vec::new();
+
+    for node in document.descendants() {
+        if let Some(element) = node.as_element() {
+            let attrs = element.attributes.borrow();
+            if attrs.get("data-dead-if-empty").is_some() {
+                drop(attrs);
+
+                let has_text = !node.text_contents().trim().is_empty();
+                let has_children = node.children().count() > 0;
+                let has_visual = has_visual_content_dom(&element);
+
+                if !has_text && !has_children && !has_visual {
+                    nodes_to_remove.push(node.clone());
+                } else {
+                    nodes_to_cleanup.push(element.clone());
+                }
+            }
+        }
+    }
+
+    for node in nodes_to_remove {
+        node.detach();
+    }
+
+    for element in nodes_to_cleanup {
+        let mut attrs = element.attributes.borrow_mut();
+        attrs.remove("data-dead-if-empty");
+    }
 }
 
 fn cleanup_html_whitespace(html: &str) -> String {
@@ -1067,8 +1363,6 @@ pub struct SanitizeResult {
 thread_local! {
     static COLLECTED_ISSUES: RefCell<Vec<SanitizeIssue>> = const { RefCell::new(Vec::new()) };
 }
-
-const DEAD_MARKER: &str = "data-dead-if-empty";
 
 static IMPORT_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
     regex::Regex::new(r#"@import\s+[^;]+;?"#).expect("Invalid @import regex pattern")
