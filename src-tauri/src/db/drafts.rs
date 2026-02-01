@@ -40,8 +40,7 @@ pub fn save_draft(conn: &Connection, draft: &Draft) -> Result<(), DBError> {
     let to_json = serde_json::to_string(&draft.to).map_err(DBError::Json)?;
     let cc_json = serde_json::to_string(&draft.cc).map_err(DBError::Json)?;
     let bcc_json = serde_json::to_string(&draft.bcc).map_err(DBError::Json)?;
-    let attachments_json =
-        serde_json::to_string(&draft.attachments).map_err(DBError::Json)?;
+    let attachments_json = serde_json::to_string(&draft.attachments).map_err(DBError::Json)?;
 
     conn.execute(
         "INSERT OR REPLACE INTO drafts (id, account_id, subject, body, to_json, cc_json, bcc_json, attachments_json, created_at, updated_at)

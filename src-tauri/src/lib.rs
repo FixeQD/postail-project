@@ -778,11 +778,6 @@ async fn build_email_from_draft(draft_id: String) -> Result<BuildEmailResult, St
 }
 
 #[tauri::command]
-fn sanitize_email_html(html: String) -> String {
-    crate::utils::sanitizer::sanitize_email_html(&html)
-}
-
-#[tauri::command]
 fn process_email_content(html: String) -> crate::utils::sanitizer::SanitizeResult {
     crate::utils::sanitizer::sanitize_email_html_with_details(&html)
 }
@@ -850,7 +845,6 @@ pub fn run() {
             add_inline_attachment,
             remove_attachment,
             build_email_from_draft,
-            sanitize_email_html,
             process_email_content,
             auto_fix_email_html
         ])
