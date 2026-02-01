@@ -629,7 +629,7 @@ async fn save_draft(draft: crate::db::Draft) -> Result<(), String> {
         draft.id, draft.subject, body_len, draft.to.len(), draft.cc.len(), draft.bcc.len());
 
     let db_conn = Arc::clone(&DB_CONN);
-    tokio::task::spawn_blocking(move || {
+    let _ = tokio::task::spawn_blocking(move || {
         let conn_guard = db_conn.lock().unwrap();
         let conn = conn_guard.as_ref().expect("Database not initialized");
         crate::db::save_draft(conn, &draft).map_err(|e| e.to_string())
