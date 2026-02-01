@@ -2,7 +2,7 @@ use std::fs;
 
 use uuid::Uuid;
 
-use crate::db::{enqueue_message, extract_headers_from_eml, list_outbox, OutboxItem};
+use crate::db::{enqueue_message, list_outbox, OutboxItem};
 
 impl super::SmtpManager {
     pub fn enqueue_message(&self, account_id: &str, raw_eml: &[u8]) -> Result<String, String> {

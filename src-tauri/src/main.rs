@@ -4,7 +4,7 @@
 #[cfg(target_os = "linux")]
 use std::env;
 #[cfg(target_os = "linux")]
-use std::process::{Command, exit};
+use std::process::{exit, Command};
 
 fn main() {
     #[cfg(target_os = "linux")]

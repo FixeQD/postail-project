@@ -154,27 +154,19 @@ impl super::SmtpManager {
         email: async_smtp::SendableEmail,
     ) -> Result<(), Error> {
         // Connect with TLS on port 465
-        let tcp_stream = TcpStream::connect((host, port)).await.map_err(|e| {
-            Error::Io(io::Error::new(
-                io::ErrorKind::Other,
-                format!("TCP connection failed: {}", e),
-            ))
-        })?;
+        let tcp_stream = TcpStream::connect((host, port))
+            .await
+            .map_err(|e| Error::Io(io::Error::other(format!("TCP connection failed: {}", e))))?;
 
-        let native_tls = NativeTlsConnector::builder().build().map_err(|e| {
-            Error::Io(io::Error::new(
-                io::ErrorKind::Other,
-                format!("TLS builder failed: {}", e),
-            ))
-        })?;
+        let native_tls = NativeTlsConnector::builder()
+            .build()
+            .map_err(|e| Error::Io(io::Error::other(format!("TLS builder failed: {}", e))))?;
         let tls_connector = TlsConnector::from(native_tls);
 
-        let tls_stream = tls_connector.connect(host, tcp_stream).await.map_err(|e| {
-            Error::Io(io::Error::new(
-                io::ErrorKind::Other,
-                format!("TLS handshake failed: {}", e),
-            ))
-        })?;
+        let tls_stream = tls_connector
+            .connect(host, tcp_stream)
+            .await
+            .map_err(|e| Error::Io(io::Error::other(format!("TLS handshake failed: {}", e))))?;
 
         let stream = BufStream::new(tls_stream);
 
@@ -209,12 +201,9 @@ impl super::SmtpManager {
         creds: &serde_json::Value,
         email: async_smtp::SendableEmail,
     ) -> Result<(), Error> {
-        let tcp_stream = TcpStream::connect((host, port)).await.map_err(|e| {
-            Error::Io(io::Error::new(
-                io::ErrorKind::Other,
-                format!("TCP connection failed: {}", e),
-            ))
-        })?;
+        let tcp_stream = TcpStream::connect((host, port))
+            .await
+            .map_err(|e| Error::Io(io::Error::other(format!("TCP connection failed: {}", e))))?;
 
         let stream = BufStream::new(tcp_stream);
 
@@ -222,23 +211,15 @@ impl super::SmtpManager {
 
         let plain_stream = transport.starttls().await?;
 
-        let native_tls = NativeTlsConnector::builder().build().map_err(|e| {
-            Error::Io(io::Error::new(
-                io::ErrorKind::Other,
-                format!("TLS builder failed: {}", e),
-            ))
-        })?;
+        let native_tls = NativeTlsConnector::builder()
+            .build()
+            .map_err(|e| Error::Io(io::Error::other(format!("TLS builder failed: {}", e))))?;
         let tls_connector = TlsConnector::from(native_tls);
 
         let tls_stream = tls_connector
             .connect(host, plain_stream)
             .await
-            .map_err(|e| {
-                Error::Io(io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("TLS handshake failed: {}", e),
-                ))
-            })?;
+            .map_err(|e| Error::Io(io::Error::other(format!("TLS handshake failed: {}", e))))?;
 
         let stream = BufStream::new(tls_stream);
 
@@ -281,12 +262,9 @@ impl super::SmtpManager {
         creds: &serde_json::Value,
         email: async_smtp::SendableEmail,
     ) -> Result<(), Error> {
-        let tcp_stream = TcpStream::connect((host, port)).await.map_err(|e| {
-            Error::Io(io::Error::new(
-                io::ErrorKind::Other,
-                format!("TCP connection failed: {}", e),
-            ))
-        })?;
+        let tcp_stream = TcpStream::connect((host, port))
+            .await
+            .map_err(|e| Error::Io(io::Error::other(format!("TCP connection failed: {}", e))))?;
 
         let stream = BufStream::new(tcp_stream);
 
@@ -314,12 +292,9 @@ impl super::SmtpManager {
         S: tokio::io::AsyncBufRead + tokio::io::AsyncWrite + Unpin,
     {
         let (username, password, mechanism) = if auth_type == "oauth2" {
-            let token = creds["access_token"].as_str().ok_or_else(|| {
-                Error::Io(io::Error::new(
-                    io::ErrorKind::Other,
-                    "No access_token in credentials",
-                ))
-            })?;
+            let token = creds["access_token"]
+                .as_str()
+                .ok_or_else(|| Error::Io(io::Error::other("No access_token in credentials")))?;
             tracing::info!(target: "postail", "[SMTP] Using OAuth2 XOAUTH2 authentication");
             (
                 account_email.to_string(),
@@ -329,21 +304,11 @@ impl super::SmtpManager {
         } else {
             let username = creds["username"]
                 .as_str()
-                .ok_or_else(|| {
-                    Error::Io(io::Error::new(
-                        io::ErrorKind::Other,
-                        "No username in credentials",
-                    ))
-                })?
+                .ok_or_else(|| Error::Io(io::Error::other("No username in credentials")))?
                 .to_string();
             let password = creds["password"]
                 .as_str()
-                .ok_or_else(|| {
-                    Error::Io(io::Error::new(
-                        io::ErrorKind::Other,
-                        "No password in credentials",
-                    ))
-                })?
+                .ok_or_else(|| Error::Io(io::Error::other("No password in credentials")))?
                 .to_string();
             tracing::info!(target: "postail", "[SMTP] Using PLAIN authentication");
             (username, password, Mechanism::Plain)

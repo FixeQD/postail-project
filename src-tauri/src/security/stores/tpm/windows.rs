@@ -31,8 +31,8 @@ impl WindowsTpmStore {
         use windows::core::PCWSTR;
         use windows::Win32::Foundation::HWND;
         use windows::Win32::Security::Cryptography::NCryptCreateProtectionDescriptor;
-        use windows::Win32::Security::Cryptography::NCryptProtectSecret;
         use windows::Win32::Security::Cryptography::NCryptFreeBuffer;
+        use windows::Win32::Security::Cryptography::NCryptProtectSecret;
 
         let descriptor_string: Vec<u16> = "LOCAL=user\0".encode_utf16().collect();
 
@@ -71,9 +71,9 @@ impl WindowsTpmStore {
     #[cfg(all(target_os = "windows", feature = "tpm"))]
     fn unseal_with_tpm(&self, sealed: &[u8]) -> Result<Vec<u8>> {
         use windows::Win32::Foundation::HWND;
+        use windows::Win32::Security::Cryptography::NCryptFreeBuffer;
         use windows::Win32::Security::Cryptography::NCryptUnprotectSecret;
         use windows::Win32::Security::Cryptography::NCRYPT_SILENT_FLAG;
-        use windows::Win32::Security::Cryptography::NCryptFreeBuffer;
 
         unsafe {
             let mut unprotected_blob: *mut u8 = std::ptr::null_mut();
