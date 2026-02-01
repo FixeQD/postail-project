@@ -138,8 +138,6 @@ impl SmtpManager {
 
         self.send_email(account_id, &eml_content).await?;
 
-        self.append_to_sent_folder(account_id, &eml_content).await?;
-
         Ok(())
     }
 
@@ -216,116 +214,6 @@ impl SmtpManager {
         }
 
         Ok(())
-    }
-
-    async fn append_to_sent_folder(
-        &self,
-        account_id: &str,
-        eml_content: &[u8],
-    ) -> Result<(), String> {
-        let sent_folder = self.get_sent_folder_name(account_id).await?;
-
-        let mut session = self.connect_imap_for_sent(account_id).await?;
-
-        let append_result = session
-            .append(sent_folder, None, None, eml_content.to_vec())
-            .await;
-
-        match append_result {
-            Ok(_) => {
-                session.logout().await.map_err(|e| e.to_string())?;
-                Ok(())
-            }
-            Err(e) => {
-                tracing::warn!(target: "postail", "[Outbox] Failed to append to Sent folder: {}", e);
-                session.logout().await.ok();
-                Ok(())
-            }
-        }
-    }
-
-    async fn get_sent_folder_name(&self, account_id: &str) -> Result<String, String> {
-        let provider_type = {
-            let conn_guard = self.conn.lock().unwrap();
-            let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-            let mut stmt = conn
-                .prepare("SELECT provider_type FROM accounts WHERE id = ?")
-                .map_err(|e| e.to_string())?;
-            stmt.query_row([account_id], |row| row.get::<_, String>(0))
-                .map_err(|e| e.to_string())
-        }?;
-
-        let provider_kind = ProviderKind::parse(&provider_type).ok_or("Unknown provider")?;
-        let info = oauth::ProviderInfo::get(provider_kind);
-
-        Ok(info.sent_folder.to_string())
-    }
-
-    async fn connect_imap_for_sent(
-        &self,
-        account_id: &str,
-    ) -> Result<async_imap::Session<async_native_tls::TlsStream<async_std::net::TcpStream>>, String>
-    {
-        use async_imap::Client;
-        use async_native_tls::TlsConnector;
-        use async_std::net::TcpStream;
-
-        let (host, port, auth_type, email) = {
-            let conn_guard = self.conn.lock().unwrap();
-            let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-            let mut stmt = conn
-                .prepare("SELECT imap_host, imap_port, auth_type, email FROM accounts WHERE id = ?")
-                .map_err(|e| e.to_string())?;
-            stmt.query_row([account_id], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, i64>(1)? as u16,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
-                ))
-            })
-            .map_err(|e| e.to_string())?
-        };
-
-        let creds_json = self.get_credentials(account_id)?;
-        let mut creds: serde_json::Value =
-            serde_json::from_str(&creds_json).map_err(|e| e.to_string())?;
-
-        self.refresh_oauth_smtp(account_id, &mut creds).await?;
-
-        let tcp_stream = TcpStream::connect((host.as_str(), port))
-            .await
-            .map_err(|e| e.to_string())?;
-        let tls_connector = TlsConnector::new();
-        let tls_stream = tls_connector
-            .connect(&host, tcp_stream)
-            .await
-            .map_err(|e| e.to_string())?;
-        let client = Client::new(tls_stream);
-
-        let session = if auth_type == "oauth2" {
-            let access_token = creds["access_token"]
-                .as_str()
-                .ok_or_else(|| "No access_token".to_string())?;
-            let username = &email;
-            match client.login(username, access_token).await {
-                Ok(session) => session,
-                Err((e, _)) => return Err(e.to_string()),
-            }
-        } else {
-            let username = creds["username"]
-                .as_str()
-                .ok_or_else(|| "No username".to_string())?;
-            let password = creds["password"]
-                .as_str()
-                .ok_or_else(|| "No password".to_string())?;
-            match client.login(username, password).await {
-                Ok(session) => session,
-                Err((e, _)) => return Err(e.to_string()),
-            }
-        };
-
-        Ok(session)
     }
 
     pub(crate) async fn refresh_oauth_smtp(

@@ -10,6 +10,24 @@ pub mod outbox;
 pub mod sender;
 pub mod worker;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EncryptionType {
+    Tls,
+    StartTls,
+    Plain,
+}
+
+impl EncryptionType {
+    pub fn from_str(s: &str) -> Result<Self, String> {
+        match s.to_lowercase().as_str() {
+            "tls" | "ssl" => Ok(Self::Tls),
+            "starttls" | "start_tls" => Ok(Self::StartTls),
+            "plain" | "none" | "" => Ok(Self::Plain),
+            _ => Err(format!("Unknown encryption type: {}", s)),
+        }
+    }
+}
+
 pub struct SmtpManager {
     conn: Arc<Mutex<Option<Connection>>>,
     security: Arc<Mutex<SecurityManager>>,

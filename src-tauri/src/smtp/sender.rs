@@ -1,8 +1,17 @@
-use lettre::transport::smtp::authentication::Credentials;
-use lettre::{message::Mailbox, Message, SmtpTransport, Transport};
+// Bro why this protocol have to be so shitty 😭
+
+use async_smtp::authentication::{Credentials, Mechanism};
+use async_smtp::error::Error;
+use async_smtp::extension::ClientId;
+use async_smtp::{EmailAddress, Envelope, SmtpClient, SmtpTransport};
 use mailparse::MailHeaderMap;
-use serde_json;
-use std::time::Duration;
+use std::io;
+use tokio::io::BufStream;
+use tokio::net::TcpStream;
+use tokio_native_tls::native_tls::TlsConnector as NativeTlsConnector;
+use tokio_native_tls::TlsConnector;
+
+use crate::smtp::EncryptionType;
 
 impl super::SmtpManager {
     pub(crate) fn get_credentials(&self, account_id: &str) -> Result<String, String> {
@@ -34,12 +43,18 @@ impl super::SmtpManager {
         let mut stmt = conn
             .prepare("SELECT smtp_host, smtp_port, smtp_tls, auth_type, email FROM accounts WHERE id = ?")
             .map_err(|e| e.to_string())?;
-        let (host, _port, _tls, auth_type, account_email): (String, u16, bool, String, String) =
-            stmt.query_row([account_id], |row| {
+        let (host, port, tls_enabled, auth_type, account_email): (
+            String,
+            u16,
+            bool,
+            String,
+            String,
+        ) = stmt
+            .query_row([account_id], |row| {
                 Ok((
                     row.get(0)?,
                     row.get::<_, i64>(1)? as u16,
-                    row.get::<_, i64>(2)? != 0,
+                    row.get(2)?,
                     row.get(3)?,
                     row.get(4)?,
                 ))
@@ -47,6 +62,15 @@ impl super::SmtpManager {
             .map_err(|e| e.to_string())?;
         drop(stmt);
         drop(conn_guard);
+
+        let encryption = if !tls_enabled {
+            EncryptionType::Plain
+        } else if port == 465 {
+            EncryptionType::Tls
+        } else {
+            // Port 587 or others use STARTTLS
+            EncryptionType::StartTls
+        };
 
         let creds_json = self.get_credentials(account_id)?;
         let mut creds: serde_json::Value =
@@ -61,66 +85,7 @@ impl super::SmtpManager {
             }
         }
 
-        let username = if auth_type == "oauth2" {
-            account_email.as_str()
-        } else {
-            creds["username"].as_str().ok_or("No username")?
-        };
-        let password = if auth_type == "oauth2" {
-            let token = creds["access_token"].as_str().ok_or("No access_token")?;
-            tracing::info!(target: "postail", "[SMTP] Using OAuth2 access_token: {}...", &token[..token.len().min(20)]);
-            token
-        } else {
-            creds["password"].as_str().ok_or("No password")?
-        };
-
-        let creds_smtp = Credentials::new(username.to_string(), password.to_string());
-
-        // Port 465 = SMTPS (TLS wrapper)
-        // Port 587 = STARTTLS
-        // Port 25 = Plain text or STARTTLS
-        tracing::info!(target: "postail", "[SMTP] Connecting to {}:{}", host, _port);
-
-        let mailer = match _port {
-            465 => {
-                // SMTPS - implicit TLS
-                tracing::info!(target: "postail", "[SMTP] Using TLS (SMTPS) for port 465");
-                SmtpTransport::relay(&host)
-                    .map_err(|e| e.to_string())?
-                    .port(_port)
-                    .credentials(creds_smtp)
-                    .timeout(Some(Duration::from_secs(30)))
-                    .build()
-            }
-            587 => {
-                // STARTTLS - explicit TLS
-                tracing::info!(target: "postail", "[SMTP] Using STARTTLS for port 587");
-                SmtpTransport::starttls_relay(&host)
-                    .map_err(|e| format!("Failed to configure STARTTLS: {}", e))?
-                    .port(_port)
-                    .credentials(creds_smtp)
-                    .timeout(Some(Duration::from_secs(30)))
-                    .build()
-            }
-            _ => {
-                // Fallback - try STARTTLS first, then plain
-                tracing::info!(target: "postail", "[SMTP] Using STARTTLS for port {}", _port);
-                SmtpTransport::starttls_relay(&host)
-                    .map_err(|e| format!("Failed to configure STARTTLS: {}", e))?
-                    .port(_port)
-                    .credentials(creds_smtp)
-                    .timeout(Some(Duration::from_secs(30)))
-                    .build()
-            }
-        };
-
         let processed_eml = self.process_outgoing_eml(eml_content)?;
-
-        // Debug: print first 500 bytes of email
-        let preview = String::from_utf8_lossy(&processed_eml[..processed_eml.len().min(500)]);
-        tracing::info!(target: "postail", "[SMTP] Email preview:\n{}", preview);
-
-        // Parse the email to extract From/To for lettre
         let mail = mailparse::parse_mail(&processed_eml)
             .map_err(|e| format!("Failed to parse email: {}", e))?;
 
@@ -136,33 +101,258 @@ impl super::SmtpManager {
             .map(|h| h.get_value())
             .ok_or("Missing To header")?;
 
-        let from_addr: Mailbox = from_str
-            .parse()
-            .map_err(|e| format!("Invalid From address '{}': {}", from_str, e))?;
+        tracing::info!(target: "postail", "[SMTP] Connecting to {}:{}", host, port);
+        tracing::info!(target: "postail", "[SMTP] Encryption: {:?}", encryption);
+        tracing::info!(target: "postail", "[SMTP] From: {}, To: {}", from_str, to_str);
 
-        let to_addr: Mailbox = to_str
-            .parse()
-            .map_err(|e| format!("Invalid To address '{}': {}", to_str, e))?;
+        let from_addr = EmailAddress::new(from_str.clone())
+            .map_err(|e| format!("Invalid from address: {}", e))?;
+        let to_addr =
+            EmailAddress::new(to_str.clone()).map_err(|e| format!("Invalid to address: {}", e))?;
+        let envelope = Envelope::new(Some(from_addr), vec![to_addr])
+            .map_err(|e| format!("Failed to create envelope: {}", e))?;
 
-        let message = Message::builder()
-            .from(from_addr)
-            .to(to_addr)
-            .body(processed_eml)
-            .map_err(|e| e.to_string())?;
+        let email = async_smtp::SendableEmail::new(envelope, processed_eml);
 
-        match mailer.send(&message) {
+        let client = SmtpClient::new().hello_name(ClientId::new("postail".to_string()));
+
+        match encryption {
+            EncryptionType::Tls => {
+                tracing::info!(target: "postail", "[SMTP] Using TLS on port {}", port);
+                self.send_with_tls(&host, port, client, &auth_type, &account_email, &creds, email)
+                    .await
+            }
+            EncryptionType::StartTls => {
+                tracing::info!(target: "postail", "[SMTP] Using STARTTLS on port {}", port);
+                self.send_with_starttls(&host, port, client, &auth_type, &account_email, &creds, email)
+                    .await
+            }
+            EncryptionType::Plain => {
+                tracing::warn!(target: "postail", "[SMTP] Using plain connection on port {} (insecure!)", port);
+                self.send_plain(&host, port, client, &auth_type, &account_email, &creds, email)
+                    .await
+            }
+        }
+        .map_err(|e| {
+            let error_msg = format!(
+                "SMTP send failed: {} (host: {}:{}, encryption: {:?})",
+                e, host, port, encryption
+            );
+            tracing::error!(target: "postail", "[SMTP] {}", error_msg);
+            error_msg
+        })
+    }
+
+    async fn send_with_tls(
+        &self,
+        host: &str,
+        port: u16,
+        client: SmtpClient,
+        auth_type: &str,
+        account_email: &str,
+        creds: &serde_json::Value,
+        email: async_smtp::SendableEmail,
+    ) -> Result<(), Error> {
+        // Connect with TLS on port 465
+        let tcp_stream = TcpStream::connect((host, port)).await.map_err(|e| {
+            Error::Io(io::Error::new(
+                io::ErrorKind::Other,
+                format!("TCP connection failed: {}", e),
+            ))
+        })?;
+
+        let native_tls = NativeTlsConnector::builder().build().map_err(|e| {
+            Error::Io(io::Error::new(
+                io::ErrorKind::Other,
+                format!("TLS builder failed: {}", e),
+            ))
+        })?;
+        let tls_connector = TlsConnector::from(native_tls);
+
+        let tls_stream = tls_connector.connect(host, tcp_stream).await.map_err(|e| {
+            Error::Io(io::Error::new(
+                io::ErrorKind::Other,
+                format!("TLS handshake failed: {}", e),
+            ))
+        })?;
+
+        let stream = BufStream::new(tls_stream);
+
+        let mut transport = SmtpTransport::new(client, stream).await?;
+
+        self.authenticate(&mut transport, auth_type, account_email, creds)
+            .await?;
+
+        let send_result = transport.send(email).await;
+
+        let _ = transport.quit().await;
+
+        match send_result {
             Ok(_) => {
-                tracing::info!(target: "postail", "[SMTP] Successfully sent email via {}:{}", host, _port);
+                tracing::info!(target: "postail", "[SMTP] Successfully sent email via {}:{} (TLS)", host, port);
                 Ok(())
             }
             Err(e) => {
-                let error_msg = format!(
-                    "SMTP send failed: {} (host: {}:{}, tls: {})",
-                    e, host, _port, _tls
-                );
-                tracing::error!(target: "postail", "[SMTP] {}", error_msg);
-                Err(error_msg)
+                tracing::error!(target: "postail", "[SMTP] Failed to send email via {}:{} (TLS): {}", host, port, e);
+                Err(e)
             }
         }
+    }
+
+    async fn send_with_starttls(
+        &self,
+        host: &str,
+        port: u16,
+        client: SmtpClient,
+        auth_type: &str,
+        account_email: &str,
+        creds: &serde_json::Value,
+        email: async_smtp::SendableEmail,
+    ) -> Result<(), Error> {
+        let tcp_stream = TcpStream::connect((host, port)).await.map_err(|e| {
+            Error::Io(io::Error::new(
+                io::ErrorKind::Other,
+                format!("TCP connection failed: {}", e),
+            ))
+        })?;
+
+        let stream = BufStream::new(tcp_stream);
+
+        let transport = SmtpTransport::new(client, stream).await?;
+
+        let plain_stream = transport.starttls().await?;
+
+        let native_tls = NativeTlsConnector::builder().build().map_err(|e| {
+            Error::Io(io::Error::new(
+                io::ErrorKind::Other,
+                format!("TLS builder failed: {}", e),
+            ))
+        })?;
+        let tls_connector = TlsConnector::from(native_tls);
+
+        let tls_stream = tls_connector
+            .connect(host, plain_stream)
+            .await
+            .map_err(|e| {
+                Error::Io(io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("TLS handshake failed: {}", e),
+                ))
+            })?;
+
+        let stream = BufStream::new(tls_stream);
+
+        let client = SmtpClient::new()
+            .hello_name(ClientId::new("postail".to_string()))
+            .without_greeting();
+        let mut transport = SmtpTransport::new(client, stream).await?;
+
+        transport
+            .get_mut()
+            .ehlo(ClientId::new("postail".to_string()))
+            .await?;
+
+        self.authenticate(&mut transport, auth_type, account_email, creds)
+            .await?;
+
+        let send_result = transport.send(email).await;
+
+        let _ = transport.quit().await;
+
+        match send_result {
+            Ok(_) => {
+                tracing::info!(target: "postail", "[SMTP] Successfully sent email via {}:{} (STARTTLS)", host, port);
+                Ok(())
+            }
+            Err(e) => {
+                tracing::error!(target: "postail", "[SMTP] Failed to send email via {}:{} (STARTTLS): {}", host, port, e);
+                Err(e)
+            }
+        }
+    }
+
+    async fn send_plain(
+        &self,
+        host: &str,
+        port: u16,
+        client: SmtpClient,
+        auth_type: &str,
+        account_email: &str,
+        creds: &serde_json::Value,
+        email: async_smtp::SendableEmail,
+    ) -> Result<(), Error> {
+        let tcp_stream = TcpStream::connect((host, port)).await.map_err(|e| {
+            Error::Io(io::Error::new(
+                io::ErrorKind::Other,
+                format!("TCP connection failed: {}", e),
+            ))
+        })?;
+
+        let stream = BufStream::new(tcp_stream);
+
+        let mut transport = SmtpTransport::new(client, stream).await?;
+
+        self.authenticate(&mut transport, auth_type, account_email, creds)
+            .await?;
+
+        transport.send(email).await?;
+
+        let _ = transport.quit().await;
+
+        tracing::info!(target: "postail", "[SMTP] Successfully sent email via {}:{} (plain)", host, port);
+        Ok(())
+    }
+
+    async fn authenticate<S>(
+        &self,
+        transport: &mut SmtpTransport<S>,
+        auth_type: &str,
+        account_email: &str,
+        creds: &serde_json::Value,
+    ) -> Result<(), Error>
+    where
+        S: tokio::io::AsyncBufRead + tokio::io::AsyncWrite + Unpin,
+    {
+        let (username, password, mechanism) = if auth_type == "oauth2" {
+            let token = creds["access_token"].as_str().ok_or_else(|| {
+                Error::Io(io::Error::new(
+                    io::ErrorKind::Other,
+                    "No access_token in credentials",
+                ))
+            })?;
+            tracing::info!(target: "postail", "[SMTP] Using OAuth2 XOAUTH2 authentication");
+            (
+                account_email.to_string(),
+                token.to_string(),
+                Mechanism::Xoauth2,
+            )
+        } else {
+            let username = creds["username"]
+                .as_str()
+                .ok_or_else(|| {
+                    Error::Io(io::Error::new(
+                        io::ErrorKind::Other,
+                        "No username in credentials",
+                    ))
+                })?
+                .to_string();
+            let password = creds["password"]
+                .as_str()
+                .ok_or_else(|| {
+                    Error::Io(io::Error::new(
+                        io::ErrorKind::Other,
+                        "No password in credentials",
+                    ))
+                })?
+                .to_string();
+            tracing::info!(target: "postail", "[SMTP] Using PLAIN authentication");
+            (username, password, Mechanism::Plain)
+        };
+
+        let credentials = Credentials::new(username, password);
+        transport.try_login(&credentials, &[mechanism]).await?;
+
+        tracing::info!(target: "postail", "[SMTP] Authentication successful");
+        Ok(())
     }
 }
