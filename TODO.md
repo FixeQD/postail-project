@@ -55,7 +55,7 @@
     - [x] 10.24 — Validation: Implement Rust-side check for common CSS issues (z-index, position, etc.)
     - [x] 10.25 — UI: Create Sidebar/Floating panel for "Email Compatibility" warnings
     - [x] 10.26 — Logic: Implement "Auto-fix" button to strip problematic CSS via Rust backend (and inline CSS values)
-    - [ ] 10.27 — Integration: Connect "Send" button to SMTP worker and Outbox queue
+    - [x] 10.27 — Integration: Connect "Send" button to SMTP worker and Outbox queue
     - [ ] 10.28 — UI: Implement "Discard Draft" with confirmation dialog and DB cleanup
     - [ ] 10.29 — UX: Add keyboard shortcuts: Ctrl+Enter (Send), Ctrl+S (Manual Save), Esc (Close)
     - [ ] 10.30 — UI: Polish: Add sending animations, success/error toasts, and focus management
