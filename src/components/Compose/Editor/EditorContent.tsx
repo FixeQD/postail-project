@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, memo, useMemo, useState } from 'react'
+import React, { useRef, useEffect, useState, memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LexicalEditor, EditorState } from 'lexical'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
@@ -23,6 +23,8 @@ interface EditorContentProps {
 	onRemoveAttachment: (id: string) => void
 	onSourceChange?: () => void
 	autoFixKey?: number
+	isFixing?: boolean
+	onEditorMount?: () => void
 }
 
 export const EditorContent = memo(
@@ -36,6 +38,8 @@ export const EditorContent = memo(
 		onRemoveAttachment,
 		onSourceChange,
 		autoFixKey,
+		isFixing,
+		onEditorMount,
 	}: EditorContentProps) => {
 		const { t } = useTranslation()
 		const {
@@ -162,6 +166,8 @@ export const EditorContent = memo(
 							htmlRef={htmlRef}
 							onChange={onSourceChange}
 							key={autoFixKey}
+							isFixing={isFixing}
+							onMount={onEditorMount}
 						/>
 					)}
 				</div>
@@ -193,8 +199,7 @@ export const EditorContent = memo(
 								variant='ghost'
 								size='icon'
 								className='h-9 w-9 text-zinc-400 hover:bg-zinc-900 hover:text-red-400'
-								onClick={() => setShowDiscardDialog(true)}
-								title={t('compose.discard.title')}>
+								onClick={() => setShowDiscardDialog(true)}>
 								<Trash2 className='h-4 w-4' />
 							</Button>
 						</div>

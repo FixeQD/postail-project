@@ -10,6 +10,7 @@ import { loader, Editor } from '@monaco-editor/react'
 import { useDraftStore } from '@/stores/draftStore'
 import { memo, useCallback, useEffect } from 'react'
 import { html_beautify } from 'js-beautify'
+import { motion } from 'framer-motion'
 
 // @ts-ignore
 import htmlWorkerUrl from 'monaco-editor/esm/vs/language/html/html.worker?url'
@@ -38,6 +39,8 @@ if (typeof window !== 'undefined') {
 interface SourceEditorProps {
 	htmlRef: React.MutableRefObject<string>
 	onChange?: (value: string | undefined) => void
+	isFixing?: boolean
+	onMount?: () => void
 }
 
 const formatOptions: import('js-beautify').HTMLBeautifyOptions = {
@@ -53,7 +56,7 @@ const formatOptions: import('js-beautify').HTMLBeautifyOptions = {
 	extra_liners: [],
 }
 
-export const SourceEditor = memo(({ htmlRef, onChange }: SourceEditorProps) => {
+export const SourceEditor = memo(({ htmlRef, onChange, isFixing, onMount }: SourceEditorProps) => {
 	const { markDirty } = useDraftStore()
 
 	const handleEditorChange = useCallback(
@@ -82,7 +85,18 @@ export const SourceEditor = memo(({ htmlRef, onChange }: SourceEditorProps) => {
 	}, [])
 
 	return (
-		<div className='flex min-h-0 flex-1 flex-col overflow-hidden bg-[#1e1e1e]'>
+		<motion.div
+			className='relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#1e1e1e]'
+			initial={{
+				filter: isFixing ? 'blur(6px) brightness(0.6)' : 'blur(0px) brightness(1)',
+			}}
+			animate={{
+				filter: isFixing ? 'blur(6px) brightness(0.6)' : 'blur(0px) brightness(1)',
+			}}
+			transition={{
+				duration: 0.3,
+				ease: 'easeInOut',
+			}}>
 			<Editor
 				height='100%'
 				defaultLanguage='html'
@@ -104,8 +118,9 @@ export const SourceEditor = memo(({ htmlRef, onChange }: SourceEditorProps) => {
 					bracketPairColorization: { enabled: true },
 				}}
 				onChange={handleEditorChange}
+				onMount={onMount}
 			/>
-		</div>
+		</motion.div>
 	)
 })
 

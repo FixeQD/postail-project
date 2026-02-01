@@ -82,6 +82,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	const [showCc, setShowCc] = useState(false)
 	const [showBcc, setShowBcc] = useState(false)
 	const [showDiscardDialog, setShowDiscardDialog] = useState(false)
+	const [isFixing, setIsFixing] = useState(false)
 
 	const handleClose = useCallback(() => {
 		if (isDirty) {
@@ -121,6 +122,14 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	const handleToggleBcc = useCallback(() => {
 		setShowBcc((prev) => !prev)
 	}, [])
+
+	const handleEditorMount = useCallback(() => {
+		if (isFixing) {
+			setTimeout(() => {
+				setIsFixing(false)
+			}, 300)
+		}
+	}, [isFixing])
 
 	// Register them
 	useComposeShortcuts({
@@ -322,9 +331,11 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 				}}
 				onAutoFix={async () => {
 					if (htmlRef.current) {
+						setIsFixing(true)
+
 						const fixedHtml = await applyAutoFix(htmlRef.current)
 						htmlRef.current = fixedHtml
-						setAutoFixKey((k) => k + 1) // Force SourceEditor re-render with new HTML
+						setAutoFixKey((k) => k + 1) // Force re-render SourceEditor
 					}
 				}}
 				hasIssues={compatibilityIssues.length > 0}
@@ -344,6 +355,8 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 					onRemoveAttachment={removeAttachment}
 					onSourceChange={triggerValidation}
 					autoFixKey={autoFixKey}
+					isFixing={isFixing}
+					onEditorMount={handleEditorMount}
 				/>
 			</LexicalComposer>
 

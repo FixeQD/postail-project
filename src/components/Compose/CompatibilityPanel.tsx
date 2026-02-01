@@ -183,6 +183,11 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 		setIsResizing(false)
 	}, [])
 
+	const handleAutoFix = useCallback(async () => {
+		if (!onAutoFix) return
+		await onAutoFix()
+	}, [onAutoFix])
+
 	useEffect(() => {
 		if (isResizing) {
 			document.addEventListener('mousemove', handleResizeMove)
@@ -223,7 +228,7 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 				}`}
 			/>
 
-			<Card className='flex flex-1 flex-col overflow-hidden rounded-none border-0 bg-transparent'>
+			<Card className='relative flex flex-1 flex-col overflow-hidden rounded-none border-0 bg-transparent'>
 				<CardHeader className='flex-shrink-0 border-b border-zinc-800/50 px-4 py-3 pb-3'>
 					<div className='flex items-center justify-between'>
 						<CardTitle className='flex items-center gap-2 text-sm font-semibold text-zinc-200'>
@@ -322,11 +327,9 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 								? 'text-yellow-400 hover:text-yellow-300'
 								: 'cursor-not-allowed text-zinc-500 opacity-50'
 						}`}
-						onClick={onAutoFix}
+						onClick={handleAutoFix}
 						disabled={!hasIssues || isLoading}>
-						<Wand2
-							className={`mr-1.5 h-3.5 w-3.5 ${isLoading ? 'animate-pulse' : ''}`}
-						/>
+						<Wand2 className='mr-1.5 h-3.5 w-3.5' />
 						{t('compatibilityPanel.actions.autoFix')}
 					</Button>
 				</div>
