@@ -11,7 +11,7 @@ fn main() {
     {
         let recovery_mode = env::var("POSTAIL_RECOVERY_MODE").unwrap_or_default();
 
-        if recovery_mode == "" {
+        if recovery_mode.is_empty() {
             // Master process: try to launch normally and monitor for issues (Case 1: Error 71, Case 2: Panic)
             let current_exe = env::current_exe().expect("Failed to get current executable path");
             let args: Vec<String> = env::args().skip(1).collect();

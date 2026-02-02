@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use rusqlite::Connection;
@@ -17,8 +18,10 @@ pub enum EncryptionType {
     Plain,
 }
 
-impl EncryptionType {
-    pub fn from_str(s: &str) -> Result<Self, String> {
+impl FromStr for EncryptionType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "tls" | "ssl" => Ok(Self::Tls),
             "starttls" | "start_tls" => Ok(Self::StartTls),
