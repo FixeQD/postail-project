@@ -137,40 +137,37 @@ pub fn auto_fix_email_html(html: &str) -> String {
     let html_str = document.to_string();
     let html_content = extract_body_content(&html_str);
 
-    // Stage 2: CSS processing
-    let positioned = convert_positioning_to_email_safe(&html_content);
+    // Stage 2: Pseudo-elements expansion
+    let expanded = expand_pseudo_elements(&html_content);
 
-    // Stage 3: Z-index sorting
-    let z_sorted = sort_elements_by_z_index(&positioned);
-
-    // Stage 4: Pseudo-elements expansion
-    let expanded = expand_pseudo_elements(&z_sorted);
-
-    // Stage 5: Inline CSS styles
+    // Stage 3: Inline CSS styles
     let without_imports = IMPORT_REGEX.replace_all(&expanded, "");
     let without_font_faces = FONT_FACE_REGEX.replace_all(&without_imports, "");
     let inlined = inline_css_styles(&without_font_faces);
 
-    // Stage 6: Parse again and strip content tags
-    let document2 = kuchiki::parse_html().one(inlined.to_string());
+    // Stage 4: Convert positioning to table layout
+    let table_layout = convert_to_table_layout(&inlined);
+
+    // Stage 5: Parse again and strip content tags
+    let document2 = kuchiki::parse_html().one(table_layout);
     strip_content_tags_dom(&document2);
 
-    // Stage 7: Mark positioned elements
+    // Stage 6: Mark positioned elements
     mark_positioned_elements_dom(&document2);
 
-    // Stage 8: Ammonia sanitization
+    // Stage 7: Ammonia sanitization
     let serialized = serialize_clean(&document2);
     let content_for_ammonia = extract_body_content(&serialized);
     let builder = create_email_sanitizer();
     let sanitized = builder.clean(&content_for_ammonia).to_string();
 
-    // Stage 9: Strip dead elements using DOM
+    // Stage 8: Strip dead elements using DOM
     let document3 = kuchiki::parse_html().one(sanitized);
     strip_dead_elements_dom(&document3);
     let final_serialized = serialize_clean(&document3);
     let result = extract_body_content(&final_serialized);
 
-    // Stage 10: Aaaaaaand cleanup HTML whitespace
+    // Stage 9: Aaaaaaand cleanup HTML whitespace
     cleanup_html_whitespace(&result)
 }
 
@@ -184,28 +181,35 @@ pub fn sanitize_email_html(html: &str) -> String {
     let html_str = document.to_string();
     let html_content = extract_body_content(&html_str);
 
-    let positioned = convert_positioning_to_email_safe(&html_content);
+    // Stage 2: Pseudo-elements expansion
+    let expanded = expand_pseudo_elements(&html_content);
 
-    let z_sorted = sort_elements_by_z_index(&positioned);
-
-    let expanded = expand_pseudo_elements(&z_sorted);
+    // Stage 3: Inline CSS styles
     let inlined = inline_css_styles(&expanded);
 
-    let document2 = kuchiki::parse_html().one(inlined);
+    // Stage 4: Convert positioning to table layout
+    let table_layout = convert_to_table_layout(&inlined);
+
+    // Stage 5: Parse again and strip content tags
+    let document2 = kuchiki::parse_html().one(table_layout);
     strip_content_tags_dom(&document2);
 
+    // Stage 6: Mark positioned elements
     mark_positioned_elements_dom(&document2);
 
+    // Stage 7: Ammonia sanitization
     let serialized = serialize_clean(&document2);
     let content_for_ammonia = extract_body_content(&serialized);
     let builder = create_email_sanitizer();
     let sanitized = builder.clean(&content_for_ammonia).to_string();
 
+    // Stage 8: Strip dead elements using DOM
     let document3 = kuchiki::parse_html().one(sanitized);
     strip_dead_elements_dom(&document3);
     let final_serialized = serialize_clean(&document3);
     let result = extract_body_content(&final_serialized);
 
+    // Stage 9: Cleanup HTML whitespace
     cleanup_html_whitespace(&result)
 }
 
@@ -223,19 +227,23 @@ pub fn sanitize_email_html_with_details(html: &str) -> SanitizeResult {
     let html_str = document.to_string();
     let html_content = extract_body_content(&html_str);
 
-    let positioned = convert_positioning_to_email_safe(&html_content);
+    // Stage 2: Pseudo-elements expansion
+    let expanded = expand_pseudo_elements(&html_content);
 
-    let z_sorted = sort_elements_by_z_index(&positioned);
-
-    let expanded = expand_pseudo_elements(&z_sorted);
-
+    // Stage 3: Inline CSS styles
     let inlined = inline_css_styles(&expanded);
 
-    let document2 = kuchiki::parse_html().one(inlined);
+    // Stage 4: Convert positioning to table layout
+    let table_layout = convert_to_table_layout(&inlined);
+
+    // Stage 5: Parse again and strip content tags
+    let document2 = kuchiki::parse_html().one(table_layout);
     strip_content_tags_dom(&document2);
 
+    // Stage 6: Mark positioned elements
     mark_positioned_elements_dom(&document2);
 
+    // Record unsupported tag issues
     COLLECTED_ISSUES.with(|issues| {
         let mut issues = issues.borrow_mut();
         for (tag, reason) in unsupported_tags {
@@ -252,16 +260,19 @@ pub fn sanitize_email_html_with_details(html: &str) -> SanitizeResult {
         }
     });
 
+    // Stage 7: Ammonia sanitization
     let serialized = serialize_clean(&document2);
     let content_for_ammonia = extract_body_content(&serialized);
     let builder = create_sanitizer_with_tracking();
     let sanitized = builder.clean(&content_for_ammonia).to_string();
 
+    // Stage 8: Strip dead elements using DOM
     let document3 = kuchiki::parse_html().one(sanitized);
     strip_dead_elements_dom(&document3);
     let final_serialized = serialize_clean(&document3);
     let result = extract_body_content(&final_serialized);
 
+    // Stage 9: Cleanup HTML whitespace
     let cleaned = cleanup_html_whitespace(&result);
 
     let issues = COLLECTED_ISSUES.with(|issues| issues.borrow().clone());
@@ -419,114 +430,429 @@ fn replace_body_with_div_dom(document: &NodeRef, body_styles: String) {
     }
 }
 
-fn convert_positioning_to_email_safe(html: &str) -> String {
-    let position_re = regex::Regex::new(r"(?s)([.#][^{]+)\{([^}]*)\}").unwrap();
+fn convert_to_table_layout(html: &str) -> String {
+    let document = kuchiki::parse_html().one(html);
 
-    let result = position_re
-        .replace_all(html, |caps: &regex::Captures| {
-            let selector = &caps[1];
-            let declarations = &caps[2];
+    let root = find_root_container(&document);
+    if root.is_none() {
+        return document.to_string();
+    }
+    let root = root.unwrap();
+    let target_root = {
+        let children: Vec<NodeRef> = root.children().collect();
+        if children.len() == 1 {
+            if let Some(element) = children[0].as_element() {
+                let tag_name = element.name.local.to_string().to_lowercase();
+                let attrs = element.attributes.borrow();
+                let has_position = attrs
+                    .get("style")
+                    .map(|s| parse_position_style(s).is_positioned)
+                    .unwrap_or(false);
+                drop(attrs);
+                if tag_name == "div" && !has_position {
+                    children[0].clone()
+                } else {
+                    root.clone()
+                }
+            } else {
+                root.clone()
+            }
+        } else {
+            root.clone()
+        }
+    };
 
-            let has_position = declarations.contains("position: fixed")
-                || declarations.contains("position: absolute");
-            let has_transform = declarations.contains("transform:");
+    let mut positioned_elements: Vec<(NodeRef, PositionInfo)> = Vec::new();
+    let mut non_positioned_elements: Vec<NodeRef> = Vec::new();
 
-            if !has_position && !has_transform {
-                return caps[0].to_string();
+    for child in target_root.children() {
+        if let Some(element) = child.as_element() {
+            let tag_name = element.name.local.to_string().to_lowercase();
+            if tag_name == "table"
+                || tag_name == "tr"
+                || tag_name == "td"
+                || tag_name == "th"
+                || tag_name == "tbody"
+                || tag_name == "thead"
+                || tag_name == "tfoot"
+            {
+                continue;
             }
 
-            let has_any_animation = declarations.contains("animation:");
-
-            let mut new_decls: Vec<String> = Vec::new();
-            let mut top_val: Option<String> = None;
-            let mut left_val: Option<String> = None;
-            let mut bottom_val: Option<String> = None;
-            let mut right_val: Option<String> = None;
-
-            for decl in declarations.split(';') {
-                let decl = decl.trim();
-                if decl.is_empty() {
-                    continue;
+            let attrs = element.attributes.borrow();
+            if let Some(style) = attrs.get("style") {
+                let position_info = parse_position_style(style);
+                if position_info.is_positioned {
+                    drop(attrs);
+                    positioned_elements.push((child.clone(), position_info));
+                } else {
+                    drop(attrs);
+                    non_positioned_elements.push(child.clone());
                 }
+            } else {
+                drop(attrs);
+                non_positioned_elements.push(child.clone());
+            }
+        }
+    }
 
-                let parts: Vec<&str> = decl.splitn(2, ':').collect();
-                if parts.len() != 2 {
-                    continue;
-                }
+    if positioned_elements.is_empty() && non_positioned_elements.is_empty() {
+        return document.to_string();
+    }
 
-                let prop = parts[0].trim();
-                let val = parts[1].trim();
+    let mut has_top_elements = false;
+    let mut has_bottom_elements = false;
+    let mut has_top_corners = false;
+    let mut has_bottom_corners = false;
 
-                match prop {
-                    "position" => {
-                        new_decls.push("display: block".to_string());
-                    }
-                    "top" => {
-                        top_val = Some(val.to_string());
-                    }
-                    "left" => {
-                        left_val = Some(val.to_string());
-                    }
-                    "bottom" => {
-                        bottom_val = Some(val.to_string());
-                    }
-                    "right" => {
-                        right_val = Some(val.to_string());
-                    }
-                    "z-index" => {
-                        // Skip - z-index doesn't work without position
-                    }
-                    "animation" => {
-                        // Skip - animations don't work in emails
-                    }
-                    "opacity" => {
-                        let opacity_val = val.parse::<f64>().unwrap_or(1.0);
-                        if has_any_animation || opacity_val < 1.0 {
-                            new_decls.push("opacity: 1".to_string());
-                        } else {
-                            new_decls.push(format!("{}: {}", prop, val));
-                        }
-                    }
-                    "transform" => {
-                        if val.contains("translateY") {
-                            let re = regex::Regex::new(r"translateY\s*\(\s*(-?\d+(?:\.\d+)?(?:px|%)?)\s*\)").unwrap();
-                            if let Some(cap) = re.captures(val) {
-                                new_decls.push(format!("margin-top: {}", &cap[1]));
-                            }
-                        } else if val.contains("translate") {
-                            let re = regex::Regex::new(r"translate\s*\(\s*(-?\d+(?:\.\d+)?(?:px|%)?)\s*,\s*(-?\d+(?:\.\d+)?(?:px|%)?)\s*\)").unwrap();
-                            if let Some(cap) = re.captures(val) {
-                                new_decls.push(format!("margin-left: {}", &cap[1]));
-                                new_decls.push(format!("margin-top: {}", &cap[2]));
-                            }
-                        }
-                        // Skip other transforms - they don't work in emails
-                    }
-                    _ => {
-                        new_decls.push(format!("{}: {}", prop, val));
-                    }
+    for (_, info) in &positioned_elements {
+        match info.vertical_pos.as_str() {
+            "top" => {
+                if info.vertical_value < 0.0 {
+                    // Negative top = top row element
+                    has_top_elements = true;
+                } else if (20.0..=50.0).contains(&info.vertical_value) {
+                    // Small positive top = top corners
+                    has_top_corners = true;
                 }
             }
+            "bottom" => {
+                if info.vertical_value < 0.0 {
+                    // Negative bottom = bottom row element
+                    has_bottom_elements = true;
+                } else if (20.0..=50.0).contains(&info.vertical_value) {
+                    // Small positive bottom = bottom corners
+                    has_bottom_corners = true;
+                }
+            }
+            _ => {}
+        }
+    }
 
-            // Apply positioning as margins
-            if let Some(top) = top_val {
-                new_decls.push(format!("margin-top: {}", top));
-            }
-            if let Some(left) = left_val {
-                new_decls.push(format!("margin-left: {}", left));
-            }
-            if let Some(bottom) = bottom_val {
-                new_decls.push(format!("margin-bottom: {}", bottom));
-            }
-            if let Some(right) = right_val {
-                new_decls.push(format!("margin-right: {}", right));
-            }
+    let table = NodeRef::new_element(QualName::new(None, ns!(html), "table".into()), None);
+    {
+        let elem = table.as_element().unwrap();
+        let mut attrs = elem.attributes.borrow_mut();
+        attrs.insert("width", "100%".to_string());
+        attrs.insert("cellspacing", "0".to_string());
+        attrs.insert("cellpadding", "0".to_string());
+        attrs.insert("border", "0".to_string());
+    }
 
-            format!("{} {{ {} }}", selector, new_decls.join("; "))
-        })
-        .to_string();
+    let mut all_rows: Vec<NodeRef> = Vec::new();
+    let mut top_row_cells: Option<(NodeRef, NodeRef)> = None;
+    let mut bottom_row_cells: Option<(NodeRef, NodeRef)> = None;
+    let mut top_corners_cells: Option<(NodeRef, NodeRef)> = None;
+    let mut bottom_corners_cells: Option<(NodeRef, NodeRef)> = None;
+    let center_cell: Option<NodeRef>;
 
-    result
+    if has_top_elements {
+        let row = create_table_row("top_row");
+        let left = create_table_cell("top_left", Some("left"), None);
+        let right = create_table_cell("top_right", Some("right"), None);
+        row.append(left.clone());
+        row.append(right.clone());
+        table.append(row.clone());
+        all_rows.push(row);
+        top_row_cells = Some((left, right));
+    }
+
+    if has_top_corners {
+        let row = create_table_row("top_corners_row");
+        let left = create_table_cell("top_corner_left", Some("left"), Some(1));
+        let right = create_table_cell("top_corner_right", Some("right"), Some(1));
+        add_style_to_cell(&left, "padding-top: 28px;");
+        add_style_to_cell(&right, "padding-top: 28px;");
+        row.append(left.clone());
+        row.append(right.clone());
+        table.append(row.clone());
+        all_rows.push(row);
+        top_corners_cells = Some((left, right));
+    }
+
+    {
+        let row = create_table_row("center_row");
+        let colspan = if has_top_elements || has_bottom_elements {
+            2
+        } else {
+            1
+        };
+        let center = create_table_cell(
+            "center",
+            Some("center"),
+            if colspan > 1 { Some(colspan) } else { None },
+        );
+        row.append(center.clone());
+        table.append(row.clone());
+        all_rows.push(row);
+        center_cell = Some(center);
+    }
+
+    if has_bottom_corners {
+        let row = create_table_row("bottom_corners_row");
+        let left = create_table_cell("bottom_corner_left", Some("left"), Some(1));
+        let right = create_table_cell("bottom_corner_right", Some("right"), Some(1));
+        add_style_to_cell(&left, "padding-bottom: 28px;");
+        add_style_to_cell(&right, "padding-bottom: 28px;");
+        row.append(left.clone());
+        row.append(right.clone());
+        table.append(row.clone());
+        all_rows.push(row);
+        bottom_corners_cells = Some((left, right));
+    }
+
+    if has_bottom_elements {
+        let row = create_table_row("bottom_row");
+        let left = create_table_cell("bottom_left", Some("left"), None);
+        let right = create_table_cell("bottom_right", Some("right"), None);
+        row.append(left.clone());
+        row.append(right.clone());
+        table.append(row.clone());
+        all_rows.push(row);
+        bottom_row_cells = Some((left, right));
+    }
+
+    for (element, info) in positioned_elements {
+        let element = process_positioned_element(element);
+
+        let target_cell = match (
+            info.vertical_pos.as_str(),
+            info.vertical_value,
+            info.horizontal_pos.as_str(),
+        ) {
+            // Top row (negative top values)
+            ("top", val, "left") if val < 0.0 => {
+                top_row_cells.as_ref().map(|(left, _)| left.clone())
+            }
+            ("top", val, "right") if val < 0.0 => {
+                top_row_cells.as_ref().map(|(_, right)| right.clone())
+            }
+            ("top", val, _) if val < 0.0 => top_row_cells.as_ref().map(|(left, _)| left.clone()),
+            // Bottom row (negative bottom values)
+            ("bottom", val, "left") if val < 0.0 => {
+                bottom_row_cells.as_ref().map(|(left, _)| left.clone())
+            }
+            ("bottom", val, "right") if val < 0.0 => {
+                bottom_row_cells.as_ref().map(|(_, right)| right.clone())
+            }
+            ("bottom", val, _) if val < 0.0 => {
+                bottom_row_cells.as_ref().map(|(_, right)| right.clone())
+            }
+            // Top corners (small positive top ~20-50px)
+            ("top", val, "left") if (20.0..=50.0).contains(&val) => {
+                top_corners_cells.as_ref().map(|(left, _)| left.clone())
+            }
+            ("top", val, "right") if (20.0..=50.0).contains(&val) => {
+                top_corners_cells.as_ref().map(|(_, right)| right.clone())
+            }
+            // Bottom corners (small positive bottom ~20-50px)
+            ("bottom", val, "left") if (20.0..=50.0).contains(&val) => {
+                bottom_corners_cells.as_ref().map(|(left, _)| left.clone())
+            }
+            ("bottom", val, "right") if (20.0..=50.0).contains(&val) => bottom_corners_cells
+                .as_ref()
+                .map(|(_, right)| right.clone()),
+            // Everything else goes to center
+            _ => center_cell.clone(),
+        };
+
+        if let Some(cell) = target_cell {
+            element.detach();
+            cell.append(element);
+        }
+    }
+
+    // Add non-positioned elements to center
+    if let Some(ref center) = center_cell {
+        for element in non_positioned_elements {
+            element.detach();
+            center.append(element);
+        }
+    }
+
+    for child in target_root.children().collect::<Vec<_>>() {
+        child.detach();
+    }
+    target_root.append(table);
+
+    document.to_string()
+}
+
+fn find_root_container(document: &NodeRef) -> Option<NodeRef> {
+    for node in document.descendants() {
+        if let Some(element) = node.as_element() {
+            let tag_name = element.name.local.to_string().to_lowercase();
+            if tag_name == "body" {
+                return Some(node);
+            }
+        }
+    }
+    for node in document.descendants() {
+        if let Some(element) = node.as_element() {
+            let tag_name = element.name.local.to_string().to_lowercase();
+            if tag_name == "div" {
+                return Some(node);
+            }
+        }
+    }
+    None
+}
+
+#[derive(Debug)]
+struct PositionInfo {
+    is_positioned: bool,
+    position_type: String,
+    vertical_pos: String, // "top", "bottom", "none"
+    vertical_value: f32,
+    horizontal_pos: String, // "left", "right", "none"
+    horizontal_value: f32,
+}
+
+fn parse_position_style(style: &str) -> PositionInfo {
+    let mut info = PositionInfo {
+        is_positioned: false,
+        position_type: String::new(),
+        vertical_pos: "none".to_string(),
+        vertical_value: 0.0,
+        horizontal_pos: "none".to_string(),
+        horizontal_value: 0.0,
+    };
+
+    let declarations = parse_css_declarations(style);
+
+    for (prop, value) in declarations {
+        match prop.as_str() {
+            "position" => {
+                if value == "fixed" || value == "absolute" {
+                    info.is_positioned = true;
+                    info.position_type = value;
+                }
+            }
+            "top" => {
+                info.vertical_pos = "top".to_string();
+                info.vertical_value = parse_css_value(&value);
+            }
+            "bottom" => {
+                info.vertical_pos = "bottom".to_string();
+                info.vertical_value = parse_css_value(&value);
+            }
+            "left" => {
+                info.horizontal_pos = "left".to_string();
+                info.horizontal_value = parse_css_value(&value);
+            }
+            "right" => {
+                info.horizontal_pos = "right".to_string();
+                info.horizontal_value = parse_css_value(&value);
+            }
+            _ => {}
+        }
+    }
+
+    info
+}
+
+fn parse_css_value(value: &str) -> f32 {
+    let cleaned: String = value
+        .chars()
+        .take_while(|c| c.is_ascii_digit() || *c == '-' || *c == '.')
+        .collect();
+    cleaned.parse::<f32>().unwrap_or(0.0)
+}
+
+fn create_table_row(class: &str) -> NodeRef {
+    let row = NodeRef::new_element(QualName::new(None, ns!(html), "tr".into()), None);
+    {
+        let elem = row.as_element().unwrap();
+        let mut attrs = elem.attributes.borrow_mut();
+        attrs.insert("class", class.to_string());
+    }
+    row
+}
+
+fn create_table_cell(class: &str, align: Option<&str>, colspan: Option<usize>) -> NodeRef {
+    let cell = NodeRef::new_element(QualName::new(None, ns!(html), "td".into()), None);
+    {
+        let elem = cell.as_element().unwrap();
+        let mut attrs = elem.attributes.borrow_mut();
+        attrs.insert("class", class.to_string());
+
+        if let Some(a) = align {
+            attrs.insert("align", a.to_string());
+        }
+
+        if let Some(c) = colspan {
+            attrs.insert("colspan", c.to_string());
+        }
+    }
+    cell
+}
+
+fn add_style_to_cell(cell: &NodeRef, additional_style: &str) {
+    if let Some(element) = cell.as_element() {
+        let mut attrs = element.attributes.borrow_mut();
+        let existing = attrs
+            .get("style")
+            .map(|s| s.to_string())
+            .unwrap_or_default();
+        let new_style = if existing.is_empty() {
+            additional_style.to_string()
+        } else {
+            format!("{} {}", existing, additional_style)
+        };
+        attrs.insert("style", new_style);
+    }
+}
+
+fn process_positioned_element(element: NodeRef) -> NodeRef {
+    if let Some(elem) = element.as_element() {
+        let mut attrs = elem.attributes.borrow_mut();
+
+        // Get and clean up the style
+        let style = attrs
+            .get("style")
+            .map(|s| s.to_string())
+            .unwrap_or_default();
+        let cleaned_style = clean_positioned_element_style(&style);
+
+        if cleaned_style.is_empty() {
+            attrs.remove("style");
+        } else {
+            attrs.insert("style", cleaned_style);
+        }
+    }
+
+    element
+}
+
+fn clean_positioned_element_style(style: &str) -> String {
+    let declarations = parse_css_declarations(style);
+    let mut cleaned: Vec<String> = Vec::new();
+
+    // CSS properties to remove from positioned elements
+    const POSITIONING_PROPS: &[&str] = &[
+        "position",
+        "z-index",
+        "top",
+        "left",
+        "right",
+        "bottom",
+        "transform",
+    ];
+
+    for (prop, value) in declarations {
+        // Skip all positioning-related properties
+        if POSITIONING_PROPS.iter().any(|&p| p == prop) {
+            continue;
+        }
+
+        cleaned.push(format!("{}: {}", prop, value));
+    }
+
+    if !cleaned.iter().any(|s| s.starts_with("display:")) {
+        cleaned.push("display: block".to_string());
+    }
+
+    cleaned.join("; ")
 }
 
 fn sort_elements_by_z_index(html: &str) -> String {
