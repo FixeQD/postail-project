@@ -191,7 +191,7 @@ export function EditorToolbar() {
 		editor.focus()
 	}
 
-	const handleAttachment = async () => {
+	const handleAttachment = useCallback(async () => {
 		try {
 			const selected = await open({
 				multiple: true,
@@ -225,7 +225,7 @@ export function EditorToolbar() {
 		} catch (err) {
 			console.error('Failed to open file picker:', err)
 		}
-	}
+	}, [currentDraft, addAttachment])
 
 	const confirmDuplicate = () => {
 		if (pendingAttachment) {
@@ -235,14 +235,15 @@ export function EditorToolbar() {
 		setDialogOpen(false)
 	}
 
+	const handleAttachFile = useCallback(() => {
+		handleAttachment()
+	}, [handleAttachment])
+
 	// Listen for kbd shortcut trigger
 	useEffect(() => {
-		const handleAttachFile = () => {
-			handleAttachment()
-		}
 		window.addEventListener('compose:attach-file', handleAttachFile)
 		return () => window.removeEventListener('compose:attach-file', handleAttachFile)
-	}, [handleAttachment])
+	}, [handleAttachFile])
 
 	return (
 		<div className='flex items-center gap-2'>

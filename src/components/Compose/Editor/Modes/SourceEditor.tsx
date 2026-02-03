@@ -82,7 +82,7 @@ export const SourceEditor = memo(({ htmlRef, onChange, isFixing, onMount }: Sour
 		htmlRef.current = formatted
 		onChange(formatted)
 		markDirty()
-	}, [])
+	}, [htmlRef, onChange, markDirty])
 
 	return (
 		<motion.div
