@@ -120,7 +120,7 @@ pub fn expand_pseudo_elements(html: &str) -> String {
                 let mut insert_pos = None;
 
                 let open_tag_re =
-                    Regex::new(&format!(r#"(?s)<{}(?:\s|>))"#, regex::escape(tag_name))).unwrap();
+                    Regex::new(&format!(r#"(?s)<{}(?:\s|>)"#, regex::escape(tag_name))).unwrap();
 
                 while pos < result.len() && insert_pos.is_none() {
                     // Look for next opening tag of the same type
