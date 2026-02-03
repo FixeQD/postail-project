@@ -204,9 +204,24 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 	saveDraft: async (html?: string) => {
 		const { currentDraft, isDirty, isSaving } = get()
 
-		if (!currentDraft || !isDirty || isSaving) return
+		// Allow saving if dirty or if html override is provided
+		if (!currentDraft || isSaving) return
+		if (!isDirty && !html) return
 
 		set({ isSaving: true })
+
+		// If html override provided, sync it to currentDraft first
+		if (html && html !== currentDraft.body) {
+			set({
+				currentDraft: {
+					...currentDraft,
+					body: html,
+					updatedAt: new Date().toISOString(),
+				},
+				isDirty: true,
+			})
+		}
+
 		const bodyToSave = html || currentDraft.body
 
 		try {
@@ -278,10 +293,13 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 
 			const { drafts, currentDraft } = get()
 			const updatedDrafts = drafts.filter((d) => d.id !== draftId)
+			const isRemovingCurrent = currentDraft?.id === draftId
 
 			set({
 				drafts: updatedDrafts,
-				currentDraft: currentDraft?.id === draftId ? null : currentDraft,
+				currentDraft: isRemovingCurrent ? null : currentDraft,
+				isComposing: isRemovingCurrent ? false : get().isComposing,
+				isDirty: isRemovingCurrent ? false : get().isDirty,
 			})
 		} catch (error) {
 			console.error('Failed to delete draft:', error)
@@ -289,17 +307,46 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 	},
 
 	sendDraft: async (html?: string) => {
-		const { currentDraft, compatibilityIssues, validationDismissed } = get()
+		const {
+			currentDraft,
+			compatibilityIssues,
+			validationDismissed,
+			isValidating,
+			validateCompatibility,
+		} = get()
 		if (!currentDraft || !currentDraft.id) {
 			throw new Error('No draft to send')
 		}
 
-		const hasErrors = compatibilityIssues.some((i) => i.severity === 'Error')
-		const hasWarnings = compatibilityIssues.some(
+		// Wait for any in-flight validation or run validation immediately
+		if (isValidating) {
+			// Validation is in progress, run immediate validation to wait for results
+			await validateCompatibility(html || currentDraft.body, true)
+		} else {
+			// No validation running, check if we need to validate
+			const hasErrors = compatibilityIssues.some((i) => i.severity === 'Error')
+			const hasWarnings = compatibilityIssues.some(
+				(i) => i.severity === 'Warning' || i.severity === 'Info'
+			)
+
+			if (
+				compatibilityIssues.length === 0 ||
+				hasErrors ||
+				(hasWarnings && !validationDismissed)
+			) {
+				// Need to validate first
+				await validateCompatibility(html || currentDraft.body, true)
+			}
+		}
+
+		// Re-check issues after potential validation
+		const { compatibilityIssues: updatedIssues, validationDismissed: updatedDismissed } = get()
+		const hasErrors = updatedIssues.some((i) => i.severity === 'Error')
+		const hasWarnings = updatedIssues.some(
 			(i) => i.severity === 'Warning' || i.severity === 'Info'
 		)
 
-		if (hasErrors || (hasWarnings && !validationDismissed)) {
+		if (hasErrors || (hasWarnings && !updatedDismissed)) {
 			set({ showSendWarning: true })
 			throw new Error('Compatibility issues found')
 		}

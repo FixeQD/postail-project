@@ -55,8 +55,6 @@ pub fn expand_pseudo_elements(html: &str) -> String {
         result.replace_range(*start..*end, new_style);
     }
 
-
-
     for rule in &all_rules {
         let open_tag_re = Regex::new(&format!(
             r#"(?s)(<[a-zA-Z][a-zA-Z0-9]*\s[^>]*class=")([^"]*\b{}\b[^"]*)"#,
@@ -121,13 +119,12 @@ pub fn expand_pseudo_elements(html: &str) -> String {
                 let mut pos = open_end;
                 let mut insert_pos = None;
 
+                let open_tag_re =
+                    Regex::new(&format!(r#"(?s)<{}(?:\s|>))"#, regex::escape(tag_name))).unwrap();
+
                 while pos < result.len() && insert_pos.is_none() {
                     // Look for next opening tag of the same type
-                    if let Some(open_match) =
-                        Regex::new(&format!(r#"(?s)<{}(?:\s|>)"#, regex::escape(tag_name)))
-                            .unwrap()
-                            .find_at(&result, pos)
-                    {
+                    if let Some(open_match) = open_tag_re.find_at(&result, pos) {
                         let open_start = open_match.start();
                         // Look for closing tag
                         if let Some(close_offset) = result[pos..].find(&closing) {
@@ -223,12 +220,67 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
             }
 
             // Count braces to find the matching closing brace
+            // Track context: strings, comments, and escaped characters
             let mut count = 1;
             let mut j = brace_start + 1;
+            let mut in_string = false;
+            let mut string_quote = '\0';
+            let mut escaped = false;
+            let mut in_comment = false;
+
             while j < css.len() && count > 0 {
-                match css.as_bytes()[j] {
-                    b'{' => count += 1,
-                    b'}' => count -= 1,
+                let ch = css.as_bytes()[j] as char;
+
+                if escaped {
+                    escaped = false;
+                    j += 1;
+                    continue;
+                }
+
+                if ch == '\\' {
+                    escaped = true;
+                    j += 1;
+                    continue;
+                }
+
+                if in_comment {
+                    // Check for comment end */
+                    if ch == '*' && j + 1 < css.len() && css.as_bytes()[j + 1] as char == '/' {
+                        in_comment = false;
+                        j += 2;
+                        continue;
+                    }
+                    j += 1;
+                    continue;
+                }
+
+                if in_string {
+                    if ch == string_quote {
+                        in_string = false;
+                    }
+                    j += 1;
+                    continue;
+                }
+
+                // Not in string or comment
+                if ch == '"' || ch == '\'' {
+                    in_string = true;
+                    string_quote = ch;
+                    j += 1;
+                    continue;
+                }
+
+                // Check for comment start /*
+                if ch == '/' && j + 1 < css.len() && css.as_bytes()[j + 1] as char == '*' {
+                    in_comment = true;
+                    j += 2;
+                    continue;
+                }
+
+                // Only count braces when not in string or comment
+                match ch {
+                    '{' => count += 1,
+                    '}' => count -= 1,
                     _ => {}
                 }
                 j += 1;
@@ -287,14 +339,14 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
         let mut has_display = false;
 
         for (prop, val) in &decls {
-            if prop == "content" {
+            if prop.eq_ignore_ascii_case("content") {
                 has_content_decl = true;
                 content = val
                     .trim_matches(|c: char| c == '"' || c == '\'')
                     .to_string();
             } else {
                 style_parts.push(format!("{}: {}", prop, val));
-                if prop == "display" {
+                if prop.eq_ignore_ascii_case("display") {
                     has_display = true;
                 }
             }
