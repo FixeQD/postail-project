@@ -68,6 +68,11 @@ pub fn search_contacts(
     query: &str,
     limit: u32,
 ) -> Result<Vec<Contact>, DBError> {
+    let trimmed_query = query.trim();
+    if trimmed_query.is_empty() {
+        return Ok(Vec::new());
+    }
+
     let mut stmt = conn.prepare(
         "SELECT c.id, c.email, c.name, c.frequency
          FROM contacts c
@@ -77,7 +82,7 @@ pub fn search_contacts(
          LIMIT ?",
     )?;
 
-    let fts_query = format!("{}*", crate::db::search::escape_fts_query(query));
+    let fts_query = format!("{}*", crate::db::search::escape_fts_query(trimmed_query));
     let contact_iter = stmt.query_map(params![fts_query, limit], |row| {
         Ok(Contact {
             id: row.get(0)?,

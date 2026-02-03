@@ -237,9 +237,11 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		}
 	},
 
-	loadDrafts: async (accountId: string) => {
+	loadDrafts: async (accountId: string, signal?: AbortSignal) => {
 		try {
 			const draftsFromRust = await invoke<any[]>('list_drafts', { accountId })
+			// Check for cancellation before updating state
+			if (signal?.aborted) return accountId
 			const drafts: ComposeDraft[] = draftsFromRust.map((d) => ({
 				id: d.id,
 				accountId: d.accountId,
@@ -254,9 +256,11 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 				updatedAt: new Date(d.updatedAt * 1000).toISOString(),
 			}))
 			set({ drafts })
+			return accountId
 		} catch (error) {
 			console.error('Failed to load drafts:', error)
 			set({ drafts: [] })
+			return accountId
 		}
 	},
 

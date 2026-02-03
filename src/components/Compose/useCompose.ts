@@ -96,19 +96,22 @@ export const useDragging = () => {
 		[state.x, state.y, handleMouseMove, stopDrag]
 	)
 
-	const handleResizeMouseDown = (e: React.MouseEvent) => {
-		e.preventDefault()
-		resizeStartRef.current = {
-			mouseX: e.clientX,
-			mouseY: e.clientY,
-			width: state.width,
-			height: state.height,
-		}
-		isResizingRef.current = true
-		setState((s) => ({ ...s, isResizing: true }))
-		window.addEventListener('mousemove', handleMouseMove)
-		window.addEventListener('mouseup', stopDrag)
-	}
+	const handleResizeMouseDown = useCallback(
+		(e: React.MouseEvent) => {
+			e.preventDefault()
+			resizeStartRef.current = {
+				mouseX: e.clientX,
+				mouseY: e.clientY,
+				width: state.width,
+				height: state.height,
+			}
+			isResizingRef.current = true
+			setState((s) => ({ ...s, isResizing: true }))
+			window.addEventListener('mousemove', handleMouseMove)
+			window.addEventListener('mouseup', stopDrag)
+		},
+		[state.width, state.height, handleMouseMove, stopDrag]
+	)
 
 	return {
 		position: { x: state.x, y: state.y },
@@ -127,7 +130,8 @@ export const useLinkTooltip = (editorRef: React.RefObject<HTMLDivElement | null>
 	const linkTooltipRaf = useRef<number | null>(null)
 
 	useEffect(() => {
-		const container = editorRef.current || document
+		if (!editorRef.current) return
+		const container = editorRef.current
 		const clear = () => {
 			setLinkTooltipVisible(false)
 			setLinkTooltipUrl('')

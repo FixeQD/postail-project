@@ -77,7 +77,7 @@ export interface DraftState {
 	markClean: () => void
 	saveDraft: (html?: string) => Promise<void>
 	loadDraft: (draft: ComposeDraft) => void
-	loadDrafts: (accountId: string) => Promise<void>
+	loadDrafts: (accountId: string, signal?: AbortSignal) => Promise<string>
 	deleteDraft: (draftId: string) => Promise<void>
 	sendDraft: (html?: string) => Promise<string>
 

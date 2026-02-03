@@ -61,7 +61,6 @@ pub fn expand_pseudo_elements(html: &str) -> String {
         if rule.is_before {
             result = open_tag_re
                 .replace_all(&result, |caps: &regex::Captures| {
-                    let _match_end = caps.get(0).unwrap().end();
                     format!(
                         "{}\"{}__PSEUDO_BEFORE_{}__",
                         &caps[1], &caps[2], rule.class_for_style
@@ -100,9 +99,64 @@ pub fn expand_pseudo_elements(html: &str) -> String {
                 let tag_name = &caps[1];
                 let open_end = caps.get(0).unwrap().end();
                 let closing = format!("</{}>", tag_name);
-                if let Some(close_offset) = result[open_end..].find(&closing) {
-                    let insert_pos = open_end + close_offset;
-                    insertions.push((insert_pos, span.clone()));
+
+                // Nesting-aware scan: count opening/closing tags to find the matching outer closing tag
+                let mut depth = 1;
+                let mut pos = open_end;
+                let mut insert_pos = None;
+
+                while pos < result.len() && insert_pos.is_none() {
+                    // Look for next opening tag of the same type
+                    if let Some(open_match) =
+                        Regex::new(&format!(r#"(?s)<{}(?:\s|>)"#, regex::escape(tag_name)))
+                            .unwrap()
+                            .find_at(&result, pos)
+                    {
+                        let open_start = open_match.start();
+                        // Look for closing tag
+                        if let Some(close_offset) = result[pos..].find(&closing) {
+                            let close_start = pos + close_offset;
+                            if open_start < close_start {
+                                // Opening tag comes first - check if it's self-closing
+                                let tag_end = result[open_start..].find('>');
+                                if let Some(end) = tag_end {
+                                    let tag_content = &result[open_start..open_start + end + 1];
+                                    if tag_content.ends_with("/>") {
+                                        // Self-closing tag, skip it
+                                        pos = open_start + end + 1;
+                                    } else {
+                                        // Nested opening tag
+                                        depth += 1;
+                                        pos = open_start + end + 1;
+                                    }
+                                } else {
+                                    break;
+                                }
+                            } else {
+                                // Closing tag comes first
+                                depth -= 1;
+                                if depth == 0 {
+                                    insert_pos = Some(close_start);
+                                }
+                                pos = close_start + closing.len();
+                            }
+                        } else {
+                            break;
+                        }
+                    } else {
+                        // No more opening tags, find the closing tag
+                        if let Some(close_offset) = result[pos..].find(&closing) {
+                            depth -= 1;
+                            if depth == 0 {
+                                insert_pos = Some(pos + close_offset);
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                if let Some(pos) = insert_pos {
+                    insertions.push((pos, span.clone()));
                 }
             }
             insertions.sort_by(|a, b| b.0.cmp(&a.0)); // reverse order
