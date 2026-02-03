@@ -6,6 +6,7 @@ import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
 import { LexicalEditor, EditorState } from 'lexical'
 import PastePlugin from '../Plugins/PastePlugin'
 import DragDropPlugin from '../Plugins/DragDropPlugin'
+import CursorVisualsPlugin from '../Plugins/CursorVisualsPlugin'
 
 interface RichTextEditorProps {
 	contentEditable: any
@@ -34,6 +35,7 @@ export const RichTextEditor = memo(
 				<MemoOnChangePlugin onChange={handleEditorChange} />
 				<PastePlugin />
 				<DragDropPlugin />
+				<CursorVisualsPlugin />
 			</div>
 		)
 	}

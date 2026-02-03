@@ -6,6 +6,8 @@ import { HeadingNode, QuoteNode } from '@lexical/rich-text'
 import { ListNode, ListItemNode } from '@lexical/list'
 import { LinkNode } from '@lexical/link'
 import { X, Minimize2 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { useDraftStore } from '@/stores/draftStore'
@@ -53,6 +55,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		dismissValidationWarning,
 		setShowSendWarning,
 		sendDraft,
+		isSending,
 	} = useDraftStore()
 
 	const editorRef = useRef<HTMLDivElement>(null)
@@ -83,6 +86,27 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	const [showBcc, setShowBcc] = useState(false)
 	const [showDiscardDialog, setShowDiscardDialog] = useState(false)
 	const [isFixing, setIsFixing] = useState(false)
+	const [isFlying, setIsFlying] = useState(false)
+	const [frozenLayout, setFrozenLayout] = useState<{
+		position: { x: number; y: number }
+		size: { width: number; height: number }
+		target: { x: number; y: number }
+	} | null>(null)
+
+	const calculateFlyTarget = useCallback(
+		(currentPos: { x: number; y: number }, currentSize: { width: number; height: number }) => {
+			if (typeof window === 'undefined') return { x: 0, y: 0 }
+			const targetX = window.innerWidth - 120
+			const targetY = 28
+			const centerX = currentPos.x + currentSize.width / 2
+			const centerY = currentPos.y + currentSize.height / 2
+			return {
+				x: targetX - centerX,
+				y: targetY - centerY,
+			}
+		},
+		[]
+	)
 
 	const handleClose = useCallback(() => {
 		if (isDirty) {
@@ -96,12 +120,27 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 
 	const handleSend = useCallback(async () => {
 		try {
+			const target = calculateFlyTarget(position, size)
+			setFrozenLayout({ position, size, target })
+			setIsFlying(true)
+
 			await sendDraft(htmlRef.current)
+			toast.success(t('compose.sendSuccess', 'Message sent successfully'))
 			onOpenChange(false)
-		} catch {
-			// Error handling is in sendDraft
+		} catch (error) {
+			setIsFlying(false)
+			setFrozenLayout(null)
+			console.error('Send failed', error)
+			toast.error(t('compose.sendError', 'Failed to send message'))
 		}
-	}, [sendDraft, onOpenChange])
+	}, [sendDraft, onOpenChange, t, position, size, calculateFlyTarget])
+
+	useEffect(() => {
+		if (open) {
+			setIsFlying(false)
+			setFrozenLayout(null)
+		}
+	}, [open])
 
 	const handleSaveDraft = useCallback(() => {
 		saveDraft(htmlRef.current)
@@ -212,207 +251,243 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		if (currentDraft?.bcc && currentDraft.bcc.length > 0) setShowBcc(true)
 	}, [currentDraft])
 
-	if (!open) return null
+	const activePosition = isFlying && frozenLayout ? frozenLayout.position : position
+	const activeSize = isFlying && frozenLayout ? frozenLayout.size : size
+	const activeTarget = isFlying && frozenLayout ? frozenLayout.target : { x: 0, y: 0 }
 
 	return (
-		<div
-			className={`fixed z-50 flex flex-col overflow-hidden rounded-t-xl bg-zinc-950 text-zinc-100 shadow-2xl ring-1 ring-zinc-800 ${isDragging ? 'shadow-blue-900/20' : ''}`}
-			style={{
-				left: `${position.x}px`,
-				top: `${position.y}px`,
-				width: `${size.width}px`,
-				height: `${size.height}px`,
-				cursor: isDragging ? 'grabbing' : 'auto',
-				pointerEvents: 'auto',
-			}}>
-			<div
-				className='flex w-full items-center justify-between bg-zinc-900 px-4 py-3 select-none'
-				onMouseDown={startDrag}
-				style={{ cursor: isDragging ? 'grabbing' : 'grab' }}>
-				<h2 className='text-sm font-medium text-zinc-300'>{t('compose.newMessage')}</h2>
-				<div className='flex items-center gap-1'>
-					<Button variant='ghost' size='icon' className='h-7 w-7 text-zinc-400'>
-						<Minimize2 className='h-4 w-4' />
-					</Button>
-					<Button
-						variant='ghost'
-						size='icon'
-						className='h-7 w-7 text-zinc-400 hover:text-zinc-100'
-						onClick={handleClose}>
-						<X className='h-4 w-4' />
-					</Button>
-				</div>
-			</div>
-
-			<div className='flex flex-col px-4 pt-1'>
-				<AddressInput
-					label={t('compose.to')}
-					recipients={currentDraft?.to || []}
-					onAdd={(recipient) => addRecipient('to', recipient)}
-					onRemove={(email) => removeRecipient('to', email)}
-					placeholder={t('compose.recipients')}
-					rightElement={
-						<div className='mr-2 flex gap-2'>
-							{!showCc && (
-								<button
-									type='button'
-									onClick={() => setShowCc(true)}
-									className='text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-300'>
-									{t('compose.cc')}
-								</button>
-							)}
-							{!showBcc && (
-								<button
-									type='button'
-									onClick={() => setShowBcc(true)}
-									className='text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-300'>
-									{t('compose.bcc')}
-								</button>
-							)}
-						</div>
+		<AnimatePresence>
+			{open && (
+				<motion.div
+					initial={{ opacity: 0, y: 50, scale: 0.95 }}
+					animate={
+						isSending || isFlying
+							? {
+									opacity: 0,
+									scale: 0.1,
+									x: activeTarget.x,
+									y: activeTarget.y,
+									transition: { duration: 0.5, ease: 'easeInOut' },
+								}
+							: { opacity: 1, y: 0, scale: 1, x: 0 }
 					}
-				/>
-				{showCc && (
-					<AddressInput
-						label={t('compose.cc')}
-						recipients={currentDraft?.cc || []}
-						onAdd={(recipient) => addRecipient('cc', recipient)}
-						onRemove={(email) => removeRecipient('cc', email)}
-						rightElement={
-							<button
-								type='button'
-								onClick={() => {
-									setShowCc(false)
-									updateCurrentDraft({ cc: [] })
-								}}
-								className='mr-2 text-zinc-500 transition-colors hover:text-zinc-300'>
-								<X className='h-3.5 w-3.5' />
-							</button>
-						}
-					/>
-				)}
-				{showBcc && (
-					<AddressInput
-						label={t('compose.bcc')}
-						recipients={currentDraft?.bcc || []}
-						onAdd={(recipient) => addRecipient('bcc', recipient)}
-						onRemove={(email) => removeRecipient('bcc', email)}
-						rightElement={
-							<button
-								type='button'
-								onClick={() => {
-									setShowBcc(false)
-									updateCurrentDraft({ bcc: [] })
-								}}
-								className='mr-2 text-zinc-500 transition-colors hover:text-zinc-300'>
-								<X className='h-3.5 w-3.5' />
-							</button>
-						}
-					/>
-				)}
-				<SubjectInput
-					placeholder={t('compose.subject')}
-					value={currentDraft?.subject || ''}
-					onChange={setSubject}
-				/>
-			</div>
-
-			<CompatibilityPanel
-				isOpen={compatibilityPanelOpen && editorMode === 'source'}
-				onClose={toggleCompatibilityPanel}
-				width={compatibilityPanelWidth}
-				onWidthChange={setCompatibilityPanelWidth}
-				issues={compatibilityIssues}
-				isLoading={isValidating}
-				onCheckAgain={() => {
-					if (htmlRef.current) {
-						validateCompatibility(htmlRef.current, true)
+					exit={
+						isFlying
+							? {
+									opacity: 0,
+									scale: 0.1,
+									x: activeTarget.x,
+									y: activeTarget.y,
+									transition: { duration: 0.5, ease: 'easeInOut' }, // Ensure exit matches animate
+								}
+							: {
+									opacity: 0,
+									y: 20,
+									scale: 0.95,
+									transition: { duration: 0.2 },
+								}
 					}
-				}}
-				onAutoFix={async () => {
-					if (htmlRef.current) {
-						setIsFixing(true)
-
-						const fixedHtml = await applyAutoFix(htmlRef.current)
-						htmlRef.current = fixedHtml
-						setAutoFixKey((k) => k + 1) // Force re-render SourceEditor
-					}
-				}}
-				hasIssues={compatibilityIssues.length > 0}
-				composeX={position.x}
-				composeY={position.y}
-				composeHeight={size.height}
-			/>
-
-			<LexicalComposer initialConfig={initialConfig}>
-				<EditorContent
-					onOpenChange={onOpenChange}
-					editorRef={editorRef}
-					htmlRef={htmlRef}
-					isHydratingRef={isHydratingRef}
-					handleEditorChange={handleEditorChange}
-					attachments={currentDraft?.attachments || []}
-					onRemoveAttachment={removeAttachment}
-					onSourceChange={triggerValidation}
-					autoFixKey={autoFixKey}
-					isFixing={isFixing}
-					onEditorMount={handleEditorMount}
-				/>
-			</LexicalComposer>
-
-			{tooltipData.visible && tooltipData.rect && (
-				<div
-					className='bg-popover text-popover-foreground fixed z-50 max-w-md truncate rounded-md px-3 py-1.5 text-xs'
+					transition={{ type: 'spring', duration: 0.4, bounce: 0.3 }}
+					className={`fixed z-50 flex flex-col rounded-t-xl bg-zinc-950 text-zinc-100 shadow-2xl ring-1 ring-zinc-800 ${isDragging ? 'shadow-blue-900/20' : ''}`}
 					style={{
-						left: `${tooltipData.rect.left + tooltipData.rect.width / 2}px`,
-						top: `${tooltipData.rect.top > 40 ? tooltipData.rect.top - 8 : tooltipData.rect.bottom + 8}px`,
-						transform:
-							tooltipData.rect.top > 40
-								? 'translate(-50%, -100%)'
-								: 'translate(-50%, 0)',
+						left: `${activePosition.x}px`,
+						top: `${activePosition.y}px`,
+						width: `${activeSize.width}px`,
+						height: `${activeSize.height}px`,
+						cursor: isDragging ? 'grabbing' : 'auto',
+						pointerEvents: 'auto',
 					}}>
-					{tooltipData.url.length > 120
-						? tooltipData.url.slice(0, 116) + '…'
-						: tooltipData.url}
-				</div>
+					<div
+						className='flex w-full items-center justify-between rounded-t-xl bg-zinc-900 px-4 py-3 select-none'
+						onMouseDown={startDrag}
+						style={{ cursor: isDragging ? 'grabbing' : 'grab' }}>
+						<h2 className='text-sm font-medium text-zinc-300'>
+							{t('compose.newMessage')}
+						</h2>
+						<div className='flex items-center gap-1'>
+							<Button variant='ghost' size='icon' className='h-7 w-7 text-zinc-400'>
+								<Minimize2 className='h-4 w-4' />
+							</Button>
+							<Button
+								variant='ghost'
+								size='icon'
+								className='h-7 w-7 text-zinc-400 hover:text-zinc-100'
+								onClick={handleClose}>
+								<X className='h-4 w-4' />
+							</Button>
+						</div>
+					</div>
+
+					<div className='flex flex-col px-4 pt-1'>
+						<AddressInput
+							label={t('compose.to')}
+							recipients={currentDraft?.to || []}
+							onAdd={(recipient) => addRecipient('to', recipient)}
+							onRemove={(email) => removeRecipient('to', email)}
+							placeholder={t('compose.recipients')}
+							rightElement={
+								<div className='mr-2 flex gap-2'>
+									{!showCc && (
+										<button
+											type='button'
+											onClick={() => setShowCc(true)}
+											className='text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-300'>
+											{t('compose.cc')}
+										</button>
+									)}
+									{!showBcc && (
+										<button
+											type='button'
+											onClick={() => setShowBcc(true)}
+											className='text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-300'>
+											{t('compose.bcc')}
+										</button>
+									)}
+								</div>
+							}
+						/>
+						{showCc && (
+							<AddressInput
+								label={t('compose.cc')}
+								recipients={currentDraft?.cc || []}
+								onAdd={(recipient) => addRecipient('cc', recipient)}
+								onRemove={(email) => removeRecipient('cc', email)}
+								rightElement={
+									<button
+										type='button'
+										onClick={() => {
+											setShowCc(false)
+											updateCurrentDraft({ cc: [] })
+										}}
+										className='mr-2 text-zinc-500 transition-colors hover:text-zinc-300'>
+										<X className='h-3.5 w-3.5' />
+									</button>
+								}
+							/>
+						)}
+						{showBcc && (
+							<AddressInput
+								label={t('compose.bcc')}
+								recipients={currentDraft?.bcc || []}
+								onAdd={(recipient) => addRecipient('bcc', recipient)}
+								onRemove={(email) => removeRecipient('bcc', email)}
+								rightElement={
+									<button
+										type='button'
+										onClick={() => {
+											setShowBcc(false)
+											updateCurrentDraft({ bcc: [] })
+										}}
+										className='mr-2 text-zinc-500 transition-colors hover:text-zinc-300'>
+										<X className='h-3.5 w-3.5' />
+									</button>
+								}
+							/>
+						)}
+						<SubjectInput
+							placeholder={t('compose.subject')}
+							value={currentDraft?.subject || ''}
+							onChange={setSubject}
+						/>
+					</div>
+
+					<CompatibilityPanel
+						isOpen={compatibilityPanelOpen && editorMode === 'source'}
+						onClose={toggleCompatibilityPanel}
+						width={compatibilityPanelWidth}
+						onWidthChange={setCompatibilityPanelWidth}
+						issues={compatibilityIssues}
+						isLoading={isValidating}
+						onCheckAgain={() => {
+							if (htmlRef.current) {
+								validateCompatibility(htmlRef.current, true)
+							}
+						}}
+						onAutoFix={async () => {
+							if (htmlRef.current) {
+								setIsFixing(true)
+
+								const fixedHtml = await applyAutoFix(htmlRef.current)
+								htmlRef.current = fixedHtml
+								setAutoFixKey((k) => k + 1) // Force re-render SourceEditor
+							}
+						}}
+						hasIssues={compatibilityIssues.length > 0}
+						composeX={position.x}
+						composeY={position.y}
+						composeHeight={size.height}
+					/>
+
+					<LexicalComposer initialConfig={initialConfig}>
+						<EditorContent
+							onOpenChange={onOpenChange}
+							editorRef={editorRef}
+							htmlRef={htmlRef}
+							isHydratingRef={isHydratingRef}
+							handleEditorChange={handleEditorChange}
+							attachments={currentDraft?.attachments || []}
+							onRemoveAttachment={removeAttachment}
+							onSourceChange={triggerValidation}
+							autoFixKey={autoFixKey}
+							isFixing={isFixing}
+							onEditorMount={handleEditorMount}
+							onSend={handleSend}
+						/>
+					</LexicalComposer>
+
+					{tooltipData.visible && tooltipData.rect && (
+						<div
+							className='bg-popover text-popover-foreground fixed z-50 max-w-md truncate rounded-md px-3 py-1.5 text-xs'
+							style={{
+								left: `${tooltipData.rect.left + tooltipData.rect.width / 2}px`,
+								top: `${tooltipData.rect.top > 40 ? tooltipData.rect.top - 8 : tooltipData.rect.bottom + 8}px`,
+								transform:
+									tooltipData.rect.top > 40
+										? 'translate(-50%, -100%)'
+										: 'translate(-50%, 0)',
+							}}>
+							{tooltipData.url.length > 120
+								? tooltipData.url.slice(0, 116) + '…'
+								: tooltipData.url}
+						</div>
+					)}
+
+					<div
+						className='absolute right-0 bottom-0 h-4 w-4 cursor-se-resize'
+						onMouseDown={handleResizeMouseDown}
+					/>
+
+					{/* Send Warning Dialog */}
+					<ConfirmationDialog
+						open={showSendWarning}
+						onOpenChange={setShowSendWarning}
+						title={t('validation:sendWarning.title')}
+						description={t('validation:sendWarning.description', {
+							count: compatibilityIssues.length,
+						})}
+						confirmLabel={t('validation:sendWarning.confirm')}
+						cancelLabel={t('validation:sendWarning.cancel')}
+						onConfirm={() => {
+							dismissValidationWarning()
+							handleSend()
+						}}
+					/>
+
+					{/* Discard Draft Dialog */}
+					<ConfirmationDialog
+						open={showDiscardDialog}
+						onOpenChange={setShowDiscardDialog}
+						title={t('compose.discard.title')}
+						description={t('compose.discard.description')}
+						confirmLabel={t('compose.discard.confirm')}
+						cancelLabel={t('compose.discard.cancel')}
+						onConfirm={() => {
+							onOpenChange(false)
+							stopComposing()
+						}}
+					/>
+				</motion.div>
 			)}
-
-			<div
-				className='absolute right-0 bottom-0 h-4 w-4 cursor-se-resize'
-				onMouseDown={handleResizeMouseDown}
-			/>
-
-			{/* Send Warning Dialog */}
-			<ConfirmationDialog
-				open={showSendWarning}
-				onOpenChange={setShowSendWarning}
-				title={t('validation:sendWarning.title')}
-				description={t('validation:sendWarning.description', {
-					count: compatibilityIssues.length,
-				})}
-				confirmLabel={t('validation:sendWarning.confirm')}
-				cancelLabel={t('validation:sendWarning.cancel')}
-				onConfirm={() => {
-					dismissValidationWarning()
-					sendDraft().then(() => {
-						onOpenChange(false)
-					})
-				}}
-			/>
-
-			{/* Discard Draft Dialog */}
-			<ConfirmationDialog
-				open={showDiscardDialog}
-				onOpenChange={setShowDiscardDialog}
-				title={t('compose.discard.title')}
-				description={t('compose.discard.description')}
-				confirmLabel={t('compose.discard.confirm')}
-				cancelLabel={t('compose.discard.cancel')}
-				onConfirm={() => {
-					onOpenChange(false)
-					stopComposing()
-				}}
-			/>
-		</div>
+		</AnimatePresence>
 	)
 }

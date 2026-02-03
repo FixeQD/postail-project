@@ -50,6 +50,7 @@ export interface DraftState {
 	isComposing: boolean
 	isDirty: boolean
 	isSaving: boolean
+	isSending: boolean
 	lastSavedAt?: Date
 	editorMode: 'rich-text' | 'source'
 

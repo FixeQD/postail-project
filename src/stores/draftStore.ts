@@ -31,6 +31,7 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 	isComposing: false,
 	isDirty: false,
 	isSaving: false,
+	isSending: false,
 	lastSavedAt: undefined,
 	editorMode: 'rich-text',
 
@@ -291,6 +292,8 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 			throw new Error('Compatibility issues found')
 		}
 
+		set({ isSending: true })
+
 		try {
 			await get().saveDraft(html)
 
@@ -312,6 +315,7 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 				currentDraft: null,
 				isComposing: false,
 				isDirty: false,
+				isSending: false,
 				compatibilityPanelOpen: false,
 				compatibilityIssues: [],
 				validationDismissed: false,
@@ -320,6 +324,7 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 			return outboxId
 		} catch (error) {
 			console.error('Failed to send draft:', error)
+			set({ isSending: false })
 			throw error
 		}
 	},

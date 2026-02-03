@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { platform } from '@tauri-apps/plugin-os'
 import { Search, Bell, Settings, Send } from 'lucide-react'
+import { motion } from 'framer-motion'
 import icon from '../assets/icon.png'
 import type { AccountMeta } from '../types/accounts'
 import { useTypedTranslation } from '../hooks/useTypedTranslation'
+import { useDraftStore } from '../stores/draftStore'
 
 interface TitleBarProps {
 	isDashboard?: boolean
@@ -22,6 +24,7 @@ export function TitleBar({
 	onOpenOutbox,
 }: TitleBarProps) {
 	const { t } = useTypedTranslation()
+	const { isSending } = useDraftStore()
 	const [isMobile, setIsMobile] = useState<boolean | null>(null)
 	const [searchQuery, setSearchQuery] = useState('')
 
@@ -88,15 +91,30 @@ export function TitleBar({
 							<Bell className='h-5 w-5' />
 							<span className='absolute top-0 right-0 h-2 w-2 rounded-full bg-orange-500'></span>
 						</button>
-						<button
+						<motion.button
+							id='outbox-button'
 							className='text-slate-400 hover:text-slate-200'
 							onClick={(e) => {
 								e.stopPropagation()
 								onOpenOutbox?.()
 							}}
+							animate={
+								isSending
+									? {
+											scale: [1, 1.2, 1],
+											rotate: [0, 15, -15, 0],
+											color: '#fb923c', // orange-400
+										}
+									: {}
+							}
+							transition={{
+								duration: 0.5,
+								repeat: Infinity,
+								repeatType: 'loop',
+							}}
 							onMouseDown={(e) => e.stopPropagation()}>
 							<Send className='h-5 w-5' />
-						</button>
+						</motion.button>
 						<button
 							className='text-slate-400 hover:text-slate-200'
 							onClick={(e) => {

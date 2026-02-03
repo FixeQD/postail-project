@@ -25,6 +25,7 @@ interface EditorContentProps {
 	autoFixKey?: number
 	isFixing?: boolean
 	onEditorMount?: () => void
+	onSend?: () => void
 }
 
 export const EditorContent = memo(
@@ -40,12 +41,12 @@ export const EditorContent = memo(
 		autoFixKey,
 		isFixing,
 		onEditorMount,
+		onSend,
 	}: EditorContentProps) => {
 		const { t } = useTranslation()
 		const {
 			currentDraft,
 			isSaving,
-			sendDraft,
 			markClean,
 			editorMode,
 			deleteDraft,
@@ -178,14 +179,7 @@ export const EditorContent = memo(
 					<div className='flex items-center justify-between'>
 						<div className='flex items-center gap-1'>
 							<Button
-								onClick={async () => {
-									try {
-										await sendDraft(htmlRef.current)
-										onOpenChange(false)
-									} catch {
-										// Error handling is in sendDraft
-									}
-								}}
+								onClick={() => onSend?.()}
 								className='h-9 rounded-full bg-blue-600 px-6 font-semibold text-white hover:bg-blue-500'
 								disabled={isSaving || !isValid}
 								title={!isValid ? t('compose.validation.missingFields') : ''}>

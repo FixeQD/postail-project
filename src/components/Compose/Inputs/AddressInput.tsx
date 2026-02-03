@@ -32,6 +32,7 @@ export function AddressInput({
 }: AddressInputProps) {
 	const [inputValue, setInputValue] = useState('')
 	const [isFocused, setIsFocused] = useState(false)
+	const [isHovered, setIsHovered] = useState(false)
 	const [suggestions, setSuggestions] = useState<Contact[]>([])
 	const [selectedIndex, setSelectedIndex] = useState(0)
 	const inputRef = useRef<HTMLInputElement>(null)
@@ -110,10 +111,12 @@ export function AddressInput({
 	}
 
 	return (
-		<div
+		<motion.div
+			transition={{ duration: 0.2 }}
+			onHoverStart={() => setIsHovered(true)}
+			onHoverEnd={() => setIsHovered(false)}
 			className={cn(
 				'relative flex min-h-11 w-full flex-wrap items-center gap-2 border-b border-zinc-900 bg-transparent px-0 py-1.5 transition-colors',
-				isFocused && 'border-zinc-700',
 				className
 			)}
 			onClick={() => inputRef.current?.focus()}>
@@ -195,6 +198,13 @@ export function AddressInput({
 					</motion.div>
 				)}
 			</AnimatePresence>
-		</div>
+
+			<motion.div
+				initial={{ scaleX: 0 }}
+				animate={{ scaleX: isFocused || isHovered ? 1 : 0 }}
+				transition={{ duration: 0.25, ease: 'easeOut' }}
+				className='absolute bottom-0 left-0 h-[1px] w-full bg-zinc-500 origin-center pointer-events-none'
+			/>
+		</motion.div>
 	)
 }

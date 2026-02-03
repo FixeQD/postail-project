@@ -12,6 +12,7 @@ import { AccountsScreen } from './components/Account/AccountsScreen'
 import { InboxScreen } from './components/Inbox/InboxScreen'
 import { OutboxPanel } from './components/Outbox/OutboxPanel'
 import { StatusBar } from './components/StatusBar'
+import { Toaster } from 'sonner'
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
 import type { AccountMeta } from './types/accounts'
 import './i18n'
@@ -314,6 +315,7 @@ function App() {
 			{currentState === 'dashboard' && activeAccount && (
 				<StatusBar onOpenOutbox={() => setOutboxOpen(true)} />
 			)}
+			<Toaster />
 		</div>
 	)
 }

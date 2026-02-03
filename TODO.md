@@ -62,7 +62,7 @@
           + Compose: Ctrl+Shift+A (Attach), Ctrl+K (Link), Ctrl+Shift+C/B (Toggle Cc/Bcc), Esc (Close)
           + Inbox Gmail-style: J/K (Navigate), Enter (Open), Delete/# (Trash), R/Shift+R (Reply/All), F (Forward)
           + N (New), U/Shift+U (Read/Unread), S (Star), / (Search focus)
-    - [ ] 10.30 — UI: Polish: Add sending animations, success/error toasts, and focus management
+    - [x] 10.30 — UI: Polish: Add sending animations, success/error toasts, and focus management
 
 - [ ] 11 — Release Prep
     - Icons, builds (.deb/.msi/AppImage), signing, CI matrix, cargo/npm audits
