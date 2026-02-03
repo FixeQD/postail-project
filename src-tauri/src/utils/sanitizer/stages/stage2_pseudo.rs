@@ -151,7 +151,7 @@ pub fn expand_pseudo_elements(html: &str) -> String {
             result = open_tag_re
                 .replace_all(&result, |caps: &regex::Captures| {
                     format!(
-                        "{}\"{}__PSEUDO_BEFORE_{}__",
+                        "{}{}__PSEUDO_BEFORE_{}__",
                         &caps[1], &caps[2], rule.class_for_style
                     )
                 })
