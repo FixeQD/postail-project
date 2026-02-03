@@ -32,34 +32,42 @@ export const useDragging = () => {
 		}))
 	}, [])
 
-	const handleMouseMove = useCallback(
-		(e: MouseEvent) => {
-			if (isDraggingRef.current) {
-				const newX = Math.max(
-					0,
-					Math.min(e.clientX - dragOffsetRef.current.x, window.innerWidth - state.width)
-				)
-				const newY = Math.max(
-					0,
-					Math.min(e.clientY - dragOffsetRef.current.y, window.innerHeight - state.height)
-				)
-				setState((s) => ({ ...s, x: newX, y: newY }))
-			}
+	const widthRef = useRef(state.width)
+	const heightRef = useRef(state.height)
 
-			if (isResizingRef.current) {
-				const newWidth = Math.max(
-					450,
-					resizeStartRef.current.width + (e.clientX - resizeStartRef.current.mouseX)
+	useEffect(() => {
+		widthRef.current = state.width
+		heightRef.current = state.height
+	}, [state.width, state.height])
+
+	const handleMouseMove = useCallback((e: MouseEvent) => {
+		if (isDraggingRef.current) {
+			const newX = Math.max(
+				0,
+				Math.min(e.clientX - dragOffsetRef.current.x, window.innerWidth - widthRef.current)
+			)
+			const newY = Math.max(
+				0,
+				Math.min(
+					e.clientY - dragOffsetRef.current.y,
+					window.innerHeight - heightRef.current
 				)
-				const newHeight = Math.max(
-					400,
-					resizeStartRef.current.height + (e.clientY - resizeStartRef.current.mouseY)
-				)
-				setState((s) => ({ ...s, width: newWidth, height: newHeight }))
-			}
-		},
-		[state.width, state.height]
-	)
+			)
+			setState((s) => ({ ...s, x: newX, y: newY }))
+		}
+
+		if (isResizingRef.current) {
+			const newWidth = Math.max(
+				450,
+				resizeStartRef.current.width + (e.clientX - resizeStartRef.current.mouseX)
+			)
+			const newHeight = Math.max(
+				400,
+				resizeStartRef.current.height + (e.clientY - resizeStartRef.current.mouseY)
+			)
+			setState((s) => ({ ...s, width: newWidth, height: newHeight }))
+		}
+	}, [])
 
 	const stopDrag = useCallback(() => {
 		isDraggingRef.current = false

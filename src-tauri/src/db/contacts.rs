@@ -15,9 +15,9 @@ pub fn upsert_contact(conn: &Connection, email: &str, name: Option<&str>) -> Res
     let now = Utc::now().timestamp();
 
     conn.execute(
-        "INSERT INTO contacts (email, name, last_contact_at, frequency) 
-         VALUES (?, ?, ?, 1) 
-         ON CONFLICT(email) DO UPDATE SET 
+        "INSERT INTO contacts (email, name, last_contact_at, frequency)
+         VALUES (?, ?, ?, 1)
+         ON CONFLICT(email) DO UPDATE SET
             name = COALESCE(excluded.name, name),
             last_contact_at = excluded.last_contact_at,
             frequency = frequency + 1",
@@ -40,16 +40,20 @@ fn parse_address(address: &str) -> Option<(Option<String>, String)> {
         return None;
     }
 
-    if let (Some(start), Some(end)) = (address.find('<'), address.find('>')) {
-        let name = address[..start].trim().trim_matches('"').trim();
-        let email = address[start + 1..end].trim();
+    let start = address.find('<');
+    let end = address.rfind('>');
+    if let (Some(start), Some(end)) = (start, end) {
+        if start < end {
+            let name = address[..start].trim().trim_matches('"').trim();
+            let email = address[start + 1..end].trim();
 
-        let name_opt = if name.is_empty() {
-            None
-        } else {
-            Some(name.to_string())
-        };
-        return Some((name_opt, email.to_string()));
+            let name_opt = if name.is_empty() {
+                None
+            } else {
+                Some(name.to_string())
+            };
+            return Some((name_opt, email.to_string()));
+        }
     }
 
     if address.contains('@') {
@@ -65,11 +69,11 @@ pub fn search_contacts(
     limit: u32,
 ) -> Result<Vec<Contact>, DBError> {
     let mut stmt = conn.prepare(
-        "SELECT c.id, c.email, c.name, c.frequency 
+        "SELECT c.id, c.email, c.name, c.frequency
          FROM contacts c
          JOIN contacts_fts f ON f.rowid = c.id
-         WHERE contacts_fts MATCH ? 
-         ORDER BY c.frequency DESC, c.last_contact_at DESC 
+         WHERE contacts_fts MATCH ?
+         ORDER BY c.frequency DESC, c.last_contact_at DESC
          LIMIT ?",
     )?;
 

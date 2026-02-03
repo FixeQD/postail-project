@@ -70,17 +70,22 @@ pub fn expand_pseudo_elements(html: &str) -> String {
                 .to_string();
 
             let placeholder = format!("__PSEUDO_BEFORE_{}__", rule.class_for_style);
-            if let Some(ph_pos) = result.find(&placeholder) {
+            let mut pos = 0;
+            while let Some(ph_offset) = result[pos..].find(&placeholder) {
+                let ph_pos = pos + ph_offset;
                 let after_ph = ph_pos + placeholder.len();
-                // Find the next `>` after the placeholder.
                 if let Some(gt_offset) = result[after_ph..].find('>') {
-                    let insert_pos = after_ph + gt_offset + 1; // right after >
+                    let insert_pos = after_ph + gt_offset + 1;
                     result = format!(
-                        "{}{}{}",
-                        &result[..ph_pos], // everything before placeholder
-                        &result[after_ph..insert_pos], // rest of tag
-                        &format!("{}{}", &span, &result[insert_pos..])  // span + rest
+                        "{}{}{}{}",
+                        &result[..ph_pos],
+                        &result[after_ph..insert_pos],
+                        &span,
+                        &result[insert_pos..]
                     );
+                    pos = ph_pos + span.len();
+                } else {
+                    pos = ph_pos + 1;
                 }
             }
         } else {
@@ -90,14 +95,19 @@ pub fn expand_pseudo_elements(html: &str) -> String {
             ))
             .expect("invalid full open tag regex");
 
-            if let Some(caps) = open_full_re.captures(&result) {
+            let mut insertions = Vec::new();
+            for caps in open_full_re.captures_iter(&result) {
                 let tag_name = &caps[1];
                 let open_end = caps.get(0).unwrap().end();
                 let closing = format!("</{}>", tag_name);
                 if let Some(close_offset) = result[open_end..].find(&closing) {
                     let insert_pos = open_end + close_offset;
-                    result = format!("{}{}{}", &result[..insert_pos], span, &result[insert_pos..]);
+                    insertions.push((insert_pos, span.clone()));
                 }
+            }
+            insertions.sort_by(|a, b| b.0.cmp(&a.0)); // reverse order
+            for (insert_pos, span) in insertions {
+                result = format!("{}{}{}", &result[..insert_pos], span, &result[insert_pos..]);
             }
         }
     }

@@ -107,8 +107,9 @@ fn infer_mime(extension: &str) -> String {
 }
 
 pub fn remove_attachment(id: &str) -> Result<(), DBError> {
+    let uuid = Uuid::parse_str(id).map_err(|_| DBError::Migration("Invalid UUID".to_string()))?;
     let target_dir = get_attachments_dir()?;
-    let target_path = target_dir.join(id);
+    let target_path = target_dir.join(uuid.to_string());
 
     if target_path.exists() {
         fs::remove_file(target_path).map_err(DBError::Io)?;

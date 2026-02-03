@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, type MouseEvent } from 'react'
 import { Virtuoso } from 'react-virtuoso'
 import { formatDistanceToNow } from 'date-fns'
 import { Trash2, Edit } from 'lucide-react'
@@ -20,7 +20,7 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 		loadDrafts(accountId)
 	}, [accountId, loadDrafts])
 
-	const handleDelete = async (draftId: string, e: React.MouseEvent) => {
+	const handleDelete = async (draftId: string, e: MouseEvent) => {
 		e.stopPropagation()
 		await deleteDraft(draftId)
 	}

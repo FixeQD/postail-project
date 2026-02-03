@@ -47,6 +47,7 @@ export const EditorContent = memo(
 		const {
 			currentDraft,
 			isSaving,
+			isSending,
 			markClean,
 			editorMode,
 			deleteDraft,
@@ -181,7 +182,7 @@ export const EditorContent = memo(
 							<Button
 								onClick={() => onSend?.()}
 								className='h-9 rounded-full bg-blue-600 px-6 font-semibold text-white hover:bg-blue-500'
-								disabled={isSaving || !isValid}
+								disabled={isSaving || isSending || !isValid}
 								title={!isValid ? t('compose.validation.missingFields') : ''}>
 								{isSaving ? '...' : t('actions.send')}
 							</Button>
