@@ -208,11 +208,19 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 
 		set({ isSaving: true })
 		const bodyToSave = html || currentDraft.body
-		console.log('Zapisuję draft do bazy...', { ...currentDraft, body: bodyToSave })
 
 		try {
+			// Ensure we have an id before saving
+			let draftId = currentDraft.id
+			if (!draftId) {
+				draftId = crypto.randomUUID()
+				set({
+					currentDraft: { ...currentDraft, id: draftId },
+				})
+			}
+
 			const draftForRust = {
-				id: currentDraft.id!,
+				id: draftId,
 				accountId: currentDraft.accountId,
 				subject: currentDraft.subject || null,
 				body: bodyToSave || null,
@@ -375,7 +383,7 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		set({ compatibilityIssues: [] })
 
 		if (immediate) {
-			runValidation()
+			await runValidation()
 		} else {
 			validationTimer = setTimeout(runValidation, 800)
 		}

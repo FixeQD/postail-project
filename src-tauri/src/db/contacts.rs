@@ -42,25 +42,28 @@ fn parse_address(address: &str) -> Option<(Option<String>, String)> {
 
     let start = address.find('<');
     let end = address.rfind('>');
-    if let (Some(start), Some(end)) = (start, end) {
-        if start < end {
+
+    // Require both brackets to be present
+    match (start, end) {
+        (Some(start), Some(end)) if start < end => {
             let name = address[..start].trim().trim_matches('"').trim();
             let email = address[start + 1..end].trim();
+
+            // Require @ in the email between brackets
+            if !email.contains('@') {
+                return None;
+            }
 
             let name_opt = if name.is_empty() {
                 None
             } else {
                 Some(name.to_string())
             };
-            return Some((name_opt, email.to_string()));
+            Some((name_opt, email.to_string()))
         }
+        // If brackets are malformed or missing, don't accept as plain email
+        _ => None,
     }
-
-    if address.contains('@') {
-        return Some((None, address.to_string()));
-    }
-
-    None
 }
 
 pub fn search_contacts(

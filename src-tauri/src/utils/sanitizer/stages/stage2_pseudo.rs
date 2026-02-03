@@ -4,42 +4,60 @@ use crate::utils::sanitizer::css::parser::parse_css_declarations;
 use crate::utils::sanitizer::types::PseudoRule;
 use regex::Regex;
 
+/// HTML-escape content for safe interpolation
+fn html_escape(text: &str) -> String {
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
 pub fn expand_pseudo_elements(html: &str) -> String {
     let style_re = Regex::new(r"(?s)(<style[^>]*>)(.*?)(</style>)").unwrap();
-    let style_caps = match style_re.captures(html) {
-        Some(c) => c,
-        None => return html.to_string(), // no <style> → nothing to do
-    };
+    let mut all_rules = Vec::new();
+    let mut style_replacements = Vec::new();
 
-    let style_open = &style_caps[1];
-    let style_body = &style_caps[2];
-    let style_close = &style_caps[3];
-    let style_full = style_caps.get(0).unwrap();
+    // First pass: collect all style blocks and their rules
+    for style_caps in style_re.captures_iter(html) {
+        let style_open = &style_caps[1];
+        let style_body = &style_caps[2];
+        let style_close = &style_caps[3];
+        let style_full = style_caps.get(0).unwrap();
 
-    let (rules, cleaned_css) = parse_pseudo_rules(style_body);
-    if rules.is_empty() {
+        let (rules, cleaned_css) = parse_pseudo_rules(style_body);
+
+        let mut new_css_rules = String::new();
+        for rule in &rules {
+            if !rule.style.is_empty() {
+                new_css_rules.push_str(&format!(
+                    "\n.{} {{ {} }}\n",
+                    rule.class_for_style, rule.style
+                ));
+            }
+        }
+
+        let new_style = format!(
+            "{}{}{}{}",
+            style_open, cleaned_css, new_css_rules, style_close
+        );
+
+        style_replacements.push((style_full.start(), style_full.end(), new_style));
+        all_rules.extend(rules);
+    }
+
+    if all_rules.is_empty() {
         return html.to_string();
     }
 
-    let mut new_css_rules = String::new();
-    for rule in &rules {
-        if !rule.style.is_empty() {
-            new_css_rules.push_str(&format!(
-                "\n.{} {{ {} }}\n",
-                rule.class_for_style, rule.style
-            ));
-        }
+    // Apply all style replacements in reverse order to preserve positions
+    let mut result = html.to_string();
+    for (start, end, new_style) in style_replacements.iter().rev() {
+        result.replace_range(*start..*end, new_style);
     }
 
-    let new_style = format!(
-        "{}{}{}{}",
-        style_open, cleaned_css, new_css_rules, style_close
-    );
-    let mut result = html[..style_full.start()].to_string();
-    result.push_str(&new_style);
-    result.push_str(&html[style_full.end()..]);
 
-    for rule in &rules {
+
+    for rule in &all_rules {
         let open_tag_re = Regex::new(&format!(
             r#"(?s)(<[a-zA-Z][a-zA-Z0-9]*\s[^>]*class=")([^"]*\b{}\b[^"]*)"#,
             regex::escape(&rule.class)
@@ -47,14 +65,12 @@ pub fn expand_pseudo_elements(html: &str) -> String {
         .expect("invalid class-match regex");
 
         let span = if rule.content.is_empty() {
-            format!(
-                r#"<span class="{}" style="display: inline-block"></span>"#,
-                rule.class_for_style
-            )
+            format!(r#"<span class="{}"></span>"#, rule.class_for_style)
         } else {
+            let escaped_content = html_escape(&rule.content);
             format!(
                 r#"<span class="{}">{}</span>"#,
-                rule.class_for_style, rule.content
+                rule.class_for_style, escaped_content
             )
         };
 
@@ -170,35 +186,86 @@ pub fn expand_pseudo_elements(html: &str) -> String {
 }
 
 fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
-    // ── Step 1: split grouped selectors ─────────────────────────────────────
-    let rule_re = Regex::new(r"(?s)([^{]+)\{([^}]*)\}").expect("invalid rule block regex");
-
+    // ── Step 1: brace-counting parser to handle nested blocks and at-rules ─────────────────
     let mut expanded_css = String::new();
-    let mut last_end = 0;
+    let mut i = 0;
 
-    for caps in rule_re.captures_iter(css) {
-        let full = caps.get(0).unwrap();
-        expanded_css.push_str(&css[last_end..full.start()]);
-        last_end = full.end();
+    while i < css.len() {
+        // Find the next opening brace
+        if let Some(open_offset) = css[i..].find('{') {
+            let selector_start = i;
+            let brace_start = i + open_offset;
+            let selector_part = css[selector_start..brace_start].trim();
 
-        let selector_part = &caps[1];
-        let body = &caps[2];
-
-        let has_pseudo = selector_part.contains("::before") || selector_part.contains("::after");
-        if !has_pseudo {
-            expanded_css.push_str(&caps[0]);
-            continue;
-        }
-
-        for fragment in selector_part.split(',') {
-            let fragment = fragment.trim();
-            if fragment.is_empty() {
+            // Skip at-rules (like @media) - treat as opaque blocks
+            if selector_part.starts_with("@") {
+                let mut count = 1;
+                let mut j = brace_start + 1;
+                while j < css.len() && count > 0 {
+                    match css.as_bytes()[j] {
+                        b'{' => count += 1,
+                        b'}' => count -= 1,
+                        _ => {}
+                    }
+                    j += 1;
+                }
+                if count == 0 {
+                    // Keep the at-rule unchanged
+                    expanded_css.push_str(&css[selector_start..j]);
+                    expanded_css.push('\n');
+                    i = j;
+                } else {
+                    // Malformed, skip selector
+                    expanded_css.push_str(&css[selector_start..brace_start]);
+                    i = brace_start;
+                }
                 continue;
             }
-            expanded_css.push_str(&format!("{} {{\n{}\n}}\n", fragment, body));
+
+            // Count braces to find the matching closing brace
+            let mut count = 1;
+            let mut j = brace_start + 1;
+            while j < css.len() && count > 0 {
+                match css.as_bytes()[j] {
+                    b'{' => count += 1,
+                    b'}' => count -= 1,
+                    _ => {}
+                }
+                j += 1;
+            }
+
+            if count == 0 {
+                // Found complete rule block
+                let body = css[brace_start + 1..j - 1].trim();
+
+                let has_pseudo =
+                    selector_part.contains("::before") || selector_part.contains("::after");
+                if !has_pseudo {
+                    // Keep unchanged
+                    expanded_css.push_str(&css[selector_start..j]);
+                    expanded_css.push('\n');
+                } else {
+                    // Expand grouped selectors
+                    for fragment in selector_part.split(',') {
+                        let fragment = fragment.trim();
+                        if fragment.is_empty() {
+                            continue;
+                        }
+                        expanded_css.push_str(&format!("{} {{\n{}\n}}\n", fragment, body));
+                    }
+                }
+                i = j;
+            } else {
+                // Malformed - unmatched brace
+                expanded_css.push_str(&css[selector_start..brace_start]);
+                i = brace_start;
+            }
+        } else {
+            // No more braces - copy rest
+            expanded_css.push_str(&css[i..]);
+            break;
         }
     }
-    expanded_css.push_str(&css[last_end..]);
 
     // ── Step 2: parse individual .class::pseudo { … } rules ─────────────────
     let pseudo_re = Regex::new(r"(?s)\.([\w-]+)::(before|after)\s*\{([^}]*)\}")
