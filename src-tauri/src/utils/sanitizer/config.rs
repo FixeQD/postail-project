@@ -120,12 +120,10 @@ pub const ALLOWED_TAGS: &[&str] = &[
     "ul",
 ];
 
-// Thread-local storage for collecting sanitization issues
 thread_local! {
     pub static COLLECTED_ISSUES: RefCell<Vec<SanitizeIssue>> = const { RefCell::new(Vec::new()) };
 }
 
-/// Create a standard email sanitizer builder
 pub fn create_email_sanitizer<'a>() -> Builder<'a> {
     let mut builder = Builder::default();
 
@@ -176,7 +174,6 @@ pub fn create_email_sanitizer<'a>() -> Builder<'a> {
     builder
 }
 
-/// Create a sanitizer with issue tracking
 pub fn create_sanitizer_with_tracking<'a>() -> Builder<'a> {
     let mut builder = Builder::default();
 
@@ -227,7 +224,6 @@ pub fn create_sanitizer_with_tracking<'a>() -> Builder<'a> {
     builder
 }
 
-/// Sanitize a style attribute
 pub fn sanitize_style_attribute(style: &str) -> StyleSanitizeResult {
     let mut result = StyleSanitizeResult::default();
     let mut cleaned_parts: Vec<String> = Vec::new();
@@ -253,7 +249,6 @@ pub fn sanitize_style_attribute(style: &str) -> StyleSanitizeResult {
     result
 }
 
-/// Sanitize style attribute with issue tracking
 fn sanitize_style_attribute_with_tracking(style: &str) -> StyleSanitizeResult {
     let mut result = StyleSanitizeResult::default();
     let mut cleaned_parts: Vec<String> = Vec::new();
@@ -267,6 +262,7 @@ fn sanitize_style_attribute_with_tracking(style: &str) -> StyleSanitizeResult {
                     property: prop,
                     reason,
                     severity,
+                    count: 1,
                 });
             });
             continue;
@@ -287,7 +283,6 @@ fn sanitize_style_attribute_with_tracking(style: &str) -> StyleSanitizeResult {
     result
 }
 
-/// Check if a CSS property is dangerous/unsupported
 fn is_dangerous_property(prop: &str) -> bool {
     let prop_lower = prop.to_lowercase();
 
@@ -313,7 +308,6 @@ fn is_dangerous_property(prop: &str) -> bool {
     false
 }
 
-/// Map custom fonts to web-safe fallbacks
 fn map_custom_font_to_safe(font: &str) -> Option<&'static str> {
     let clean = font.trim_matches(|c| c == '"' || c == '\'').to_lowercase();
 
@@ -333,7 +327,6 @@ fn map_custom_font_to_safe(font: &str) -> Option<&'static str> {
     }
 }
 
-/// Ensure web-safe font fallback
 fn ensure_web_safe_font_fallback(value: &str) -> String {
     let fonts: Vec<&str> = value.split(',').map(|f| f.trim()).collect();
 
@@ -358,7 +351,6 @@ fn ensure_web_safe_font_fallback(value: &str) -> String {
     format!("{}, sans-serif", value)
 }
 
-/// Get issue details for a removed property
 fn get_issue_details(prop: &str) -> (String, IssueSeverity) {
     match prop {
         "position" | "fixed" | "absolute" | "sticky" => (

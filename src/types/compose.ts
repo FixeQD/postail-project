@@ -36,6 +36,7 @@ export interface SanitizeIssue {
 	property: string
 	reason: string
 	severity: IssueSeverity
+	count: number
 }
 
 export interface DraftState {

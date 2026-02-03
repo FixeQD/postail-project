@@ -1,7 +1,4 @@
-//! Stage 2: Table layout conversion for positioned elements
-//!
-//! Converts CSS positioned elements (fixed, absolute) to table-based layouts
-//! for better email client compatibility.
+//! Stage 2: Table layout conversion
 
 use html5ever::QualName;
 use kuchiki::traits::*;
@@ -12,7 +9,6 @@ use crate::utils::sanitizer::config::COLLECTED_ISSUES;
 use crate::utils::sanitizer::css::parser::{parse_css_declarations, parse_css_value};
 use crate::utils::sanitizer::types::{IssueSeverity, PositionInfo, SanitizeIssue};
 
-/// Converts HTML with positioned elements to table-based layout
 pub fn convert_to_table_layout(html: &str) -> String {
     let document = kuchiki::parse_html().one(html);
 
@@ -92,19 +88,15 @@ pub fn convert_to_table_layout(html: &str) -> String {
         match info.vertical_pos.as_str() {
             "top" => {
                 if info.vertical_value < 0.0 {
-                    // Negative top = top row element
                     has_top_elements = true;
                 } else if (20.0..=50.0).contains(&info.vertical_value) {
-                    // Small positive top = top corners
                     has_top_corners = true;
                 }
             }
             "bottom" => {
                 if info.vertical_value < 0.0 {
-                    // Negative bottom = bottom row element
                     has_bottom_elements = true;
                 } else if (20.0..=50.0).contains(&info.vertical_value) {
-                    // Small positive bottom = bottom corners
                     has_bottom_corners = true;
                 }
             }
@@ -142,8 +134,8 @@ pub fn convert_to_table_layout(html: &str) -> String {
 
     if has_top_corners {
         let row = create_table_row("top_corners_row");
-        let left = create_table_cell("top_corner_left", Some("left"), Some(1));
-        let right = create_table_cell("top_corner_right", Some("right"), Some(1));
+        let left = create_table_cell("top_corner_left", Some("left"), None);
+        let right = create_table_cell("top_corner_right", Some("right"), None);
         add_style_to_cell(&left, "padding-top: 28px;");
         add_style_to_cell(&right, "padding-top: 28px;");
         row.append(left.clone());
@@ -173,8 +165,8 @@ pub fn convert_to_table_layout(html: &str) -> String {
 
     if has_bottom_corners {
         let row = create_table_row("bottom_corners_row");
-        let left = create_table_cell("bottom_corner_left", Some("left"), Some(1));
-        let right = create_table_cell("bottom_corner_right", Some("right"), Some(1));
+        let left = create_table_cell("bottom_corner_left", Some("left"), None);
+        let right = create_table_cell("bottom_corner_right", Some("right"), None);
         add_style_to_cell(&left, "padding-bottom: 28px;");
         add_style_to_cell(&right, "padding-bottom: 28px;");
         row.append(left.clone());
@@ -196,6 +188,15 @@ pub fn convert_to_table_layout(html: &str) -> String {
     }
 
     for (element, info) in positioned_elements {
+        if info.is_overlay {
+            let element = process_overlay_element(element, &info);
+            if let Some(ref center) = center_cell {
+                element.detach();
+                center.append(element);
+            }
+            continue;
+        }
+
         let element = process_positioned_element(element);
 
         let target_cell = match (
@@ -261,7 +262,6 @@ pub fn convert_to_table_layout(html: &str) -> String {
     document.to_string()
 }
 
-/// Finds the root container element (body or first div) in the document
 fn find_root_container(document: &NodeRef) -> Option<NodeRef> {
     for node in document.descendants() {
         if let Some(element) = node.as_element() {
@@ -282,7 +282,6 @@ fn find_root_container(document: &NodeRef) -> Option<NodeRef> {
     None
 }
 
-/// Parses CSS style string to extract positioning information
 fn parse_position_style(style: &str) -> PositionInfo {
     let mut info = PositionInfo {
         is_positioned: false,
@@ -291,42 +290,58 @@ fn parse_position_style(style: &str) -> PositionInfo {
         vertical_value: 0.0,
         horizontal_pos: "none".to_string(),
         horizontal_value: 0.0,
+        width: None,
+        height: None,
+        is_overlay: false,
     };
 
     let declarations = parse_css_declarations(style);
 
-    for (prop, value) in declarations {
+    for (prop, value) in &declarations {
         match prop.as_str() {
             "position" => {
                 if value == "fixed" || value == "absolute" {
                     info.is_positioned = true;
-                    info.position_type = value;
+                    info.position_type = value.clone();
                 }
             }
             "top" => {
                 info.vertical_pos = "top".to_string();
-                info.vertical_value = parse_css_value(&value);
+                info.vertical_value = parse_css_value(value);
             }
             "bottom" => {
                 info.vertical_pos = "bottom".to_string();
-                info.vertical_value = parse_css_value(&value);
+                info.vertical_value = parse_css_value(value);
             }
             "left" => {
                 info.horizontal_pos = "left".to_string();
-                info.horizontal_value = parse_css_value(&value);
+                info.horizontal_value = parse_css_value(value);
             }
             "right" => {
                 info.horizontal_pos = "right".to_string();
-                info.horizontal_value = parse_css_value(&value);
+                info.horizontal_value = parse_css_value(value);
+            }
+            "width" => {
+                info.width = Some(parse_css_value(value));
+            }
+            "height" => {
+                info.height = Some(parse_css_value(value));
             }
             _ => {}
+        }
+    }
+
+    // Detect overlay elements (large decorative elements like glows)
+    // Overlays are typically > 400px in both dimensions
+    if let (Some(w), Some(h)) = (info.width, info.height) {
+        if w > 400.0 && h > 400.0 {
+            info.is_overlay = true;
         }
     }
 
     info
 }
 
-/// Creates a new table row element with the specified class
 fn create_table_row(class: &str) -> NodeRef {
     let row = NodeRef::new_element(QualName::new(None, ns!(html), "tr".into()), None);
     {
@@ -337,7 +352,6 @@ fn create_table_row(class: &str) -> NodeRef {
     row
 }
 
-/// Creates a new table cell (td) element with optional alignment and colspan
 fn create_table_cell(class: &str, align: Option<&str>, colspan: Option<usize>) -> NodeRef {
     let cell = NodeRef::new_element(QualName::new(None, ns!(html), "td".into()), None);
     {
@@ -349,14 +363,22 @@ fn create_table_cell(class: &str, align: Option<&str>, colspan: Option<usize>) -
             attrs.insert("align", a.to_string());
         }
 
+        attrs.insert("valign", "middle".to_string());
+
         if let Some(c) = colspan {
             attrs.insert("colspan", c.to_string());
+        }
+
+        // Set explicit width for left/right cells to prevent collapse
+        if class.contains("left") {
+            attrs.insert("width", "50%".to_string());
+        } else if class.contains("right") {
+            attrs.insert("width", "50%".to_string());
         }
     }
     cell
 }
 
-/// Adds additional CSS styles to a table cell
 fn add_style_to_cell(cell: &NodeRef, additional_style: &str) {
     if let Some(element) = cell.as_element() {
         let mut attrs = element.attributes.borrow_mut();
@@ -373,7 +395,6 @@ fn add_style_to_cell(cell: &NodeRef, additional_style: &str) {
     }
 }
 
-/// Processes a positioned element by cleaning its positioning styles
 fn process_positioned_element(element: NodeRef) -> NodeRef {
     if let Some(elem) = element.as_element() {
         let mut attrs = elem.attributes.borrow_mut();
@@ -395,7 +416,52 @@ fn process_positioned_element(element: NodeRef) -> NodeRef {
     element
 }
 
-/// Issue details for positioning properties
+fn process_overlay_element(element: NodeRef, info: &PositionInfo) -> NodeRef {
+    if let Some(elem) = element.as_element() {
+        let mut attrs = elem.attributes.borrow_mut();
+
+        let style = attrs
+            .get("style")
+            .map(|s| s.to_string())
+            .unwrap_or_default();
+
+        let declarations = parse_css_declarations(&style);
+        let mut new_styles: Vec<String> = Vec::new();
+
+        // Keep visual properties, remove positioning
+        for (prop, value) in &declarations {
+            match prop.as_str() {
+                "position" | "top" | "left" | "right" | "bottom" | "z-index" => continue,
+                _ => new_styles.push(format!("{}: {}", prop, value)),
+            }
+        }
+
+        // Convert to relative positioning with margin offsets
+        new_styles.push("position: relative".to_string());
+
+        // Convert position offsets to margins
+        // Negative top becomes margin-top, etc.
+        if info.vertical_pos == "top" {
+            new_styles.push(format!("margin-top: {}px", info.vertical_value));
+        } else if info.vertical_pos == "bottom" {
+            new_styles.push(format!("margin-bottom: {}px", info.vertical_value));
+        }
+
+        if info.horizontal_pos == "left" {
+            new_styles.push(format!("margin-left: {}px", info.horizontal_value));
+        } else if info.horizontal_pos == "right" {
+            new_styles.push(format!("margin-right: {}px", info.horizontal_value));
+        }
+
+        // Overlays should not affect layout flow
+        new_styles.push("pointer-events: none".to_string());
+
+        attrs.insert("style", new_styles.join("; "));
+    }
+
+    element
+}
+
 fn get_positioning_issue_details(prop: &str) -> (String, IssueSeverity) {
     match prop {
         "position" => (
@@ -418,12 +484,10 @@ fn get_positioning_issue_details(prop: &str) -> (String, IssueSeverity) {
     }
 }
 
-/// Cleans positioning-related CSS properties from a style string
 fn clean_positioned_element_style(style: &str) -> String {
     let declarations = parse_css_declarations(style);
     let mut cleaned: Vec<String> = Vec::new();
 
-    // CSS properties to remove from positioned elements
     const POSITIONING_PROPS: &[&str] = &[
         "position",
         "z-index",
@@ -444,6 +508,7 @@ fn clean_positioned_element_style(style: &str) -> String {
                     property: prop.clone(),
                     reason,
                     severity,
+                    count: 1,
                 });
             });
             continue;

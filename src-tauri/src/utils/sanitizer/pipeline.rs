@@ -8,57 +8,10 @@ use crate::utils::sanitizer::types::*;
 use kuchiki::parse_html;
 use kuchiki::traits::TendrilSink;
 
-pub fn auto_fix_email_html(html: &str) -> String {
-    // Stage 1: Parse to DOM and replace body with div
+/// Internal helper to run the sanitization pipeline
+fn run_sanitization_pipeline(html: &str, is_auto_fix: bool, track_issues: bool) -> String {
     let document = parse_html().one(html);
-
-    // Extract body styles
-    let body_styles = extract_body_styles_from_css(html);
-
-    // Replace body with div
-    replace_body_with_div_dom(&document, body_styles);
-
-    // Serialize for CSS processing
-    let html_str = document.to_string();
-    let html_content = extract_body_content(&html_str);
-
-    // Stage 2: Pseudo-elements expansion
-    let expanded = expand_pseudo_elements(&html_content);
-
-    // Stage 3: Inline CSS styles
-    let without_imports = IMPORT_REGEX.replace_all(&expanded, "");
-    let without_font_faces = FONT_FACE_REGEX.replace_all(&without_imports, "");
-    let inlined = inline_css_styles(&without_font_faces);
-
-    // Stage 4: Convert positioning to table layout
-    let table_layout = convert_to_table_layout(&inlined);
-
-    // Stage 5: Parse again and strip content tags
-    let document2 = parse_html().one(table_layout);
-    strip_content_tags_dom(&document2);
-
-    // Stage 6: Mark positioned elements
-    mark_positioned_elements_dom(&document2);
-
-    // Stage 7: Ammonia sanitization
-    let serialized = serialize_clean(&document2);
-    let content_for_ammonia = extract_body_content(&serialized);
-    let builder = create_email_sanitizer();
-    let sanitized = builder.clean(&content_for_ammonia).to_string();
-
-    // Stage 8: Strip dead elements using DOM
-    let document3 = parse_html().one(sanitized);
-    strip_dead_elements_dom(&document3);
-    let final_serialized = serialize_clean(&document3);
-    let result = extract_body_content(&final_serialized);
-
-    // Stage 9: Aaaaaaand cleanup HTML whitespace
-    cleanup_html_whitespace(&result)
-}
-
-pub fn sanitize_email_html(html: &str) -> String {
     let resolved = resolve_css_variables(html);
-    let document = parse_html().one(resolved.clone());
 
     let body_styles = extract_body_styles_from_css(&resolved);
     replace_body_with_div_dom(&document, body_styles);
@@ -66,36 +19,55 @@ pub fn sanitize_email_html(html: &str) -> String {
     let html_str = document.to_string();
     let html_content = extract_body_content(&html_str);
 
-    // Stage 2: Pseudo-elements expansion
     let expanded = expand_pseudo_elements(&html_content);
 
     // Stage 3: Inline CSS styles
-    let inlined = inline_css_styles(&expanded);
+    // For auto-fix, we explicitly remove imports/font-faces to prevent issues,
+    let css_input = if is_auto_fix {
+        let without_imports = IMPORT_REGEX.replace_all(&expanded, "");
+        FONT_FACE_REGEX
+            .replace_all(&without_imports, "")
+            .to_string()
+    } else {
+        expanded
+    };
 
-    // Stage 4: Convert positioning to table layout
+    let inlined = inline_css_styles(&css_input);
+
     let table_layout = convert_to_table_layout(&inlined);
 
-    // Stage 5: Parse again and strip content tags
-    let document2 = parse_html().one(table_layout);
+    let scaled = scale_elements_for_email(&table_layout);
+
+    let document2 = parse_html().one(scaled);
     strip_content_tags_dom(&document2);
 
-    // Stage 6: Mark positioned elements
     mark_positioned_elements_dom(&document2);
 
-    // Stage 7: Ammonia sanitization
     let serialized = serialize_clean(&document2);
     let content_for_ammonia = extract_body_content(&serialized);
-    let builder = create_email_sanitizer();
+
+    let builder = if track_issues {
+        create_sanitizer_with_tracking()
+    } else {
+        create_email_sanitizer()
+    };
+
     let sanitized = builder.clean(&content_for_ammonia).to_string();
 
-    // Stage 8: Strip dead elements using DOM
     let document3 = parse_html().one(sanitized);
     strip_dead_elements_dom(&document3);
     let final_serialized = serialize_clean(&document3);
     let result = extract_body_content(&final_serialized);
 
-    // Stage 9: Cleanup HTML whitespace
     cleanup_html_whitespace(&result)
+}
+
+pub fn auto_fix_email_html(html: &str) -> String {
+    run_sanitization_pipeline(html, true, false)
+}
+
+pub fn sanitize_email_html(html: &str) -> String {
+    run_sanitization_pipeline(html, false, false)
 }
 
 pub fn sanitize_email_html_with_details(html: &str) -> SanitizeResult {
@@ -103,32 +75,8 @@ pub fn sanitize_email_html_with_details(html: &str) -> SanitizeResult {
 
     let unsupported_tags = detect_unsupported_tags(html);
 
-    let resolved = resolve_css_variables(html);
-    let document = parse_html().one(resolved.clone());
+    let cleaned = run_sanitization_pipeline(html, false, true);
 
-    let body_styles = extract_body_styles_from_css(&resolved);
-    replace_body_with_div_dom(&document, body_styles);
-
-    let html_str = document.to_string();
-    let html_content = extract_body_content(&html_str);
-
-    // Stage 2: Pseudo-elements expansion
-    let expanded = expand_pseudo_elements(&html_content);
-
-    // Stage 3: Inline CSS styles
-    let inlined = inline_css_styles(&expanded);
-
-    // Stage 4: Convert positioning to table layout
-    let table_layout = convert_to_table_layout(&inlined);
-
-    // Stage 5: Parse again and strip content tags
-    let document2 = parse_html().one(table_layout);
-    strip_content_tags_dom(&document2);
-
-    // Stage 6: Mark positioned elements
-    mark_positioned_elements_dom(&document2);
-
-    // Record unsupported tag issues
     COLLECTED_ISSUES.with(|issues| {
         let mut issues = issues.borrow_mut();
         for (tag, reason) in unsupported_tags {
@@ -141,26 +89,30 @@ pub fn sanitize_email_html_with_details(html: &str) -> SanitizeResult {
                 property: format!("<{}>", tag),
                 reason: reason.to_string(),
                 severity,
+                count: 1,
             });
         }
     });
 
-    // Stage 7: Ammonia sanitization
-    let serialized = serialize_clean(&document2);
-    let content_for_ammonia = extract_body_content(&serialized);
-    let builder = create_sanitizer_with_tracking();
-    let sanitized = builder.clean(&content_for_ammonia).to_string();
+    // Deduplicate and aggregate issues
+    let issues = COLLECTED_ISSUES.with(|issues| {
+        let issues_vec = issues.borrow();
+        let mut unique_map: std::collections::HashMap<String, SanitizeIssue> =
+            std::collections::HashMap::new();
 
-    // Stage 8: Strip dead elements using DOM
-    let document3 = parse_html().one(sanitized);
-    strip_dead_elements_dom(&document3);
-    let final_serialized = serialize_clean(&document3);
-    let result = extract_body_content(&final_serialized);
+        for issue in issues_vec.iter() {
+            // Create a composite key for deduplication
+            let key = format!("{}|{}", issue.property, issue.reason);
 
-    // Stage 9: Cleanup HTML whitespace
-    let cleaned = cleanup_html_whitespace(&result);
+            unique_map
+                .entry(key)
+                .and_modify(|existing| existing.count += 1)
+                .or_insert(issue.clone());
+        }
 
-    let issues = COLLECTED_ISSUES.with(|issues| issues.borrow().clone());
+        // Convert map back to vector
+        unique_map.into_values().collect()
+    });
 
     SanitizeResult {
         html: cleaned,

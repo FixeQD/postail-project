@@ -8,6 +8,9 @@ pub struct PositionInfo {
     pub vertical_value: f32,
     pub horizontal_pos: String, // "left", "right", "none"
     pub horizontal_value: f32,
+    pub width: Option<f32>,
+    pub height: Option<f32>,
+    pub is_overlay: bool, // large decorative element like glow
 }
 
 #[derive(Debug, Clone, Default)]
@@ -29,6 +32,13 @@ pub struct SanitizeIssue {
     pub property: String,
     pub reason: String,
     pub severity: IssueSeverity,
+    #[serde(default = "default_count")]
+    pub count: usize,
+}
+
+#[allow(dead_code)]
+fn default_count() -> usize {
+    1
 }
 
 #[derive(Debug, Clone, serde::Serialize)]

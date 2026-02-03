@@ -32,24 +32,33 @@ interface CompatibilityPanelProps {
 
 const severityConfig: Record<
 	IssueSeverity,
-	{ icon: typeof XCircle; color: string; bgColor: string; label: string }
+	{
+		icon: typeof XCircle
+		color: string
+		bgColor: string
+		borderColor: string
+		label: string
+	}
 > = {
 	Error: {
 		icon: XCircle,
 		color: 'text-red-500',
 		bgColor: 'bg-red-500/10',
+		borderColor: 'border-l-red-500',
 		label: 'Error',
 	},
 	Warning: {
 		icon: AlertTriangle,
 		color: 'text-yellow-500',
 		bgColor: 'bg-yellow-500/10',
+		borderColor: 'border-l-yellow-500',
 		label: 'Warning',
 	},
 	Info: {
 		icon: Info,
 		color: 'text-blue-500',
 		bgColor: 'bg-blue-500/10',
+		borderColor: 'border-l-blue-500',
 		label: 'Info',
 	},
 }
@@ -66,18 +75,25 @@ const IssueItem = memo(function IssueItem({
 	const Icon = config.icon
 
 	return (
-		<div className={`flex gap-2 p-3 ${!isLast ? 'border-b border-zinc-800' : ''}`}>
+		<div className={`flex gap-3 p-3.5 border-l-2 bg-zinc-900/30 ${config.borderColor} ${!isLast ? 'border-b border-zinc-800' : ''} hover:bg-zinc-800/50 transition-colors`}>
 			<div className={`mt-0.5 flex-shrink-0 ${config.color}`}>
 				<Icon className='h-4 w-4' />
 			</div>
 			<div className='min-w-0 flex-1'>
-				<div className='mb-1 flex items-center gap-2'>
+				<div className='mb-1.5 flex items-center gap-2'>
+					<code className='font-mono text-xs font-bold text-zinc-300'>{issue.property}</code>
+					{issue.count > 1 && (
+						<Badge
+							variant='secondary'
+							className='scale-90 px-1.5 py-0 text-[10px] bg-zinc-700/50 text-zinc-400'>
+							x{issue.count}
+						</Badge>
+					)}
 					<Badge
 						variant='outline'
-						className={`px-1.5 py-0 text-[10px] ${config.bgColor} ${config.color} border-current`}>
+						className={`ml-auto px-1.5 py-0 text-[10px] ${config.bgColor} ${config.color} border-current opacity-80`}>
 						{t(`compatibilityPanel.severity.${issue.severity.toLowerCase()}`)}
 					</Badge>
-					<code className='font-mono text-[11px] text-zinc-500'>{issue.property}</code>
 				</div>
 				<p className='text-xs leading-relaxed text-zinc-400'>{issue.reason}</p>
 			</div>
