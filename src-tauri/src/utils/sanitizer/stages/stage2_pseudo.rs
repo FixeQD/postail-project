@@ -124,12 +124,18 @@ pub fn expand_pseudo_elements(html: &str) -> String {
         result.replace_range(*start..*end, new_style);
     }
 
+    // Cache for compiled regexes to avoid repeated compilation
+    let mut regex_cache: std::collections::HashMap<String, Regex> =
+        std::collections::HashMap::new();
+
     for rule in &all_rules {
-        let open_tag_re = Regex::new(&format!(
+        let open_tag_pattern = format!(
             r#"(?s)(<[a-zA-Z][a-zA-Z0-9]*\s[^>]*class=")([^"]*\b{}\b[^"]*)"#,
             regex::escape(&rule.class)
-        ))
-        .expect("invalid class-match regex");
+        );
+        let open_tag_re = regex_cache
+            .entry(open_tag_pattern.clone())
+            .or_insert_with(|| Regex::new(&open_tag_pattern).expect("invalid class-match regex"));
 
         let span = if rule.content.is_empty() {
             format!(r#"<span class="{}"></span>"#, rule.class_for_style)
@@ -171,11 +177,15 @@ pub fn expand_pseudo_elements(html: &str) -> String {
                 }
             }
         } else {
-            let open_full_re = Regex::new(&format!(
+            let open_full_pattern = format!(
                 r#"(?s)<([a-zA-Z][a-zA-Z0-9]*)\s[^>]*class="[^"]*\b{}\b[^"]*"[^>]*>"#,
                 regex::escape(&rule.class)
-            ))
-            .expect("invalid full open tag regex");
+            );
+            let open_full_re = regex_cache
+                .entry(open_full_pattern.clone())
+                .or_insert_with(|| {
+                    Regex::new(&open_full_pattern).expect("invalid full open tag regex")
+                });
 
             let mut insertions = Vec::new();
             for caps in open_full_re.captures_iter(&result) {
@@ -255,7 +265,8 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
     // ── Step 1: brace-counting parser to handle nested blocks and at-rules ─────────────────
     let mut expanded_css = String::new();
     let mut i = 0;
-    let mut pseudo_selectors: Vec<(String, String)> = Vec::new();
+
+    let mut pseudo_selectors: Vec<(String, String, usize, usize)> = Vec::new();
 
     while i < css.len() {
         // Find the next opening brace
@@ -282,6 +293,7 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
             if let Some(end) = find_matching_brace(css, brace_start + 1) {
                 // Found complete rule block
                 let body = css[brace_start + 1..end - 1].trim();
+                let _expanded_start = expanded_css.len();
 
                 let has_pseudo =
                     selector_part.contains("::before") || selector_part.contains("::after");
@@ -296,9 +308,16 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
                         if fragment.is_empty() {
                             continue;
                         }
-                        expanded_css.push_str(&format!("{} {{\n{}\n}}\n", fragment, body));
+                        let rule_start = expanded_css.len();
+                        let rule_text = format!("{} {{\n{}\n}}\n", fragment, body);
+                        expanded_css.push_str(&rule_text);
                         if fragment.contains("::before") || fragment.contains("::after") {
-                            pseudo_selectors.push((fragment.to_string(), body.to_string()));
+                            pseudo_selectors.push((
+                                fragment.to_string(),
+                                body.to_string(),
+                                rule_start,
+                                expanded_css.len(),
+                            ));
                         }
                     }
                 }
@@ -318,14 +337,14 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
     // ── Step 2: parse individual .class::pseudo { … } rules ─────────────────
     let mut rules = Vec::new();
 
-    for (selector, body) in pseudo_selectors {
+    for (selector, body, _, _) in &pseudo_selectors {
         // Parse .class::pseudo selector
         let pseudo_re = Regex::new(r"^\s*\.([\w-]+)::(before|after)\s*$").unwrap();
-        if let Some(caps) = pseudo_re.captures(&selector) {
+        if let Some(caps) = pseudo_re.captures(selector) {
             let class = caps[1].to_string();
             let is_before = &caps[2] == "before";
 
-            let decls = parse_css_declarations(&body);
+            let decls = parse_css_declarations(body);
 
             let mut content = String::new();
             let mut style_parts: Vec<String> = Vec::new();
@@ -370,8 +389,18 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
     }
 
     // Remove all pseudo rules from the CSS.
-    let pseudo_cleanup_re = Regex::new(r"(?s)\.([\w-]+)::(before|after)\s*\{[^}]*\}").unwrap();
-    let cleaned_css = pseudo_cleanup_re.replace_all(&expanded_css, "").to_string();
+    let mut ranges_to_remove: Vec<(usize, usize)> = pseudo_selectors
+        .into_iter()
+        .map(|(_, _, start, end)| (start, end))
+        .collect();
+    ranges_to_remove.sort_by(|a, b| b.0.cmp(&a.0));
+
+    let mut cleaned_css = expanded_css;
+    for (start, end) in ranges_to_remove {
+        if start < cleaned_css.len() && end <= cleaned_css.len() {
+            cleaned_css.replace_range(start..end, "");
+        }
+    }
 
     (rules, cleaned_css)
 }
