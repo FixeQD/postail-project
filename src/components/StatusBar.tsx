@@ -9,6 +9,15 @@ interface StatusBarProps {
 	onOpenOutbox: () => void
 }
 
+/**
+ * Render a status bar showing sync state and outbox activity, including a button to open the outbox.
+ *
+ * Displays counts for pending, sending, and failed outbox items, updates iconography and label based
+ * on current activity, and briefly shows a success indicator when a message finishes sending.
+ *
+ * @param onOpenOutbox - Callback invoked when the outbox button is clicked to open the outbox UI
+ * @returns The React element for the status bar containing the sync indicator, outbox status button, and tooltip
+ */
 export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 	const { t } = useTranslation()
 	const { items } = useOutboxStore()

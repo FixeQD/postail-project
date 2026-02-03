@@ -8,7 +8,29 @@ use crate::utils::sanitizer::types::*;
 use kuchiki::parse_html;
 use kuchiki::traits::TendrilSink;
 
-/// Internal helper to run the sanitization pipeline
+/// Run the full HTML sanitization pipeline for email content.
+///
+/// This parses the provided HTML, resolves and inlines CSS, converts layout for email
+/// compatibility, applies sanitization rules, and performs final DOM cleanup,
+/// returning the sanitized body HTML ready for email delivery.
+///
+/// # Parameters
+///
+/// - `html`: the input HTML fragment or document to sanitize.
+/// - `is_auto_fix`: when `true`, apply aggressive preprocessing fixes (e.g., remove imports and `@font-face`) before inlining.
+/// - `track_issues`: when `true`, enable issue-tracking mode in the sanitizer builder (used by callers that collect sanitization details).
+///
+/// # Returns
+///
+/// The cleaned HTML body content as a `String`.
+///
+/// # Examples
+///
+/// ```
+/// let raw = "<body><style>p{color:red}</style><p>Hello</p></body>";
+/// let cleaned = run_sanitization_pipeline(raw, false, false);
+/// assert!(cleaned.contains("Hello"));
+/// ```
 fn run_sanitization_pipeline(html: &str, is_auto_fix: bool, track_issues: bool) -> String {
     let document = parse_html().one(html);
     let resolved = resolve_css_variables(html);
@@ -62,14 +84,56 @@ fn run_sanitization_pipeline(html: &str, is_auto_fix: bool, track_issues: bool) 
     cleanup_html_whitespace(&result)
 }
 
+/// Run the email HTML sanitization pipeline with auto-fix enabled and return the fixed HTML.
+///
+/// # Examples
+///
+/// ```
+/// let input = "<style>@import url('x');</style><div style=\"color: red;\">Hello</div>";
+/// let out = auto_fix_email_html(input);
+/// assert!(out.contains("Hello"));
+/// ```
+///
+/// Returns the sanitized and auto-fixed HTML string.
 pub fn auto_fix_email_html(html: &str) -> String {
     run_sanitization_pipeline(html, true, false)
 }
 
+/// Sanitize HTML content for email without applying automatic fixes or collecting issues.
+///
+/// Returns the sanitized HTML as a `String`, suitable for email rendering.
+///
+/// # Examples
+///
+/// ```
+/// let cleaned = sanitize_email_html("<div><script>alert(1)</script><p>Hello</p></div>");
+/// assert!(cleaned.contains("<p>Hello</p>"));
+/// ```
 pub fn sanitize_email_html(html: &str) -> String {
     run_sanitization_pipeline(html, false, false)
 }
 
+/// Produces a sanitized HTML string for email and a list of detected sanitization issues.
+///
+/// Runs the full email sanitization pipeline on `html` with issue tracking enabled and
+/// returns both the cleaned HTML and an aggregated list of `SanitizeIssue` entries discovered
+/// during processing. Detected issues are deduplicated and counts are aggregated by the
+/// combination of `property` and `reason`.
+///
+/// # Examples
+///
+/// ```
+/// let input = "<div><script>alert(1)</script><p>Hello</p></div>";
+/// let result = sanitize_email_html_with_details(input);
+/// assert!(result.html.contains("<p>Hello</p>"));
+/// assert!(result.issues.iter().any(|i| i.property == "<script>"));
+/// ```
+///
+/// # Returns
+///
+/// A `SanitizeResult` containing:
+/// - `html`: the sanitized HTML string suitable for email.
+/// - `issues`: a vector of deduplicated `SanitizeIssue` entries with aggregated `count` values.
 pub fn sanitize_email_html_with_details(html: &str) -> SanitizeResult {
     COLLECTED_ISSUES.with(|issues| issues.borrow_mut().clear());
 

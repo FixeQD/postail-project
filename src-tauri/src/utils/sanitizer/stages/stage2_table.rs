@@ -9,6 +9,30 @@ use crate::utils::sanitizer::config::COLLECTED_ISSUES;
 use crate::utils::sanitizer::css::parser::{parse_css_declarations, parse_css_value};
 use crate::utils::sanitizer::types::{IssueSeverity, PositionInfo, SanitizeIssue};
 
+/// Convert HTML containing positioned or overlay elements into a table-based layout suitable for email clients.
+///
+/// The function parses `html`, detects positioned and overlay elements (based on inline `style`), removes positioning
+/// CSS that is incompatible with table layouts, and rewraps content into a constructed `<table>` with optional top,
+/// center, bottom, and corner cells. Positioned elements are placed into appropriate table cells (top/bottom/corners/center)
+/// and overlays are converted to relative elements with margin offsets and pointer-events disabled. Non-positioned children
+/// are moved into the center cell. Issues for removed positioning properties are recorded via the module's issue collector.
+///
+/// Returns the transformed HTML as a `String`.
+///
+/// # Examples
+///
+/// ```rust
+/// let html = r#"
+/// <body>
+///   <div style="position:absolute; top:-10px; left:0;">Top banner</div>
+///   <div>Main content</div>
+/// </body>
+/// "#;
+/// let out = convert_to_table_layout(html);
+/// assert!(out.contains("<table"));
+/// assert!(out.contains("Top banner"));
+/// assert!(out.contains("Main content"));
+/// ```
 pub fn convert_to_table_layout(html: &str) -> String {
     let document = kuchiki::parse_html().one(html);
 
@@ -262,6 +286,24 @@ pub fn convert_to_table_layout(html: &str) -> String {
     document.to_string()
 }
 
+/// Finds a suitable root container within the parsed document.
+///
+/// Searches descendants for the first `<body>` element and returns it if found; if no `<body>`
+/// exists, returns the first `<div>` descendant; returns `None` if neither is present.
+///
+/// # Examples
+///
+/// ```
+/// use kuchiki::parse_html;
+/// use kuchiki::traits::TendrilSink;
+///
+/// let html = "<html><body><div id=\"root\">content</div></body></html>";
+/// let document = parse_html().one(html);
+/// let root = crate::utils::sanitizer::stages::stage2_table::find_root_container(&document)
+///     .expect("expected a root container");
+/// let name = root.as_element().unwrap().name.local.to_string().to_lowercase();
+/// assert_eq!(name, "body");
+/// ```
 fn find_root_container(document: &NodeRef) -> Option<NodeRef> {
     for node in document.descendants() {
         if let Some(element) = node.as_element() {
@@ -282,6 +324,27 @@ fn find_root_container(document: &NodeRef) -> Option<NodeRef> {
     None
 }
 
+/// Extracts positioning metadata from an inline CSS style string.
+///
+/// Parses the provided inline style declarations and returns a `PositionInfo` describing
+/// whether the element is positioned (absolute or fixed), the detected vertical and
+/// horizontal offsets (as numeric pixel values when parseable), any parsed width/height,
+/// and whether the element appears to be a large overlay (both width and height > 400).
+///
+/// # Examples
+///
+/// ```
+/// let info = parse_position_style("position:absolute; top:10px; left:20px; width:100px; height:200px;");
+/// assert!(info.is_positioned);
+/// assert_eq!(info.position_type, "absolute");
+/// assert_eq!(info.vertical_pos, "top");
+/// assert_eq!(info.vertical_value, 10.0);
+/// assert_eq!(info.horizontal_pos, "left");
+/// assert_eq!(info.horizontal_value, 20.0);
+/// assert_eq!(info.width, Some(100.0));
+/// assert_eq!(info.height, Some(200.0));
+/// assert!(!info.is_overlay);
+/// ```
 fn parse_position_style(style: &str) -> PositionInfo {
     let mut info = PositionInfo {
         is_positioned: false,
@@ -342,6 +405,19 @@ fn parse_position_style(style: &str) -> PositionInfo {
     info
 }
 
+/// Creates a table row (`<tr>`) element with the given CSS class.
+///
+/// The returned node is an element node representing a `<tr>` with its `class` attribute set
+/// to the provided value.
+///
+/// # Examples
+///
+/// ```
+/// let row = create_table_row("row-class");
+/// let elem = row.as_element().expect("should be an element");
+/// assert_eq!(elem.name.local.as_ref(), "tr");
+/// assert_eq!(elem.attributes.borrow().get("class"), Some(&"row-class".to_string()));
+/// ```
 fn create_table_row(class: &str) -> NodeRef {
     let row = NodeRef::new_element(QualName::new(None, ns!(html), "tr".into()), None);
     {
@@ -352,6 +428,21 @@ fn create_table_row(class: &str) -> NodeRef {
     row
 }
 
+/// Creates a `<td>` element with the given class, optional horizontal alignment and colspan, and ensures vertical alignment is middle.
+///
+/// The returned cell will have a `class` attribute set to `class`, an optional `align` attribute when `align` is `Some`, an optional `colspan` when `colspan` is `Some`, and a `valign="middle"` attribute. If the class string contains `left` or `right`, the cell will also receive `width="50%"` to prevent collapse.
+///
+/// # Examples
+///
+/// ```
+/// let cell = create_table_cell("center", Some("center"), Some(2));
+/// let elem = cell.as_element().unwrap();
+/// let attrs = elem.attributes.borrow();
+/// assert_eq!(attrs.get("class"), Some(&"center".to_string()));
+/// assert_eq!(attrs.get("align"), Some(&"center".to_string()));
+/// assert_eq!(attrs.get("colspan"), Some(&"2".to_string()));
+/// assert_eq!(attrs.get("valign"), Some(&"middle".to_string()));
+/// ```
 fn create_table_cell(class: &str, align: Option<&str>, colspan: Option<usize>) -> NodeRef {
     let cell = NodeRef::new_element(QualName::new(None, ns!(html), "td".into()), None);
     {
@@ -379,6 +470,29 @@ fn create_table_cell(class: &str, align: Option<&str>, colspan: Option<usize>) -
     cell
 }
 
+/// Appends CSS declarations to an existing `style` attribute on a table cell element, preserving any existing styles.
+///
+/// If the node is not an element node the call is a no-op.
+///
+/// # Examples
+///
+/// ```no_run
+/// use kuchiki::traits::*;
+/// use kuchiki::parse_html;
+/// use kuchiki::NodeRef;
+///
+/// // Build a small table and grab its first <td>.
+/// let document = parse_html().one("<table><tr><td style=\"color:red\"></td></tr></table>");
+/// let td = document.select_first("td").unwrap().as_node().clone();
+///
+/// // Append additional declarations.
+/// add_style_to_cell(&td, "padding:0;");
+///
+/// // Verify the style now contains both original and appended declarations.
+/// let style = td.as_element().and_then(|e| e.attributes.borrow().get("style").map(|s| s.to_string())).unwrap();
+/// assert!(style.contains("color:red"));
+/// assert!(style.contains("padding:0;"));
+/// ```
 fn add_style_to_cell(cell: &NodeRef, additional_style: &str) {
     if let Some(element) = cell.as_element() {
         let mut attrs = element.attributes.borrow_mut();
@@ -395,6 +509,29 @@ fn add_style_to_cell(cell: &NodeRef, additional_style: &str) {
     }
 }
 
+/// Cleans an element's inline style by removing positioning-related CSS properties while preserving other declarations.
+///
+/// The function updates the node's `style` attribute in place: removed positioning properties are omitted and, if no style declarations remain, the `style` attribute is removed.
+///
+/// # Returns
+///
+/// The same `NodeRef` that was passed in, with its `style` attribute possibly updated or removed.
+///
+/// # Examples
+///
+/// ```
+/// // Construct a node with an inline style containing positioning properties,
+/// // run the cleaner, and observe that positioning declarations are removed.
+/// use kuchiki::NodeRef;
+///
+/// // NOTE: constructing attributes here is illustrative; adapt to your project's imports.
+/// let mut attrs = kuchiki::Attributes::new();
+/// attrs.insert("style", "position:absolute;top:10px;display:block;");
+/// let node = NodeRef::new_element("div".into(), attrs);
+///
+/// let processed = process_positioned_element(node.clone());
+/// // `processed` now has a style that contains `display:block` but not `position` or `top`.
+/// ```
 fn process_positioned_element(element: NodeRef) -> NodeRef {
     if let Some(elem) = element.as_element() {
         let mut attrs = elem.attributes.borrow_mut();
@@ -416,6 +553,39 @@ fn process_positioned_element(element: NodeRef) -> NodeRef {
     element
 }
 
+/// Adjusts an overlay element's inline style for insertion into the table layout.
+///
+/// This removes positioning-related CSS declarations (`position`, `top`, `left`, `right`, `bottom`, `z-index`),
+/// preserves other visual declarations, sets `position: relative`, converts vertical/horizontal offsets from
+/// PositionInfo into corresponding `margin-*` properties (using pixel units), and adds `pointer-events: none`.
+/// If the provided NodeRef is not an element node, it is returned unchanged.
+///
+/// # Examples
+///
+/// ```
+/// use kuchiki::NodeRef;
+///
+/// // Create a simple element with absolute positioning
+/// let node = NodeRef::new_element("div", vec![("style", "position: absolute; top: 10px; left: 20px; background: red;")]);
+/// let info = crate::PositionInfo {
+///     position: "absolute".into(),
+///     vertical_pos: "top".into(),
+///     vertical_value: 10,
+///     horizontal_pos: "left".into(),
+///     horizontal_value: 20,
+///     width: None,
+///     height: None,
+///     is_overlay: true,
+/// };
+///
+/// let updated = crate::process_overlay_element(node.clone(), &info);
+/// let style = updated.as_element().unwrap().attributes.borrow().get("style").unwrap().to_string();
+/// assert!(style.contains("background: red"));
+/// assert!(style.contains("position: relative"));
+/// assert!(style.contains("margin-top: 10px"));
+/// assert!(style.contains("margin-left: 20px"));
+/// assert!(style.contains("pointer-events: none"));
+/// ```
 fn process_overlay_element(element: NodeRef, info: &PositionInfo) -> NodeRef {
     if let Some(elem) = element.as_element() {
         let mut attrs = elem.attributes.borrow_mut();
@@ -462,6 +632,19 @@ fn process_overlay_element(element: NodeRef, info: &PositionInfo) -> NodeRef {
     element
 }
 
+/// Map a CSS property name to a human-readable issue message and a severity level
+/// for reporting when that property is removed during table-layout conversion.
+///
+/// The returned tuple contains a message explaining why the property was removed
+/// and an `IssueSeverity` value representing the reported importance.
+///
+/// # Examples
+///
+/// ```
+/// let (msg, sev) = get_positioning_issue_details("position");
+/// assert!(msg.contains("position property removed"));
+/// matches!(sev, IssueSeverity::Warning);
+/// ```
 fn get_positioning_issue_details(prop: &str) -> (String, IssueSeverity) {
     match prop {
         "position" => (
@@ -484,6 +667,18 @@ fn get_positioning_issue_details(prop: &str) -> (String, IssueSeverity) {
     }
 }
 
+/// Removes positioning-related CSS declarations from an inline `style` string, records each removed property as a sanitize issue, and ensures a `display` declaration exists.
+///
+/// Specifically removes the following properties when present: `position`, `z-index`, `top`, `left`, `right`, `bottom`, and `transform`. Each removal pushes a `SanitizeIssue` into `COLLECTED_ISSUES`. If the resulting declarations do not include a `display` property, `display: block` is appended.
+///
+/// # Examples
+///
+/// ```
+/// let cleaned = clean_positioned_element_style("position: absolute; top: 10px; color: red;");
+/// assert!(cleaned.contains("color: red"));
+/// assert!(cleaned.contains("display: block"));
+/// assert!(!cleaned.contains("position:"));
+/// ```
 fn clean_positioned_element_style(style: &str) -> String {
     let declarations = parse_css_declarations(style);
     let mut cleaned: Vec<String> = Vec::new();

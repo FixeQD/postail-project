@@ -5,6 +5,21 @@ use uuid::Uuid;
 use crate::db::{enqueue_message, list_outbox, OutboxItem};
 
 impl super::SmtpManager {
+    /// Enqueues an email message for the given account by encrypting and storing the EML on disk and recording it in the database.
+    ///
+    /// The function writes an encrypted copy of `raw_eml` to the application's outbox directory and creates an outbox DB entry referencing that file.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(String)` with the created outbox message ID on success, `Err(String)` with an error description on failure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Assuming `manager` is an initialized SmtpManager and `raw_eml` contains the message bytes:
+    /// let id = manager.enqueue_message("account-id", b"From: a@example.com\r\n\r\nHello").unwrap();
+    /// println!("Enqueued message id: {}", id);
+    /// ```
     pub fn enqueue_message(&self, account_id: &str, raw_eml: &[u8]) -> Result<String, String> {
         tracing::info!(target: "postail", "[Outbox] Enqueueing message for account: {}, size: {} bytes", account_id, raw_eml.len());
 
@@ -48,6 +63,22 @@ impl super::SmtpManager {
         }
     }
 
+    /// Retrieves the queued outbox items for the given account.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// // Assuming `mgr` is an initialized `SmtpManager` and `account_id` is known:
+    /// let items = mgr.list_outbox("account-123");
+    /// match items {
+    ///     Ok(vec) => println!("Found {} outbox items", vec.len()),
+    ///     Err(err) => eprintln!("Error listing outbox: {}", err),
+    /// }
+    /// ```
+    ///
+    /// # Returns
+    ///
+    /// `Vec<OutboxItem>` containing queued outbox items for the specified account, or an error message if the database is not initialized or the query fails.
     pub fn list_outbox(&self, account_id: &str) -> Result<Vec<OutboxItem>, String> {
         let conn_guard = self.conn.lock().unwrap();
         let conn = conn_guard

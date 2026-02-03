@@ -71,10 +71,21 @@ export const shortcutsByScope = {
 	inbox: defaultShortcuts.filter((s) => s.scope === 'inbox'),
 }
 
+/**
+ * Retrieve the list of shortcut definitions for a given UI scope.
+ *
+ * @param scope - One of 'global', 'compose', or 'inbox'
+ * @returns The array of ShortcutDefinition objects associated with `scope`
+ */
 export function getShortcutsForScope(scope: 'global' | 'compose' | 'inbox'): ShortcutDefinition[] {
 	return shortcutsByScope[scope]
 }
 
+/**
+ * Load the application's keyboard shortcut configuration.
+ *
+ * @returns An array of `ShortcutDefinition` objects representing the active keyboard shortcuts; currently returns the built-in defaults
+ */
 export function loadShortcutsConfig(): ShortcutDefinition[] {
 	// TODO: Load from localStorage or settings DB or idk
 	return defaultShortcuts
@@ -108,6 +119,12 @@ export const shortcutDescriptions: Record<string, string> = {
 	toggle_star: 'Star / Flag message',
 }
 
+/**
+ * Format a keyboard shortcut string into a human-readable display form.
+ *
+ * @param key - Raw shortcut string containing key tokens separated by commas, plus signs, or spaces (e.g., "ctrl+enter", "shift, a")
+ * @returns A display-friendly shortcut where modifiers and common keys are normalized (e.g., "Ctrl+↵", "Shift+A")
+ */
 export function formatShortcutKey(key: string): string {
 	return key
 		.split(/[+,]/)

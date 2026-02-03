@@ -21,6 +21,34 @@ pub fn fetch_mailboxes(conn: &Connection, account_id: &str) -> Result<Vec<Mailbo
     mailboxes.map_err(DBError::Sqlite)
 }
 
+/// Inserts a mailbox for the given account or updates its sync metadata if a mailbox with the same name already exists.
+///
+/// On conflict of (account_id, name), updates `uid_validity`, `highest_modseq`, and `last_synced_uid` with the provided values.
+///
+/// # Returns
+///
+/// `Ok(())` on success, `Err(DBError)` if the database operation fails.
+///
+/// # Examples
+///
+/// ```
+/// # use rusqlite::Connection;
+/// # // `Mailbox` and `upsert_mailbox` are defined in the same crate.
+/// let conn = Connection::open_in_memory().unwrap();
+/// // Create the table schema used by `upsert_mailbox` for the example.
+/// conn.execute_batch("CREATE TABLE mailboxes (account_id TEXT, name TEXT, uid_validity INTEGER, highest_modseq INTEGER, last_synced_uid INTEGER, PRIMARY KEY(account_id, name));").unwrap();
+///
+/// let mailbox = Mailbox {
+///     name: "INBOX".into(),
+///     display_name: "INBOX".into(),
+///     role: "other".into(),
+///     uid_validity: 1,
+///     highest_modseq: 0,
+///     last_synced_uid: 0,
+/// };
+///
+/// upsert_mailbox(&conn, "account_123", &mailbox).unwrap();
+/// ```
 pub fn upsert_mailbox(
     conn: &Connection,
     account_id: &str,

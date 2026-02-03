@@ -21,6 +21,18 @@ interface AddressInputProps {
 	rightElement?: React.ReactNode
 }
 
+/**
+ * Render an address input that accepts, displays, and manages tokenized recipients with autocomplete suggestions.
+ *
+ * @param label - Text label shown before the input area
+ * @param recipients - Current list of recipient objects (each with at least an `email`, optional `name`)
+ * @param onAdd - Callback invoked with a recipient object when a new recipient is added
+ * @param onRemove - Callback invoked with an email string when a recipient should be removed
+ * @param placeholder - Placeholder text shown when there are no recipients
+ * @param className - Additional CSS classes applied to the root container
+ * @param rightElement - Optional element rendered to the right of the input
+ * @returns The rendered address input JSX element
+ */
 export function AddressInput({
 	label,
 	recipients,

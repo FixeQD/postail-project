@@ -28,6 +28,13 @@ type AppState =
 	| 'argon2-unlock'
 	| 'settings'
 
+/**
+ * Top-level React component that manages application state, handles lifecycle events and global shortcuts, and renders the main UI screens.
+ *
+ * Manages initialization, authentication/security flows, account list and selection, mailbox navigation (inbox/outbox/drafts), OAuth callbacks, and UI-level actions (settings, outbox, title bar, status bar, and toasts).
+ *
+ * @returns The root JSX element for the application UI
+ */
 function App() {
 	const [currentState, setCurrentState] = useState<AppState>('init')
 	const [accounts, setAccounts] = useState<AccountMeta[]>([])

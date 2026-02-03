@@ -91,6 +91,28 @@ async fn start_oauth_flow(provider: String) -> Result<OAuthFlowResponse, String>
     }
 }
 
+/// Completes an OAuth authorization flow and creates a new account from the obtained credentials.
+///
+/// On success, inserts a new account into the database using provider-specific information and the
+/// retrieved OAuth tokens, and returns the created account metadata.
+///
+/// # Errors
+///
+/// Returns an `Err(String)` when the OAuth flow cannot be completed, required user info (email)
+/// cannot be fetched, the database is not initialized, or account creation fails.
+///
+/// # Examples
+///
+/// ```no_run
+/// # use postail::*;
+/// # async fn example() {
+/// let res = complete_oauth_flow("auth_code".to_string(), "state".to_string()).await;
+/// match res {
+///     Ok(account_meta) => println!("Created account: {}", account_meta.id),
+///     Err(err) => eprintln!("Failed to complete OAuth flow: {}", err),
+/// }
+/// # }
+/// ```
 #[tauri::command]
 async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta, String> {
     let (provider, tokens) = match oauth::complete_oauth_flow(code, state).await {
@@ -540,6 +562,23 @@ fn mark_read(
     Ok(())
 }
 
+/// Moves the specified messages to the trash for an account's mailbox.
+///
+/// This validates UIDs fit into the internal 32-bit representation and delegates the move operation
+/// to the database. It may fail if the database is not initialized, any UID is larger than what
+/// fits in a `u32`, or the underlying database operation returns an error.
+///
+/// # Returns
+///
+/// `Ok(())` on success, `Err(String)` with a descriptive message on failure.
+///
+/// # Examples
+///
+/// ```
+/// // Move messages with UIDs 1 and 2 to trash for the given account and mailbox.
+/// let res = move_to_trash("account-id".into(), "INBOX".into(), vec![1, 2]);
+/// assert!(res.is_ok());
+/// ```
 #[tauri::command]
 fn move_to_trash(account_id: String, mailbox: String, uids: Vec<u64>) -> Result<(), String> {
     let conn_guard = DB_CONN.lock().unwrap();
@@ -553,6 +592,18 @@ fn move_to_trash(account_id: String, mailbox: String, uids: Vec<u64>) -> Result<
     Ok(())
 }
 
+/// Enqueues a raw RFC-822 email message for delivery from the given account.
+///
+/// The `raw_eml` bytes must contain the complete MIME/RFC-822 message to send.
+///
+/// # Examples
+///
+/// ```no_run
+/// let account = "account-id-123".to_string();
+/// let eml = b"From: alice@example.com\r\nTo: bob@example.com\r\nSubject: Hi\r\n\r\nHello".to_vec();
+/// let result = enqueue_message(account, eml);
+/// assert!(result.is_ok()); // returns an outbox item id on success
+/// ```
 #[tauri::command]
 fn enqueue_message(account_id: String, raw_eml: Vec<u8>) -> Result<String, String> {
     let smtp = SMTP_MANAGER.lock().unwrap();
@@ -610,6 +661,22 @@ async fn import_backup(backup_path: String, passphrase: Option<String>) -> Resul
     .map_err(|e| e.to_string())?
 }
 
+/// Runs database maintenance tasks using the configured database connection.
+///
+/// This spawns a blocking task to execute maintenance via the database layer and waits for completion.
+///
+/// # Returns
+///
+/// `Ok(())` if maintenance completed successfully, `Err(String)` with an error message otherwise.
+///
+/// # Examples
+///
+/// ```
+/// # async fn example() {
+/// let result = run_maintenance().await;
+/// assert!(result.is_ok());
+/// # }
+/// ```
 #[tauri::command]
 async fn run_maintenance() -> Result<(), String> {
     let db_conn = Arc::clone(&DB_CONN);
@@ -622,6 +689,26 @@ async fn run_maintenance() -> Result<(), String> {
     .map_err(|e| e.to_string())?
 }
 
+/// Persists a draft message to the application's database.
+///
+/// Saves the provided `Draft` into persistent storage. Returns an `Err` with a string message if the database is not initialized or if saving fails.
+///
+/// # Arguments
+///
+/// * `draft` - The draft to persist; its identifiers, recipients, subject, body, and attachments are stored.
+///
+/// # Examples
+///
+/// ```no_run
+/// # use tokio::runtime::Runtime;
+/// // `draft` should be constructed according to `crate::db::Draft` fields.
+/// let rt = Runtime::new().unwrap();
+/// let draft = /* build a crate::db::Draft instance */;
+/// rt.block_on(async {
+///     // On success this completes without error.
+///     let _ = crate::commands::save_draft(draft).await;
+/// });
+/// ```
 #[tauri::command]
 async fn save_draft(draft: crate::db::Draft) -> Result<(), String> {
     let body_len = draft.body.as_ref().map(|b| b.len()).unwrap_or(0);
@@ -641,6 +728,27 @@ async fn save_draft(draft: crate::db::Draft) -> Result<(), String> {
     Ok(())
 }
 
+/// Lists saved drafts for the specified account.
+///
+/// Fetches all drafts stored in the application's database that belong to the given account ID.
+///
+/// # Returns
+///
+/// `Ok(Vec<crate::db::Draft>)` with the account's drafts on success, `Err(String)` with an error message on failure.
+///
+/// # Examples
+///
+/// ```
+/// # use tokio;
+/// # async fn run_example() {
+/// let account_id = "account-123".to_string();
+/// let result = crate::commands::list_drafts(account_id).await;
+/// match result {
+///     Ok(drafts) => println!("Found {} drafts", drafts.len()),
+///     Err(e) => eprintln!("Error listing drafts: {}", e),
+/// }
+/// # }
+/// ```
 #[tauri::command]
 async fn list_drafts(account_id: String) -> Result<Vec<crate::db::Draft>, String> {
     let db_conn = Arc::clone(&DB_CONN);
@@ -653,6 +761,23 @@ async fn list_drafts(account_id: String) -> Result<Vec<crate::db::Draft>, String
     .map_err(|e| e.to_string())?
 }
 
+/// Deletes a saved draft by its ID.
+///
+/// # Parameters
+///
+/// - `id`: The identifier of the draft to remove.
+///
+/// # Returns
+///
+/// `Ok(())` on success, `Err` with a string message on failure.
+///
+/// # Examples
+///
+/// ```
+/// let rt = tokio::runtime::Runtime::new().unwrap();
+/// let res = rt.block_on(delete_draft("draft-id-123".into()));
+/// // `res` will be `Ok(())` if deletion succeeded or `Err(_)` on failure.
+/// ```
 #[tauri::command]
 async fn delete_draft(id: String) -> Result<(), String> {
     let db_conn = Arc::clone(&DB_CONN);
@@ -665,6 +790,26 @@ async fn delete_draft(id: String) -> Result<(), String> {
     .map_err(|e| e.to_string())?
 }
 
+/// Searches contacts that match the provided query and returns up to `limit` results.
+///
+/// The query is used to filter contacts (for example by name or email). Results are returned
+/// in no particular order and may be an empty vector if there are no matches.
+///
+/// # Parameters
+///
+/// - `query`: The search string used to match contacts.
+/// - `limit`: Maximum number of contacts to return.
+///
+/// # Returns
+///
+/// A `Vec<Contact>` containing matching contacts. Returns an empty vector when no contacts match.
+///
+/// # Examples
+///
+/// ```no_run
+/// let results = search_contacts("alice".to_string(), 10).unwrap();
+/// for c in results { println!("{}", c.email); }
+/// ```
 #[tauri::command]
 fn search_contacts(query: String, limit: u32) -> Result<Vec<crate::db::Contact>, String> {
     let conn_guard = DB_CONN.lock().unwrap();
@@ -672,6 +817,26 @@ fn search_contacts(query: String, limit: u32) -> Result<Vec<crate::db::Contact>,
     crate::db::search_contacts(conn, &query, limit).map_err(|e| e.to_string())
 }
 
+/// Adds a file from `path` to the draft attachments store and returns the created attachment metadata.
+///
+/// `path` is the filesystem path to the file to add. The file is read and stored by the attachments subsystem.
+///
+/// # Returns
+///
+/// The stored `crate::db::DraftAttachment` on success.
+///
+/// # Examples
+///
+/// ```
+/// use tokio::runtime::Runtime;
+///
+/// // Create a runtime to call the async command in tests/examples.
+/// let rt = Runtime::new().unwrap();
+/// // Replace with an actual file path available during the test.
+/// let path = "tests/fixtures/example.png".to_string();
+/// let attachment = rt.block_on(crate::commands::add_attachment(path)).unwrap();
+/// assert!(!attachment.id.is_empty());
+/// ```
 #[tauri::command]
 async fn add_attachment(path: String) -> Result<crate::db::DraftAttachment, String> {
     tokio::task::spawn_blocking(move || {
@@ -681,6 +846,31 @@ async fn add_attachment(path: String) -> Result<crate::db::DraftAttachment, Stri
     .map_err(|e| e.to_string())?
 }
 
+/// Creates a draft attachment from raw bytes and stores it in the attachments storage.
+///
+/// # Parameters
+///
+/// - `bytes`: The raw file contents to store as the attachment.
+/// - `filename`: The filename to associate with the stored attachment.
+/// - `content_type`: The MIME content type of the attachment (e.g., `"image/png"`).
+///
+/// # Returns
+///
+/// A `DraftAttachment` representing the stored attachment on success, or an error message string on failure.
+///
+/// # Examples
+///
+/// ```
+/// # use tokio;
+/// # async fn _example() -> Result<(), String> {
+/// let data = b"hello world".to_vec();
+/// let filename = "hello.txt".to_string();
+/// let content_type = "text/plain".to_string();
+/// let attachment = crate::commands::add_attachment_bytes(data, filename, content_type).await?;
+/// assert!(!attachment.id.is_empty());
+/// # Ok(())
+/// # }
+/// ```
 #[tauri::command]
 async fn add_attachment_bytes(
     bytes: Vec<u8>,
@@ -695,6 +885,18 @@ async fn add_attachment_bytes(
     .map_err(|e| e.to_string())?
 }
 
+/// Removes an attachment record with the given id from the database.
+///
+/// # Examples
+///
+/// ```no_run
+/// // call from an async context
+/// let _ = remove_attachment("attachment-id-123".into()).await;
+/// ```
+///
+/// # Returns
+///
+/// `Ok(())` if the attachment was removed successfully, `Err(String)` with an error message otherwise.
 #[tauri::command]
 async fn remove_attachment(id: String) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
@@ -704,6 +906,20 @@ async fn remove_attachment(id: String) -> Result<(), String> {
     .map_err(|e| e.to_string())?
 }
 
+/// Adds an inline attachment from in-memory bytes and stores it in the draft attachments store.
+///
+/// The provided bytes are persisted as an inline attachment with the given filename and MIME
+/// content type; on success the stored `DraftAttachment` record is returned.
+///
+/// # Examples
+///
+/// ```no_run
+/// # async fn example() {
+/// let bytes = b"hello".to_vec();
+/// let res = add_inline_attachment(bytes, "file.txt".into(), "text/plain".into()).await;
+/// assert!(res.is_ok());
+/// # }
+/// ```
 #[tauri::command]
 async fn add_inline_attachment(
     bytes: Vec<u8>,
@@ -724,6 +940,20 @@ pub struct BuildEmailResult {
     pub html_with_cids: String,
 }
 
+/// Builds a complete MIME email from a stored draft, producing the serialized EML bytes and the HTML body with inline asset CIDs.
+///
+/// This loads the draft and originating account email from the database, replaces asset URLs in the draft HTML with content IDs, assembles recipients and attachments, and constructs a multipart MIME message.
+///
+/// On success returns a `BuildEmailResult` whose `eml_bytes` field contains the serialized email and whose `html_with_cids` field contains the processed HTML with CID references. Returns `Err(String)` if the database is not initialized, the draft is not found, or any I/O/serialization/database operation fails.
+///
+/// # Examples
+///
+/// ```
+/// # tokio_test::block_on(async {
+/// // `draft_id` should refer to an existing draft in the initialized test database.
+/// let _res = build_email_from_draft("example-draft-id".into()).await;
+/// # });
+/// ```
 #[tauri::command]
 async fn build_email_from_draft(draft_id: String) -> Result<BuildEmailResult, String> {
     tracing::info!(target: "postail", "[build_email_from_draft] Starting for draft_id={}", draft_id);
@@ -777,16 +1007,57 @@ async fn build_email_from_draft(draft_id: String) -> Result<BuildEmailResult, St
     .map_err(|e| e.to_string())?
 }
 
+/// Sanitizes HTML email content and returns detailed results about the sanitization.
+///
+/// The returned `SanitizeResult` includes the sanitized HTML and metadata describing
+/// any removals or modifications performed during sanitization.
+///
+/// # Examples
+///
+/// ```
+/// let input = "<script>alert(1)</script><p>Hello</p>".to_string();
+/// let res = process_email_content(input);
+/// assert!(res.html.contains("<p>Hello</p>"));
+/// ```
 #[tauri::command]
 fn process_email_content(html: String) -> crate::utils::sanitizer::SanitizeResult {
     crate::utils::sanitizer::sanitize_email_html_with_details(&html)
 }
 
+/// Apply automatic fixes to HTML email content.
+///
+/// This performs non-destructive, automated corrections (e.g., fixing common markup issues and sanitizing problematic constructs)
+/// to produce HTML better suited for email rendering.
+///
+/// # Returns
+///
+/// The corrected HTML string.
+///
+/// # Examples
+///
+/// ```
+/// let raw = "<div><p>Unclosed tag<p></div>";
+/// let fixed = auto_fix_email_html(raw.into());
+/// assert!(fixed.contains("</p>"));
+/// ```
 #[tauri::command]
 fn auto_fix_email_html(html: String) -> String {
     crate::utils::sanitizer::auto_fix_email_html(&html)
 }
 
+/// Initializes logging and starts the Tauri application with plugins, command handlers, and app setup.
+///
+/// This configures the tracing subscriber, registers opener/os/dialog plugins, starts the local OAuth helper,
+/// wires the global SMTP manager to the app handle, registers all IPC/tauri commands, registers the
+/// "postail" URI scheme protocol handler, and runs the Tauri runtime.
+///
+/// # Examples
+///
+/// ```no_run
+/// fn main() {
+///     postail::run();
+/// }
+/// ```
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()

@@ -12,16 +12,25 @@ interface UseComposeShortcutsProps {
 }
 
 /**
- * Compose screen keyboard shortcuts hook
+ * Register keyboard shortcuts for common compose-screen actions.
  *
  * Shortcuts:
- * - Ctrl/Cmd+Enter: Send message
- * - Ctrl/Cmd+S: Save draft
- * - Esc: Close/Discard
- * - Ctrl/Cmd+Shift+A: Attach file
- * - Ctrl/Cmd+K: Insert link
- * - Ctrl/Cmd+Shift+C: Toggle Cc field
- * - Ctrl/Cmd+Shift+B: Toggle Bcc field
+ * - Ctrl/Cmd+Enter → send
+ * - Ctrl/Cmd+S → save draft
+ * - Esc → close/discard
+ * - Ctrl/Cmd+Shift+A → attach file
+ * - Ctrl/Cmd+K → insert link
+ * - Ctrl/Cmd+Shift+C → toggle Cc field
+ * - Ctrl/Cmd+Shift+B → toggle Bcc field
+ *
+ * @param onSend - Called when the send shortcut is triggered
+ * @param onSaveDraft - Called when the save-draft shortcut is triggered
+ * @param onClose - Called when the close/discard shortcut is triggered
+ * @param onAttachFile - Called when the attach-file shortcut is triggered
+ * @param onInsertLink - Called when the insert-link shortcut is triggered
+ * @param onToggleCc - Called when the toggle-Cc shortcut is triggered
+ * @param onToggleBcc - Called when the toggle-Bcc shortcut is triggered
+ * @param enabled - Whether the shortcuts are active (defaults to `true`)
  */
 export function useComposeShortcuts({
 	onSend,

@@ -3,14 +3,34 @@ import * as PopoverPrimitive from '@radix-ui/react-popover'
 
 import { cn } from '@/lib/utils'
 
+/**
+ * Render a Popover root element with a data-slot of 'popover'.
+ *
+ * @param props - Props to apply to the underlying Popover root; all props are forwarded unchanged.
+ * @returns A React element representing the Popover root with the given props applied.
+ */
 function Popover({ ...props }: React.ComponentProps<typeof PopoverPrimitive.Root>) {
 	return <PopoverPrimitive.Root data-slot='popover' {...props} />
 }
 
+/**
+ * Renders a Radix popover trigger element with a data-slot of 'popover-trigger'.
+ *
+ * @param props - Props forwarded to the underlying PopoverPrimitive.Trigger
+ * @returns The rendered popover trigger element
+ */
 function PopoverTrigger({ ...props }: React.ComponentProps<typeof PopoverPrimitive.Trigger>) {
 	return <PopoverPrimitive.Trigger data-slot='popover-trigger' {...props} />
 }
 
+/**
+ * Renders popover content inside a Portal with default alignment, offset, and composed styling.
+ *
+ * @param className - Additional CSS classes to merge with the component's default styles
+ * @param align - Content alignment relative to the trigger (defaults to `center`)
+ * @param sideOffset - Distance in pixels between the trigger and the content (defaults to `4`)
+ * @returns The configured PopoverPrimitive.Content element rendered inside a Portal
+ */
 function PopoverContent({
 	className,
 	align = 'center',
@@ -33,10 +53,25 @@ function PopoverContent({
 	)
 }
 
+/**
+ * Renders a popover anchor element and forwards all received props to it.
+ *
+ * The rendered element includes a `data-slot="popover-anchor"` attribute to identify the slot.
+ *
+ * @param props - Props passed to the underlying popover anchor element
+ * @returns The rendered popover anchor element
+ */
 function PopoverAnchor({ ...props }: React.ComponentProps<typeof PopoverPrimitive.Anchor>) {
 	return <PopoverPrimitive.Anchor data-slot='popover-anchor' {...props} />
 }
 
+/**
+ * Renders the header container for a popover.
+ *
+ * @param className - Additional CSS classes merged with the default header styles.
+ * @param props - Additional props spread onto the underlying `div`.
+ * @returns A `div` element with `data-slot="popover-header"` and header-specific styling.
+ */
 function PopoverHeader({ className, ...props }: React.ComponentProps<'div'>) {
 	return (
 		<div
@@ -47,10 +82,24 @@ function PopoverHeader({ className, ...props }: React.ComponentProps<'div'>) {
 	)
 }
 
+/**
+ * Renders the popover's title element with base title styling and optional additional classes.
+ *
+ * @param className - Optional additional CSS class names to merge with the base title styles
+ * @param props - Additional props are forwarded to the underlying element
+ * @returns The rendered popover title element
+ */
 function PopoverTitle({ className, ...props }: React.ComponentProps<'h2'>) {
 	return <div data-slot='popover-title' className={cn('font-medium', className)} {...props} />
 }
 
+/**
+ * Renders the popover description element.
+ *
+ * @param className - Optional additional class names merged with the base `text-muted-foreground`
+ * @param props - Additional props forwarded to the underlying `<p>` element
+ * @returns The paragraph element used as the popover description
+ */
 function PopoverDescription({ className, ...props }: React.ComponentProps<'p'>) {
 	return (
 		<p

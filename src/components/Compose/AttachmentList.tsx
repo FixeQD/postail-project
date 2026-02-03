@@ -9,6 +9,12 @@ interface AttachmentListProps {
 	onRemove: (id: string) => void
 }
 
+/**
+ * Selects an icon component appropriate for a MIME content type.
+ *
+ * @param contentType - The MIME content type of the file (e.g., `image/png`, `text/plain`); may be `undefined`
+ * @returns The icon component representing the file type: image icon for `image/*`, text icon for `text/*`, generic file icon otherwise
+ */
 function getFileIcon(contentType: string | undefined) {
 	if (!contentType) return File
 	if (contentType.startsWith('image/')) return FileImage
@@ -16,6 +22,13 @@ function getFileIcon(contentType: string | undefined) {
 	return File
 }
 
+/**
+ * Format a byte count into a human-readable string using binary (1024) units.
+ *
+ * @param bytes - The number of bytes to format.
+ * @param decimals - Number of decimal places to include (default is 0).
+ * @returns `'0 B'` if `bytes` is zero; otherwise a numeric value formatted to `decimals` places followed by a unit (`B`, `KB`, `MB`, `GB`, or `TB`).
+ */
 function formatBytes(bytes: number, decimals = 0) {
 	if (!+bytes) return '0 B'
 	const k = 1024

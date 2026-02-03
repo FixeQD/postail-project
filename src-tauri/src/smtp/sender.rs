@@ -24,6 +24,25 @@ struct SmtpSendConfig<'a> {
 }
 
 impl super::SmtpManager {
+    /// Retrieve and decrypt the stored credentials JSON for the given account.
+    ///
+    /// This reads the credentials blob path for `account_id` from the database, loads the
+    /// encrypted blob from the filesystem, decrypts it using the manager's security service,
+    /// and returns the resulting JSON string.
+    ///
+    /// # Returns
+    ///
+    /// `Ok` with the credentials JSON string on success, `Err` with a string describing the
+    /// failure (e.g., database not initialized, SQL error, file I/O error, decryption failure,
+    /// or invalid UTF-8).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Assume `manager` is an initialized SmtpManager and an account with id "acct1" exists.
+    /// let creds_json = manager.get_credentials("acct1").expect("failed to load credentials");
+    /// assert!(creds_json.trim_start().starts_with('{'));
+    /// ```
     pub(crate) fn get_credentials(&self, account_id: &str) -> Result<String, String> {
         let conn_guard = self.conn.lock().unwrap();
         let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
@@ -43,10 +62,51 @@ impl super::SmtpManager {
         Ok(creds_json)
     }
 
+    /// Produce an owned byte vector containing the EML content prepared for outgoing delivery.
+    ///
+    /// This function currently returns a direct copy of the provided raw EML bytes and exists as
+    /// the extension point for any future outgoing EML processing (sanitization, header adjustments,
+    /// etc.).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // `mgr` is an instance of the SMTP manager type that provides this method.
+    /// let raw = b"From: alice@example.com\r\nTo: bob@example.com\r\n\r\nHello";
+    /// let processed = mgr.process_outgoing_eml(raw).unwrap();
+    /// assert_eq!(processed, raw);
+    /// ```
     pub(crate) fn process_outgoing_eml(&self, raw_eml: &[u8]) -> Result<Vec<u8>, String> {
         Ok(raw_eml.to_vec())
     }
 
+    /// Sends an EML payload using the SMTP configuration for the given account.
+    ///
+    /// This looks up the account's SMTP settings and credentials, optionally refreshes an OAuth2
+    /// SMTP token, parses the provided raw EML to build an SMTP envelope, selects the appropriate
+    /// connection mode (TLS, STARTTLS, or plain), authenticates with the SMTP server, and delivers
+    /// the message.
+    ///
+    /// # Parameters
+    ///
+    /// - `account_id`: Identifier of the account whose SMTP settings and credentials should be used.
+    /// - `eml_content`: Raw EML bytes to be delivered.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if the message was accepted by the remote SMTP server, `Err(String)` with a
+    /// diagnostic message on failure.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # async fn example(manager: &crate::smtp::SmtpManager) -> Result<(), String> {
+    /// let account_id = "account-123";
+    /// let eml = b"From: sender@example.com\r\nTo: recipient@example.com\r\nSubject: Hi\r\n\r\nHello";
+    /// manager.send_email(account_id, eml).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn send_email(&self, account_id: &str, eml_content: &[u8]) -> Result<(), String> {
         // Extract account data in a separate scope to ensure lock is dropped before await
         let (host, port, tls_enabled, auth_type, account_email) = {
@@ -156,6 +216,23 @@ impl super::SmtpManager {
         })
     }
 
+    /// Sends a prepared email over an implicit TLS SMTP connection (typically port 465).
+    ///
+    /// Establishes a TCP connection, upgrades it to TLS, authenticates using the provided
+    /// credentials and mechanism, sends the email, and then closes the SMTP session.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[tokio::test]
+    /// # async fn send_with_tls_example() {
+    /// // Construct a SmtpSendConfig named `config` with a ready-to-send `SendableEmail`.
+    /// // let config = SmtpSendConfig { .. };
+    /// // let manager = SmtpManager::new(...);
+    /// // The call below performs the send and will return an Error on failure.
+    /// // manager.send_with_tls(config).await.unwrap();
+    /// # }
+    /// ```
     async fn send_with_tls(&self, config: SmtpSendConfig<'_>) -> Result<(), Error> {
         // Connect with TLS on port 465
         let tcp_stream = TcpStream::connect((config.host, config.port))
@@ -200,6 +277,19 @@ impl super::SmtpManager {
         }
     }
 
+    /// Sends the provided email over an SMTP connection upgraded to TLS using STARTTLS.
+    ///
+    /// Performs the STARTTLS upgrade, authenticates with the configured mechanism and credentials, transmits the message, and then closes the SMTP session.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # async fn example(manager: &crate::smtp::SmtpManager, cfg: crate::smtp::SmtpSendConfig<'_>) {
+    /// manager.send_with_starttls(cfg).await.unwrap();
+    /// # }
+    /// ```
+    ///
+    /// Returns `Ok(())` on success, `Err(Error)` on failure.
     async fn send_with_starttls(&self, config: SmtpSendConfig<'_>) -> Result<(), Error> {
         let tcp_stream = TcpStream::connect((config.host, config.port))
             .await
@@ -257,6 +347,24 @@ impl super::SmtpManager {
         }
     }
 
+    /// Sends the prepared email over an unencrypted TCP connection.
+    ///
+    /// Connects to the SMTP server at `config.host:config.port`, performs SMTP authentication according to `config.auth_type` using credentials in `config.creds`, transmits `config.email`, and issues a QUIT on the transport.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Error` if the TCP connection, authentication, message transmission, or transport shutdown fails.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use async_smtp::Error;
+    /// # use crate::smtp::{SmtpManager, SmtpSendConfig};
+    /// # async fn example(manager: &SmtpManager, config: SmtpSendConfig<'_>) -> Result<(), Error> {
+    /// manager.send_plain(config).await?;
+    /// # Ok::<(), Error>(())
+    /// # }
+    /// ```
     async fn send_plain(&self, config: SmtpSendConfig<'_>) -> Result<(), Error> {
         let tcp_stream = TcpStream::connect((config.host, config.port))
             .await
@@ -282,6 +390,27 @@ impl super::SmtpManager {
         Ok(())
     }
 
+    /// Authenticate an SMTP transport using either XOAUTH2 (when `auth_type` is `"oauth2"`) or PLAIN credentials.
+    ///
+    /// If `auth_type` equals `"oauth2"`, the function uses the `access_token` field from `creds` and the provided
+    /// `account_email` as the username with the XOAUTH2 mechanism. Otherwise it uses `username` and `password` from
+    /// `creds` with the PLAIN mechanism.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if required credential fields are missing or if the transport login fails.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use async_smtp::SmtpTransport;
+    /// # use serde_json::json;
+    /// # async fn example(mut transport: SmtpTransport<impl tokio::io::AsyncBufRead + tokio::io::AsyncWrite + Unpin>) -> Result<(), async_smtp::Error> {
+    /// let creds = json!({"access_token": "ya29.ABCDE..."}); // for XOAUTH2
+    /// // manager.authenticate(&mut transport, "oauth2", "me@example.com", &creds).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     async fn authenticate<S>(
         &self,
         transport: &mut SmtpTransport<S>,

@@ -11,6 +11,20 @@ const LARGE_ELEMENT_THRESHOLD: f32 = 400.0;
 use crate::utils::sanitizer::config::COLLECTED_ISSUES;
 use crate::utils::sanitizer::types::{IssueSeverity, SanitizeIssue};
 
+/// Adjust inline styles so HTML elements fit common email client constraints.
+///
+/// Parses the provided HTML and rewrites inline `style` attributes to improve email compatibility:
+/// converting viewport units to pixels for the root viewport, scaling or clamping large dimensions,
+/// removing unsupported properties (e.g., CSS filters), and preserving non-table structural elements.
+/// Returns the modified HTML as a `String`.
+///
+/// # Examples
+///
+/// ```
+/// let html = r#"<div style="height:100vh; width:1200px;"><p style="width:600px">Hello</p></div>"#;
+/// let out = scale_elements_for_email(html);
+/// assert!(out.contains("px"));
+/// ```
 pub fn scale_elements_for_email(html: &str) -> String {
     let document = kuchiki::parse_html().one(html);
     let mut is_first_div = true;
@@ -47,6 +61,32 @@ pub fn scale_elements_for_email(html: &str) -> String {
     document.to_string()
 }
 
+/// Convert viewport units (vw/vh) in an inline style string to fixed pixel values for email compatibility.
+///
+/// Parses CSS declarations from `style`, converts any `vw`/`vh` values to pixel values (multiplied by 6 and rounded),
+/// and returns a new style string with the updated declarations. If `is_root` is true and a `min-height` using `vh` is encountered,
+/// a warning about full-screen height not supported in email clients will be recorded and that declaration will be omitted. Conversions
+/// and encountered unsupported properties are recorded in the global `COLLECTED_ISSUES` registry.
+///
+/// # Arguments
+///
+/// * `style` - A semicolon-separated CSS declaration string (e.g., `"width:100vw; height:50vh"`).
+/// * `is_root` - If true, treat `min-height` using `vh` as a root-level full-screen height and record a warning.
+///
+/// # Returns
+///
+/// A new CSS declaration string with viewport units converted to pixel values where applicable and unsupported root `min-height` removed.
+///
+/// # Examples
+///
+/// ```
+/// let input = "width:100vw; min-height:100vh; color:red";
+/// let out = fix_viewport_units(input, true);
+/// // 100vw -> 600px (100 * 6), min-height:100vh is removed when is_root == true
+/// assert!(out.contains("width: 600px"));
+/// assert!(!out.contains("min-height"));
+/// assert!(out.contains("color: red"));
+/// ```
 fn fix_viewport_units(style: &str, is_root: bool) -> String {
     let declarations = parse_css_declarations(style);
     let mut new_declarations: Vec<String> = Vec::new();
@@ -93,6 +133,24 @@ fn fix_viewport_units(style: &str, is_root: bool) -> String {
     new_declarations.join("; ")
 }
 
+/// Scale and adjust inline CSS declarations so an element's styles fit typical email client constraints.
+///
+/// Parses a semicolon-separated style string and returns a transformed style string where large
+/// dimensions are downscaled or clamped, viewport units (vw/vh) are converted to pixel values,
+/// decorative elements (large border-radius or use of `filter`) are treated specially, and unsupported
+/// properties (e.g., `filter`) are removed. The function may record informational or warning issues
+/// in the global `COLLECTED_ISSUES` registry for conversions, removals, or scaling actions.
+///
+/// The returned string contains the adjusted declarations joined by "; " suitable for writing back
+/// to an element's `style` attribute.
+///
+/// # Examples
+///
+/// ```
+/// let out = scale_element_dimensions("width: 1000px; height: 100px;");
+/// // Very wide widths are clamped to the email max width (e.g., 580px).
+/// assert!(out.contains("width: 580px"));
+/// ```
 fn scale_element_dimensions(style: &str) -> String {
     let declarations = parse_css_declarations(style);
     let mut new_declarations: Vec<String> = Vec::new();
@@ -200,6 +258,29 @@ fn scale_element_dimensions(style: &str) -> String {
     new_declarations.join("; ")
 }
 
+/// Compute a uniform scale factor that ensures an element's width and height fit within email constraints.
+///
+/// The factor is <= 1.0; values less than 1.0 indicate the element should be downscaled.
+/// It considers a smaller maximum height for decorative elements.
+///
+/// # Returns
+///
+/// The scale factor to apply to element dimensions. `1.0` means no scaling is required.
+///
+/// # Examples
+///
+/// ```
+/// // No scaling when both dimensions are small
+/// assert_eq!(calculate_scale_factor(Some(100.0), Some(100.0), false), 1.0);
+///
+/// // Width exceeds max email width -> scale down
+/// let s = calculate_scale_factor(Some(1200.0), Some(600.0), false);
+/// assert!(s < 1.0 && s <= 580.0 / 1200.0);
+///
+/// // Decorative elements use a lower max height
+/// let s2 = calculate_scale_factor(Some(300.0), Some(400.0), true);
+/// assert!(s2 < 1.0 || s2 == 1.0);
+/// ```
 fn calculate_scale_factor(width: Option<f32>, height: Option<f32>, is_decorative: bool) -> f32 {
     let max_height = if is_decorative {
         MAX_DECORATIVE_HEIGHT

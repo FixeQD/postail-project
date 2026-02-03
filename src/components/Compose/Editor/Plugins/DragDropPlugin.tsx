@@ -7,6 +7,15 @@ import { $createImageNode } from '../Nodes/ImageNode'
 import type { EmailAttachment } from '@/types/compose'
 import { UploadCloud, Image as ImageIcon, Paperclip } from 'lucide-react'
 
+/**
+ * Provides a global drag-and-drop UI for inserting inline images or adding attachments to the Lexical editor.
+ *
+ * The component registers window-level drag/drop listeners, detects whether dragged content is media or files,
+ * and processes dropped files or URI lists by creating attachments (and inserting inline images when appropriate).
+ * It renders a full-screen overlay with interactive drop zones and a processing indicator while items are handled.
+ *
+ * @returns The plugin's React node: a full-screen overlay container that exposes drop zones and a processing UI.
+ */
 export default function DragDropPlugin(): React.ReactNode {
 	const [editor] = useLexicalComposerContext()
 	const { addAttachment } = useDraftStore()

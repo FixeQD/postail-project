@@ -50,6 +50,14 @@ const statusConfig: Record<
 	},
 }
 
+/**
+ * Renders a modal outbox panel that shows active and recently sent messages for an account.
+ *
+ * @param accountId - Identifier of the account whose outbox will be loaded and displayed
+ * @param isOpen - Whether the panel is visible
+ * @param onClose - Callback invoked when the panel's close action is triggered
+ * @returns The rendered outbox panel element, or `null` when `isOpen` is false
+ */
 export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 	const { t } = useTranslation()
 	const { items, isLoading, loadOutbox, retryMessage, cancelMessage } = useOutboxStore()
@@ -191,6 +199,16 @@ interface OutboxItemCardProps {
 	isCancelling: boolean
 }
 
+/**
+ * Render a card showing an outbox item's subject, recipient, status badge, optional error message, and action buttons for retrying or cancelling when applicable.
+ *
+ * @param item - The outbox item to display.
+ * @param onRetry - Callback invoked with the item's `id` when the Retry button is pressed.
+ * @param onCancel - Callback invoked with the item's `id` when the Cancel button is pressed.
+ * @param isRetrying - Whether a retry operation is currently in progress for this item; disables action buttons and shows a spinner.
+ * @param isCancelling - Whether a cancel operation is currently in progress for this item; disables action buttons and shows a pulsing icon.
+ * @returns A JSX element representing the outbox item card.
+ */
 function OutboxItemCard({
 	item,
 	onRetry,

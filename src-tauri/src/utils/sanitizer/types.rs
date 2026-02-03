@@ -36,6 +36,13 @@ pub struct SanitizeIssue {
     pub count: usize,
 }
 
+/// Default value for a SanitizeIssue `count`.
+///
+/// # Examples
+///
+/// ```
+/// assert_eq!(default_count(), 1);
+/// ```
 #[allow(dead_code)]
 fn default_count() -> usize {
     1

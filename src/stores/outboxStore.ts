@@ -76,6 +76,15 @@ export const useOutboxStore = create<OutboxState>((set, get) => ({
 	},
 }))
 
+/**
+ * Registers listeners for outbox lifecycle events and updates the outbox store accordingly.
+ *
+ * @param onProcessing - Called when a message transitions to processing with `(outboxId, accountId)`.
+ * @param onSent - Called when a message is sent with `(outboxId, accountId)`.
+ * @param onRetry - Called when a message is scheduled for retry with `(outboxId, accountId, details)` where `details` includes `error`, `attempts`, and `nextRetry`.
+ * @param onFailed - Called when a message fails permanently with `(outboxId, accountId, details)` where `details` includes `error` and `attempts`.
+ * @returns A cleanup function that unsubscribes all registered listeners.
+ */
 export function setupOutboxListeners(
 	onProcessing?: (outboxId: string, accountId: string) => void,
 	onSent?: (outboxId: string, accountId: string) => void,

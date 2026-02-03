@@ -12,6 +12,13 @@ import { useDraftStore } from '@/stores/draftStore'
 import { $createImageNode } from '../Nodes/ImageNode'
 import type { EmailAttachment } from '@/types/compose'
 
+/**
+ * Intercepts paste events to detect image data, upload it as an inline attachment, and insert a corresponding image node into the editor.
+ *
+ * Registers both a Lexical paste command override and a native root-level paste listener, and cleans up those listeners when the plugin is unmounted.
+ *
+ * @returns `null` — this plugin does not render any UI
+ */
 export default function PastePlugin(): null {
 	const [editor] = useLexicalComposerContext()
 	const { addAttachment } = useDraftStore()

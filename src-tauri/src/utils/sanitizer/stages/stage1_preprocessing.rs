@@ -4,6 +4,24 @@ use html5ever::QualName;
 use kuchiki::NodeRef;
 use markup5ever::{namespace_url, ns};
 
+/// Resolve CSS custom property references (`var(--name[, fallback])`) in an HTML string.
+///
+/// This function parses CSS custom properties defined under `:root` and substitutes `var(...)` references
+/// found inside `<style>` tags and inline `style="..."` attributes. If no custom properties are present,
+/// the input HTML is returned unchanged. Nested references are resolved up to the implementation's depth,
+/// and fallback values are used when a variable is not defined.
+///
+/// # Examples
+///
+/// ```
+/// let html = r#"
+/// <style>:root { --main: red; } p { color: var(--main); }</style>
+/// <p style="background: var(--main, blue);">Hello</p>
+/// "#;
+/// let out = resolve_css_variables(html);
+/// assert!(out.contains("color: red"));
+/// assert!(out.contains(r#"style="background: red""#));
+/// ```
 pub fn resolve_css_variables(html: &str) -> String {
     let vars = parse_css_variables(html);
     if vars.is_empty() {
@@ -31,6 +49,31 @@ pub fn resolve_css_variables(html: &str) -> String {
         .to_string()
 }
 
+/// Extracts CSS custom properties declared in a `:root` rule into a map.
+///
+/// Parses the first `:root { ... }` block found in `html` and returns a `HashMap` where
+/// keys are the custom property names (including the leading `--`) and values are the
+/// corresponding trimmed property values. Declarations without a colon or properties
+/// that do not start with `--` are ignored.
+///
+/// # Examples
+///
+/// ```
+/// use std::collections::HashMap;
+///
+/// let html = r#"
+/// :root {
+///   --main-color: #ff0000;
+///   --gap: 10px;
+///   color: black;
+/// }
+/// "#;
+///
+/// let vars = parse_css_variables(html);
+/// assert_eq!(vars.get("--main-color"), Some(&"#ff0000".to_string()));
+/// assert_eq!(vars.get("--gap"), Some(&"10px".to_string()));
+/// assert_eq!(vars.get("color"), None);
+/// ```
 fn parse_css_variables(html: &str) -> HashMap<String, String> {
     let mut vars = HashMap::new();
     let root_re = regex::Regex::new(r"(?s):root\s*\{([^}]*)\}").expect("invalid :root regex");
@@ -49,6 +92,27 @@ fn parse_css_variables(html: &str) -> HashMap<String, String> {
     vars
 }
 
+/// Resolve CSS `var(--name[, fallback])` references inside a string using the provided custom-property map.
+///
+/// Resolves `var(...)` occurrences by replacing each with the corresponding value from `vars` when present,
+/// or with the provided fallback when the variable is missing. Unresolved `var(...)` expressions are left unchanged.
+///
+/// # Returns
+///
+/// A `String` with `var(...)` references substituted: variable values are used when present, fallbacks are used when provided, and original `var(...)` text is preserved when neither is available.
+///
+/// # Examples
+///
+/// ```
+/// use std::collections::HashMap;
+///
+/// let mut vars = HashMap::new();
+/// vars.insert("--main".to_string(), "red".to_string());
+///
+/// let input = "color: var(--main, blue); background: var(--bg, white);";
+/// let out = resolve_var_refs(input, &vars);
+/// assert_eq!(out, "color: red; background: white;");
+/// ```
 fn resolve_var_refs(value: &str, vars: &HashMap<String, String>) -> String {
     let var_re =
         regex::Regex::new(r"var\(\s*(--[a-zA-Z0-9_-]+)\s*(?:,\s*((?:[^()]*|\([^()]*\))*))?\)")
@@ -75,6 +139,23 @@ fn resolve_var_refs(value: &str, vars: &HashMap<String, String>) -> String {
     result
 }
 
+/// Extracts and sanitizes CSS declarations for the document body from an HTML string.
+///
+/// Searches for a `body` (or `html, body`) rule and returns its declarations with
+/// empty entries removed and any declarations containing `animation`, `transform`,
+/// `filter`, or `position` excluded.
+///
+/// # Returns
+///
+/// A string of remaining declarations joined by `"; "`, or an empty string if no
+/// body rule is found.
+///
+/// # Examples
+///
+/// ```
+/// let html = "body { background: red; animation: slide 1s; color: blue; }";
+/// assert_eq!(extract_body_styles_from_css(html), "background: red; color: blue");
+/// ```
 pub fn extract_body_styles_from_css(html: &str) -> String {
     let body_css_re = regex::Regex::new(r"(?s)(?:html,\s*)?body\s*\{([^}]+)\}").unwrap();
 
@@ -97,6 +178,30 @@ pub fn extract_body_styles_from_css(html: &str) -> String {
     }
 }
 
+/// Replaces the document's <body> element with a <div>, preserving attributes and children and merging provided body styles.
+///
+/// The supplied `body_styles` string is prepended to any existing inline `style` on the body (separated by `; `). All other attributes are copied from the original body to the new div. The body node is removed and replaced with the new div; the function stops after processing the first body element found.
+///
+/// - `document`: the DOM tree to modify.
+/// - `body_styles`: CSS declarations to merge into the body's `style` attribute (e.g., `"margin: 0; background: white"`).
+///
+/// # Examples
+///
+/// ```
+/// use kuchiki::traits::*;
+/// use kuchiki::parse_html;
+///
+/// let html = r#"<html><head></head><body style="color: red" id="main">Hello<span>World</span></body></html>"#;
+/// let document = parse_html().one(html);
+///
+/// // Merge additional body styles and replace body with a div
+/// replace_body_with_div_dom(&document, "background: white".to_string());
+///
+/// let out = document.to_string();
+/// assert!(out.contains("<div"));
+/// assert!(out.contains(r#"id="main""#));
+/// assert!(out.contains(r#"style="background: white; color: red""#) || out.contains(r#"style="background: white; color: red""#));
+/// ```
 pub fn replace_body_with_div_dom(document: &NodeRef, body_styles: String) {
     for node in document.descendants() {
         if let Some(element) = node.as_element() {

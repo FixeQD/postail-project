@@ -174,6 +174,15 @@ const LinkPopover = memo(({ editor, formats, linkData }: any) => {
 	)
 })
 
+/**
+ * Render the editor toolbar with formatting controls, attachment handling, link editing, and editor-mode switching.
+ *
+ * The toolbar shows text-format buttons (bold, italic, underline, strikethrough), list controls, a link popover, an attachment picker
+ * with duplicate-detection confirmation, and a mode switch between rich-text and source views. It also listens for a global
+ * keyboard event to trigger the attachment flow.
+ *
+ * @returns A React element representing the editor toolbar UI
+ */
 export function EditorToolbar() {
 	const { t } = useTranslation()
 	const [editor] = useLexicalComposerContext()

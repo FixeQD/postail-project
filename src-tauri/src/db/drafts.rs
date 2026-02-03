@@ -31,6 +31,34 @@ pub struct Draft {
     pub updated_at: i64,
 }
 
+/// Persists a Draft into the database, inserting or replacing the row with the same id.
+///
+/// Serializes the draft's `to`, `cc`, `bcc`, and `attachments` fields to JSON, sets `updated_at` to
+/// the current UNIX epoch seconds, and uses the draft's `created_at` value as provided. JSON
+/// serialization failures are returned as `DBError::Json`; database errors are propagated.
+///
+/// # Examples
+///
+/// ```
+/// use rusqlite::Connection;
+/// // assume Draft and DraftAttachment are in scope and serde derives are available
+/// let conn = Connection::open_in_memory().unwrap();
+/// // table creation omitted for brevity; assume `drafts` table exists with the expected schema
+/// let draft = Draft {
+///     id: "d1".into(),
+///     account_id: "a1".into(),
+///     subject: Some("Hello".into()),
+///     body: Some("Body".into()),
+///     to: vec!["to@example.com".into()],
+///     cc: Vec::new(),
+///     bcc: Vec::new(),
+///     attachments: Vec::new(),
+///     created_at: 1,
+///     updated_at: 1,
+/// };
+/// let res = save_draft(&conn, &draft);
+/// assert!(res.is_ok());
+/// ```
 pub fn save_draft(conn: &Connection, draft: &Draft) -> Result<(), DBError> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -62,6 +90,28 @@ pub fn save_draft(conn: &Connection, draft: &Draft) -> Result<(), DBError> {
     Ok(())
 }
 
+/// Fetches a draft by its id from the database.
+///
+/// Missing or invalid JSON stored in the recipient (to/cc/bcc) or attachments columns is
+/// treated as an empty collection when constructing the returned Draft.
+///
+/// # Returns
+///
+/// `Ok(Some(Draft))` if a draft with the given id exists, `Ok(None)` if no row matches,
+/// or `Err(DBError)` if a database error occurs.
+///
+/// # Examples
+///
+/// ```
+/// # use my_crate::db::load_draft;
+/// # let conn = /* obtain rusqlite::Connection */ unimplemented!();
+/// let draft = load_draft(&conn, "draft-id-123");
+/// match draft {
+///     Ok(Some(d)) => assert_eq!(d.id, "draft-id-123"),
+///     Ok(None) => println!("no draft found"),
+///     Err(e) => panic!("database error: {:?}", e),
+/// }
+/// ```
 pub fn load_draft(conn: &Connection, id: &str) -> Result<Option<Draft>, DBError> {
     let mut stmt = conn.prepare("SELECT id, account_id, subject, body, to_json, cc_json, bcc_json, attachments_json, created_at, updated_at FROM drafts WHERE id = ?")?;
     let mut rows = stmt.query_map([id], |row| {
@@ -99,6 +149,22 @@ pub fn load_draft(conn: &Connection, id: &str) -> Result<Option<Draft>, DBError>
     }
 }
 
+/// Retrieves all drafts belonging to the specified account, ordered by `updated_at` descending.
+///
+/// JSON columns (`to_json`, `cc_json`, `bcc_json`, `attachments_json`) are parsed into their
+/// corresponding fields; if a JSON column is missing or fails to parse, the field falls back to
+/// an empty vector.
+///
+/// # Returns
+///
+/// A `Vec<Draft>` containing all drafts for `account_id`, newest first.
+///
+/// # Examples
+///
+/// ```
+/// let drafts = list_drafts(&conn, "account_1").unwrap();
+/// assert!(drafts.iter().all(|d| d.account_id == "account_1"));
+/// ```
 pub fn list_drafts(conn: &Connection, account_id: &str) -> Result<Vec<Draft>, DBError> {
     let mut stmt = conn.prepare("SELECT id, account_id, subject, body, to_json, cc_json, bcc_json, attachments_json, created_at, updated_at FROM drafts WHERE account_id = ? ORDER BY updated_at DESC")?;
     let rows = stmt.query_map([account_id], |row| {
@@ -136,6 +202,29 @@ pub fn list_drafts(conn: &Connection, account_id: &str) -> Result<Vec<Draft>, DB
     Ok(drafts)
 }
 
+/// Delete a draft by its ID from the database.
+///
+/// Removes the row in the `drafts` table whose `id` matches the provided `id`.
+///
+/// # Parameters
+///
+/// - `id`: The draft's unique identifier.
+///
+/// # Examples
+///
+/// ```
+/// use rusqlite::Connection;
+/// # use crate::db::drafts::{Draft, delete_draft};
+/// let conn = Connection::open_in_memory().unwrap();
+/// conn.execute_batch(r#"
+///     CREATE TABLE drafts (id TEXT PRIMARY KEY, account_id TEXT, subject TEXT, body TEXT, to_json TEXT, cc_json TEXT, bcc_json TEXT, attachments_json TEXT, created_at INTEGER, updated_at INTEGER);
+///     INSERT INTO drafts (id, account_id, created_at, updated_at) VALUES ('d1', 'a1', 0, 0);
+/// "#).unwrap();
+///
+/// delete_draft(&conn, "d1").unwrap();
+/// let count: i64 = conn.query_row("SELECT COUNT(1) FROM drafts WHERE id = 'd1'", [], |r| r.get(0)).unwrap();
+/// assert_eq!(count, 0);
+/// ```
 pub fn delete_draft(conn: &Connection, id: &str) -> Result<(), DBError> {
     conn.execute("DELETE FROM drafts WHERE id = ?", [id])?;
     Ok(())

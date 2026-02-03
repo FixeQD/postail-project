@@ -26,6 +26,24 @@ impl WindowsTpmStore {
         self.storage_path.join(SEALED_FILE_NAME)
     }
 
+    /// Seals the provided byte slice using the Windows TPM via NCryptProtectSecret.
+    ///
+    /// On success, returns a TPM-protected blob containing the sealed data as a `Vec<u8>`.
+    ///
+    /// # Errors
+    ///
+    /// Returns `SecurityError::Tpm` if any underlying NCrypt operation fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #[cfg(all(target_os = "windows", feature = "tpm"))]
+    /// fn example() {
+    ///     let store = WindowsTpmStore::with_storage_path(std::path::PathBuf::from("."));
+    ///     let sealed = store.seal_with_tpm(b"secret").unwrap();
+    ///     assert!(!sealed.is_empty());
+    /// }
+    /// ```
     #[cfg(all(target_os = "windows", feature = "tpm"))]
     fn seal_with_tpm(&self, data: &[u8]) -> Result<Vec<u8>> {
         use windows::core::PCWSTR;
@@ -68,6 +86,23 @@ impl WindowsTpmStore {
         }
     }
 
+    /// Unseals TPM-protected bytes and returns the original plaintext.
+    ///
+    /// The `sealed` slice must contain a blob previously produced by the corresponding TPM sealing operation.
+    /// On success returns the unsealed bytes; on failure returns a `SecurityError::Tpm` describing the failure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[cfg(all(target_os = "windows", feature = "tpm"))]
+    /// # fn example(store: &crate::WindowsTpmStore, sealed: &[u8]) {
+    /// let result = store.unseal_with_tpm(sealed);
+    /// match result {
+    ///     Ok(plaintext) => { /* use plaintext */ }
+    ///     Err(e) => { eprintln!("unseal failed: {:?}", e); }
+    /// }
+    /// # }
+    /// ```
     #[cfg(all(target_os = "windows", feature = "tpm"))]
     fn unseal_with_tpm(&self, sealed: &[u8]) -> Result<Vec<u8>> {
         use windows::Win32::Foundation::HWND;

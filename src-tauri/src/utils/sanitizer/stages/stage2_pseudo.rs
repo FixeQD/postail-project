@@ -4,6 +4,22 @@ use crate::utils::sanitizer::css::parser::parse_css_declarations;
 use crate::utils::sanitizer::types::PseudoRule;
 use regex::Regex;
 
+/// Expands CSS ::before and ::after pseudo-elements into explicit HTML <span> elements and adds corresponding CSS rules for those spans.
+///
+/// This function scans the first <style> block in the provided HTML for rules targeting `.class::before` and `.class::after`. For each pseudo rule that declares `content`, it:
+/// - removes the pseudo rule from the original CSS and emits an equivalent CSS rule for a generated helper class,
+/// - inserts a <span> carrying the helper class into the HTML either immediately after the element's opening tag for `::before` or immediately before the element's closing tag for `::after`.
+///
+/// If there is no <style> block or no pseudo rules with `content`, the original HTML is returned unchanged. Pseudo rules that omit `content` are ignored. When no `display` declaration is provided for a pseudo rule, the helper class defaults to `display: inline-block`.
+///
+/// # Examples
+///
+/// ```
+/// let html = r#"<style>.badge::before { content: "*"; color: red; }</style><span class="badge">New</span>"#;
+/// let out = expand_pseudo_elements(html);
+/// // The output should contain an injected span representing the ::before content and a generated CSS rule for its helper class.
+/// assert!(out.contains(r#"<span class="__pseudo_badge__before">*"</#) || out.contains("__pseudo_badge__before"));
+/// ```
 pub fn expand_pseudo_elements(html: &str) -> String {
     let style_re = Regex::new(r"(?s)(<style[^>]*>)(.*?)(</style>)").unwrap();
     let style_caps = match style_re.captures(html) {
@@ -105,6 +121,42 @@ pub fn expand_pseudo_elements(html: &str) -> String {
     result
 }
 
+/// Parses CSS and extracts pseudo-element rules (::before and ::after), returning a list of
+/// PseudoRule entries describing how to render those pseudo-elements and a cleaned CSS string
+/// with all pseudo-rule blocks removed.
+///
+/// The returned `Vec<PseudoRule>` contains one entry per `.class::before` or `.class::after`
+/// rule that includes a `content` declaration. Each `PseudoRule` carries:
+/// - `class`: the target class name (without the leading dot),
+/// - `is_before`: `true` for `::before`, `false` for `::after`,
+/// - `content`: the unquoted `content` value,
+/// - `style`: concatenated other declarations (guaranteed to include `display` if none was present),
+/// - `class_for_style`: a generated helper class name used for emitting concrete CSS rules.
+///
+/// The cleaned CSS is the original CSS with all matched pseudo-element rule blocks removed.
+/// Rules that lack a `content` declaration are ignored and not returned.
+///
+/// # Examples
+///
+/// ```
+/// use crate::utils::sanitizer::stages::stage2_pseudo::parse_pseudo_rules;
+/// use crate::utils::sanitizer::types::PseudoRule;
+///
+/// let css = r#"
+/// .foo, .bar::before { color: red; }
+/// .foo::before { content: "X"; color: blue; }
+/// .baz::after { content: 'Y'; }
+/// "#;
+///
+/// let (rules, cleaned) = parse_pseudo_rules(css);
+/// assert_eq!(rules.len(), 2);
+/// assert!(cleaned.contains(".foo, .bar::before") == false); // pseudo rules removed
+/// assert!(!cleaned.contains("::before") && !cleaned.contains("::after"));
+///
+/// // Inspect one returned rule
+/// let r = &rules[0];
+/// assert!(r.content == "X" || r.content == "Y");
+/// ```
 fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
     // ── Step 1: split grouped selectors ─────────────────────────────────────
     let rule_re = Regex::new(r"(?s)([^{]+)\{([^}]*)\}").expect("invalid rule block regex");

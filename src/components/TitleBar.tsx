@@ -16,6 +16,16 @@ interface TitleBarProps {
 	onOpenOutbox?: () => void
 }
 
+/**
+ * Renders the application's title bar with branding, an optional centered search (for dashboard), action buttons (notifications, outbox, settings, account badge), and window controls.
+ *
+ * @param isDashboard - When true, shows the centered search input and dashboard-specific actions.
+ * @param activeAccount - The currently active account; used to display the account initial and enable dashboard actions when present.
+ * @param onSearch - Callback invoked with the search query whenever the search input changes.
+ * @param onOpenSettings - Callback invoked when the settings button is clicked.
+ * @param onOpenOutbox - Callback invoked when the outbox button is clicked.
+ * @returns The title bar element, or `null` when running on a mobile platform. 
+ */
 export function TitleBar({
 	isDashboard,
 	activeAccount,

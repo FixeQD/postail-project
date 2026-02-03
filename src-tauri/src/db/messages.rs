@@ -26,6 +26,31 @@ pub struct MessageBatchItem {
     pub structure_json: Option<String>,
 }
 
+/// Inserts a batch of message metadata into the messages table, committing the transaction every `transaction_size` items.
+///
+/// When `items` is empty this returns `Ok(0)`. Each item is inserted with `INSERT OR IGNORE`; after each insert the function
+/// calls `upsert_from_address_string` for the message `from` address (if present) and for every recipient in `to`, updating address records as a side effect.
+/// Commits the current transaction after every `transaction_size` items and once more at the end.
+///
+/// # Arguments
+///
+/// * `transaction_size` - number of items to process before committing the current transaction.
+///
+/// # Returns
+///
+/// `Ok(n)` where `n` is the number of items processed from `items` (zero if `items` is empty), or a `DBError` on failure.
+///
+/// # Examples
+///
+/// ```
+/// # use crate::db::{batch_insert_messages, MessageBatchItem, DEFAULT_BATCH_SIZE};
+/// # use rusqlite::Connection;
+/// # let mut conn = Connection::open_in_memory().unwrap();
+/// # // setup schema omitted...
+/// let items: Vec<MessageBatchItem> = vec![]; // populate as needed
+/// let processed = batch_insert_messages(&mut conn, "acct", "INBOX", &items, DEFAULT_BATCH_SIZE).unwrap();
+/// assert_eq!(processed, items.len());
+/// ```
 pub fn batch_insert_messages(
     conn: &mut Connection,
     account_id: &str,
@@ -190,6 +215,37 @@ pub struct MessageUpsertData {
     pub structure_json: Option<String>,
 }
 
+/// Inserts or replaces a message row for the given account and mailbox, and ensures sender and recipient
+/// address entries are upserted in the address index.
+///
+/// Attempts to parse `data.to_json` as a `Vec<String>` and upserts an address entry for each parsed recipient;
+/// parse errors are ignored. If `data.from` is present, an address entry for the sender is upserted.
+///
+/// # Returns
+///
+/// The SQLite row id of the inserted or replaced message.
+///
+/// # Examples
+///
+/// ```
+/// # use rusqlite::Connection;
+/// # use crate::db::{upsert_message, MessageUpsertData};
+/// # fn try_example(conn: &Connection) -> rusqlite::Result<i64> {
+/// let data = MessageUpsertData {
+///     uid: 1,
+///     message_id: Some("msg-1".into()),
+///     internal_date: chrono::Utc::now(),
+///     from: Some("alice@example.com".into()),
+///     to_json: Some(serde_json::to_string(&vec!["bob@example.com"]).unwrap()),
+///     subject: Some("Hi".into()),
+///     snippet: Some("Hello".into()),
+///     flags_json: Some("[]".into()),
+///     structure_json: None,
+/// };
+/// let rowid = upsert_message(conn, "acct", "INBOX", &data)?;
+/// # Ok(rowid)
+/// # }
+/// ```
 pub fn upsert_message(
     conn: &Connection,
     account_id: &str,

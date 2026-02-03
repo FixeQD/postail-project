@@ -59,6 +59,19 @@ pub struct ProviderInfo {
 }
 
 impl ProviderInfo {
+    /// Get provider-specific configuration for the given `ProviderKind`.
+    ///
+    /// The returned `ProviderInfo` contains compile-time constants such as the
+    /// provider's display name, OAuth endpoints, OAuth scopes, IMAP/SMTP hosts, and
+    /// the default sent folder for the specified provider.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let info = ProviderInfo::get(ProviderKind::Gmail);
+    /// assert_eq!(info.name, "Gmail");
+    /// assert_eq!(info.imap_host, "imap.gmail.com");
+    /// ```
     pub fn get(kind: ProviderKind) -> Self {
         match kind {
             ProviderKind::Gmail => ProviderInfo {

@@ -27,6 +27,16 @@ interface ComposeScreenProps {
 	accountId?: string
 }
 
+/**
+ * Renders a draggable, resizable compose window with recipient fields, subject, rich-text editor, compatibility tools, and send/save/discard flows.
+ *
+ * This component manages draft state (autosave, dirty tracking, start/stop composing), compatibility validation and auto-fix, file/link attachments, keyboard shortcuts, CC/BCC toggles, send animation, and confirmation dialogs; it integrates with the global draft store and Lexical editor.
+ *
+ * @param props.open - Whether the compose window is visible
+ * @param props.onOpenChange - Callback invoked when the open state should change
+ * @param props.accountId - Optional account identifier used to start composing when opened
+ * @returns The compose screen UI element
+ */
 export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenProps) {
 	const { t } = useTranslation()
 	const {

@@ -13,17 +13,17 @@ interface UseGlobalShortcutsProps {
 }
 
 /**
- * Global keyboard shortcuts hook
+ * Register global keyboard shortcuts and invoke the provided callbacks when those shortcuts are triggered.
  *
- * Shortcuts:
- * - Ctrl/Cmd+N: New message
- * - Ctrl/Cmd+F: Focus search
- * - Ctrl/Cmd+R: Refresh/sync
- * - Ctrl/Cmd+1: Go to Inbox
- * - Ctrl/Cmd+2: Go to Outbox
- * - Ctrl/Cmd+3: Go to Drafts
- * - Ctrl/Cmd+4: Go to Accounts
- * - Ctrl/Cmd+Comma: Open settings
+ * @param onNewMessage - Called when the new-message shortcut (Ctrl/Cmd+N) is pressed
+ * @param onFocusSearch - Called when the focus-search shortcut (Ctrl/Cmd+F) is pressed
+ * @param onRefresh - Called when the refresh shortcut (Ctrl/Cmd+R) is pressed
+ * @param onGoToInbox - Called when the go-to-inbox shortcut (Ctrl/Cmd+1) is pressed
+ * @param onGoToOutbox - Called when the go-to-outbox shortcut (Ctrl/Cmd+2) is pressed
+ * @param onGoToDrafts - Called when the go-to-drafts shortcut (Ctrl/Cmd+3) is pressed
+ * @param onGoToAccounts - Called when the go-to-accounts shortcut (Ctrl/Cmd+4) is pressed
+ * @param onOpenSettings - Called when the open-settings shortcut (Ctrl/Cmd+,) is pressed
+ * @param enabled - Whether shortcuts are active; when false, no shortcuts will be triggered
  */
 export function useGlobalShortcuts({
 	onNewMessage,

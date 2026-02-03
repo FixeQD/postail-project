@@ -5,6 +5,14 @@ use std::fs;
 pub struct EmailBuildError(String);
 
 impl std::fmt::Display for EmailBuildError {
+    /// Formats the error by writing its contained message.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let err = crate::smtp::mime_builder::EmailBuildError("failed".into());
+    /// assert_eq!(format!("{}", err), "failed");
+    /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -12,6 +20,45 @@ impl std::fmt::Display for EmailBuildError {
 
 impl std::error::Error for EmailBuildError {}
 
+/// Builds a MIME multipart email from the provided fields and attachments and returns the formatted raw message bytes.
+///
+/// The function assembles a "mixed" multipart message that contains the HTML body and any regular file attachments.
+/// Inline attachments (attachments with `inline = true`) are embedded using a `related` multipart where each inline
+/// attachment must have a `cid`. Addresses in `from`, `to`, `cc`, and `bcc` are validated.
+///
+/// Errors are returned as `EmailBuildError` for invalid addresses, missing CIDs for inline attachments, file I/O failures,
+/// content-type parsing failures, or message construction failures.
+///
+/// # Parameters
+///
+/// - `from`: sender address as a string.
+/// - `to`, `cc`, `bcc`: recipient address lists; each address is validated.
+/// - `subject`: message subject.
+/// - `html_body`: HTML content used as the main body (Content-Type `text/html; charset=utf-8`).
+/// - `attachments`: slice of `DraftAttachment` items; inline attachments must have `cid` set and will be embedded.
+///
+/// # Returns
+///
+/// A `Vec<u8>` containing the MIME-formatted email bytes.
+///
+/// # Examples
+///
+/// ```no_run
+/// use crate::smtp::mime_builder::build_multipart_email;
+///
+/// // Example with no attachments
+/// let email_bytes = build_multipart_email(
+///     "alice@example.com",
+///     vec!["bob@example.com"],
+///     vec![],
+///     vec![],
+///     "Hello",
+///     "<p>Hi Bob</p>",
+///     &[],
+/// ).expect("failed to build email");
+///
+/// assert!(email_bytes.len() > 0);
+/// ```
 pub fn build_multipart_email(
     from: &str,
     to: Vec<&str>,
@@ -133,6 +180,24 @@ pub fn build_multipart_email(
     Ok(email_bytes)
 }
 
+/// Replace asset:// URLs in the given HTML with corresponding `cid:` references for inline attachments.
+///
+/// This scans the HTML for occurrences of `asset://<...>` and, for each inline attachment that has a CID,
+/// replaces any asset URL containing that attachment's `id` with `cid:<cid>`.
+///
+/// # Examples
+///
+/// ```
+/// let html = r#"<img src="asset://images/img1.png" />"#;
+/// let attachments = vec![crate::db::DraftAttachment {
+///     id: "images/img1.png".to_string(),
+///     inline: true,
+///     cid: Some("abc123".to_string()),
+///     ..Default::default()
+/// }];
+/// let result = replace_asset_urls_with_cids(html, &attachments);
+/// assert_eq!(result, r#"<img src="cid:abc123" />"#);
+/// ```
 pub fn replace_asset_urls_with_cids(
     html: &str,
     attachments: &[crate::db::DraftAttachment],

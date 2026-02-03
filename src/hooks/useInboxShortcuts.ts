@@ -17,21 +17,23 @@ interface UseInboxShortcutsProps {
 }
 
 /**
- * Inbox keyboard shortcuts hook (Gmail-style)
+ * Register Gmail-style keyboard shortcuts for inbox actions.
  *
- * Shortcuts:
+ * Supported shortcuts:
  * - J: Next message
  * - K: Previous message
- * - Enter/Space: Open selected message
- * - Delete/#: Move to trash
+ * - Enter / Space: Open selected message
+ * - Delete / #: Move to trash
  * - R: Reply
  * - Shift+R: Reply all
  * - F: Forward
- * - N: New message (alias for Ctrl+N)
+ * - N: New message
  * - U: Toggle read/unread
  * - Shift+U: Mark as unread
  * - S: Toggle star/flag
  * - /: Focus search
+ *
+ * @param enabled - When `true` the shortcuts are active; when `false` all shortcuts are disabled
  */
 export function useInboxShortcuts({
 	onNextMessage,

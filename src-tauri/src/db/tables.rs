@@ -2,6 +2,18 @@ use crate::db::sql_helpers::*;
 use crate::error::DBError;
 use rusqlite::Connection;
 
+/// Create the application's core SQLite schema (tables, FTS tables) and set recommended PRAGMA options on the connection.
+///
+/// On success this returns `Ok(())`; any failure while setting pragmas or creating tables returns a `DBError`.
+///
+/// # Examples
+///
+/// ```
+/// use rusqlite::Connection;
+/// // create an in-memory database for tests
+/// let conn = Connection::open_in_memory().unwrap();
+/// create_tables(&conn).unwrap();
+/// ```
 pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
     pragma_set(conn, "journal_mode", "WAL")?;
     pragma_set(conn, "synchronous", "NORMAL")?;
@@ -156,6 +168,19 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
     Ok(())
 }
 
+/// Create the non-FTS indexes used to optimize common queries.
+///
+/// This ensures indexes for messages, outbox, attachments, and contacts exist; returns an error
+/// if any index creation fails.
+///
+/// # Examples
+///
+/// ```
+/// # use rusqlite::Connection;
+/// # let conn = Connection::open_in_memory().unwrap();
+/// # create_tables(&conn).unwrap();
+/// create_indexes(&conn).unwrap();
+/// ```
 pub fn create_indexes(conn: &Connection) -> Result<(), DBError> {
     create_index_if_not_exists(
         conn,
@@ -204,6 +229,21 @@ pub fn create_indexes(conn: &Connection) -> Result<(), DBError> {
     Ok(())
 }
 
+/// Create SQL triggers that keep full-text search (FTS) virtual tables synchronized with their source tables.
+///
+/// This creates AFTER INSERT/UPDATE/DELETE triggers for `messages` (updating `messages_fts`)
+/// and for `contacts` (updating `contacts_fts`) so FTS rows mirror the source tables.
+///
+/// Returns `Ok(())` if all triggers are created or already exist, `Err(DBError)` if any creation fails.
+///
+/// # Examples
+///
+/// ```
+/// let conn = Connection::open_in_memory().unwrap();
+/// // Ensure source and FTS tables exist before creating triggers
+/// create_tables(&conn).unwrap();
+/// create_fts_triggers(&conn).unwrap();
+/// ```
 pub fn create_fts_triggers(conn: &Connection) -> Result<(), DBError> {
     create_trigger_if_not_exists(
         conn,

@@ -6,6 +6,17 @@ use std::env;
 #[cfg(target_os = "linux")]
 use std::process::{exit, Command};
 
+/// Performs program startup, applying Linux-specific relaunch and recovery behavior before running the application.
+///
+/// On Linux, when `POSTAIL_RECOVERY_MODE` is not set, the program launches a monitored child process of the same executable. If that child exits with a non‑zero status, the program prints a diagnostic and relaunches the executable in recovery mode with these environment overrides: `WEBKIT_DISABLE_DMABUF_RENDERER=1`, `GDK_BACKEND=x11`, `WAYLAND_DISPLAY=""`, and `POSTAIL_RECOVERY_MODE=1`. The process then exits with the recovery child's exit code (or 0 if unavailable). In all other cases execution proceeds to the normal application entry `postail_project_lib::run()`.
+///
+/// # Examples
+///
+/// ```no_run
+/// // Simulate normal startup (no recovery mode).
+/// std::env::remove_var("POSTAIL_RECOVERY_MODE");
+/// main();
+/// ```
 fn main() {
     #[cfg(target_os = "linux")]
     {

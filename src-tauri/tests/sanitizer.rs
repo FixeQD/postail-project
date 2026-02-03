@@ -93,6 +93,16 @@ fn test_preserves_safe_email_properties() {
 
 // === Auto-fix tests ===
 
+/// Ensures auto_fix_email_html strips Google Fonts imports and external Google Fonts URLs from HTML.
+///
+/// # Examples
+///
+/// ```
+/// let html = r#"<style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300&display=swap');</style><div style="font-family: 'Roboto', sans-serif;">Hello</div>"#;
+/// let result = auto_fix_email_html(html);
+/// assert!(!result.contains("fonts.googleapis.com"));
+/// assert!(!result.contains("@import"));
+/// ```
 #[test]
 fn test_auto_fix_removes_google_fonts() {
     let html = r#"<style>@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300&display=swap');</style><div style="font-family: 'Roboto', sans-serif;">Hello</div>"#;

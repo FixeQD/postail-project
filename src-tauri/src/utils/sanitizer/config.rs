@@ -124,6 +124,18 @@ thread_local! {
     pub static COLLECTED_ISSUES: RefCell<Vec<SanitizeIssue>> = const { RefCell::new(Vec::new()) };
 }
 
+/// Creates an HTML sanitizer Builder preconfigured for email-safe output.
+///
+/// The returned `Builder` is configured with a restricted tag set, per-element
+/// allowed attributes, common generic attributes, `rel="noopener noreferrer"`
+/// for links, and an attribute filter that sanitizes `style` attributes using
+/// the email-safe style sanitizer.
+///
+/// # Examples
+///
+/// ```
+/// let _builder = create_email_sanitizer();
+/// ```
 pub fn create_email_sanitizer<'a>() -> Builder<'a> {
     let mut builder = Builder::default();
 
@@ -174,6 +186,16 @@ pub fn create_email_sanitizer<'a>() -> Builder<'a> {
     builder
 }
 
+/// Creates a sanitizer Builder configured for email-safe HTML that sanitizes style attributes and records removed CSS properties and font-fallback decisions.
+///
+/// The returned Builder is preconfigured with a restricted set of allowed tags and per-element allowed attributes suitable for email rendering, generic attributes (including `style`), `link_rel` set to `"noopener noreferrer"`, and an attribute filter that sanitizes `style` values while pushing sanitization issues into the thread-local issue collection.
+///
+/// # Examples
+///
+/// ```
+/// let builder = create_sanitizer_with_tracking();
+/// // Use `builder` to sanitize HTML; style-related removals will be tracked.
+/// ```
 pub fn create_sanitizer_with_tracking<'a>() -> Builder<'a> {
     let mut builder = Builder::default();
 
@@ -224,6 +246,21 @@ pub fn create_sanitizer_with_tracking<'a>() -> Builder<'a> {
     builder
 }
 
+/// Sanitizes a CSS `style` attribute for email-compatible rendering.
+///
+/// The returned `StyleSanitizeResult` contains:
+/// - `cleaned_style`: the sanitized CSS declarations joined into a single string,
+/// - `removed_properties`: a list of properties that were stripped because they are considered dangerous for email clients,
+/// - `added_font_fallback`: `true` if a web-safe font fallback was appended for `font-family`.
+///
+/// # Examples
+///
+/// ```
+/// let res = sanitize_style_attribute("position: absolute; color: red; font-family: CustomFont, Arial;");
+/// assert!(res.removed_properties.contains(&"position".to_string()));
+/// assert!(res.cleaned_style.contains("color: red"));
+/// assert!(res.added_font_fallback);
+/// ```
 pub fn sanitize_style_attribute(style: &str) -> StyleSanitizeResult {
     let mut result = StyleSanitizeResult::default();
     let mut cleaned_parts: Vec<String> = Vec::new();
@@ -249,6 +286,22 @@ pub fn sanitize_style_attribute(style: &str) -> StyleSanitizeResult {
     result
 }
 
+/// Sanitizes a CSS `style` string for email usage while recording removed properties and issues.
+///
+/// Parses the provided CSS declarations, removes properties considered dangerous for email clients,
+/// records each removed property and a corresponding `SanitizeIssue` into `COLLECTED_ISSUES`,
+/// ensures `font-family` values include a web-safe fallback (setting `added_font_fallback` when one
+/// is appended), and returns a `StyleSanitizeResult` containing the cleaned style string and
+/// metadata about removals and fallback additions.
+///
+/// # Examples
+///
+/// ```
+/// let result = sanitize_style_attribute_with_tracking("color: red; position: absolute; font-family: FooBar;");
+/// assert!(result.cleaned_style.contains("color: red"));
+/// assert!(result.removed_properties.iter().any(|p| p == "position"));
+/// assert!(result.added_font_fallback);
+/// ```
 fn sanitize_style_attribute_with_tracking(style: &str) -> StyleSanitizeResult {
     let mut result = StyleSanitizeResult::default();
     let mut cleaned_parts: Vec<String> = Vec::new();
@@ -283,6 +336,24 @@ fn sanitize_style_attribute_with_tracking(style: &str) -> StyleSanitizeResult {
     result
 }
 
+/// Detects whether a CSS property name is considered dangerous for email sanitization.
+///
+/// Checks the property name case-insensitively against the configured list of dangerous
+/// properties, disallows properties containing the keywords `expression` or `behavior`,
+/// and treats vendor-prefixed variants as dangerous if their unprefixed form is dangerous.
+///
+/// # Returns
+///
+/// `true` if the property is considered dangerous, `false` otherwise.
+///
+/// # Examples
+///
+/// ```
+/// assert!(is_dangerous_property("position"));
+/// assert!(is_dangerous_property("-webkit-transform"));
+/// assert!(is_dangerous_property("BEHAVIOR")); // keyword match is case-insensitive
+/// assert!(!is_dangerous_property("color"));
+/// ```
 fn is_dangerous_property(prop: &str) -> bool {
     let prop_lower = prop.to_lowercase();
 
@@ -308,6 +379,20 @@ fn is_dangerous_property(prop: &str) -> bool {
     false
 }
 
+/// Maps common custom font family names to web-safe fallback stacks for email clients.
+///
+/// Strips surrounding quotes, lowercases the font name, and returns a safe font stack when a known
+/// custom font is recognized; returns `None` if no mapping is available.
+///
+/// # Examples
+///
+/// ```
+/// assert_eq!(
+///     map_custom_font_to_safe("Roboto"),
+///     Some("Arial, Helvetica, sans-serif")
+/// );
+/// assert_eq!(map_custom_font_to_safe("\"Unknown Font\""), None);
+/// ```
 fn map_custom_font_to_safe(font: &str) -> Option<&'static str> {
     let clean = font.trim_matches(|c| c == '"' || c == '\'').to_lowercase();
 
@@ -327,6 +412,28 @@ fn map_custom_font_to_safe(font: &str) -> Option<&'static str> {
     }
 }
 
+/// Ensure a `font-family` value includes a web-safe fallback or is mapped to a safe font stack.
+///
+/// If the first font name is recognized as a common non-standard font, returns a mapped, web-safe
+/// font stack (e.g., maps certain serif/sans/monospace names to known safe stacks). If any font
+/// in the provided list already matches a known web-safe font, returns the original value
+/// unchanged. Otherwise, appends `, sans-serif` to the original value and returns that string.
+///
+/// # Examples
+///
+/// ```
+/// // Known custom mapping (example)
+/// let out = ensure_web_safe_font_fallback("Roboto");
+/// assert_eq!(out, "Arial, Helvetica, sans-serif");
+///
+/// // Already contains a web-safe font -> unchanged
+/// let out = ensure_web_safe_font_fallback("\"Times New Roman\", serif");
+/// assert_eq!(out, "\"Times New Roman\", serif");
+///
+/// // No safe fonts -> append generic fallback
+/// let out = ensure_web_safe_font_fallback("MyCustomFont, SomethingElse");
+/// assert_eq!(out, "MyCustomFont, SomethingElse, sans-serif");
+/// ```
 fn ensure_web_safe_font_fallback(value: &str) -> String {
     let fonts: Vec<&str> = value.split(',').map(|f| f.trim()).collect();
 
@@ -351,6 +458,23 @@ fn ensure_web_safe_font_fallback(value: &str) -> String {
     format!("{}, sans-serif", value)
 }
 
+/// Provide a human-readable reason and a severity level for removing or altering a CSS property.
+///
+/// # Parameters
+///
+/// - `prop`: the CSS property name to evaluate (e.g., `"position"`, `"font-family"`, `"animation-name"`).
+///
+/// # Returns
+///
+/// A tuple `(message, severity)` where `message` explains why the property was removed or modified and `severity` indicates the importance of the issue.
+///
+/// # Examples
+///
+/// ```
+/// let (msg, sev) = get_issue_details("position");
+/// assert_eq!(sev, IssueSeverity::Warning);
+/// assert!(msg.contains("position"));
+/// ```
 fn get_issue_details(prop: &str) -> (String, IssueSeverity) {
     match prop {
         "position" | "fixed" | "absolute" | "sticky" => (

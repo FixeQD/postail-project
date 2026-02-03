@@ -18,6 +18,18 @@ interface ConfirmationDialogProps {
 	onConfirm: () => void
 }
 
+/**
+ * Renders a modal confirmation dialog with a title, description, and customizable confirm/cancel actions.
+ *
+ * @param open - Whether the dialog is currently open
+ * @param onOpenChange - Callback invoked with the new open state when the dialog is opened or closed
+ * @param title - Primary title text displayed in the dialog header
+ * @param description - Supplemental descriptive text displayed under the title
+ * @param confirmLabel - Label for the confirm action button
+ * @param cancelLabel - Label for the cancel action button
+ * @param onConfirm - Callback invoked when the confirm button is clicked
+ * @returns A React element representing the confirmation dialog
+ */
 export function ConfirmationDialog({
 	open,
 	onOpenChange,

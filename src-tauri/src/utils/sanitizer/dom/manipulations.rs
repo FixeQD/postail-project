@@ -6,7 +6,21 @@ use crate::utils::sanitizer::config::ALLOWED_TAGS;
 use crate::utils::sanitizer::config::TAG_REGEX;
 use crate::utils::sanitizer::css::parser::parse_css_declarations;
 
-/// Remove content tags (head, script, style, title, noscript) from document
+/// Remove content-related elements (head, script, style, title, noscript) from the document.
+///
+/// This function detaches matching nodes from the DOM in place so they are removed from `document`.
+///
+/// # Examples
+///
+/// ```
+/// use kuchiki::traits::*;
+/// let html = "<html><head><title>x</title><script>console.log(1)</script></head><body><p>hi</p></body></html>";
+/// let document = kuchiki::parse_html().one(html);
+/// strip_content_tags_dom(&document);
+/// let serialized = document.to_string();
+/// assert!(!serialized.contains("<head"));
+/// assert!(serialized.contains("<p>hi</p>"));
+/// ```
 pub fn strip_content_tags_dom(document: &NodeRef) {
     let tags_to_remove: std::collections::HashSet<&str> =
         ["head", "script", "style", "title", "noscript"]
@@ -30,7 +44,19 @@ pub fn strip_content_tags_dom(document: &NodeRef) {
     }
 }
 
-/// Detect unsupported HTML tags
+/// Identify HTML tags that are not in the allowed set and provide a human-readable reason for each.
+///
+/// Scans the provided HTML text for tag names, filters out those present in `ALLOWED_TAGS`,
+/// and returns a sorted, deduplicated list of (tag, reason) pairs describing why each tag is unsupported.
+///
+/// # Examples
+///
+/// ```
+/// let html = "<html><body><script>alert('x')</script><meta charset=\"utf-8\"></body></html>";
+/// let unsupported = detect_unsupported_tags(html);
+/// assert!(unsupported.contains(&("script".to_string(), "<script> tags are removed for security".to_string())));
+/// assert!(unsupported.contains(&("meta".to_string(), "<meta> tags are ignored in email HTML".to_string())));
+/// ```
 pub fn detect_unsupported_tags(html: &str) -> Vec<(String, String)> {
     let mut unsupported = Vec::new();
 
@@ -71,7 +97,23 @@ pub fn detect_unsupported_tags(html: &str) -> Vec<(String, String)> {
     unsupported
 }
 
-/// Mark elements with position property for dead element removal
+/// Mark elements that declare a CSS `position` by adding a `data-dead-if-empty` attribute.
+///
+/// Scans the provided document's element descendants and sets `data-dead-if-empty` on any element
+/// whose inline `style` contains a `position` declaration. The document is modified in place.
+///
+/// # Examples
+///
+/// ```
+/// use kuchiki::traits::*;
+/// let html = r#"<div style="position: absolute;"><span>x</span></div><p></p>"#;
+/// let document = kuchiki::parse_html().one(html);
+/// crate::utils::sanitizer::dom::manipulations::mark_positioned_elements_dom(&document);
+/// let div = document.select_first("div").unwrap().as_node().as_element().unwrap();
+/// assert!(div.attributes.borrow().get("data-dead-if-empty").is_some());
+/// let p = document.select_first("p").unwrap().as_node().as_element().unwrap();
+/// assert!(p.attributes.borrow().get("data-dead-if-empty").is_none());
+/// ```
 pub fn mark_positioned_elements_dom(document: &NodeRef) {
     for node in document.descendants() {
         if let Some(element) = node.as_element() {
@@ -91,7 +133,24 @@ pub fn mark_positioned_elements_dom(document: &NodeRef) {
     }
 }
 
-/// Check if element has visual content (background, borders, dimensions)
+/// Detects whether an element provides visible presentation via styles or attributes.
+///
+/// Inspects inline `style` declarations and common visual attributes (`background`, `bgcolor`)
+/// to determine if the element contributes visible rendering (backgrounds, borders, non-zero
+/// dimensions, shadows, etc.).
+///
+/// # Returns
+///
+/// `true` if the element has visual styling (for example a background, a border, a box-shadow,
+/// or non-zero width/height), `false` otherwise.
+///
+/// # Examples
+///
+/// ```
+/// // Given an element with inline style `background: red;`, this will return true:
+/// // let result = has_visual_content_dom(&element);
+/// // assert!(result);
+/// ```
 pub fn has_visual_content_dom(element: &kuchiki::ElementData) -> bool {
     let attrs = element.attributes.borrow();
 
@@ -133,7 +192,32 @@ pub fn has_visual_content_dom(element: &kuchiki::ElementData) -> bool {
     false
 }
 
-/// Remove dead (empty) elements from document
+/// Remove elements marked with `data-dead-if-empty` that contain no text, no child elements, and no visual content.
+///
+/// Elements that meet those criteria are detached from `document`. Elements marked with
+/// `data-dead-if-empty` that are kept (because they contain text, children, or visual styling)
+/// will have the `data-dead-if-empty` attribute removed. The `document` is modified in place.
+///
+/// # Examples
+///
+/// ```
+/// use kuchiki::parse_html;
+/// use kuchiki::traits::*;
+///
+/// let html = r#"
+///   <div id="a" data-dead-if-empty></div>
+///   <div id="b" data-dead-if-empty>kept</div>
+/// "#;
+/// let document = parse_html().one(html);
+///
+/// // call the function under test
+/// strip_dead_elements_dom(&document);
+///
+/// let out = document.to_string();
+/// assert!(!out.contains("id=\"a\"")); // removed
+/// assert!(out.contains("id=\"b\""));  // kept
+/// assert!(!out.contains("data-dead-if-empty")); // attribute cleaned from kept elements
+/// ```
 pub fn strip_dead_elements_dom(document: &NodeRef) {
     let mut nodes_to_remove: Vec<NodeRef> = Vec::new();
     let mut nodes_to_cleanup: Vec<kuchiki::ElementData> = Vec::new();

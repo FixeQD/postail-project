@@ -1,7 +1,19 @@
-//! CSS parsing utilities
-
-/// Parse CSS declarations from a style string
-/// Handles nested parentheses and quoted strings properly
+/// Parse CSS declarations from a style string into (property, value) pairs.
+///
+/// Splits declarations on semicolons that are not inside quoted strings or
+/// parentheses, correctly handling nested parentheses and quoted strings.
+/// Property names are lowercased; declarations that cannot be split by a
+/// colon (`:`) are ignored.
+///
+/// # Examples
+///
+/// ```
+/// let s = r#"color: red; background: url("data:image/png;base64,AAA;BBB"); padding: 10px"#;
+/// let decls = parse_css_declarations(s);
+/// assert_eq!(decls.iter().find(|(k, _)| k == "color").map(|(_, v)| v.as_str()), Some("red"));
+/// assert!(decls.iter().any(|(k, v)| k == "background" && v.contains("data:image/png")));
+/// assert_eq!(decls.iter().find(|(k, _)| k == "padding").map(|(_, v)| v.as_str()), Some("10px"));
+/// ```
 pub fn parse_css_declarations(style: &str) -> Vec<(String, String)> {
     let mut declarations = Vec::new();
     let mut current = String::new();
@@ -55,8 +67,19 @@ pub fn parse_css_declarations(style: &str) -> Vec<(String, String)> {
     declarations
 }
 
-/// Parse a CSS value to extract numeric component
-/// e.g., "-120px" -> -120.0, "50%" -> 50.0
+/// Extracts the leading numeric component from a CSS value string.
+///
+/// Stops parsing at the first character that is not a digit, a decimal point, or a leading minus sign.
+/// Returns the parsed number, or `0.0` if no valid numeric prefix is found or parsing fails.
+///
+/// # Examples
+///
+/// ```
+/// assert_eq!(parse_css_value("-120px"), -120.0);
+/// assert_eq!(parse_css_value("50%"), 50.0);
+/// assert_eq!(parse_css_value("12.5em"), 12.5);
+/// assert_eq!(parse_css_value("none"), 0.0);
+/// ```
 pub fn parse_css_value(value: &str) -> f32 {
     let cleaned: String = value
         .chars()

@@ -2,7 +2,25 @@
 
 use crate::utils::sanitizer::config::WEB_SAFE_FONTS;
 
-/// Map custom font names to web-safe fallback fonts
+/// Map a custom font name to a corresponding web-safe fallback font stack.
+///
+/// The function recognizes common custom serif, sans-serif, and monospace font names (comparison
+/// is case-insensitive and surrounding single/double quotes are ignored) and returns a suitable
+/// web-safe fallback stack for known fonts.
+///
+/// # Returns
+///
+/// `Some` with a web-safe font stack if the font is recognized, `None` otherwise.
+///
+/// # Examples
+///
+/// ```
+/// assert_eq!(
+///     map_custom_font_to_safe("\"Inter\""),
+///     Some("Arial, Helvetica, sans-serif")
+/// );
+/// assert_eq!(map_custom_font_to_safe("Unknown Font"), None);
+/// ```
 pub fn map_custom_font_to_safe(font: &str) -> Option<&'static str> {
     let clean = font.trim_matches(|c| c == '"' || c == '\'').to_lowercase();
 
@@ -22,7 +40,27 @@ pub fn map_custom_font_to_safe(font: &str) -> Option<&'static str> {
     }
 }
 
-/// Ensure font value has web-safe fallback
+/// Guarantees a web-safe fallback is present for a CSS `font-family` value.
+///
+/// If the first font is a recognized custom font, returns its mapped web-safe font stack.
+/// If any font in the comma-separated list (quotes ignored, case-insensitive) matches a known web-safe font, returns the original `value` unchanged.
+/// Otherwise returns `value` with ", sans-serif" appended.
+///
+/// # Returns
+///
+/// A `String` containing either the mapped web-safe stack, the original `value` (if it already includes a web-safe font), or `value` with ", sans-serif" appended.
+///
+/// # Examples
+///
+/// ```
+/// // preserves original when a web-safe font is present
+/// let v = ensure_web_safe_font_fallback("Arial, CustomFont");
+/// assert_eq!(v, "Arial, CustomFont");
+///
+/// // appends sans-serif when no safe fallback is present
+/// let v = ensure_web_safe_font_fallback("MyCustomFont");
+/// assert_eq!(v, "MyCustomFont, sans-serif");
+/// ```
 pub fn ensure_web_safe_font_fallback(value: &str) -> String {
     let fonts: Vec<&str> = value.split(',').map(|f| f.trim()).collect();
 

@@ -35,6 +35,12 @@ export type SerializedImageNode = Spread<
 	SerializedLexicalNode
 >
 
+/**
+ * Converts a DOM node into a Lexical DOM conversion output when the node is an HTMLImageElement.
+ *
+ * @param domNode - The DOM node to convert; if it's an `<img>` element its attributes are used to create the node.
+ * @returns A `DOMConversionOutput` containing an `ImageNode` built from the image element's attributes, or `null` if `domNode` is not an `<img>` element.
+ */
 function convertImageElement(domNode: Node): null | DOMConversionOutput {
 	if (domNode instanceof HTMLImageElement) {
 		const { alt: altText, src, width, height } = domNode
@@ -54,6 +60,15 @@ function convertImageElement(domNode: Node): null | DOMConversionOutput {
 	return null
 }
 
+/**
+ * Renders an <img> element for the given source with responsive styling and optional dimensions.
+ *
+ * @param src - Image source URL
+ * @param altText - Alternative text for the image
+ * @param width - Optional width in pixels; if omitted, the image width is determined by layout
+ * @param height - Optional height in pixels; if omitted, the image height is determined by layout
+ * @returns A React element that displays the image
+ */
 function ImageComponent({
 	src,
 	altText,
@@ -209,6 +224,19 @@ export class ImageNode extends DecoratorNode<React.ReactNode> {
 	}
 }
 
+/**
+ * Create a new ImageNode from the provided image payload.
+ *
+ * @param altText - Alternative text for the image
+ * @param attachmentId - Optional attachment identifier for persisted assets
+ * @param cid - Optional content identifier (e.g., for external storage references)
+ * @param height - Optional image height in pixels
+ * @param maxWidth - Maximum display width in pixels (defaults to 500)
+ * @param src - Image source URL
+ * @param width - Optional image width in pixels
+ * @param key - Optional node key to reuse an existing node identity
+ * @returns A new ImageNode representing the supplied image data
+ */
 export function $createImageNode({
 	altText,
 	attachmentId,
@@ -222,6 +250,12 @@ export function $createImageNode({
 	return new ImageNode(src, altText, attachmentId, cid, width, height, maxWidth, key)
 }
 
+/**
+ * Determines whether a given Lexical node is an ImageNode.
+ *
+ * @param node - The node to test
+ * @returns `true` if the node is an ImageNode, `false` otherwise
+ */
 export function $isImageNode(node: LexicalNode | null | undefined): node is ImageNode {
 	return node instanceof ImageNode
 }

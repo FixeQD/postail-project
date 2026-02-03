@@ -10,6 +10,16 @@ interface SubjectInputProps {
 	autoFocus?: boolean
 }
 
+/**
+ * Render a controlled subject text input with an animated bottom underline that appears on hover or focus.
+ *
+ * @param value - Current input value.
+ * @param onChange - Callback invoked with the new input value when the user changes the text.
+ * @param placeholder - Optional placeholder text shown when the input is empty.
+ * @param className - Optional additional CSS classes merged into the component's outer wrapper.
+ * @param autoFocus - If true, focus the input when it mounts.
+ * @returns A JSX element containing the controlled text input and an animated bottom border.
+ */
 export function SubjectInput({
 	value,
 	onChange,

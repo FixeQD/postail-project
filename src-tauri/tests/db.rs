@@ -98,6 +98,64 @@ fn test_add_account_oauth() {
     assert_eq!(meta.provider_type, "gmail");
 }
 
+/// Checks that list_accounts returns all added accounts in the order they were added.
+///
+/// # Examples
+///
+/// ```
+/// let conn = init_temp_db();
+/// let security = test_manager();
+///
+/// let input1 = AccountInput {
+///     name: "Account 1".to_string(),
+///     email: "user1@example.com".to_string(),
+///     auth_type: "password".to_string(),
+///     imap_config: ImapConfig {
+///         host: "imap1.com".to_string(),
+///         port: 993,
+///         tls: true,
+///     },
+///     smtp_config: SmtpConfig {
+///         host: "smtp1.com".to_string(),
+///         port: 587,
+///         tls: true,
+///     },
+///     credentials: Credentials::Password(PasswordCredentials {
+///         username: "user1@example.com".to_string(),
+///         password: "pass1".to_string(),
+///     }),
+/// };
+/// add_account(&conn, input1, &security).unwrap();
+///
+/// let input2 = AccountInput {
+///     name: "Account 2".to_string(),
+///     email: "user2@example.com".to_string(),
+///     auth_type: "oauth2".to_string(),
+///     imap_config: ImapConfig {
+///         host: "imap2.com".to_string(),
+///         port: 993,
+///         tls: true,
+///     },
+///     smtp_config: SmtpConfig {
+///         host: "smtp2.com".to_string(),
+///         port: 587,
+///         tls: true,
+///     },
+///     credentials: Credentials::OAuth(OAuthCredentials {
+///         access_token: "token2".to_string(),
+///         refresh_token: None,
+///         expires_at: chrono::Utc::now().timestamp() + 3600,
+///         auth_type: "oauth2".to_string(),
+///         provider_type: "gmail".to_string(),
+///     }),
+/// };
+/// add_account(&conn, input2, &security).unwrap();
+///
+/// let accounts = list_accounts(&conn).unwrap();
+/// assert_eq!(accounts.len(), 2);
+/// assert_eq!(accounts[0].name, "Account 1");
+/// assert_eq!(accounts[1].name, "Account 2");
+/// ```
 #[test]
 fn test_list_accounts() {
     let conn = init_temp_db();
