@@ -12,6 +12,75 @@ fn html_escape(text: &str) -> String {
         .replace('"', "&quot;")
 }
 
+fn find_matching_brace(css: &str, start: usize) -> Option<usize> {
+    let mut count = 1;
+    let mut j = start;
+    let mut in_string = false;
+    let mut string_quote = '\0';
+    let mut escaped = false;
+    let mut in_comment = false;
+
+    while j < css.len() && count > 0 {
+        let ch = css.as_bytes()[j] as char;
+
+        if escaped {
+            escaped = false;
+            j += 1;
+            continue;
+        }
+
+        if ch == '\\' {
+            escaped = true;
+            j += 1;
+            continue;
+        }
+
+        if in_comment {
+            if ch == '*' && j + 1 < css.len() && css.as_bytes()[j + 1] as char == '/' {
+                in_comment = false;
+                j += 2;
+                continue;
+            }
+            j += 1;
+            continue;
+        }
+
+        if in_string {
+            if ch == string_quote {
+                in_string = false;
+            }
+            j += 1;
+            continue;
+        }
+
+        if ch == '"' || ch == '\'' {
+            in_string = true;
+            string_quote = ch;
+            j += 1;
+            continue;
+        }
+
+        if ch == '/' && j + 1 < css.len() && css.as_bytes()[j + 1] as char == '*' {
+            in_comment = true;
+            j += 2;
+            continue;
+        }
+
+        match ch {
+            '{' => count += 1,
+            '}' => count -= 1,
+            _ => {}
+        }
+        j += 1;
+    }
+
+    if count == 0 {
+        Some(j)
+    } else {
+        None
+    }
+}
+
 pub fn expand_pseudo_elements(html: &str) -> String {
     let style_re = Regex::new(r"(?s)(<style[^>]*>)(.*?)(</style>)").unwrap();
     let mut all_rules = Vec::new();
@@ -186,6 +255,7 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
     // ── Step 1: brace-counting parser to handle nested blocks and at-rules ─────────────────
     let mut expanded_css = String::new();
     let mut i = 0;
+    let mut pseudo_selectors: Vec<(String, String)> = Vec::new();
 
     while i < css.len() {
         // Find the next opening brace
@@ -196,21 +266,11 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
 
             // Skip at-rules (like @media) - treat as opaque blocks
             if selector_part.starts_with("@") {
-                let mut count = 1;
-                let mut j = brace_start + 1;
-                while j < css.len() && count > 0 {
-                    match css.as_bytes()[j] {
-                        b'{' => count += 1,
-                        b'}' => count -= 1,
-                        _ => {}
-                    }
-                    j += 1;
-                }
-                if count == 0 {
+                if let Some(end) = find_matching_brace(css, brace_start + 1) {
                     // Keep the at-rule unchanged
-                    expanded_css.push_str(&css[selector_start..j]);
+                    expanded_css.push_str(&css[selector_start..end]);
                     expanded_css.push('\n');
-                    i = j;
+                    i = end;
                 } else {
                     // Malformed, skip selector
                     expanded_css.push_str(&css[selector_start..brace_start]);
@@ -219,82 +279,15 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
                 continue;
             }
 
-            // Count braces to find the matching closing brace
-            // Track context: strings, comments, and escaped characters
-            let mut count = 1;
-            let mut j = brace_start + 1;
-            let mut in_string = false;
-            let mut string_quote = '\0';
-            let mut escaped = false;
-            let mut in_comment = false;
-
-            while j < css.len() && count > 0 {
-                let ch = css.as_bytes()[j] as char;
-
-                if escaped {
-                    escaped = false;
-                    j += 1;
-                    continue;
-                }
-
-                if ch == '\\' {
-                    escaped = true;
-                    j += 1;
-                    continue;
-                }
-
-                if in_comment {
-                    // Check for comment end */
-                    if ch == '*' && j + 1 < css.len() && css.as_bytes()[j + 1] as char == '/' {
-                        in_comment = false;
-                        j += 2;
-                        continue;
-                    }
-                    j += 1;
-                    continue;
-                }
-
-                if in_string {
-                    if ch == string_quote {
-                        in_string = false;
-                    }
-                    j += 1;
-                    continue;
-                }
-
-                // Not in string or comment
-                if ch == '"' || ch == '\'' {
-                    in_string = true;
-                    string_quote = ch;
-                    j += 1;
-                    continue;
-                }
-
-                // Check for comment start /*
-                if ch == '/' && j + 1 < css.len() && css.as_bytes()[j + 1] as char == '*' {
-                    in_comment = true;
-                    j += 2;
-                    continue;
-                }
-
-                // Only count braces when not in string or comment
-                match ch {
-                    '{' => count += 1,
-                    '}' => count -= 1,
-                    _ => {}
-                }
-                j += 1;
-            }
-
-            if count == 0 {
+            if let Some(end) = find_matching_brace(css, brace_start + 1) {
                 // Found complete rule block
-                let body = css[brace_start + 1..j - 1].trim();
+                let body = css[brace_start + 1..end - 1].trim();
 
                 let has_pseudo =
                     selector_part.contains("::before") || selector_part.contains("::after");
                 if !has_pseudo {
                     // Keep unchanged
-                    expanded_css.push_str(&css[selector_start..j]);
+                    expanded_css.push_str(&css[selector_start..end]);
                     expanded_css.push('\n');
                 } else {
                     // Expand grouped selectors
@@ -304,9 +297,12 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
                             continue;
                         }
                         expanded_css.push_str(&format!("{} {{\n{}\n}}\n", fragment, body));
+                        if fragment.contains("::before") || fragment.contains("::after") {
+                            pseudo_selectors.push((fragment.to_string(), body.to_string()));
+                        }
                     }
                 }
-                i = j;
+                i = end;
             } else {
                 // Malformed - unmatched brace
                 expanded_css.push_str(&css[selector_start..brace_start]);
@@ -320,61 +316,62 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
     }
 
     // ── Step 2: parse individual .class::pseudo { … } rules ─────────────────
-    let pseudo_re = Regex::new(r"(?s)\.([\w-]+)::(before|after)\s*\{([^}]*)\}")
-        .expect("invalid pseudo rule regex");
-
     let mut rules = Vec::new();
 
-    for caps in pseudo_re.captures_iter(&expanded_css) {
-        let class = caps[1].to_string();
-        let is_before = &caps[2] == "before";
-        let body = &caps[3];
+    for (selector, body) in pseudo_selectors {
+        // Parse .class::pseudo selector
+        let pseudo_re = Regex::new(r"^\s*\.([\w-]+)::(before|after)\s*$").unwrap();
+        if let Some(caps) = pseudo_re.captures(&selector) {
+            let class = caps[1].to_string();
+            let is_before = &caps[2] == "before";
 
-        let decls = parse_css_declarations(body);
+            let decls = parse_css_declarations(&body);
 
-        let mut content = String::new();
-        let mut style_parts: Vec<String> = Vec::new();
-        let mut has_content_decl = false;
+            let mut content = String::new();
+            let mut style_parts: Vec<String> = Vec::new();
+            let mut has_content_decl = false;
 
-        let mut has_display = false;
+            let mut has_display = false;
 
-        for (prop, val) in &decls {
-            if prop.eq_ignore_ascii_case("content") {
-                has_content_decl = true;
-                content = val
-                    .trim_matches(|c: char| c == '"' || c == '\'')
-                    .to_string();
-            } else {
-                style_parts.push(format!("{}: {}", prop, val));
-                if prop.eq_ignore_ascii_case("display") {
-                    has_display = true;
+            for (prop, val) in &decls {
+                if prop.eq_ignore_ascii_case("content") {
+                    has_content_decl = true;
+                    content = val
+                        .trim_matches(|c: char| c == '"' || c == '\'')
+                        .to_string();
+                } else {
+                    style_parts.push(format!("{}: {}", prop, val));
+                    if prop.eq_ignore_ascii_case("display") {
+                        has_display = true;
+                    }
                 }
             }
+
+            if !has_display {
+                style_parts.push("display: inline-block".to_string());
+            }
+
+            if !has_content_decl {
+                continue;
+            }
+
+            let pseudo_kind = if is_before { "before" } else { "after" };
+            let class_for_style = format!("__pseudo_{}__{}", class, pseudo_kind);
+            let style_body = style_parts.join("; ");
+
+            rules.push(PseudoRule {
+                class,
+                is_before,
+                content,
+                style: style_body,
+                class_for_style,
+            });
         }
-
-        if !has_display {
-            style_parts.push("display: inline-block".to_string());
-        }
-
-        if !has_content_decl {
-            continue;
-        }
-
-        let pseudo_kind = if is_before { "before" } else { "after" };
-        let class_for_style = format!("__pseudo_{}__{}", class, pseudo_kind);
-        let style_body = style_parts.join("; ");
-
-        rules.push(PseudoRule {
-            class,
-            is_before,
-            content,
-            style: style_body,
-            class_for_style,
-        });
     }
 
     // Remove all pseudo rules from the CSS.
-    let cleaned_css = pseudo_re.replace_all(&expanded_css, "").to_string();
+    let pseudo_cleanup_re = Regex::new(r"(?s)\.([\w-]+)::(before|after)\s*\{[^}]*\}").unwrap();
+    let cleaned_css = pseudo_cleanup_re.replace_all(&expanded_css, "").to_string();
 
     (rules, cleaned_css)
 }
