@@ -120,7 +120,7 @@ impl DbEncryption {
     }
 
     fn initialize() -> Result<Self, DbEncryptionError> {
-        use crate::SECURITY;
+        use crate::globals::SECURITY;
 
         let master_key = match SECURITY.lock() {
             Ok(guard) => guard.get_master_key_raw(),
