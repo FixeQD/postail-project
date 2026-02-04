@@ -124,3 +124,9 @@ pub fn remove_account(conn: &Connection, id: &str) -> Result<(), DBError> {
     delete_where::<String>(conn, "accounts", "id = ?", &[&id.to_string()])?;
     Ok(())
 }
+
+pub fn get_account_email(conn: &Connection, id: &str) -> Result<Option<String>, DBError> {
+    let mut stmt = conn.prepare("SELECT email FROM accounts WHERE id = ?")?;
+    let email: Option<String> = stmt.query_row(params![id], |row| row.get(0)).ok();
+    Ok(email)
+}

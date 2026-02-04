@@ -7,7 +7,7 @@ use tracing;
 use crate::error::{AppError, ImapError, SyncError};
 use crate::imap::sync_status::{
     mark_sync_complete, mark_sync_error, start_sync_status_tracking, stop_sync_status_tracking,
-    update_sync_status,
+    update_sync_status, SYNC_STATUS_MANAGER,
 };
 
 const RFC_IDLE_TIMEOUT_SECS: u64 = 29 * 60;
@@ -21,6 +21,24 @@ lazy_static::lazy_static! {
 
 impl crate::imap::ImapManager {
     pub fn start_sync(&self, account_id: &str) -> Result<(), AppError> {
+        // Fetch account email before spawning thread
+        let account_email = {
+            let conn_guard = self.conn.lock().unwrap();
+            let conn = conn_guard.as_ref().ok_or_else(|| AppError::from("Database not initialized"))?;
+            crate::db::accounts::get_account_email(conn, account_id)
+                .map_err(|e| AppError::from(e.to_string()))?
+                .unwrap_or_else(|| account_id.to_string())
+        };
+
+        // Register account immediately (before spawning thread) so frontend can query status
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| AppError::from(e.to_string()))?;
+        rt.block_on(async {
+            start_sync_status_tracking(account_id, &account_email).await;
+        });
+
         let manager = self.clone();
         let account_id_str = account_id.to_string();
         let account_id_for_error = account_id_str.clone();
@@ -35,7 +53,6 @@ impl crate::imap::ImapManager {
                     .map_err(|e| AppError::from(e.to_string()))
                     .and_then(|rt| {
                         rt.block_on(async {
-                            start_sync_status_tracking(&account_id_str).await;
                             if let Err(e) = manager.start_sync_async(&account_id_str).await {
                                 tracing::error!(target: "postail", "[IMAP] start_sync_async failed: {}", e);
                                 mark_sync_error(&account_id_str, &e.to_string()).await;
@@ -150,6 +167,12 @@ impl crate::imap::ImapManager {
         let stop_flag: Arc<AtomicBool> = SYNC_STATUS_MANAGER.get_stop_flag(account_id).await;
 
         loop {
+            // Check if stop was requested via SYNC_STATUS_MANAGER
+            if SYNC_STATUS_MANAGER.is_stop_requested(account_id).await {
+                mark_sync_complete(account_id).await;
+                return Ok(());
+            }
+
             if stop_flag.load(Ordering::SeqCst) {
                 mark_sync_complete(account_id).await;
                 return Ok(());
@@ -174,11 +197,22 @@ impl crate::imap::ImapManager {
         stop_flag: &Arc<AtomicBool>,
     ) -> Result<(), AppError> {
         let mailboxes = self.fetch_mailboxes(account_id).await?;
+        let total_mailboxes = mailboxes.len() as u32;
+        
+        // Set total mailbox count
+        SYNC_STATUS_MANAGER
+            .set_mailbox_counters(account_id, 0, total_mailboxes)
+            .await;
 
-        for mailbox in &mailboxes {
+        for (idx, mailbox) in mailboxes.iter().enumerate() {
             if stop_flag.load(Ordering::SeqCst) {
                 return Ok(());
             }
+
+            // Update current mailbox counter
+            SYNC_STATUS_MANAGER
+                .set_mailbox_counters(account_id, idx as u32 + 1, total_mailboxes)
+                .await;
 
             match self.sync_mailbox(account_id, &mailbox.name).await {
                 Ok(()) => {}
@@ -192,6 +226,8 @@ impl crate::imap::ImapManager {
         if stop_flag.load(Ordering::SeqCst) {
             return Ok(());
         }
+        
+        mark_sync_complete(account_id).await;
 
         let inbox_name = mailboxes
             .iter()
@@ -246,7 +282,6 @@ impl crate::imap::ImapManager {
         mailbox_name: &str,
         stop_flag: &Arc<AtomicBool>,
     ) -> Result<(), AppError> {
-        update_sync_status(account_id, mailbox_name, 0, 0).await;
 
         let mut session = self.connect_imap(account_id).await?;
         let mailbox = session.select(mailbox_name).await.map_err(AppError::from)?;
@@ -263,9 +298,10 @@ impl crate::imap::ImapManager {
             self.fetch_missing_messages(account_id, mailbox_name, last_uid + 1, highest_uid)
                 .await?;
             last_uid = highest_uid;
+            mark_sync_complete(account_id).await;
         }
 
-        tracing::info!(target: "postail", "[IMAP] Starting sync for {}@{}", mailbox_name, account_id);
+        tracing::info!(target: "postail", "[IMAP] Starting IDLE for {}@{}", mailbox_name, account_id);
 
         let mut idle = session.idle();
         if idle.init().await.is_err() {
@@ -297,9 +333,8 @@ impl crate::imap::ImapManager {
         stop_flag: &Arc<AtomicBool>,
     ) -> Result<(), AppError> {
         loop {
-            mark_sync_complete(account_id).await;
-
             if stop_flag.load(Ordering::SeqCst) {
+                mark_sync_complete(account_id).await;
                 let mut session = idle.done().await.map_err(|e| ImapError::IdleWaitError {
                     mailbox: mailbox_name.to_string(),
                     error: e.to_string(),
@@ -402,9 +437,8 @@ impl crate::imap::ImapManager {
         stop_flag: &Arc<AtomicBool>,
     ) -> Result<(), AppError> {
         loop {
-            mark_sync_complete(account_id).await;
-
             if stop_flag.load(Ordering::SeqCst) {
+                mark_sync_complete(account_id).await;
                 let _ = session.logout().await;
                 return Ok(());
             }

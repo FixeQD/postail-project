@@ -19,7 +19,20 @@ pub fn start_sync(account_id: String) -> Result<(), String> {
 }
 
 #[command]
-pub fn stop_sync(_account_id: String) -> Result<(), String> {
+pub fn stop_sync(account_id: String) -> Result<(), String> {
+    tracing::info!(target: "postail", "[UI] stop_sync called for {}", account_id);
+    
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| e.to_string())?;
+    
+    rt.block_on(async {
+        use crate::imap::sync_status::SYNC_STATUS_MANAGER;
+        SYNC_STATUS_MANAGER.request_stop(&account_id).await;
+    });
+    
+    tracing::info!(target: "postail", "[UI] stop_sync requested for {}", account_id);
     Ok(())
 }
 

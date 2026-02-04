@@ -11,10 +11,11 @@ import { AccountsScreen } from './components/Account/AccountsScreen'
 import { InboxScreen } from './components/Inbox/InboxScreen'
 import { OutboxPanel } from './components/Outbox/OutboxPanel'
 import { StatusBar } from './components/StatusBar'
-import { Toaster } from 'sonner'
+import { Toaster, toast } from 'sonner'
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
 import type { AccountMeta } from './types/accounts'
 import './i18n'
+import { useTranslation } from 'react-i18next'
 
 type AppState =
 	| 'init'
@@ -27,6 +28,7 @@ type AppState =
 	| 'settings'
 
 function App() {
+	const { t } = useTranslation()
 	const [currentState, setCurrentState] = useState<AppState>('init')
 	const [accounts, setAccounts] = useState<AccountMeta[]>([])
 	const [activeAccount, setActiveAccount] = useState<AccountMeta | null>(null)
@@ -101,8 +103,9 @@ function App() {
 	)
 
 	const handleAccountAdded = useCallback(async () => {
+		toast.success(t('app.accountAdded', 'Account added. Starting sync...'))
 		await fetchAccounts()
-	}, [fetchAccounts])
+	}, [fetchAccounts, t])
 
 	const handleUnlockSuccess = useCallback(async () => {
 		await fetchAccounts()
@@ -184,7 +187,6 @@ function App() {
 			setCurrentState('dashboard')
 		}
 	}
-
 
 	const handleRemoveAccount = async (id: string) => {
 		try {
@@ -318,8 +320,8 @@ function App() {
 				/>
 			)}
 			<main className='flex-1 overflow-y-auto'>{renderCurrentScreen()}</main>
-			{currentState === 'dashboard' && activeAccount && (
-				<StatusBar onOpenOutbox={() => setOutboxOpen(true)} />
+			{currentState === 'dashboard' && (
+				<StatusBar onOpenOutbox={() => setOutboxOpen(true)} accounts={accounts} />
 			)}
 			<Toaster />
 		</div>

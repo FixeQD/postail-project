@@ -5,7 +5,7 @@ use crate::db::accounts::{
 use crate::db::{
     AccountInput, AccountMeta, Credentials, ImapConfig, OAuthCredentials, SmtpConfig,
 };
-use crate::globals::{DB_CONN, SECURITY};
+use crate::globals::{DB_CONN, IMAP_MANAGER, SECURITY};
 use crate::oauth;
 use chrono::Utc;
 use serde::Serialize;
@@ -19,7 +19,18 @@ pub fn add_account(input: AccountInput) -> Result<AccountMeta, String> {
     let conn_guard = DB_CONN.lock().unwrap();
     let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
     let security = SECURITY.lock().unwrap();
-    db_add_account(conn, input, &security).map_err(|e| e.to_string())
+    let account = db_add_account(conn, input, &security).map_err(|e| e.to_string())?;
+    
+    // Auto-start sync for the new account
+    let imap = IMAP_MANAGER.lock().unwrap();
+    if let Err(e) = imap.start_sync(&account.id) {
+        tracing::warn!(target: "postail", "[Account] Failed to auto-start sync for new account {}: {}", account.id, e);
+        // Don't fail account creation if sync fails to start
+    } else {
+        tracing::info!(target: "postail", "[Account] Auto-started sync for new account {}", account.id);
+    }
+    
+    Ok(account)
 }
 
 #[command]
@@ -141,5 +152,17 @@ pub async fn complete_oauth_flow(code: String, state: String) -> Result<AccountM
     let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
     let security = SECURITY.lock().unwrap();
     let account = db_add_account(conn, account_input, &security).map_err(|e| e.to_string())?;
+    
+    // Auto-start sync for the new account
+    drop(conn_guard);
+    drop(security);
+    let imap = IMAP_MANAGER.lock().unwrap();
+    if let Err(e) = imap.start_sync(&account.id) {
+        tracing::warn!(target: "postail", "[Account] Failed to auto-start sync for new OAuth account {}: {}", account.id, e);
+        // Don't fail account creation if sync fails to start
+    } else {
+        tracing::info!(target: "postail", "[Account] Auto-started sync for new OAuth account {}", account.id);
+    }
+    
     Ok(account)
 }

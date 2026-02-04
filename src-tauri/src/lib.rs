@@ -11,6 +11,7 @@ pub mod smtp;
 pub mod utils;
 
 use crate::globals::SMTP_MANAGER;
+use crate::imap::sync_status::set_sync_status_app_handle;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -29,7 +30,8 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             utils::oauth_server::start(handle.clone());
-            SMTP_MANAGER.lock().unwrap().set_app_handle(handle);
+            SMTP_MANAGER.lock().unwrap().set_app_handle(handle.clone());
+            set_sync_status_app_handle(handle);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
