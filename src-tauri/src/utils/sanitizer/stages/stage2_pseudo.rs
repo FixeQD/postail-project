@@ -3,6 +3,7 @@
 use crate::utils::sanitizer::css::parser::parse_css_declarations;
 use crate::utils::sanitizer::types::PseudoRule;
 use regex::Regex;
+use std::collections::HashSet;
 
 /// HTML-escape content for safe interpolation
 fn html_escape(text: &str) -> String {
@@ -388,9 +389,20 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
         }
     }
 
-    // Remove all pseudo rules from the CSS.
+    // Remove only the pseudo rules that we actually expanded into `rules`.
+    let mut expanded_selectors: HashSet<String> = HashSet::new();
+    for rule in &rules {
+        let sel = format!(
+            ".{}::{}",
+            rule.class,
+            if rule.is_before { "before" } else { "after" }
+        );
+        expanded_selectors.insert(sel);
+    }
+
     let mut ranges_to_remove: Vec<(usize, usize)> = pseudo_selectors
         .into_iter()
+        .filter(|(selector, _, _, _)| expanded_selectors.contains(selector))
         .map(|(_, _, start, end)| (start, end))
         .collect();
     ranges_to_remove.sort_by(|a, b| b.0.cmp(&a.0));
