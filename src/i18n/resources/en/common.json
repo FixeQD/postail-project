@@ -11,7 +11,8 @@
 		"save": "Save",
 		"continue": "Continue",
 		"retry": "Retry",
-		"close": "Close"
+		"close": "Close",
+		"send": "Send"
 	},
 	"status": {
 		"loading": "Loading...",
@@ -20,5 +21,50 @@
 		"available": "Available",
 		"unavailable": "Unavailable",
 		"recommended": "Recommended"
+	},
+	"compose": {
+		"newMessage": "New message",
+		"recipients": "Recipients",
+		"subject": "Subject",
+		"writeSomething": "Write something...",
+		"noSubject": "No subject",
+		"to": "To",
+		"cc": "Cc",
+		"bcc": "Bcc",
+		"duplicateTitle": "Duplicate Attachment",
+		"duplicateMessage": "The file '{{filename}}' has already been attached. Do you want to add it again?",
+		"addAnyway": "Add anyway",
+		"fileInfo": {
+			"hash": "Hash",
+			"type": "Type",
+			"path": "Path"
+		},
+		"validation": {
+			"missingFields": "Please fill in recipient, subject and message body before sending"
+		},
+		"discard": {
+			"title": "Discard Draft?",
+			"description": "This draft will be permanently deleted. This action cannot be undone.",
+			"confirm": "Discard",
+			"cancel": "Keep Draft"
+		}
+	},
+	"outbox": {
+		"title": "Outbox",
+		"loading": "Loading...",
+		"empty": "Outbox is empty",
+		"emptyDescription": "No emails waiting to be sent",
+		"activeMessages": "Active Messages",
+		"recentlySent": "Recently Sent"
+	},
+	"statusBar": {
+		"synced": "Synced",
+		"sent": "Message sent!",
+		"sending": "Sending {{count}}...",
+		"failed": "{{count}} failed",
+		"pending": "{{count}} pending",
+		"ready": "Ready",
+		"clickToView": "Click to view outbox",
+		"noMessages": "No messages in outbox"
 	}
 }

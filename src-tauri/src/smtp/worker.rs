@@ -4,6 +4,8 @@ use std::time::Duration;
 use tokio::runtime::Builder;
 use tracing;
 
+use tauri::Emitter;
+
 use crate::db::update_outbox_status;
 use crate::oauth;
 use crate::oauth::ProviderKind;
@@ -93,15 +95,18 @@ impl SmtpManager {
         };
 
         for (outbox_id, account_id, eml_path) in pending_items {
-            match self.process_single_message(&account_id, &eml_path).await {
+            match self
+                .process_single_message(&account_id, &eml_path, &outbox_id)
+                .await
+            {
                 Ok(()) => {
-                    self.mark_outbox_sent(&outbox_id)
+                    self.mark_outbox_sent(&outbox_id, &account_id)
                         .map_err(|e| e.to_string())?;
                     tracing::info!(target: "postail", "[Outbox] Successfully sent message {}", outbox_id);
                 }
                 Err(e) => {
                     tracing::error!(target: "postail", "[Outbox] Failed to send message {}: {}", outbox_id, e);
-                    self.update_outbox_error(&outbox_id, &e)
+                    self.update_outbox_error(&outbox_id, &account_id, &e)
                         .map_err(|e| e.to_string())?;
                 }
             }
@@ -110,7 +115,12 @@ impl SmtpManager {
         Ok(())
     }
 
-    async fn process_single_message(&self, account_id: &str, eml_path: &str) -> Result<(), String> {
+    async fn process_single_message(
+        &self,
+        account_id: &str,
+        eml_path: &str,
+        outbox_id: &str,
+    ) -> Result<(), String> {
         let eml_content = {
             let security = self.security.lock().unwrap();
             let encrypted = fs::read(eml_path).map_err(|e| e.to_string())?;
@@ -121,17 +131,17 @@ impl SmtpManager {
         {
             let conn_guard = self.conn.lock().unwrap();
             let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-            update_outbox_status(conn, eml_path, "PROCESSING", None).map_err(|e| e.to_string())?;
+            update_outbox_status(conn, outbox_id, "PROCESSING", None).map_err(|e| e.to_string())?;
         }
 
-        self.send_email(account_id, &eml_content).await?;
+        self.emit_outbox_event("outbox:message:processing", outbox_id, account_id, None);
 
-        self.append_to_sent_folder(account_id, &eml_content).await?;
+        self.send_email(account_id, &eml_content).await?;
 
         Ok(())
     }
 
-    fn mark_outbox_sent(&self, outbox_id: &str) -> Result<(), String> {
+    fn mark_outbox_sent(&self, outbox_id: &str, account_id: &str) -> Result<(), String> {
         let conn_guard = self.conn.lock().unwrap();
         let conn = conn_guard
             .as_ref()
@@ -141,10 +151,17 @@ impl SmtpManager {
             [outbox_id],
         )
         .map_err(|e| e.to_string())?;
+
+        self.emit_outbox_event("outbox:message:sent", outbox_id, account_id, None);
         Ok(())
     }
 
-    fn update_outbox_error(&self, outbox_id: &str, error: &str) -> Result<(), String> {
+    fn update_outbox_error(
+        &self,
+        outbox_id: &str,
+        account_id: &str,
+        error: &str,
+    ) -> Result<(), String> {
         use crate::db::calculate_backoff;
 
         let conn_guard = self.conn.lock().unwrap();
@@ -159,126 +176,47 @@ impl SmtpManager {
             )
             .map_err(|e| e.to_string())?;
 
-        let next_retry = calculate_backoff(attempts + 1);
-        conn.execute(
-            "UPDATE outbox SET status = 'RETRY', last_error = ?, attempts = ?, next_retry = ? WHERE id = ?",
-            params![error, (attempts + 1).to_string(), next_retry.to_string(), outbox_id],
-        )
-        .map_err(|e| e.to_string())?;
+        let new_attempts = attempts + 1;
+        const MAX_ATTEMPTS: u32 = 5;
+        let is_permanent_failure = new_attempts >= MAX_ATTEMPTS;
+
+        if is_permanent_failure {
+            conn.execute(
+                "UPDATE outbox SET status = 'FAILED', last_error = ?, attempts = ?, next_retry = NULL WHERE id = ?",
+                params![error, new_attempts.to_string(), outbox_id],
+            )
+            .map_err(|e| e.to_string())?;
+
+            let details = serde_json::json!({
+                "error": error,
+                "attempts": new_attempts,
+            });
+            self.emit_outbox_event(
+                "outbox:message:failed",
+                outbox_id,
+                account_id,
+                Some(details),
+            );
+        } else {
+            let next_retry = calculate_backoff(new_attempts);
+            conn.execute(
+                "UPDATE outbox SET status = 'RETRY', last_error = ?, attempts = ?, next_retry = ? WHERE id = ?",
+                params![error, new_attempts.to_string(), next_retry.to_string(), outbox_id],
+            )
+            .map_err(|e| e.to_string())?;
+
+            let details = serde_json::json!({
+                "error": error,
+                "attempts": new_attempts,
+                "nextRetry": next_retry,
+            });
+            self.emit_outbox_event("outbox:message:retry", outbox_id, account_id, Some(details));
+        }
+
         Ok(())
     }
 
-    async fn append_to_sent_folder(
-        &self,
-        account_id: &str,
-        eml_content: &[u8],
-    ) -> Result<(), String> {
-        let sent_folder = self.get_sent_folder_name(account_id).await?;
-
-        let mut session = self.connect_imap_for_sent(account_id).await?;
-
-        let append_result = session
-            .append(sent_folder, None, None, eml_content.to_vec())
-            .await;
-
-        match append_result {
-            Ok(_) => {
-                session.logout().await.map_err(|e| e.to_string())?;
-                Ok(())
-            }
-            Err(e) => {
-                tracing::warn!(target: "postail", "[Outbox] Failed to append to Sent folder: {}", e);
-                session.logout().await.ok();
-                Ok(())
-            }
-        }
-    }
-
-    async fn get_sent_folder_name(&self, account_id: &str) -> Result<String, String> {
-        let provider_type = {
-            let conn_guard = self.conn.lock().unwrap();
-            let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-            let mut stmt = conn
-                .prepare("SELECT provider_type FROM accounts WHERE id = ?")
-                .map_err(|e| e.to_string())?;
-            stmt.query_row([account_id], |row| row.get::<_, String>(0))
-                .map_err(|e| e.to_string())
-        }?;
-
-        let provider_kind = ProviderKind::parse(&provider_type).ok_or("Unknown provider")?;
-        let info = oauth::ProviderInfo::get(provider_kind);
-
-        Ok(info.sent_folder.to_string())
-    }
-
-    async fn connect_imap_for_sent(
-        &self,
-        account_id: &str,
-    ) -> Result<async_imap::Session<async_native_tls::TlsStream<async_std::net::TcpStream>>, String>
-    {
-        use async_imap::Client;
-        use async_native_tls::TlsConnector;
-        use async_std::net::TcpStream;
-
-        let (host, port, auth_type, email) = {
-            let conn_guard = self.conn.lock().unwrap();
-            let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-            let mut stmt = conn
-                .prepare("SELECT imap_host, imap_port, auth_type, email FROM accounts WHERE id = ?")
-                .map_err(|e| e.to_string())?;
-            stmt.query_row([account_id], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, i64>(1)? as u16,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
-                ))
-            })
-            .map_err(|e| e.to_string())?
-        };
-
-        let creds_json = self.get_credentials(account_id)?;
-        let mut creds: serde_json::Value =
-            serde_json::from_str(&creds_json).map_err(|e| e.to_string())?;
-
-        self.refresh_oauth_smtp(account_id, &mut creds).await?;
-
-        let tcp_stream = TcpStream::connect((host.as_str(), port))
-            .await
-            .map_err(|e| e.to_string())?;
-        let tls_connector = TlsConnector::new();
-        let tls_stream = tls_connector
-            .connect(&host, tcp_stream)
-            .await
-            .map_err(|e| e.to_string())?;
-        let client = Client::new(tls_stream);
-
-        let session = if auth_type == "oauth2" {
-            let access_token = creds["access_token"]
-                .as_str()
-                .ok_or_else(|| "No access_token".to_string())?;
-            let username = &email;
-            match client.login(username, access_token).await {
-                Ok(session) => session,
-                Err((e, _)) => return Err(e.to_string()),
-            }
-        } else {
-            let username = creds["username"]
-                .as_str()
-                .ok_or_else(|| "No username".to_string())?;
-            let password = creds["password"]
-                .as_str()
-                .ok_or_else(|| "No password".to_string())?;
-            match client.login(username, password).await {
-                Ok(session) => session,
-                Err((e, _)) => return Err(e.to_string()),
-            }
-        };
-
-        Ok(session)
-    }
-
-    async fn refresh_oauth_smtp(
+    pub(crate) async fn refresh_oauth_smtp(
         &self,
         account_id: &str,
         creds: &mut serde_json::Value,
@@ -307,6 +245,7 @@ impl SmtpManager {
         let seconds_until_expiry = expires_at.saturating_sub(now);
 
         if seconds_until_expiry < 300 {
+            tracing::info!(target: "postail", "[OAuth] Token expired or expiring soon, refreshing...");
             if let Some(refresh_token) = refresh_token {
                 let provider_kind =
                     ProviderKind::parse(provider_type).ok_or("Unknown OAuth provider")?;
@@ -314,6 +253,7 @@ impl SmtpManager {
 
                 match oauth::refresh_access_token(provider, refresh_token.to_string()).await {
                     Ok(new_tokens) => {
+                        tracing::info!(target: "postail", "[OAuth] Token refreshed successfully, new expires_in: {}", new_tokens.expires_in);
                         creds["access_token"] = serde_json::Value::String(new_tokens.access_token);
                         if let Some(rt) = new_tokens.refresh_token {
                             creds["refresh_token"] = serde_json::Value::String(rt);
@@ -349,5 +289,23 @@ impl SmtpManager {
         }
 
         Ok(())
+    }
+
+    fn emit_outbox_event(
+        &self,
+        event_name: &str,
+        outbox_id: &str,
+        account_id: &str,
+        details: Option<serde_json::Value>,
+    ) {
+        let guard = self.app_handle.lock().unwrap();
+        if let Some(ref handle) = *guard {
+            let payload = serde_json::json!({
+                "outboxId": outbox_id,
+                "accountId": account_id,
+                "details": details,
+            });
+            let _ = handle.emit(event_name, payload);
+        }
     }
 }

@@ -1,5 +1,8 @@
 pub mod accounts;
+pub mod attachments;
 pub mod backup;
+pub mod contacts;
+pub mod drafts;
 pub mod imap;
 pub mod mailbox;
 pub mod message_bodies;
@@ -21,6 +24,8 @@ use serde::{Deserialize, Serialize};
 
 pub use crate::db::accounts::*;
 pub use crate::db::backup::{export_backup, import_backup, run_maintenance};
+pub use crate::db::contacts::*;
+pub use crate::db::drafts::*;
 pub use crate::db::imap::*;
 pub use crate::db::mailbox::{fetch_mailboxes, upsert_mailbox};
 pub use crate::db::message_bodies::*;
@@ -62,6 +67,8 @@ pub struct OAuthCredentials {
     pub access_token: String,
     pub refresh_token: Option<String>,
     pub expires_at: i64,
+    pub auth_type: String,
+    pub provider_type: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

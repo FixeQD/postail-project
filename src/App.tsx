@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react'
-import { useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { listen, Event } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -11,6 +10,10 @@ import { UnlockScreen } from './components/Welcome/UnlockScreen'
 import { Argon2Unlock } from './components/Welcome/Argon2Unlock'
 import { AccountsScreen } from './components/Account/AccountsScreen'
 import { InboxScreen } from './components/Inbox/InboxScreen'
+import { OutboxPanel } from './components/Outbox/OutboxPanel'
+import { StatusBar } from './components/StatusBar'
+import { Toaster } from 'sonner'
+import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
 import type { AccountMeta } from './types/accounts'
 import './i18n'
 
@@ -29,6 +32,49 @@ function App() {
 	const [currentState, setCurrentState] = useState<AppState>('init')
 	const [accounts, setAccounts] = useState<AccountMeta[]>([])
 	const [activeAccount, setActiveAccount] = useState<AccountMeta | null>(null)
+	const [activeMailbox, setActiveMailbox] = useState('INBOX')
+	const [outboxOpen, setOutboxOpen] = useState(false)
+
+	useGlobalShortcuts({
+		onNewMessage: () => {
+			console.log('New message shortcut, state:', currentState)
+			if (currentState === 'dashboard' && activeAccount) {
+				window.dispatchEvent(new CustomEvent('compose:new'))
+			}
+		},
+		onFocusSearch: () => {
+			const searchInput = document.querySelector('[data-search-input]') as HTMLElement
+			searchInput?.focus()
+		},
+		onRefresh: () => {
+			if (currentState === 'dashboard' && activeAccount) {
+				console.log('Refresh shortcut triggered')
+				// TODO: Implement refresh/sync
+			}
+		},
+		onGoToInbox: () => {
+			if (currentState === 'dashboard') {
+				setActiveMailbox('INBOX')
+			}
+		},
+		onGoToOutbox: () => {
+			if (currentState === 'dashboard') {
+				setOutboxOpen(true)
+			}
+		},
+		onGoToDrafts: () => {
+			if (currentState === 'dashboard') {
+				setActiveMailbox('Drafts')
+			}
+		},
+		onGoToAccounts: () => {
+			setCurrentState('accounts')
+		},
+		onOpenSettings: () => {
+			setCurrentState('settings')
+		},
+		enabled: currentState === 'dashboard' || currentState === 'accounts',
+	})
 
 	useEffect(() => {
 		const init = async () => {
@@ -228,12 +274,23 @@ function App() {
 				)
 			case 'dashboard':
 				return (
-					<InboxScreen
-						accounts={accounts}
-						activeAccount={activeAccount}
-						setActiveAccount={setActiveAccount}
-						onOpenSettings={() => setCurrentState('settings')}
-					/>
+					<>
+						<InboxScreen
+							accounts={accounts}
+							activeAccount={activeAccount}
+							setActiveAccount={setActiveAccount}
+							activeMailbox={activeMailbox}
+							setActiveMailbox={setActiveMailbox}
+							onOpenSettings={() => setCurrentState('settings')}
+						/>
+						{outboxOpen && activeAccount && (
+							<OutboxPanel
+								accountId={activeAccount.id}
+								isOpen={outboxOpen}
+								onClose={() => setOutboxOpen(false)}
+							/>
+						)}
+					</>
 				)
 			default:
 				return null
@@ -251,9 +308,14 @@ function App() {
 					activeAccount={activeAccount}
 					onOpenSettings={() => setCurrentState('settings')}
 					onSearch={(q) => console.log('Search:', q)}
+					onOpenOutbox={() => setOutboxOpen(true)}
 				/>
 			)}
 			<main className='flex-1 overflow-y-auto'>{renderCurrentScreen()}</main>
+			{currentState === 'dashboard' && activeAccount && (
+				<StatusBar onOpenOutbox={() => setOutboxOpen(true)} />
+			)}
+			<Toaster />
 		</div>
 	)
 }

@@ -81,6 +81,27 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
 
     create_table_if_not_exists(
         conn,
+        "drafts",
+        &[
+            ("id", "TEXT PRIMARY KEY"),
+            ("account_id", "TEXT NOT NULL"),
+            ("subject", "TEXT"),
+            ("body", "TEXT"),
+            ("to_json", "TEXT"),
+            ("cc_json", "TEXT"),
+            ("bcc_json", "TEXT"),
+            ("attachments_json", "TEXT"),
+            ("created_at", "INTEGER NOT NULL"),
+            ("updated_at", "INTEGER NOT NULL"),
+            (
+                "FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE",
+                "",
+            ),
+        ],
+    )?;
+
+    create_table_if_not_exists(
+        conn,
         "outbox",
         &[
             ("id", "TEXT PRIMARY KEY"),
@@ -117,6 +138,20 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
             ),
         ],
     )?;
+
+    create_table_if_not_exists(
+        conn,
+        "contacts",
+        &[
+            ("id", "INTEGER PRIMARY KEY"),
+            ("email", "TEXT NOT NULL UNIQUE"),
+            ("name", "TEXT"),
+            ("last_contact_at", "INTEGER"),
+            ("frequency", "INTEGER DEFAULT 1"),
+        ],
+    )?;
+
+    create_fts_table(conn, "contacts_fts", &["email", "name"], "contacts", "id")?;
 
     Ok(())
 }
@@ -158,6 +193,14 @@ pub fn create_indexes(conn: &Connection) -> Result<(), DBError> {
         false,
     )?;
 
+    create_index_if_not_exists(
+        conn,
+        "idx_contacts_frequency_date",
+        "contacts",
+        &["frequency DESC", "last_contact_at DESC"],
+        false,
+    )?;
+
     Ok(())
 }
 
@@ -187,6 +230,33 @@ pub fn create_fts_triggers(conn: &Connection) -> Result<(), DBError> {
         "DELETE",
         "messages",
         "DELETE FROM messages_fts WHERE rowid = OLD.id;",
+    )?;
+
+    create_trigger_if_not_exists(
+        conn,
+        "contacts_fts_insert",
+        "AFTER",
+        "INSERT",
+        "contacts",
+        "INSERT INTO contacts_fts(rowid, email, name) VALUES (NEW.id, NEW.email, NEW.name);",
+    )?;
+
+    create_trigger_if_not_exists(
+        conn,
+        "contacts_fts_update",
+        "AFTER",
+        "UPDATE",
+        "contacts",
+        "UPDATE contacts_fts SET email = NEW.email, name = NEW.name WHERE rowid = NEW.id;",
+    )?;
+
+    create_trigger_if_not_exists(
+        conn,
+        "contacts_fts_delete",
+        "AFTER",
+        "DELETE",
+        "contacts",
+        "DELETE FROM contacts_fts WHERE rowid = OLD.id;",
     )?;
 
     Ok(())

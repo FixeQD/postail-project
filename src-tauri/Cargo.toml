@@ -13,9 +13,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-opener = "2"
 tauri-plugin-os = "2"
+tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
@@ -55,12 +56,19 @@ tracing-subscriber = "0.3"
 
 # Mail handling
 async-imap = "0.11"
-lettre = { version = "0.11", features = ["tokio1-native-tls", "smtp-transport"] }
 mailparse = "0.16"
 css-inline = "0.19"
 ammonia = "4"
 utf7-imap = "0.3.2"
 encoded-words = "0.2" 
+maplit = "1.0.2"
+regex = "1"
+async-smtp = "0.10.2"
+lettre = { version = "0.11.19", default-features = false, features = ["builder"] }
+tokio-native-tls = "0.3.1"
+kuchiki = "0.8.1"
+html5ever = "0.25"
+markup5ever = "0.10"
 
 # TPM support (Linux)
 [target.'cfg(target_os = "linux")'.dependencies]

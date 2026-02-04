@@ -1,0 +1,33 @@
+{
+	"compatibilityPanel": {
+		"title": "Email Compatibility",
+		"toggleTooltip": "Show/Hide compatibility panel",
+		"issues": {
+			"title": "Issues Found",
+			"none": "No compatibility issues",
+			"error_one": "{{count}} error",
+			"error_other": "{{count}} errors",
+			"warning_one": "{{count}} warning",
+			"warning_other": "{{count}} warnings",
+			"info_one": "{{count}} info",
+			"info_other": "{{count}} infos"
+		},
+		"severity": {
+			"error": "Error",
+			"warning": "Warning",
+			"info": "Info"
+		},
+		"actions": {
+			"autoFix": "Auto-fix",
+			"dismiss": "Dismiss",
+			"checkAgain": "Check Again",
+			"close": "Close"
+		}
+	},
+	"sendWarning": {
+		"title": "Compatibility Issues",
+		"description": "Your email has {{count}} compatibility issue(s) that may cause rendering problems in Gmail/Outlook.",
+		"confirm": "Send Anyway",
+		"cancel": "Review Issues"
+	}
+}

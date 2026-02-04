@@ -62,6 +62,13 @@ pub fn batch_insert_messages(
             ],
         )?;
 
+        if let Some(from) = &item.from {
+            let _ = super::upsert_from_address_string(&tx, from);
+        }
+        for recipient in &item.to {
+            let _ = super::upsert_from_address_string(&tx, recipient);
+        }
+
         total_inserted += 1;
 
         if (idx + 1) % transaction_size == 0 {
@@ -206,6 +213,18 @@ pub fn upsert_message(
             data.structure_json.as_deref(),
         ],
     )?;
+
+    if let Some(from) = &data.from {
+        let _ = super::upsert_from_address_string(conn, from);
+    }
+    if let Some(to_json) = &data.to_json {
+        if let Ok(to) = serde_json::from_str::<Vec<String>>(to_json) {
+            for recipient in to {
+                let _ = super::upsert_from_address_string(conn, &recipient);
+            }
+        }
+    }
+
     Ok(conn.last_insert_rowid())
 }
 

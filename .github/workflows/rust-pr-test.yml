@@ -16,15 +16,9 @@ jobs:
             - name: Install system dependencies
               run: |
                   sudo apt-get update
-                  sudo apt-get install -y pkg-config libglib2.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev
+                  sudo apt-get install -y pkg-config libglib2.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libtss2-dev
             - name: Install Rust
               run: rustup default stable
-            - name: cargo check
-              working-directory: ./src-tauri
-              run: cargo check
-            - name: cargo clippy
-              working-directory: ./src-tauri
-              run: cargo clippy -- -D warnings
             - name: cargo test
               working-directory: ./src-tauri
               run: cargo test

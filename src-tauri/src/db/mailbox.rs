@@ -27,8 +27,12 @@ pub fn upsert_mailbox(
     mailbox: &Mailbox,
 ) -> Result<(), DBError> {
     conn.execute(
-        "INSERT OR IGNORE INTO mailboxes (account_id, name, uid_validity, highest_modseq, last_synced_uid)
-         VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO mailboxes (account_id, name, uid_validity, highest_modseq, last_synced_uid)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(account_id, name) DO UPDATE SET
+            uid_validity = excluded.uid_validity,
+            highest_modseq = excluded.highest_modseq,
+            last_synced_uid = excluded.last_synced_uid",
         params![
             account_id,
             mailbox.name,

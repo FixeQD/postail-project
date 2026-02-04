@@ -86,6 +86,8 @@ fn test_add_account_oauth() {
             access_token: "token".to_string(),
             refresh_token: Some("refresh".to_string()),
             expires_at: chrono::Utc::now().timestamp() + 3600,
+            auth_type: "oauth2".to_string(),
+            provider_type: "gmail".to_string(),
         }),
     };
 
@@ -141,6 +143,8 @@ fn test_list_accounts() {
             access_token: "token2".to_string(),
             refresh_token: None,
             expires_at: chrono::Utc::now().timestamp() + 3600,
+            auth_type: "oauth2".to_string(),
+            provider_type: "gmail".to_string(),
         }),
     };
     add_account(&conn, input2, &security).unwrap();

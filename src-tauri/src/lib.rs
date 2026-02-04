@@ -156,6 +156,8 @@ async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta,
             access_token: tokens.access_token,
             refresh_token: tokens.refresh_token,
             expires_at: Utc::now().timestamp() + tokens.expires_in as i64,
+            auth_type: "oauth2".to_string(),
+            provider_type: provider.kind.as_str().to_string(),
         }),
         imap_config: ImapConfig {
             host: oauth::ProviderInfo::get(provider.kind)
@@ -552,9 +554,9 @@ fn move_to_trash(account_id: String, mailbox: String, uids: Vec<u64>) -> Result<
 }
 
 #[tauri::command]
-fn enqueue_message(account_id: String, raw_eml: String) -> Result<String, String> {
+fn enqueue_message(account_id: String, raw_eml: Vec<u8>) -> Result<String, String> {
     let smtp = SMTP_MANAGER.lock().unwrap();
-    smtp.enqueue_message(&account_id, raw_eml.as_bytes())
+    smtp.enqueue_message(&account_id, &raw_eml)
 }
 
 #[tauri::command]
@@ -620,6 +622,171 @@ async fn run_maintenance() -> Result<(), String> {
     .map_err(|e| e.to_string())?
 }
 
+#[tauri::command]
+async fn save_draft(draft: crate::db::Draft) -> Result<(), String> {
+    let body_len = draft.body.as_ref().map(|b| b.len()).unwrap_or(0);
+    tracing::info!(target: "postail", "[save_draft] Received draft from frontend - id={}, subject={:?}, body_len={}, to_count={}, cc_count={}, bcc_count={}",
+        draft.id, draft.subject, body_len, draft.to.len(), draft.cc.len(), draft.bcc.len());
+
+    let db_conn = Arc::clone(&DB_CONN);
+    let _ = tokio::task::spawn_blocking(move || {
+        let conn_guard = db_conn.lock().unwrap();
+        let conn = conn_guard.as_ref().expect("Database not initialized");
+        crate::db::save_draft(conn, &draft).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    tracing::info!(target: "postail", "[save_draft] Draft saved successfully");
+    Ok(())
+}
+
+#[tauri::command]
+async fn list_drafts(account_id: String) -> Result<Vec<crate::db::Draft>, String> {
+    let db_conn = Arc::clone(&DB_CONN);
+    tokio::task::spawn_blocking(move || {
+        let conn_guard = db_conn.lock().unwrap();
+        let conn = conn_guard.as_ref().expect("Database not initialized");
+        crate::db::list_drafts(conn, &account_id).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn delete_draft(id: String) -> Result<(), String> {
+    let db_conn = Arc::clone(&DB_CONN);
+    tokio::task::spawn_blocking(move || {
+        let conn_guard = db_conn.lock().unwrap();
+        let conn = conn_guard.as_ref().expect("Database not initialized");
+        crate::db::delete_draft(conn, &id).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn search_contacts(query: String, limit: u32) -> Result<Vec<crate::db::Contact>, String> {
+    let conn_guard = DB_CONN.lock().unwrap();
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+    crate::db::search_contacts(conn, &query, limit).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn add_attachment(path: String) -> Result<crate::db::DraftAttachment, String> {
+    tokio::task::spawn_blocking(move || {
+        crate::db::attachments::add_attachment(&path).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn add_attachment_bytes(
+    bytes: Vec<u8>,
+    filename: String,
+    content_type: String,
+) -> Result<crate::db::DraftAttachment, String> {
+    tokio::task::spawn_blocking(move || {
+        crate::db::attachments::add_attachment_bytes(bytes, filename, content_type)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn remove_attachment(id: String) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        crate::db::attachments::remove_attachment(&id).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn add_inline_attachment(
+    bytes: Vec<u8>,
+    filename: String,
+    content_type: String,
+) -> Result<crate::db::DraftAttachment, String> {
+    tokio::task::spawn_blocking(move || {
+        crate::db::attachments::add_inline_attachment_bytes(bytes, filename, content_type)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[derive(serde::Serialize)]
+pub struct BuildEmailResult {
+    pub eml_bytes: Vec<u8>,
+    pub html_with_cids: String,
+}
+
+#[tauri::command]
+async fn build_email_from_draft(draft_id: String) -> Result<BuildEmailResult, String> {
+    tracing::info!(target: "postail", "[build_email_from_draft] Starting for draft_id={}", draft_id);
+    let db_conn = Arc::clone(&DB_CONN);
+
+    tokio::task::spawn_blocking(move || {
+        let conn_guard = db_conn.lock().unwrap();
+        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+
+        let draft = crate::db::load_draft(conn, &draft_id)
+            .map_err(|e| e.to_string())?
+            .ok_or("Draft not found")?;
+
+        let from_email: String = {
+            let mut stmt = conn
+                .prepare("SELECT email FROM accounts WHERE id = ?")
+                .map_err(|e| e.to_string())?;
+            stmt.query_row([&draft.account_id], |row| row.get(0))
+                .map_err(|e| e.to_string())?
+        };
+
+        let html_body = draft.body.unwrap_or_default();
+        let html_with_cids =
+            crate::smtp::mime_builder::replace_asset_urls_with_cids(&html_body, &draft.attachments);
+
+        let to: Vec<&str> = draft.to.iter().map(|s| s.as_str()).collect();
+        let cc: Vec<&str> = draft.cc.iter().map(|s| s.as_str()).collect();
+        let bcc: Vec<&str> = draft.bcc.iter().map(|s| s.as_str()).collect();
+        let subject = draft.subject.unwrap_or_default();
+
+        tracing::info!(target: "postail", "[build_email_from_draft] Building email with {} to, {} cc, {} bcc recipients, subject='{}'",
+            to.len(), cc.len(), bcc.len(), subject);
+
+        let eml_bytes = crate::smtp::mime_builder::build_multipart_email(
+            &from_email,
+            to,
+            cc,
+            bcc,
+            &subject,
+            &html_with_cids,
+            &draft.attachments,
+        )
+        .map_err(|e| e.to_string())?;
+
+        Ok(BuildEmailResult {
+            eml_bytes,
+            html_with_cids,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn process_email_content(html: String) -> crate::utils::sanitizer::SanitizeResult {
+    crate::utils::sanitizer::sanitize_email_html_with_details(&html)
+}
+
+#[tauri::command]
+fn auto_fix_email_html(html: String) -> String {
+    crate::utils::sanitizer::auto_fix_email_html(&html)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()
@@ -633,8 +800,12 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            utils::oauth_server::start(app.handle().clone());
+            let handle = app.handle().clone();
+            utils::oauth_server::start(handle.clone());
+
+            SMTP_MANAGER.lock().unwrap().set_app_handle(handle);
 
             Ok(())
         })
@@ -664,7 +835,18 @@ pub fn run() {
             cancel_sending,
             export_backup,
             import_backup,
-            run_maintenance
+            run_maintenance,
+            save_draft,
+            list_drafts,
+            delete_draft,
+            search_contacts,
+            add_attachment,
+            add_attachment_bytes,
+            add_inline_attachment,
+            remove_attachment,
+            build_email_from_draft,
+            process_email_content,
+            auto_fix_email_html
         ])
         .register_uri_scheme_protocol("postail", protocol::handler)
         .run(tauri::generate_context!())
