@@ -182,6 +182,36 @@ async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta,
     Ok(account)
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct AppConfig {
+    pub security_method: String,
+}
+
+fn get_config_path() -> std::path::PathBuf {
+    dirs::data_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("postail")
+        .join("config.json")
+}
+
+fn load_config() -> Option<AppConfig> {
+    let path = get_config_path();
+    if !path.exists() {
+        return None;
+    }
+    let content = std::fs::read_to_string(path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+fn save_config(config: &AppConfig) -> Result<(), String> {
+    let path = get_config_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let content = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
+    std::fs::write(path, content).map_err(|e| e.to_string())
+}
+
 #[derive(serde::Serialize)]
 pub struct SecurityOptions {
     tpm_available: bool,
@@ -228,18 +258,28 @@ async fn check_tpm_availability() -> Result<TpmStatus, String> {
     }
 }
 
+#[derive(serde::Serialize)]
+pub struct InitStatus {
+    pub status: String,
+    pub method: Option<String>,
+}
+
 #[tauri::command]
-fn get_app_initialization_status() -> String {
+fn get_app_initialization_status() -> InitStatus {
     let data_dir = dirs::data_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
         .join("postail");
     let db_path = data_dir.join("postail.db");
 
-    if db_path.exists() {
+    let status = if db_path.exists() {
         "Locked".to_string()
     } else {
         "SetupRequired".to_string()
-    }
+    };
+
+    let method = load_config().map(|c| c.security_method);
+
+    InitStatus { status, method }
 }
 
 fn initialize_security_and_database(
@@ -342,6 +382,10 @@ fn initialize_security_and_database(
     tracing::info!(target: "postail", "Database ready!");
     tracing::info!(target: "postail", "{} initialization complete!",
         if is_unlocking { "Unlock" } else { "Setup" });
+
+    save_config(&AppConfig {
+        security_method: method.to_string(),
+    })?;
 
     Ok(())
 }

@@ -6,7 +6,6 @@ import { TitleBar } from './components/TitleBar'
 import { WelcomeScreen } from './components/Welcome/WelcomeScreen'
 import { EncryptionChoice } from './components/Welcome/EncryptionChoice'
 import { Argon2Setup } from './components/Welcome/Argon2Setup'
-import { UnlockScreen } from './components/Welcome/UnlockScreen'
 import { Argon2Unlock } from './components/Welcome/Argon2Unlock'
 import { AccountsScreen } from './components/Account/AccountsScreen'
 import { InboxScreen } from './components/Inbox/InboxScreen'
@@ -24,7 +23,6 @@ type AppState =
 	| 'accounts'
 	| 'argon2-setup'
 	| 'dashboard'
-	| 'unlock'
 	| 'argon2-unlock'
 	| 'settings'
 
@@ -76,69 +74,6 @@ function App() {
 		enabled: currentState === 'dashboard' || currentState === 'accounts',
 	})
 
-	useEffect(() => {
-		const init = async () => {
-			try {
-				const status = await invoke<string>('get_app_initialization_status')
-				if (status === 'Locked') {
-					setCurrentState('unlock')
-				} else {
-					setCurrentState('welcome')
-				}
-			} catch (e) {
-				console.error('Failed to get initialization status', e)
-				setCurrentState('welcome') // Fallback
-			}
-		}
-		init()
-	}, [])
-
-	useEffect(() => {
-		if (accounts.length > 0 && !activeAccount) {
-			setActiveAccount(accounts[0])
-		}
-	}, [accounts, activeAccount])
-
-	const handleGetStarted = () => {
-		setCurrentState('security')
-	}
-
-	const handleSecurityChoice = async (method: string) => {
-		if (method === 'argon2') {
-			setCurrentState('argon2-setup')
-		} else {
-			try {
-				console.log(`Initializing ${method} security...`)
-				await invoke('initialize_security', { method })
-				console.log(`${method} security initialized successfully, switching to accounts`)
-				await new Promise((resolve) => setTimeout(resolve, 100))
-				await fetchAccounts({ forceShowAccountsOnEmpty: true })
-			} catch (error) {
-				console.error(`Failed to initialize ${method} security:`, error)
-				// Reset to security screen to allow retry
-				setCurrentState('security')
-			}
-		}
-	}
-
-	const handleUnlockSuccess = async () => {
-		await fetchAccounts()
-	}
-
-	const handleBack = () => {
-		if (currentState === 'security') {
-			setCurrentState('welcome')
-		} else if (currentState === 'accounts') {
-			setCurrentState('security')
-		} else if (currentState === 'argon2-setup') {
-			setCurrentState('security')
-		} else if (currentState === 'argon2-unlock') {
-			setCurrentState('unlock')
-		} else if (currentState === 'settings') {
-			setCurrentState('dashboard')
-		}
-	}
-
 	const fetchAccounts = useCallback(
 		async (options?: { forceShowAccountsOnEmpty?: boolean }) => {
 			try {
@@ -168,6 +103,88 @@ function App() {
 	const handleAccountAdded = useCallback(async () => {
 		await fetchAccounts()
 	}, [fetchAccounts])
+
+	const handleUnlockSuccess = useCallback(async () => {
+		await fetchAccounts()
+	}, [fetchAccounts])
+
+	useEffect(() => {
+		const init = async () => {
+			if (currentState !== 'init') return
+			try {
+				const { status, method } = await invoke<{ status: string; method: string | null }>(
+					'get_app_initialization_status'
+				)
+				if (status === 'Locked') {
+					if (method === 'argon2') {
+						setCurrentState('argon2-unlock')
+					} else if (method === 'tpm' || method === 'keyring') {
+						const lastMethod = method as string
+						console.log(`Auto-unlocking with ${lastMethod}...`)
+						try {
+							await invoke('initialize_security', { method: lastMethod })
+							await fetchAccounts()
+						} catch (e) {
+							console.error(`Auto-unlock failed for ${lastMethod}`, e)
+							setCurrentState('security')
+						}
+					} else {
+						// Fallback if method unknown/missing but DB exists
+						setCurrentState('security')
+					}
+				} else {
+					setCurrentState('welcome')
+				}
+			} catch (e) {
+				console.error('Failed to get initialization status', e)
+				setCurrentState('welcome') // Fallback
+			}
+		}
+		init()
+	}, [fetchAccounts, currentState])
+
+	useEffect(() => {
+		if (accounts.length > 0 && !activeAccount) {
+			setActiveAccount(accounts[0])
+		}
+	}, [accounts, activeAccount])
+
+	const handleGetStarted = () => {
+		setCurrentState('security')
+	}
+
+	const handleSecurityChoice = async (method: string) => {
+		if (method === 'argon2') {
+			setCurrentState('argon2-setup')
+		} else {
+			try {
+				console.log(`Initializing ${method} security...`)
+				await invoke('initialize_security', { method })
+				console.log(`${method} security initialized successfully, switching to accounts`)
+				await new Promise((resolve) => setTimeout(resolve, 100))
+				await fetchAccounts({ forceShowAccountsOnEmpty: true })
+			} catch (error) {
+				console.error(`Failed to initialize ${method} security:`, error)
+				// Reset to security screen to allow retry
+				setCurrentState('security')
+			}
+		}
+	}
+
+	const handleBack = () => {
+		if (currentState === 'security') {
+			setCurrentState('welcome')
+		} else if (currentState === 'accounts') {
+			setCurrentState('security')
+		} else if (currentState === 'argon2-setup') {
+			setCurrentState('security')
+		} else if (currentState === 'argon2-unlock') {
+			setCurrentState('security')
+		} else if (currentState === 'settings') {
+			setCurrentState('dashboard')
+		}
+	}
+
 
 	const handleRemoveAccount = async (id: string) => {
 		try {
@@ -236,17 +253,6 @@ function App() {
 						onComplete={() => {
 							fetchAccounts({ forceShowAccountsOnEmpty: true })
 						}}
-					/>
-				)
-			case 'unlock':
-				return (
-					<UnlockScreen
-						onChoiceSelected={(method) => {
-							if (method === 'argon2') {
-								setCurrentState('argon2-unlock')
-							}
-						}}
-						onSuccess={handleUnlockSuccess}
 					/>
 				)
 			case 'argon2-unlock':
