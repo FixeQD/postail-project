@@ -7,7 +7,7 @@ import { WelcomeScreen } from './components/Welcome/WelcomeScreen'
 import { EncryptionChoice } from './components/Welcome/EncryptionChoice'
 import { Argon2Setup } from './components/Welcome/Argon2Setup'
 import { Argon2Unlock } from './components/Welcome/Argon2Unlock'
-import { AccountsScreen } from './components/Account/AccountsScreen'
+import { SettingsScreen } from './components/Settings/SettingsScreen'
 import { InboxScreen } from './components/Inbox/InboxScreen'
 import { OutboxPanel } from './components/Outbox/OutboxPanel'
 import { StatusBar } from './components/StatusBar'
@@ -262,23 +262,12 @@ function App() {
 			case 'accounts':
 			case 'settings':
 				return (
-					<div className='flex h-full flex-col'>
-						{currentState === 'settings' && (
-							<div className='border-b border-slate-800 bg-slate-900 p-4'>
-								<button
-									type='button'
-									onClick={handleBack}
-									className='text-sm text-slate-400 hover:text-white'>
-									&larr; Back to Mail
-								</button>
-							</div>
-						)}
-						<AccountsScreen
-							accounts={accounts}
-							onRemoveAccount={handleRemoveAccount}
-							onSyncAccount={handleSyncAccount}
-						/>
-					</div>
+					<SettingsScreen
+						accounts={accounts}
+						onRemoveAccount={handleRemoveAccount}
+						onSyncAccount={handleSyncAccount}
+						onBack={handleBack}
+					/>
 				)
 			case 'dashboard':
 				return (
