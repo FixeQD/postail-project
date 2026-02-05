@@ -1,0 +1,86 @@
+{
+	"title": "Settings",
+	"back": "Back",
+	"logout": "Log out",
+	"comingSoon": "Coming soon...",
+	"sections": {
+		"general": "General",
+		"accounts": "Accounts",
+		"security": "Security",
+		"appearance": "Appearance",
+		"notifications": "Notifications"
+	},
+	"general": {
+		"title": "General Settings",
+		"subtitle": "Configure your Postail experience.",
+		"interface": {
+			"title": "Interface",
+			"zenMode": {
+				"label": "Ignorance is Bliss",
+				"description": "Zen mode: Hides unread message counts to reduce anxiety."
+			}
+		},
+		"behavior": {
+			"title": "Behavior",
+			"strategicDelay": {
+				"label": "Strategic Delay",
+				"description": "Adds a 10-second delay before sending emails, allowing you to \"Undo Send\"."
+			}
+		},
+		"security": {
+			"title": "Security & Privacy",
+			"shieldImages": {
+				"label": "Shield Images",
+				"description": "Blocks external images by default to prevent tracking pixels."
+			}
+		},
+		"storage": {
+			"title": "Storage",
+			"dataNomat": {
+				"label": "Data Nomad",
+				"description": "Your data is currently stored in the default system location."
+			},
+			"change": "Change",
+			"defaultPath": "~/.local/share/postail"
+		}
+	},
+	"accounts": {
+		"title": "Add Email Account",
+		"subtitle": "Connect your email provider to get started",
+		"providers": {
+			"gmail": {
+				"title": "Gmail",
+				"description": "Connect your Google account",
+				"button": "Add Gmail Account"
+			},
+			"outlook": {
+				"title": "Outlook",
+				"description": "Connect your Microsoft account",
+				"button": "Add Outlook Account"
+			},
+			"imap": {
+				"title": "IMAP/SMTP",
+				"description": "Advanced manual configuration",
+				"button": "Add IMAP Account"
+			}
+		},
+		"oauth": {
+			"title": "Connecting to {{provider}}",
+			"subtitle": "Opening browser for authentication...",
+			"success": "Successfully connected to {{provider}}",
+			"error": "Failed to connect to {{provider}}",
+			"cancelled": "Authentication was cancelled",
+			"instructions": "After authorizing in your browser, copy the authorization code and paste it here:",
+			"codePlaceholder": "Paste authorization code here",
+			"submit": "Complete Setup"
+		},
+		"list": {
+			"title": "Your Accounts",
+			"empty": "No accounts configured yet",
+			"add_another": "Add Another Account",
+			"add": "Add account",
+			"remove": "Remove Account",
+			"removeConfirm": "Are you sure you want to remove this account?"
+		}
+	}
+}

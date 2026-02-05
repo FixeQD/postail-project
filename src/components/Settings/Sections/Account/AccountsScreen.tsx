@@ -23,14 +23,14 @@ export function AccountsScreen({ accounts, onRemoveAccount, onSyncAccount }: Acc
 				className='mb-8 flex items-center justify-between'>
 				<div>
 					<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
-						{t('accounts:title')}
+						{t('settings:accounts.title')}
 					</h1>
-					<p className='mt-1 text-slate-400'>{t('accounts:subtitle')}</p>
+					<p className='mt-1 text-slate-400'>{t('settings:accounts.subtitle')}</p>
 				</div>
 				<AddAccountDialog>
 					<Button className='rounded-full bg-slate-100 px-6 text-slate-900 shadow-lg transition-all hover:bg-white hover:shadow-xl'>
 						<Plus className='mr-2 h-4 w-4' />
-						{t('accounts:list.add')}
+						{t('settings:accounts.list.add')}
 					</Button>
 				</AddAccountDialog>
 			</motion.div>

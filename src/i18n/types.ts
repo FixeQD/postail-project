@@ -75,41 +75,6 @@ export interface SecurityTranslations {
 	}
 }
 
-export interface AccountTranslations {
-	title: string
-	subtitle: string
-	providers: {
-		gmail: {
-			title: string
-			description: string
-			button: string
-		}
-		outlook: {
-			title: string
-			description: string
-			button: string
-		}
-		imap: {
-			title: string
-			description: string
-			button: string
-		}
-	}
-	oauth: {
-		title: string
-		subtitle: string
-		success: string
-		error: string
-		cancelled: string
-	}
-	list: {
-		title: string
-		empty: string
-		add: string
-		remove: string
-		removeConfirm: string
-	}
-}
 
 export interface ErrorTranslations {
 	network: {
@@ -162,13 +127,86 @@ export interface InboxTranslations {
 	}
 }
 
+export interface SettingsTranslations {
+	title: string
+	sections: {
+		general: string
+		accounts: string
+		security: string
+		appearance: string
+		notifications: string
+	}
+	general: {
+		title: string
+		subtitle: string
+		interface: {
+			title: string
+			zenMode: {
+				label: string
+				description: string
+			}
+		}
+		behavior: {
+			title: string
+			strategicDelay: {
+				label: string
+				description: string
+			}
+		}
+		security: {
+			title: string
+			shieldImages: {
+				label: string
+				description: string
+			}
+		}
+		storage: {
+			title: string
+			dataNomat: {
+				label: string
+				description: string
+			}
+			change: string
+			defaultPath: string
+		}
+	}
+	accounts: {
+		title: string
+		subtitle: string
+		providers: {
+			gmail: { title: string; description: string; button: string }
+			outlook: { title: string; description: string; button: string }
+			imap: { title: string; description: string; button: string }
+		}
+		oauth: {
+			title: string
+			subtitle: string
+			success: string
+			error: string
+			cancelled: string
+			instructions: string
+			codePlaceholder: string
+			submit: string
+		}
+		list: {
+			title: string
+			empty: string
+			add_another: string
+			add: string
+			remove: string
+			removeConfirm: string
+		}
+	}
+}
+
 export interface TranslationResources {
 	common: CommonTranslations
 	welcome: WelcomeTranslations
 	security: SecurityTranslations
-	accounts: AccountTranslations
 	errors: ErrorTranslations
 	inbox: InboxTranslations
+	validation: any
+	settings: SettingsTranslations
 }
 
 export type TranslationNamespace = keyof TranslationResources

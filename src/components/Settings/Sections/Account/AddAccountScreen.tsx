@@ -1,7 +1,7 @@
 import { ReactNode } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import * as opener from '@tauri-apps/plugin-opener'
-import { useAccountsTranslation } from '../../hooks/useTypedTranslation'
+import { useAccountsTranslation } from '../../../../hooks/useTypedTranslation'
 import { Plus, Settings, ArrowLeft, Loader2 } from 'lucide-react'
 
 // A generic card component for provider selection
@@ -119,9 +119,9 @@ export const AddAccountScreen = ({
 						{t('common:actions.back')}
 					</button>
 					<h1 className='text-4xl font-bold tracking-tight text-slate-100'>
-						{t('accounts:title')}
+						{t('settings:accounts.title')}
 					</h1>
-					<p className='mt-2 text-slate-400'>{t('accounts:subtitle')}</p>
+					<p className='mt-2 text-slate-400'>{t('settings:accounts.subtitle')}</p>
 				</div>
 			</div>
 
@@ -129,8 +129,8 @@ export const AddAccountScreen = ({
 				<div className='mx-auto max-w-2xl'>
 					<div className='grid gap-4'>
 						<ProviderCard
-							title={t('accounts:providers.gmail.title')}
-							description={t('accounts:providers.gmail.description')}
+							title={t('settings:accounts.providers.gmail.title')}
+							description={t('settings:accounts.providers.gmail.description')}
 							icon={<GmailIcon />}
 							accentColor='red'
 							onClick={() => handleProviderClick('gmail')}
@@ -138,8 +138,8 @@ export const AddAccountScreen = ({
 							disabled={loading !== null}
 						/>
 						<ProviderCard
-							title={t('accounts:providers.outlook.title')}
-							description={t('accounts:providers.outlook.description')}
+							title={t('settings:accounts.providers.outlook.title')}
+							description={t('settings:accounts.providers.outlook.description')}
 							icon={<OutlookIcon />}
 							accentColor='blue'
 							onClick={() => handleProviderClick('outlook')}
@@ -147,8 +147,8 @@ export const AddAccountScreen = ({
 							disabled={loading !== null}
 						/>
 						<ProviderCard
-							title={t('accounts:providers.imap.title')}
-							description={t('accounts:providers.imap.description')}
+							title={t('settings:accounts.providers.imap.title')}
+							description={t('settings:accounts.providers.imap.description')}
 							icon={<IMAPIcon />}
 							accentColor='slate'
 							onClick={handleIMAPClick}

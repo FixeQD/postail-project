@@ -19,9 +19,13 @@ export const useSecurityTranslation = () => {
 }
 
 export const useAccountsTranslation = () => {
-	return useTypedTranslation(['common', 'accounts'])
+	return useTypedTranslation(['common', 'settings'])
 }
 
 export const useErrorsTranslation = () => {
 	return useTypedTranslation(['common', 'errors'])
+}
+
+export const useSettingsTranslation = () => {
+	return useTypedTranslation(['common', 'settings'])
 }

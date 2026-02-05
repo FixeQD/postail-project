@@ -6,20 +6,20 @@ import LanguageDetector from 'i18next-browser-languagedetector'
 import common from './resources/en/common.json'
 import welcome from './resources/en/welcome.json'
 import security from './resources/en/security.json'
-import accounts from './resources/en/accounts.json'
 import errors from './resources/en/errors.json'
 import inbox from './resources/en/inbox.json'
 import validation from './resources/en/validation.json'
+import settings from './resources/en/settings.json'
 
 const resources = {
 	en: {
 		common,
 		welcome,
 		security,
-		accounts,
 		errors,
 		inbox,
 		validation,
+		settings,
 	},
 }
 
@@ -31,7 +31,7 @@ i18n.use(LanguageDetector)
 		fallbackLng: 'en',
 		debug: import.meta.env.DEV,
 
-		ns: ['common', 'welcome', 'security', 'accounts', 'errors', 'inbox', 'validation'],
+		ns: ['common', 'welcome', 'security', 'errors', 'inbox', 'validation', 'settings'],
 		defaultNS: 'common',
 
 		interpolation: {

@@ -7,6 +7,7 @@ import { Star, Archive, Trash2, MailOpen, Mail } from 'lucide-react'
 import type { MailHeader } from '../../types/mail'
 import type { AccountMeta } from '../../types/accounts'
 import { useTypedTranslation } from '../../hooks/useTypedTranslation'
+import { useSettingsStore } from '@/stores/settingsStore'
 
 interface MessageListProps {
 	account: AccountMeta
@@ -20,6 +21,8 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 	const { t } = useTypedTranslation()
 	const virtuosoRef = useRef<VirtuosoHandle>(null)
 	const [hoveredMessageId, setHoveredMessageId] = useState<number | null>(null)
+	const { settings } = useSettingsStore()
+	const zenMode = settings['zen-mode']
 
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
 		useInfiniteQuery({
@@ -103,7 +106,7 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 							onMouseLeave={() => setHoveredMessageId(null)}
 							onClick={() => onMessageClick(message.uid)}
 							className={`group relative flex cursor-pointer items-center border-b border-slate-900 px-4 py-3 transition-colors ${
-								isUnread
+								isUnread && !zenMode
 									? 'bg-slate-900/40 hover:bg-slate-900'
 									: 'bg-transparent hover:bg-slate-900/50'
 							}`}>
@@ -125,7 +128,7 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 							<div className='flex min-w-0 flex-1 items-baseline gap-4'>
 								{/* Sender */}
 								<div
-									className={`w-48 shrink-0 truncate text-sm ${isUnread ? 'font-bold text-white' : 'font-medium text-slate-300'}`}>
+									className={`w-48 shrink-0 truncate text-sm ${isUnread && !zenMode ? 'font-bold text-white' : 'font-medium text-slate-300'}`}>
 									{message.from[0]?.replace(/<.*>/, '').trim() ||
 										message.from.join(', ')}
 								</div>
@@ -133,7 +136,7 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 								{/* Subject & Snippet */}
 								<div className='flex min-w-0 flex-1 items-baseline gap-2'>
 									<span
-										className={`truncate text-sm ${isUnread ? 'font-semibold text-slate-200' : 'text-slate-400'}`}>
+										className={`truncate text-sm ${isUnread && !zenMode ? 'font-semibold text-slate-200' : 'text-slate-400'}`}>
 										{message.subject || '(No Subject)'}
 									</span>
 									<span className='truncate text-xs text-slate-500'>

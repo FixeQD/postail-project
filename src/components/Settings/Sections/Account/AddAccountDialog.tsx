@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import * as opener from '@tauri-apps/plugin-opener'
-import { useAccountsTranslation } from '../../hooks/useTypedTranslation'
+import { useAccountsTranslation } from '../../../../hooks/useTypedTranslation'
 import { Plus, Mail, Loader2, ArrowRight } from 'lucide-react'
 import {
 	Dialog,
@@ -96,21 +96,21 @@ export function AddAccountDialog({ children }: Omit<AddAccountDialogProps, 'onAc
 				{children || (
 					<Button className='gap-2 bg-blue-600 text-white shadow-lg shadow-blue-500/20 hover:bg-blue-500'>
 						<Plus className='h-4 w-4' />
-						Add Account
+						{t('settings:accounts.list.add')}
 					</Button>
 				)}
 			</DialogTrigger>
 			<DialogContent className='border-slate-800 bg-slate-900/95 text-slate-100 backdrop-blur-xl sm:max-w-md'>
 				<DialogHeader>
-					<DialogTitle className='text-xl font-bold'>Add Account</DialogTitle>
+					<DialogTitle className='text-xl font-bold'>{t('settings:accounts.title')}</DialogTitle>
 					<DialogDescription className='text-slate-400'>
-						Choose your email provider to get started.
+						{t('settings:accounts.subtitle')}
 					</DialogDescription>
 				</DialogHeader>
 
 				<div className='grid gap-3 py-4'>
 					<ProviderOption
-						title={t('accounts:providers.gmail.title')}
+						title={t('settings:accounts.providers.gmail.title')}
 						icon={Mail}
 						brandColor='from-red-500 to-orange-500 text-red-500'
 						onClick={() => handleProviderClick('gmail')}
@@ -118,7 +118,7 @@ export function AddAccountDialog({ children }: Omit<AddAccountDialogProps, 'onAc
 						disabled={loading !== null}
 					/>
 					<ProviderOption
-						title={t('accounts:providers.outlook.title')}
+						title={t('settings:accounts.providers.outlook.title')}
 						icon={Mail}
 						brandColor='from-blue-500 to-cyan-500 text-blue-500'
 						onClick={() => handleProviderClick('outlook')}

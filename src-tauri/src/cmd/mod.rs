@@ -4,5 +4,6 @@ pub mod drafts;
 pub mod mail;
 pub mod maintenance;
 pub mod security;
+pub mod settings;
 pub mod smtp;
 pub mod utils;

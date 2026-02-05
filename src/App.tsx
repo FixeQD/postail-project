@@ -14,6 +14,7 @@ import { StatusBar } from './components/StatusBar'
 import { Toaster, toast } from 'sonner'
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
 import type { AccountMeta } from './types/accounts'
+import { useSettingsStore } from './stores/settingsStore'
 import './i18n'
 import { useTranslation } from 'react-i18next'
 
@@ -30,6 +31,11 @@ type AppState =
 function App() {
 	const { t } = useTranslation()
 	const [currentState, setCurrentState] = useState<AppState>('init')
+	const loadSettings = useSettingsStore((s) => s.loadSettings)
+
+	useEffect(() => {
+		loadSettings()
+	}, [loadSettings])
 	const [accounts, setAccounts] = useState<AccountMeta[]>([])
 	const [activeAccount, setActiveAccount] = useState<AccountMeta | null>(null)
 	const [activeMailbox, setActiveMailbox] = useState('INBOX')

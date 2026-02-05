@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Settings, User, Shield, Palette, Bell, ArrowLeft, LogOut } from 'lucide-react'
-import { AccountsScreen } from '../Account/AccountsScreen'
+import { AccountsScreen } from './Sections/Account/AccountsScreen'
+import { GeneralSettings } from './Sections/GeneralSettings'
 import type { AccountMeta } from '@/types/accounts'
+import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 
 interface SettingsScreenProps {
 	accounts: AccountMeta[]
@@ -11,16 +13,17 @@ interface SettingsScreenProps {
 	onBack: () => void
 }
 
-const SETTINGS_SECTIONS = [
-	{ id: 'accounts', label: 'Accounts', icon: User },
-	{ id: 'general', label: 'General', icon: Settings, disabled: true },
-	{ id: 'security', label: 'Security', icon: Shield, disabled: true },
-	{ id: 'appearance', label: 'Appearance', icon: Palette, disabled: true },
-	{ id: 'notifications', label: 'Notifications', icon: Bell, disabled: true },
-]
-
 export function SettingsScreen({ accounts, onRemoveAccount, onSyncAccount, onBack }: SettingsScreenProps) {
+	const { t } = useSettingsTranslation()
 	const [activeSection, setActiveSection] = useState('accounts')
+
+	const SETTINGS_SECTIONS = [
+		{ id: 'accounts', label: t('settings:sections.accounts'), icon: User },
+		{ id: 'general', label: t('settings:sections.general'), icon: Settings },
+		{ id: 'security', label: t('settings:sections.security'), icon: Shield, disabled: true },
+		{ id: 'appearance', label: t('settings:sections.appearance'), icon: Palette, disabled: true },
+		{ id: 'notifications', label: t('settings:sections.notifications'), icon: Bell, disabled: true },
+	]
 
 	return (
 		<div className='flex h-full bg-slate-950 text-slate-100'>
@@ -31,7 +34,7 @@ export function SettingsScreen({ accounts, onRemoveAccount, onSyncAccount, onBac
 					onClick={onBack}
 					className='flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-white transition-colors mb-8 group'>
 					<ArrowLeft className='h-4 w-4 transition-transform group-hover:-translate-x-1' />
-					<span className='font-medium'>Back</span>
+					<span className='font-medium'>{t('settings:back')}</span>
 				</button>
 
 				<div className='flex-1 space-y-1'>
@@ -59,7 +62,7 @@ export function SettingsScreen({ accounts, onRemoveAccount, onSyncAccount, onBac
 						type='button'
 						className='flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-red-400 transition-all hover:bg-red-400/10'>
 						<LogOut className='h-4 w-4' />
-						<span className='text-sm font-semibold'>Log out</span>
+						<span className='text-sm font-semibold'>{t('settings:logout')}</span>
 					</button>
 				</div>
 			</div>
@@ -80,13 +83,22 @@ export function SettingsScreen({ accounts, onRemoveAccount, onSyncAccount, onBac
 								onSyncAccount={onSyncAccount}
 							/>
 						</motion.div>
+					) : activeSection === 'general' ? (
+						<motion.div
+							key='general'
+							initial={{ opacity: 0, y: 10 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -10 }}
+							className='h-full overflow-y-auto'>
+							<GeneralSettings />
+						</motion.div>
 					) : (
 						<motion.div
 							key='empty'
 							initial={{ opacity: 0 }}
 							animate={{ opacity: 1 }}
 							className='flex h-full items-center justify-center text-slate-500'>
-							Coming soon...
+							{t('settings:comingSoon')}
 						</motion.div>
 					)}
 				</AnimatePresence>

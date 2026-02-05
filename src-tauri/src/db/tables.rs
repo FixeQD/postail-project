@@ -153,6 +153,12 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
 
     create_fts_table(conn, "contacts_fts", &["email", "name"], "contacts", "id")?;
 
+    create_table_if_not_exists(
+        conn,
+        "settings",
+        &[("key", "TEXT PRIMARY KEY"), ("value", "TEXT NOT NULL")],
+    )?;
+
     Ok(())
 }
 
