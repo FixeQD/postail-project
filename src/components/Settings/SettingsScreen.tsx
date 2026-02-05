@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Settings, User, Shield, Palette, Bell, ArrowLeft, LogOut } from 'lucide-react'
 import { AccountsScreen } from './Sections/Account/AccountsScreen'
 import { GeneralSettings } from './Sections/GeneralSettings'
+import { PrivacySettings } from './Sections/PrivacySettings'
 import type { AccountMeta } from '@/types/accounts'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 
@@ -20,6 +21,7 @@ export function SettingsScreen({ accounts, onRemoveAccount, onSyncAccount, onBac
 	const SETTINGS_SECTIONS = [
 		{ id: 'accounts', label: t('settings:sections.accounts'), icon: User },
 		{ id: 'general', label: t('settings:sections.general'), icon: Settings },
+		{ id: 'privacy', label: t('settings:sections.privacy'), icon: Shield },
 		{ id: 'security', label: t('settings:sections.security'), icon: Shield, disabled: true },
 		{ id: 'appearance', label: t('settings:sections.appearance'), icon: Palette, disabled: true },
 		{ id: 'notifications', label: t('settings:sections.notifications'), icon: Bell, disabled: true },
@@ -91,6 +93,15 @@ export function SettingsScreen({ accounts, onRemoveAccount, onSyncAccount, onBac
 							exit={{ opacity: 0, y: -10 }}
 							className='h-full overflow-y-auto'>
 							<GeneralSettings />
+						</motion.div>
+					) : activeSection === 'privacy' ? (
+						<motion.div
+							key='privacy'
+							initial={{ opacity: 0, y: 10 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -10 }}
+							className='h-full overflow-y-auto'>
+							<PrivacySettings />
 						</motion.div>
 					) : (
 						<motion.div

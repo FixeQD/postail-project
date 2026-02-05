@@ -6,6 +6,7 @@
 	"sections": {
 		"general": "General",
 		"accounts": "Accounts",
+		"privacy": "Privacy",
 		"security": "Security",
 		"appearance": "Appearance",
 		"notifications": "Notifications"
@@ -27,13 +28,6 @@
 				"description": "Adds a 10-second delay before sending emails, allowing you to \"Undo Send\"."
 			}
 		},
-		"security": {
-			"title": "Security & Privacy",
-			"shieldImages": {
-				"label": "Shield Images",
-				"description": "Blocks external images by default to prevent tracking pixels."
-			}
-		},
 		"storage": {
 			"title": "Storage",
 			"dataNomat": {
@@ -42,6 +36,17 @@
 			},
 			"change": "Change",
 			"defaultPath": "~/.local/share/postail"
+		}
+	},
+	"privacy": {
+		"title": "Privacy Settings",
+		"subtitle": "Control your data and how you're tracked.",
+		"protection": {
+			"title": "Tracking Protection",
+			"shieldImages": {
+				"label": "Shield Images",
+				"description": "Blocks external images by default to prevent tracking pixels."
+			}
 		}
 	},
 	"accounts": {
