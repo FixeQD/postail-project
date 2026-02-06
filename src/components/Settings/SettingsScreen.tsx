@@ -12,9 +12,16 @@ interface SettingsScreenProps {
 	onRemoveAccount: (id: string) => void
 	onSyncAccount: (id: string) => void
 	onBack: () => void
+	canGoBack?: boolean
 }
 
-export function SettingsScreen({ accounts, onRemoveAccount, onSyncAccount, onBack }: SettingsScreenProps) {
+export function SettingsScreen({
+	accounts,
+	onRemoveAccount,
+	onSyncAccount,
+	onBack,
+	canGoBack = true,
+}: SettingsScreenProps) {
 	const { t } = useSettingsTranslation()
 	const [activeSection, setActiveSection] = useState('accounts')
 
@@ -31,13 +38,15 @@ export function SettingsScreen({ accounts, onRemoveAccount, onSyncAccount, onBac
 		<div className='flex h-full bg-slate-950 text-slate-100'>
 			{/* Sidebar */}
 			<div className='w-64 border-r border-slate-800 bg-slate-900/30 backdrop-blur-xl flex flex-col p-4'>
-				<button
-					type='button'
-					onClick={onBack}
-					className='flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-white transition-colors mb-8 group'>
-					<ArrowLeft className='h-4 w-4 transition-transform group-hover:-translate-x-1' />
-					<span className='font-medium'>{t('settings:back')}</span>
-				</button>
+				{canGoBack && (
+					<button
+						type='button'
+						onClick={onBack}
+						className='flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-white transition-colors mb-8 group'>
+						<ArrowLeft className='h-4 w-4 transition-transform group-hover:-translate-x-1' />
+						<span className='font-medium'>{t('settings:back')}</span>
+					</button>
+				)}
 
 				<div className='flex-1 space-y-1'>
 					{SETTINGS_SECTIONS.map((section) => (

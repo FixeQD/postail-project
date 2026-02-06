@@ -186,12 +186,6 @@ function App() {
 	const handleBack = () => {
 		if (currentState === 'security') {
 			setCurrentState('welcome')
-		} else if (currentState === 'accounts') {
-			setCurrentState('security')
-		} else if (currentState === 'argon2-setup') {
-			setCurrentState('security')
-		} else if (currentState === 'argon2-unlock') {
-			setCurrentState('security')
 		} else if (currentState === 'settings') {
 			setCurrentState('dashboard')
 		}
@@ -276,6 +270,7 @@ function App() {
 						onRemoveAccount={handleRemoveAccount}
 						onSyncAccount={handleSyncAccount}
 						onBack={handleBack}
+						canGoBack={currentState === 'settings'}
 					/>
 				)
 			case 'dashboard':
