@@ -83,6 +83,10 @@ export function GeneralSettings() {
 		})
 
 		if (selected && typeof selected === 'string') {
+			if (selected === settings['data-path']) {
+				toast.info(t('settings:general.storage.path.alreadyCurrent'))
+				return
+			}
 			setPendingPath(selected)
 			setIsMigrationDialogOpen(true)
 		}

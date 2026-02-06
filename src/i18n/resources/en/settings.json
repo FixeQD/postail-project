@@ -33,7 +33,8 @@
 			"path": {
 				"label": "Data Path",
 				"description": "The directory where all your mail, attachments and local database are stored.",
-				"select": "Select Data Directory"
+				"select": "Select Data Directory",
+				"alreadyCurrent": "This is already your data path"
 			},
 			"migration": {
 				"loading": "Migrating your data, please wait...",

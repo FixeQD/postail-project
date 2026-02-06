@@ -8,7 +8,7 @@ pub async fn perform_migration(new_path: &str) -> Result<(), String> {
     let new_dir = PathBuf::from(new_path);
 
     if new_dir == old_dir {
-        return Ok(());
+        return Err("Target path is the same as current path".to_string());
     }
 
     tracing::info!(target: "postail", "[Migration] Starting migration from {:?} to {:?}", old_dir, new_dir);
