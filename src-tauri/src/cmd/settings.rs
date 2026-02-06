@@ -1,5 +1,11 @@
 use std::collections::HashMap;
 use crate::db::settings;
+use crate::utils::config::get_default_data_dir as get_default_path;
+
+#[tauri::command]
+pub async fn get_default_data_dir() -> Result<String, String> {
+    Ok(get_default_path().to_string_lossy().to_string())
+}
 
 #[tauri::command]
 pub async fn get_all_settings() -> Result<HashMap<String, String>, String> {

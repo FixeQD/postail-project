@@ -41,7 +41,9 @@
 				"confirmTitle": "Migrate Data?",
 				"confirmDescription": "This will move all your emails, attachments, and settings to the new location. The application will restart automatically after the migration is complete.",
 				"newPath": "Target location",
-				"start": "Start Migration"
+				"start": "Start Migration",
+				"reset": "Reset to Default",
+				"resetConfirm": "Are you sure you want to move your data back to the default location?"
 			}
 		}
 	},

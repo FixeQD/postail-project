@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Folder, Database, Coffee, Send } from 'lucide-react'
+import { Folder, Database, Coffee, Send, RotateCcw } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
@@ -66,7 +66,14 @@ export function GeneralSettings() {
 	const { settings, setSetting } = useSettingsStore()
 	const [isMigrationDialogOpen, setIsMigrationDialogOpen] = useState(false)
 	const [pendingPath, setPendingPath] = useState<string | null>(null)
+	const [defaultPath, setDefaultPath] = useState<string | null>(null)
 	const [isMigrating, setIsMigrating] = useState(false)
+
+	useEffect(() => {
+		invoke<string>('get_default_data_dir').then(setDefaultPath)
+	}, [])
+
+	const isDefaultPath = settings['data-path'] === defaultPath
 
 	const handlePathSelect = async () => {
 		const selected = await open({
@@ -78,6 +85,20 @@ export function GeneralSettings() {
 		if (selected && typeof selected === 'string') {
 			setPendingPath(selected)
 			setIsMigrationDialogOpen(true)
+		}
+	}
+
+	const handleResetPath = async () => {
+		try {
+			const defaultPath = await invoke<string>('get_default_data_dir')
+			if (settings['data-path'] === defaultPath) {
+				toast.info('Already using default data path')
+				return
+			}
+			setPendingPath(defaultPath)
+			setIsMigrationDialogOpen(true)
+		} catch (error) {
+			console.error('Failed to get default path:', error)
 		}
 	}
 
@@ -150,13 +171,24 @@ export function GeneralSettings() {
 								<code className='px-2 py-1 rounded bg-slate-900 border border-white/5 text-[10px] text-slate-400'>
 									{settings['data-path'] || 'Default'}
 								</code>
-								<button
-									type='button'
-									disabled={isMigrating}
-									onClick={handlePathSelect}
-									className='p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 transition-colors disabled:opacity-50'>
-									<Folder className='h-4 w-4' />
-								</button>
+								<div className='flex items-center gap-1.5'>
+									<button
+										type='button'
+										disabled={isMigrating}
+										onClick={handlePathSelect}
+										title={t('settings:general.storage.path.select')}
+										className='p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 transition-colors disabled:opacity-50'>
+										<Folder className='h-4 w-4' />
+									</button>
+									<button
+										type='button'
+										disabled={isMigrating || isDefaultPath}
+										onClick={handleResetPath}
+										title={t('settings:general.storage.migration.reset')}
+										className='p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed'>
+										<RotateCcw className='h-4 w-4' />
+									</button>
+								</div>
 							</div>
 						</SettingCard>
 					</div>
