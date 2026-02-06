@@ -5,7 +5,7 @@ use tauri::command;
 
 #[command]
 pub fn fetch_mailboxes(account_id: String) -> Result<Vec<Mailbox>, String> {
-    let imap = IMAP_MANAGER.lock().unwrap();
+    let imap = IMAP_MANAGER.blocking_lock();
     let mut mailboxes = imap.fetch_mailboxes_sync(&account_id)?;
 
     let provider_kind = {
@@ -98,7 +98,7 @@ pub async fn fetch_headers(
     let anchor: Option<u32> = anchor
         .map(|a| a.try_into().map_err(|_| "Anchor too large".to_string()))
         .transpose()?;
-    let imap = IMAP_MANAGER.lock().unwrap().clone();
+    let imap = IMAP_MANAGER.lock().await.clone();
     imap.fetch_headers_hybrid(&account_id, &mailbox, anchor, limit)
         .await
 }
@@ -110,6 +110,6 @@ pub fn fetch_message_full(
     uid: u64,
 ) -> Result<Option<MessageFull>, String> {
     let uid_u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
-    let imap = IMAP_MANAGER.lock().unwrap();
+    let imap = IMAP_MANAGER.blocking_lock();
     imap.fetch_message_full_sync(&account_id, &mailbox, uid_u32)
 }

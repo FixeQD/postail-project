@@ -21,8 +21,7 @@ lazy_static::lazy_static! {
 }
 
 impl crate::imap::ImapManager {
-    pub fn start_sync(&self, account_id: &str) -> Result<(), AppError> {
-        // Fetch account email before spawning thread
+    pub async fn start_sync(&self, account_id: &str) -> Result<(), AppError> {
         let account_email = {
             let conn_guard = self.conn.lock().unwrap();
             let conn = conn_guard.as_ref().ok_or_else(|| AppError::from("Database not initialized"))?;
@@ -31,14 +30,7 @@ impl crate::imap::ImapManager {
                 .unwrap_or_else(|| account_id.to_string())
         };
 
-        // Register account immediately (before spawning thread) so frontend can query status
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| AppError::from(e.to_string()))?;
-        rt.block_on(async {
-            start_sync_status_tracking(account_id, &account_email).await;
-        });
+        start_sync_status_tracking(account_id, &account_email).await;
 
         let manager = self.clone();
         let account_id_str = account_id.to_string();

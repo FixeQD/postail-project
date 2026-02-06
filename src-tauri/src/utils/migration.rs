@@ -19,7 +19,7 @@ pub async fn perform_migration(new_path: &str) -> Result<(), String> {
     // Stop IMAP syncs
     {
         tracing::info!(target: "postail", "[Migration] Stopping IMAP syncs...");
-        let imap = IMAP_MANAGER.lock().unwrap();
+        let imap = IMAP_MANAGER.lock().await;
         let _ = imap.stop_all_syncs();
     }
 

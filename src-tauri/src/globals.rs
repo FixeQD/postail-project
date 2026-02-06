@@ -1,9 +1,9 @@
-use lazy_static::lazy_static;
-use std::sync::{Arc, Mutex, Once};
-use rusqlite::Connection;
 use crate::imap::ImapManager;
 use crate::security::SecurityManager;
 use crate::smtp::SmtpManager;
+use lazy_static::lazy_static;
+use rusqlite::Connection;
+use std::sync::{Arc, Mutex, Once};
 
 lazy_static! {
     pub static ref OAUTH_PORT: Mutex<u16> = Mutex::new(0);
@@ -11,10 +11,11 @@ lazy_static! {
     pub static ref SECURITY: Arc<Mutex<SecurityManager>> = Arc::new(Mutex::new(
         SecurityManager::new().expect("Failed to initialize security")
     ));
-    pub static ref IMAP_MANAGER: Arc<Mutex<ImapManager>> = Arc::new(Mutex::new(ImapManager::new(
-        Arc::clone(&DB_CONN),
-        Arc::clone(&SECURITY),
-    )));
+    pub static ref IMAP_MANAGER: Arc<tokio::sync::Mutex<ImapManager>> =
+        Arc::new(tokio::sync::Mutex::new(ImapManager::new(
+            Arc::clone(&DB_CONN),
+            Arc::clone(&SECURITY),
+        )));
     pub static ref SMTP_MANAGER: Arc<Mutex<SmtpManager>> = Arc::new(Mutex::new(SmtpManager::new(
         Arc::clone(&DB_CONN),
         Arc::clone(&SECURITY),
