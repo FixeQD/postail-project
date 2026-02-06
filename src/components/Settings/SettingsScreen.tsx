@@ -13,6 +13,7 @@ interface SettingsScreenProps {
 	onSyncAccount: (id: string) => void
 	onBack: () => void
 	canGoBack?: boolean
+	showSidebar?: boolean
 }
 
 export function SettingsScreen({
@@ -21,6 +22,7 @@ export function SettingsScreen({
 	onSyncAccount,
 	onBack,
 	canGoBack = true,
+	showSidebar = true,
 }: SettingsScreenProps) {
 	const { t } = useSettingsTranslation()
 	const [activeSection, setActiveSection] = useState('accounts')
@@ -30,53 +32,65 @@ export function SettingsScreen({
 		{ id: 'general', label: t('settings:sections.general'), icon: Settings },
 		{ id: 'privacy', label: t('settings:sections.privacy'), icon: Shield },
 		{ id: 'security', label: t('settings:sections.security'), icon: Shield, disabled: true },
-		{ id: 'appearance', label: t('settings:sections.appearance'), icon: Palette, disabled: true },
-		{ id: 'notifications', label: t('settings:sections.notifications'), icon: Bell, disabled: true },
+		{
+			id: 'appearance',
+			label: t('settings:sections.appearance'),
+			icon: Palette,
+			disabled: true,
+		},
+		{
+			id: 'notifications',
+			label: t('settings:sections.notifications'),
+			icon: Bell,
+			disabled: true,
+		},
 	]
 
 	return (
 		<div className='flex h-full bg-slate-950 text-slate-100'>
 			{/* Sidebar */}
-			<div className='w-64 border-r border-slate-800 bg-slate-900/30 backdrop-blur-xl flex flex-col p-4'>
-				{canGoBack && (
-					<button
-						type='button'
-						onClick={onBack}
-						className='flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-white transition-colors mb-8 group'>
-						<ArrowLeft className='h-4 w-4 transition-transform group-hover:-translate-x-1' />
-						<span className='font-medium'>{t('settings:back')}</span>
-					</button>
-				)}
-
-				<div className='flex-1 space-y-1'>
-					{SETTINGS_SECTIONS.map((section) => (
+			{showSidebar && (
+				<div className='flex w-64 flex-col border-r border-slate-800 bg-slate-900/30 p-4 backdrop-blur-xl'>
+					{canGoBack && (
 						<button
-							key={section.id}
 							type='button'
-							disabled={section.disabled}
-							onClick={() => setActiveSection(section.id)}
-							className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${
-								activeSection === section.id
-									? 'bg-slate-100 text-slate-900 shadow-lg shadow-white/5'
-									: section.disabled
-									? 'opacity-40 cursor-not-allowed grayscale'
-									: 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100'
-							}`}>
-							<section.icon className='h-4 w-4' />
-							<span className='text-sm font-semibold'>{section.label}</span>
+							onClick={onBack}
+							className='group mb-8 flex items-center gap-2 px-4 py-2 text-slate-400 transition-colors hover:text-white'>
+							<ArrowLeft className='h-4 w-4 transition-transform group-hover:-translate-x-1' />
+							<span className='font-medium'>{t('settings:back')}</span>
 						</button>
-					))}
-				</div>
+					)}
 
-				<div className='border-t border-slate-800 pt-4'>
-					<button
-						type='button'
-						className='flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-red-400 transition-all hover:bg-red-400/10'>
-						<LogOut className='h-4 w-4' />
-						<span className='text-sm font-semibold'>{t('settings:logout')}</span>
-					</button>
+					<div className='flex-1 space-y-1'>
+						{SETTINGS_SECTIONS.map((section) => (
+							<button
+								key={section.id}
+								type='button'
+								disabled={section.disabled}
+								onClick={() => setActiveSection(section.id)}
+								className={`flex w-full items-center gap-3 rounded-xl px-4 py-2.5 transition-all ${
+									activeSection === section.id
+										? 'bg-slate-100 text-slate-900 shadow-lg shadow-white/5'
+										: section.disabled
+											? 'cursor-not-allowed opacity-40 grayscale'
+											: 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100'
+								}`}>
+								<section.icon className='h-4 w-4' />
+								<span className='text-sm font-semibold'>{section.label}</span>
+							</button>
+						))}
+					</div>
+
+					<div className='border-t border-slate-800 pt-4'>
+						<button
+							type='button'
+							className='flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-red-400 transition-all hover:bg-red-400/10'>
+							<LogOut className='h-4 w-4' />
+							<span className='text-sm font-semibold'>{t('settings:logout')}</span>
+						</button>
+					</div>
 				</div>
-			</div>
+			)}
 
 			{/* Content area */}
 			<div className='relative flex-1 overflow-hidden'>

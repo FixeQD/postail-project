@@ -271,6 +271,7 @@ function App() {
 						onSyncAccount={handleSyncAccount}
 						onBack={handleBack}
 						canGoBack={currentState === 'settings'}
+						showSidebar={currentState === 'settings'}
 					/>
 				)
 			case 'dashboard':
