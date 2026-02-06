@@ -12,49 +12,20 @@ import {
 	DialogDescription,
 	DialogHeader,
 	DialogTitle,
-    DialogFooter,
+	DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-
-const Toggle = ({ value, onChange, label, description, icon: Icon }: any) => (
-	<div className='flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors'>
-		<div className='flex items-center gap-4'>
-			<div className='flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 ring-1 ring-white/10'>
-				<Icon className='h-5 w-5 text-slate-400' />
-			</div>
-			<div>
-				<h3 className='text-sm font-semibold text-slate-200'>{label}</h3>
-				<p className='text-xs text-slate-500 max-w-[400px]'>{description}</p>
-			</div>
-		</div>
-		<button
-			type='button'
-			onClick={() => onChange(!value)}
-			className={`relative h-6 w-11 rounded-full transition-colors ${
-				value ? 'bg-blue-600' : 'bg-slate-800'
-			}`}>
-			<motion.div
-				transition={{
-					type: 'spring',
-					stiffness: 500,
-					damping: 30,
-				}}
-				animate={{ x: value ? 22 : 2 }}
-				className='absolute top-1 left-0 h-4 w-4 rounded-full bg-white shadow-sm'
-			/>
-		</button>
-	</div>
-)
+import { ToggleSetting } from '@/components/ui/toggle-setting'
 
 const SettingCard = ({ label, description, icon: Icon, children }: any) => (
-	<div className='flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors'>
+	<div className='flex items-center justify-between rounded-2xl border border-white/5 bg-white/5 p-4 transition-colors hover:bg-white/10'>
 		<div className='flex items-center gap-4'>
 			<div className='flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 ring-1 ring-white/10'>
 				<Icon className='h-5 w-5 text-slate-400' />
 			</div>
 			<div>
 				<h3 className='text-sm font-semibold text-slate-200'>{label}</h3>
-				<p className='text-xs text-slate-500 max-w-[400px]'>{description}</p>
+				<p className='max-w-[400px] text-xs text-slate-500'>{description}</p>
 			</div>
 		</div>
 		<div className='flex items-center gap-2'>{children}</div>
@@ -118,26 +89,28 @@ export function GeneralSettings() {
 			// App will restart, so we don't need to clear toast
 		} catch (error) {
 			setIsMigrating(false)
-			toast.error(`${t('settings:general.storage.migration.error')}: ${error}`, { id: 'migration' })
+			toast.error(`${t('settings:general.storage.migration.error')}: ${error}`, {
+				id: 'migration',
+			})
 		}
 	}
 
 	return (
-		<div className='flex h-full flex-col p-8 max-w-3xl mx-auto w-full space-y-8'>
-			<motion.div
-				initial={{ opacity: 0, y: -20 }}
-				animate={{ opacity: 1, y: 0 }}>
-				<h1 className='text-3xl font-bold tracking-tight text-slate-100'>{t('settings:general.title')}</h1>
+		<div className='mx-auto flex h-full w-full max-w-3xl flex-col space-y-8 p-8'>
+			<motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
+				<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
+					{t('settings:general.title')}
+				</h1>
 				<p className='mt-1 text-slate-400'>{t('settings:general.subtitle')}</p>
 			</motion.div>
 
 			<div className='space-y-6'>
 				<section>
-					<h2 className='text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 ml-2'>
+					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
 						{t('settings:general.interface.title')}
 					</h2>
 					<div className='space-y-3'>
-						<Toggle
+						<ToggleSetting
 							icon={Coffee}
 							label={t('settings:general.interface.zenMode.label')}
 							description={t('settings:general.interface.zenMode.description')}
@@ -148,11 +121,11 @@ export function GeneralSettings() {
 				</section>
 
 				<section>
-					<h2 className='text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 ml-2'>
+					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
 						{t('settings:general.behavior.title')}
 					</h2>
 					<div className='space-y-3'>
-						<Toggle
+						<ToggleSetting
 							icon={Send}
 							label={t('settings:general.behavior.strategicDelay.label')}
 							description={t('settings:general.behavior.strategicDelay.description')}
@@ -163,7 +136,7 @@ export function GeneralSettings() {
 				</section>
 
 				<section>
-					<h2 className='text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 ml-2'>
+					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
 						{t('settings:general.storage.title')}
 					</h2>
 					<div className='space-y-3'>
@@ -172,7 +145,7 @@ export function GeneralSettings() {
 							label={t('settings:general.storage.path.label')}
 							description={t('settings:general.storage.path.description')}>
 							<div className='flex items-center gap-2'>
-								<code className='px-2 py-1 rounded bg-slate-900 border border-white/5 text-[10px] text-slate-400'>
+								<code className='rounded border border-white/5 bg-slate-900 px-2 py-1 text-[10px] text-slate-400'>
 									{settings['data-path'] || 'Default'}
 								</code>
 								<div className='flex items-center gap-1.5'>
@@ -181,7 +154,7 @@ export function GeneralSettings() {
 										disabled={isMigrating}
 										onClick={handlePathSelect}
 										title={t('settings:general.storage.path.select')}
-										className='p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 transition-colors disabled:opacity-50'>
+										className='rounded-lg bg-white/5 p-2 text-slate-300 transition-colors hover:bg-white/10 disabled:opacity-50'>
 										<Folder className='h-4 w-4' />
 									</button>
 									<button
@@ -189,7 +162,7 @@ export function GeneralSettings() {
 										disabled={isMigrating || isDefaultPath}
 										onClick={handleResetPath}
 										title={t('settings:general.storage.migration.reset')}
-										className='p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed'>
+										className='rounded-lg bg-white/5 p-2 text-slate-300 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30'>
 										<RotateCcw className='h-4 w-4' />
 									</button>
 								</div>
@@ -199,15 +172,15 @@ export function GeneralSettings() {
 				</section>
 			</div>
 
-			<Dialog
-				open={isMigrationDialogOpen}
-				onOpenChange={setIsMigrationDialogOpen}>
+			<Dialog open={isMigrationDialogOpen} onOpenChange={setIsMigrationDialogOpen}>
 				<DialogContent className='border-slate-800 bg-slate-900 text-slate-100'>
 					<DialogHeader>
-						<DialogTitle>{t('settings:general.storage.migration.confirmTitle')}</DialogTitle>
+						<DialogTitle>
+							{t('settings:general.storage.migration.confirmTitle')}
+						</DialogTitle>
 						<DialogDescription className='text-slate-400'>
 							{t('settings:general.storage.migration.confirmDescription')}
-							<div className='mt-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs italic'>
+							<div className='mt-4 rounded-lg border border-blue-500/20 bg-blue-500/10 p-3 text-xs text-blue-400 italic'>
 								{t('settings:general.storage.migration.newPath')}: <br />
 								<span className='font-mono font-bold break-all'>{pendingPath}</span>
 							</div>

@@ -1,9 +1,23 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Settings, User, Shield, Palette, Bell, ArrowLeft, LogOut } from 'lucide-react'
+import {
+	Settings,
+	User,
+	Shield,
+	Palette,
+	Bell,
+	ArrowLeft,
+	LogOut,
+	Lock,
+	PenLine,
+} from 'lucide-react'
 import { AccountsScreen } from './Sections/Account/AccountsScreen'
 import { GeneralSettings } from './Sections/GeneralSettings'
 import { PrivacySettings } from './Sections/PrivacySettings'
+import { SecuritySettings } from './Sections/SecuritySettings'
+import { AppearanceSettings } from './Sections/AppearanceSettings'
+import { NotificationsSettings } from './Sections/NotificationsSettings'
+import { ComposingSettings } from './Sections/ComposingSettings'
 import type { AccountMeta } from '@/types/accounts'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 
@@ -31,24 +45,45 @@ export function SettingsScreen({
 		{ id: 'accounts', label: t('settings:sections.accounts'), icon: User },
 		{ id: 'general', label: t('settings:sections.general'), icon: Settings },
 		{ id: 'privacy', label: t('settings:sections.privacy'), icon: Shield },
-		{ id: 'security', label: t('settings:sections.security'), icon: Shield, disabled: true },
-		{
-			id: 'appearance',
-			label: t('settings:sections.appearance'),
-			icon: Palette,
-			disabled: true,
-		},
-		{
-			id: 'notifications',
-			label: t('settings:sections.notifications'),
-			icon: Bell,
-			disabled: true,
-		},
+		{ id: 'security', label: t('settings:sections.security'), icon: Lock },
+		{ id: 'appearance', label: t('settings:sections.appearance'), icon: Palette },
+		{ id: 'notifications', label: t('settings:sections.notifications'), icon: Bell },
+		{ id: 'composing', label: t('settings:sections.composing'), icon: PenLine },
 	]
+
+	const renderSection = () => {
+		switch (activeSection) {
+			case 'accounts':
+				return (
+					<AccountsScreen
+						accounts={accounts}
+						onRemoveAccount={onRemoveAccount}
+						onSyncAccount={onSyncAccount}
+					/>
+				)
+			case 'general':
+				return <GeneralSettings />
+			case 'privacy':
+				return <PrivacySettings />
+			case 'security':
+				return <SecuritySettings />
+			case 'appearance':
+				return <AppearanceSettings />
+			case 'notifications':
+				return <NotificationsSettings />
+			case 'composing':
+				return <ComposingSettings />
+			default:
+				return (
+					<div className='flex h-full items-center justify-center text-slate-500'>
+						{t('settings:comingSoon')}
+					</div>
+				)
+		}
+	}
 
 	return (
 		<div className='flex h-full bg-slate-950 text-slate-100'>
-			{/* Sidebar */}
 			{showSidebar && (
 				<div className='flex w-64 flex-col border-r border-slate-800 bg-slate-900/30 p-4 backdrop-blur-xl'>
 					{canGoBack && (
@@ -66,14 +101,11 @@ export function SettingsScreen({
 							<button
 								key={section.id}
 								type='button'
-								disabled={section.disabled}
 								onClick={() => setActiveSection(section.id)}
 								className={`flex w-full items-center gap-3 rounded-xl px-4 py-2.5 transition-all ${
 									activeSection === section.id
 										? 'bg-slate-100 text-slate-900 shadow-lg shadow-white/5'
-										: section.disabled
-											? 'cursor-not-allowed opacity-40 grayscale'
-											: 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100'
+										: 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100'
 								}`}>
 								<section.icon className='h-4 w-4' />
 								<span className='text-sm font-semibold'>{section.label}</span>
@@ -92,49 +124,16 @@ export function SettingsScreen({
 				</div>
 			)}
 
-			{/* Content area */}
 			<div className='relative flex-1 overflow-hidden'>
 				<AnimatePresence mode='wait'>
-					{activeSection === 'accounts' ? (
-						<motion.div
-							key='accounts'
-							initial={{ opacity: 0, y: 10 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -10 }}
-							className='h-full'>
-							<AccountsScreen
-								accounts={accounts}
-								onRemoveAccount={onRemoveAccount}
-								onSyncAccount={onSyncAccount}
-							/>
-						</motion.div>
-					) : activeSection === 'general' ? (
-						<motion.div
-							key='general'
-							initial={{ opacity: 0, y: 10 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -10 }}
-							className='h-full overflow-y-auto'>
-							<GeneralSettings />
-						</motion.div>
-					) : activeSection === 'privacy' ? (
-						<motion.div
-							key='privacy'
-							initial={{ opacity: 0, y: 10 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -10 }}
-							className='h-full overflow-y-auto'>
-							<PrivacySettings />
-						</motion.div>
-					) : (
-						<motion.div
-							key='empty'
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							className='flex h-full items-center justify-center text-slate-500'>
-							{t('settings:comingSoon')}
-						</motion.div>
-					)}
+					<motion.div
+						key={activeSection}
+						initial={{ opacity: 0, y: 10 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -10 }}
+						className='h-full overflow-y-auto'>
+						{renderSection()}
+					</motion.div>
 				</AnimatePresence>
 			</div>
 		</div>

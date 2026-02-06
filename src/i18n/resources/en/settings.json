@@ -9,7 +9,8 @@
 		"privacy": "Privacy",
 		"security": "Security",
 		"appearance": "Appearance",
-		"notifications": "Notifications"
+		"notifications": "Notifications",
+		"composing": "Composing"
 	},
 	"general": {
 		"title": "General Settings",
@@ -56,6 +57,123 @@
 			"shieldImages": {
 				"label": "Shield Images",
 				"description": "Blocks external images by default to prevent tracking pixels."
+			},
+			"blockReadReceipts": {
+				"label": "Block Read Receipts",
+				"description": "Never send read confirmations to senders."
+			},
+			"disableLinkPreview": {
+				"label": "Disable Link Previews",
+				"description": "Don't fetch URL previews to prevent IP leaks."
+			}
+		},
+		"metadata": {
+			"title": "Metadata",
+			"stripMetadata": {
+				"label": "Strip Attachment Metadata",
+				"description": "Remove EXIF and other metadata from images before sending."
+			}
+		}
+	},
+	"security": {
+		"title": "Security Settings",
+		"subtitle": "Protect your account and data.",
+		"session": {
+			"title": "Session",
+			"autoLock": {
+				"label": "Auto-lock",
+				"description": "Lock the app after a period of inactivity."
+			}
+		},
+		"data": {
+			"title": "Data Protection",
+			"encryptAttachments": {
+				"label": "Encrypt Attachments",
+				"description": "Store downloaded attachments encrypted on disk."
+			},
+			"clearClipboard": {
+				"label": "Clear Clipboard",
+				"description": "Auto-clear clipboard 30 seconds after copying sensitive data."
+			}
+		}
+	},
+	"appearance": {
+		"title": "Appearance",
+		"subtitle": "Customize how Postail looks.",
+		"theme": {
+			"title": "Theme",
+			"darkMode": {
+				"label": "Dark Mode",
+				"description": "Use dark theme across the application."
+			}
+		},
+		"layout": {
+			"title": "Layout",
+			"compactMode": {
+				"label": "Compact Mode",
+				"description": "Denser UI with smaller spacing for power users."
+			},
+			"showAvatars": {
+				"label": "Show Avatars",
+				"description": "Display contact avatars in the message list."
+			},
+			"animations": {
+				"label": "Animations",
+				"description": "Enable smooth transitions and motion effects."
+			}
+		}
+	},
+	"notifications": {
+		"title": "Notifications",
+		"subtitle": "Control how you're notified about new mail.",
+		"alerts": {
+			"title": "Alerts",
+			"desktop": {
+				"label": "Desktop Notifications",
+				"description": "Show system notifications for new emails."
+			},
+			"sound": {
+				"label": "Sound Alerts",
+				"description": "Play a sound when new email arrives."
+			}
+		},
+		"badge": {
+			"title": "Badge",
+			"count": {
+				"label": "Badge Count",
+				"description": "Show unread count in dock or taskbar."
+			}
+		},
+		"filters": {
+			"title": "Filters",
+			"importantOnly": {
+				"label": "Important Only",
+				"description": "Only notify for emails from starred contacts or marked as important."
+			}
+		}
+	},
+	"composing": {
+		"title": "Composing",
+		"subtitle": "Configure your email composition settings.",
+		"sending": {
+			"title": "Sending",
+			"readReceipts": {
+				"label": "Request Read Receipts",
+				"description": "Ask for confirmation when recipients read your emails."
+			}
+		},
+		"drafts": {
+			"title": "Drafts",
+			"autoSave": {
+				"label": "Auto-save Drafts",
+				"description": "Automatically save drafts while composing."
+			}
+		},
+		"editor": {
+			"title": "Editor",
+			"spellCheck": {
+				"label": "Spell Check",
+				"description": "Check spelling as you type."
 			}
 		}
 	},
