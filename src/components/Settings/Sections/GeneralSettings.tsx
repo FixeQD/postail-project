@@ -1,8 +1,20 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { EyeOff, Clock, HardDrive } from 'lucide-react'
-import { open } from '@tauri-apps/plugin-dialog'
+import { Folder, Database, Coffee, Send } from 'lucide-react'
+import { invoke } from '@tauri-apps/api/core'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
+import { open } from '@tauri-apps/plugin-dialog'
+import { toast } from 'sonner'
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+    DialogFooter,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 const Toggle = ({ value, onChange, label, description, icon: Icon }: any) => (
 	<div className='flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors'>
@@ -12,7 +24,7 @@ const Toggle = ({ value, onChange, label, description, icon: Icon }: any) => (
 			</div>
 			<div>
 				<h3 className='text-sm font-semibold text-slate-200'>{label}</h3>
-				<p className='text-xs text-slate-500'>{description}</p>
+				<p className='text-xs text-slate-500 max-w-[400px]'>{description}</p>
 			</div>
 		</div>
 		<button
@@ -34,23 +46,54 @@ const Toggle = ({ value, onChange, label, description, icon: Icon }: any) => (
 	</div>
 )
 
+const SettingCard = ({ label, description, icon: Icon, children }: any) => (
+	<div className='flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors'>
+		<div className='flex items-center gap-4'>
+			<div className='flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 ring-1 ring-white/10'>
+				<Icon className='h-5 w-5 text-slate-400' />
+			</div>
+			<div>
+				<h3 className='text-sm font-semibold text-slate-200'>{label}</h3>
+				<p className='text-xs text-slate-500 max-w-[400px]'>{description}</p>
+			</div>
+		</div>
+		<div className='flex items-center gap-2'>{children}</div>
+	</div>
+)
+
 export function GeneralSettings() {
 	const { t } = useSettingsTranslation()
 	const { settings, setSetting } = useSettingsStore()
+	const [isMigrationDialogOpen, setIsMigrationDialogOpen] = useState(false)
+	const [pendingPath, setPendingPath] = useState<string | null>(null)
+	const [isMigrating, setIsMigrating] = useState(false)
 
-	const handlePickPath = async () => {
+	const handlePathSelect = async () => {
+		const selected = await open({
+			directory: true,
+			multiple: false,
+			title: t('settings:general.storage.path.select'),
+		})
+
+		if (selected && typeof selected === 'string') {
+			setPendingPath(selected)
+			setIsMigrationDialogOpen(true)
+		}
+	}
+
+	const handleConfirmMigration = async () => {
+		if (!pendingPath) return
+
+		setIsMigrating(true)
+		setIsMigrationDialogOpen(false)
+
 		try {
-			const selected = await open({
-				directory: true,
-				multiple: false,
-				title: t('settings:general.storage.dataNomat.label'),
-			})
-			if (selected) {
-				await setSetting('data-path', selected)
-				// TODO: Implement moving files to new directory and updating database path
-			}
+			toast.loading(t('settings:general.storage.migration.loading'), { id: 'migration' })
+			await invoke('migrate_data_path', { newPath: pendingPath })
+			// App will restart, so we don't need to clear toast
 		} catch (error) {
-			console.error('Failed to pick directory:', error)
+			setIsMigrating(false)
+			toast.error(`${t('settings:general.storage.migration.error')}: ${error}`, { id: 'migration' })
 		}
 	}
 
@@ -70,7 +113,7 @@ export function GeneralSettings() {
 					</h2>
 					<div className='space-y-3'>
 						<Toggle
-							icon={EyeOff}
+							icon={Coffee}
 							label={t('settings:general.interface.zenMode.label')}
 							description={t('settings:general.interface.zenMode.description')}
 							value={settings['zen-mode']}
@@ -85,7 +128,7 @@ export function GeneralSettings() {
 					</h2>
 					<div className='space-y-3'>
 						<Toggle
-							icon={Clock}
+							icon={Send}
 							label={t('settings:general.behavior.strategicDelay.label')}
 							description={t('settings:general.behavior.strategicDelay.description')}
 							value={settings['undo-send-delay'] > 0}
@@ -98,33 +141,57 @@ export function GeneralSettings() {
 					<h2 className='text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 ml-2'>
 						{t('settings:general.storage.title')}
 					</h2>
-					<div className='p-4 rounded-2xl bg-white/5 border border-white/5'>
-						<div className='flex items-center gap-4 mb-4'>
-							<div className='flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 ring-1 ring-white/10'>
-								<HardDrive className='h-5 w-5 text-slate-400' />
+					<div className='space-y-3'>
+						<SettingCard
+							icon={Database}
+							label={t('settings:general.storage.path.label')}
+							description={t('settings:general.storage.path.description')}>
+							<div className='flex items-center gap-2'>
+								<code className='px-2 py-1 rounded bg-slate-900 border border-white/5 text-[10px] text-slate-400'>
+									{settings['data-path'] || 'Default'}
+								</code>
+								<button
+									type='button'
+									disabled={isMigrating}
+									onClick={handlePathSelect}
+									className='p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 transition-colors disabled:opacity-50'>
+									<Folder className='h-4 w-4' />
+								</button>
 							</div>
-							<div>
-								<h3 className='text-sm font-semibold text-slate-200'>
-									{t('settings:general.storage.dataNomat.label')}
-								</h3>
-								<p className='text-xs text-slate-500'>
-									{t('settings:general.storage.dataNomat.description')}
-								</p>
-							</div>
-						</div>
-						<div className='flex gap-2 bg-slate-950/50 p-2 rounded-xl border border-white/5'>
-							<code className='text-[10px] text-slate-400 flex-1 py-1 px-2 overflow-hidden text-ellipsis'>
-								{settings['data-path'] || t('settings:general.storage.defaultPath')}
-							</code>
-							<button
-								onClick={handlePickPath}
-								className='text-[10px] font-bold text-blue-400 hover:text-blue-300 px-2'>
-								{t('settings:general.storage.change')}
-							</button>
-						</div>
+						</SettingCard>
 					</div>
 				</section>
 			</div>
+
+			<Dialog
+				open={isMigrationDialogOpen}
+				onOpenChange={setIsMigrationDialogOpen}>
+				<DialogContent className='border-slate-800 bg-slate-900 text-slate-100'>
+					<DialogHeader>
+						<DialogTitle>{t('settings:general.storage.migration.confirmTitle')}</DialogTitle>
+						<DialogDescription className='text-slate-400'>
+							{t('settings:general.storage.migration.confirmDescription')}
+							<div className='mt-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs italic'>
+								{t('settings:general.storage.migration.newPath')}: <br />
+								<span className='font-mono font-bold break-all'>{pendingPath}</span>
+							</div>
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button
+							variant='outline'
+							onClick={() => setIsMigrationDialogOpen(false)}
+							className='border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'>
+							{t('common:actions.cancel')}
+						</Button>
+						<Button
+							onClick={handleConfirmMigration}
+							className='bg-blue-600 font-bold text-white hover:bg-blue-500'>
+							{t('settings:general.storage.migration.start')}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	)
 }

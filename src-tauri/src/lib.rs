@@ -74,7 +74,8 @@ pub fn run() {
             cmd::utils::auto_fix_email_html,
             cmd::settings::get_all_settings,
             cmd::settings::get_setting,
-            cmd::settings::set_setting
+            cmd::settings::set_setting,
+            cmd::settings::migrate_data_path
         ])
         .register_uri_scheme_protocol("postail", protocol::handler)
         .run(tauri::generate_context!())

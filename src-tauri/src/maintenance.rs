@@ -28,22 +28,58 @@ pub fn start_maintenance_scheduler(db_conn: Arc<Mutex<Option<Connection>>>) {
 
     thread::spawn(move || {
         let mut last_weekly_maintenance = std::time::Instant::now();
+        tracing::info!(target: "postail", "Maintenance scheduler started");
 
         loop {
-            thread::sleep(WAL_CHECKPOINT_INTERVAL);
-
-            let result = {
-                let conn_guard = db_conn.lock().unwrap();
-                if let Some(conn) = conn_guard.as_ref() {
-                    conn.execute("PRAGMA wal_checkpoint(TRUNCATE)", [])
+            // Check flag every 1s for 10s total sleep to respond to shutdown
+            for _ in 0..10 {
+                if !MAINTENANCE_RUNNING.load(std::sync::atomic::Ordering::SeqCst) {
+                    break;
+                }
+                thread::sleep(Duration::from_secs(1));
+            }
+            
+            if !MAINTENANCE_RUNNING.load(std::sync::atomic::Ordering::SeqCst) {
+                tracing::info!(target: "postail", "Maintenance scheduler stopping");
+                break;
+            }
+            
+            static LAST_CHECKPOINT: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
+            
+            let should_checkpoint = {
+                let mut last = LAST_CHECKPOINT.lock().unwrap();
+                if last.is_none() || last.unwrap().elapsed() >= WAL_CHECKPOINT_INTERVAL {
+                    *last = Some(std::time::Instant::now());
+                    true
                 } else {
-                    // DB not ready
-                    Ok(0) // Dummy result
+                    false
                 }
             };
 
-            if let Err(e) = result {
-                tracing::warn!(target: "postail", "WAL checkpoint failed: {}", e);
+            if should_checkpoint {
+                tracing::info!(target: "postail", "[Maintenance] Running WAL checkpoint...");
+                let result = {
+                    let conn_guard = db_conn.lock().unwrap();
+                    if let Some(conn) = conn_guard.as_ref() {
+                        conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                            let busy: i32 = row.get(0)?;
+                            let log: i32 = row.get(1)?;
+                            let checkpointed: i32 = row.get(2)?;
+                            Ok((busy, log, checkpointed))
+                        })
+                    } else {
+                        Ok((0, 0, 0))
+                    }
+                };
+
+                match result {
+                    Ok((busy, log, cp)) => {
+                        tracing::info!(target: "postail", "[Maintenance] WAL checkpoint done: busy={}, log={}, checkpointed={}", busy, log, cp);
+                    }
+                    Err(e) => {
+                        tracing::warn!(target: "postail", "[Maintenance] WAL checkpoint failed: {}", e);
+                    }
+                }
             }
 
             if last_weekly_maintenance.elapsed() >= WEEKLY_VACUUM_INTERVAL {

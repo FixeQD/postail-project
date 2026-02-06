@@ -44,12 +44,20 @@ impl SmtpManager {
     }
 
     pub fn stop_outbox_worker(&self) {
-        let mut running = OUTBOX_WORKER_RUNNING.lock().unwrap();
-        *running = false;
+        {
+            let mut running = OUTBOX_WORKER_RUNNING.lock().unwrap();
+            *running = false;
+        }
 
-        let mut handle = OUTBOX_WORKER_HANDLE.lock().unwrap();
-        if let Some(h) = handle.take() {
+        let handle = {
+            let mut handle_guard = OUTBOX_WORKER_HANDLE.lock().unwrap();
+            handle_guard.take()
+        };
+
+        if let Some(h) = handle {
+            tracing::info!(target: "postail", "[Outbox] Waiting for worker thread to join...");
             let _ = h.join();
+            tracing::info!(target: "postail", "[Outbox] Worker thread joined");
         }
     }
 
@@ -70,7 +78,12 @@ impl SmtpManager {
                 }
             }
 
-            tokio::time::sleep(Duration::from_secs(WORKER_INTERVAL_SECS)).await;
+            for _ in 0..WORKER_INTERVAL_SECS {
+                if !*OUTBOX_WORKER_RUNNING.lock().unwrap() {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
         }
     }
 

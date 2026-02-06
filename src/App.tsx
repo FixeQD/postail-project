@@ -114,8 +114,9 @@ function App() {
 	}, [fetchAccounts, t])
 
 	const handleUnlockSuccess = useCallback(async () => {
+		await loadSettings()
 		await fetchAccounts()
-	}, [fetchAccounts])
+	}, [fetchAccounts, loadSettings])
 
 	useEffect(() => {
 		const init = async () => {
@@ -132,6 +133,7 @@ function App() {
 						console.log(`Auto-unlocking with ${lastMethod}...`)
 						try {
 							await invoke('initialize_security', { method: lastMethod })
+							await loadSettings()
 							await fetchAccounts()
 						} catch (e) {
 							console.error(`Auto-unlock failed for ${lastMethod}`, e)
@@ -171,6 +173,7 @@ function App() {
 				await invoke('initialize_security', { method })
 				console.log(`${method} security initialized successfully, switching to accounts`)
 				await new Promise((resolve) => setTimeout(resolve, 100))
+				await loadSettings()
 				await fetchAccounts({ forceShowAccountsOnEmpty: true })
 			} catch (error) {
 				console.error(`Failed to initialize ${method} security:`, error)

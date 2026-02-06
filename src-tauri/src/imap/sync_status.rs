@@ -128,6 +128,13 @@ impl SyncStatusManager {
         stop_flags.remove(account_id);
     }
 
+    pub async fn unregister_all(&self) {
+        let mut statuses = self.statuses.lock().await;
+        statuses.clear();
+        let mut stop_flags = self.stop_flags.lock().await;
+        stop_flags.clear();
+    }
+
     pub async fn get_stop_flag(&self, account_id: &str) -> Arc<AtomicBool> {
         let mut stop_flags = self.stop_flags.lock().await;
         if !stop_flags.contains_key(account_id) {

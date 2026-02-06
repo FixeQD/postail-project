@@ -4005,6 +4005,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "stop-token",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",

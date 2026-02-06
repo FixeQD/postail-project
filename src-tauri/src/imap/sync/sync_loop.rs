@@ -6,7 +6,7 @@ use tracing;
 
 use crate::error::{AppError, ImapError, SyncError};
 use crate::imap::sync_status::{
-    mark_sync_complete, mark_sync_error, start_sync_status_tracking, stop_sync_status_tracking,
+    mark_sync_complete, mark_sync_error, start_sync_status_tracking,
     update_sync_status, SYNC_STATUS_MANAGER,
 };
 
@@ -17,6 +17,7 @@ lazy_static::lazy_static! {
     static ref SYNC_TASKS: std::sync::Mutex<Vec<thread::JoinHandle<()>>> = std::sync::Mutex::new(Vec::new());
     static ref STOP_FLAGS: std::sync::Mutex<std::collections::HashMap<String, Arc<AtomicBool>>> = std::sync::Mutex::new(std::collections::HashMap::new());
     static ref MAILBOX_TASKS: std::sync::Mutex<std::collections::HashMap<String, Vec<thread::JoinHandle<()>>>> = std::sync::Mutex::new(std::collections::HashMap::new());
+    static ref IDLE_INTERRUPTS: std::sync::Mutex<std::collections::HashMap<String, stop_token::StopSource>> = std::sync::Mutex::new(std::collections::HashMap::new());
 }
 
 impl crate::imap::ImapManager {
@@ -78,6 +79,20 @@ impl crate::imap::ImapManager {
         Ok(())
     }
 
+    pub fn stop_all_syncs(&self) -> Result<(), AppError> {
+        let accounts: Vec<String> = {
+            let flags = STOP_FLAGS.lock().unwrap();
+            flags.keys().cloned().collect()
+        };
+
+        for account_id in accounts {
+            if let Err(e) = self.stop_sync(&account_id) {
+                tracing::error!(target: "postail", "[IMAP] Failed to stop sync for {}: {}", account_id, e);
+            }
+        }
+        Ok(())
+    }
+
     pub fn stop_sync(&self, account_id: &str) -> Result<(), AppError> {
         let (stop_flag, _handle_idx): (Arc<AtomicBool>, Option<usize>) = {
             let flags = STOP_FLAGS.lock().unwrap();
@@ -92,6 +107,15 @@ impl crate::imap::ImapManager {
         };
 
         stop_flag.store(true, Ordering::SeqCst);
+
+        // Interrupt any active IDLE
+        {
+            let mut interrupts = IDLE_INTERRUPTS.lock().unwrap();
+            if let Some(interrupt) = interrupts.remove(account_id) {
+                tracing::info!(target: "postail", "[IMAP] Interrupting IDLE for {}", account_id);
+                drop(interrupt);
+            }
+        }
 
         {
             let mut mailbox_tasks = MAILBOX_TASKS.lock().unwrap();
@@ -127,24 +151,11 @@ impl crate::imap::ImapManager {
         })?;
 
         {
-            let mut flags = STOP_FLAGS.lock().unwrap();
-            flags.remove(account_id);
-        }
-
-        {
             let mut mailbox_tasks = MAILBOX_TASKS.lock().unwrap();
             mailbox_tasks.remove(account_id);
         }
 
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| AppError::from(e.to_string()))?;
-
-        rt.block_on(async {
-            stop_sync_status_tracking(account_id).await;
-        });
-
+        tracing::info!(target: "postail", "[IMAP] Sync thread joined for {}", account_id);
         Ok(())
     }
 
@@ -343,7 +354,11 @@ impl crate::imap::ImapManager {
                 return Ok(());
             }
 
-            let (wait_future, _interrupt) = idle.wait();
+            let (wait_future, interrupt) = idle.wait();
+            {
+                let mut interrupts = IDLE_INTERRUPTS.lock().unwrap();
+                interrupts.insert(account_id.to_string(), interrupt);
+            }
             match timeout(Duration::from_secs(RFC_IDLE_TIMEOUT_SECS), wait_future).await {
                 Ok(Ok(_)) => {
                     let mut session = idle.done().await.map_err(|e| ImapError::IdleWaitError {

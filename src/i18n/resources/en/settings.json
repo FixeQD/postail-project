@@ -30,12 +30,19 @@
 		},
 		"storage": {
 			"title": "Storage",
-			"dataNomat": {
-				"label": "Data Nomad",
-				"description": "Your data is currently stored in the default system location."
+			"path": {
+				"label": "Data Path",
+				"description": "The directory where all your mail, attachments and local database are stored.",
+				"select": "Select Data Directory"
 			},
-			"change": "Change",
-			"defaultPath": "~/.local/share/postail"
+			"migration": {
+				"loading": "Migrating your data, please wait...",
+				"error": "Migration failed",
+				"confirmTitle": "Migrate Data?",
+				"confirmDescription": "This will move all your emails, attachments, and settings to the new location. The application will restart automatically after the migration is complete.",
+				"newPath": "Target location",
+				"start": "Start Migration"
+			}
 		}
 	},
 	"privacy": {

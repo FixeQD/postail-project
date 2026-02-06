@@ -1,0 +1,89 @@
+use std::fs;
+use std::path::{Path, PathBuf};
+use crate::globals::{DB_CONN, IMAP_MANAGER, SMTP_MANAGER};
+use crate::utils::config::{get_data_dir, set_data_dir_override};
+
+pub async fn perform_migration(new_path: &str) -> Result<(), String> {
+    let old_dir = get_data_dir();
+    let new_dir = PathBuf::from(new_path);
+
+    if new_dir == old_dir {
+        return Ok(());
+    }
+
+    tracing::info!(target: "postail", "[Migration] Starting migration from {:?} to {:?}", old_dir, new_dir);
+
+    // 1. Stop all workers
+    tracing::info!(target: "postail", "[Migration] Stopping workers...");
+    
+    // Stop IMAP syncs
+    {
+        tracing::info!(target: "postail", "[Migration] Stopping IMAP syncs...");
+        let imap = IMAP_MANAGER.lock().unwrap();
+        let _ = imap.stop_all_syncs();
+    }
+
+    // Cleanup sync statuses
+    {
+        use crate::imap::sync_status::SYNC_STATUS_MANAGER;
+        SYNC_STATUS_MANAGER.unregister_all().await;
+    }
+
+    // Stop SMTP outbox worker
+    {
+        tracing::info!(target: "postail", "[Migration] Stopping SMTP worker...");
+        let smtp = SMTP_MANAGER.lock().unwrap();
+        smtp.stop_outbox_worker();
+    }
+
+    // Stop maintenance scheduler
+    tracing::info!(target: "postail", "[Migration] Stopping maintenance scheduler...");
+    crate::maintenance::stop_maintenance_scheduler();
+
+    // 2. Drop DB connection
+    tracing::info!(target: "postail", "[Migration] Closing database connection...");
+    {
+        let mut db_guard = DB_CONN.lock().unwrap();
+        *db_guard = None;
+    }
+
+    // 3. Move files
+    tracing::info!(target: "postail", "[Migration] Moving files...");
+    if !new_dir.exists() {
+        fs::create_dir_all(&new_dir).map_err(|e| e.to_string())?;
+    }
+
+    move_dir_contents(&old_dir, &new_dir)?;
+
+    // 4. Update override
+    tracing::info!(target: "postail", "[Migration] Updating data path override...");
+    set_data_dir_override(new_path).map_err(|e| e.to_string())?;
+
+    tracing::info!(target: "postail", "[Migration] Migration complete. Requesting restart...");
+
+    Ok(())
+}
+
+fn move_dir_contents(src: &Path, dst: &Path) -> Result<(), String> {
+    if !src.exists() {
+        return Ok(());
+    }
+
+    for entry in fs::read_dir(src).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        let file_name = path.file_name().ok_or("Invalid filename")?;
+        let dest_path = dst.join(file_name);
+
+        if path.is_dir() {
+            fs::create_dir_all(&dest_path).map_err(|e| e.to_string())?;
+            move_dir_contents(&path, &dest_path)?;
+            fs::remove_dir(&path).map_err(|e| e.to_string())?;
+        } else {
+            fs::copy(&path, &dest_path).map_err(|e| e.to_string())?;
+            fs::remove_file(&path).map_err(|e| e.to_string())?;
+        }
+    }
+
+    Ok(())
+}

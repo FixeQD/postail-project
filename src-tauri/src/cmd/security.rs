@@ -17,9 +17,7 @@ pub struct AppConfig {
 }
 
 pub fn get_config_path() -> std::path::PathBuf {
-    dirs::data_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("postail")
+    crate::utils::config::get_data_dir()
         .join("config.json")
 }
 
@@ -95,9 +93,7 @@ pub struct InitStatus {
 
 #[command]
 pub fn get_app_initialization_status() -> InitStatus {
-    let data_dir = dirs::data_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("postail");
+    let data_dir = crate::utils::config::get_data_dir();
     let db_path = data_dir.join("postail.db");
 
     let status = if db_path.exists() {
@@ -134,9 +130,7 @@ pub fn initialize_security_and_database(
         },
         "argon2" => match passphrase {
             Some(pass) => {
-                let storage_path = dirs::data_dir()
-                    .unwrap_or_else(|| std::path::PathBuf::from("."))
-                    .join("postail")
+                let storage_path = crate::utils::config::get_data_dir()
                     .join("security");
                 let builder = PassphraseSecurityBuilder::new(storage_path, pass);
                 builder.build()
@@ -165,9 +159,7 @@ pub fn initialize_security_and_database(
     };
     let hex_key = encryption.hex_key();
 
-    let data_dir = dirs::data_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("postail");
+    let data_dir = crate::utils::config::get_data_dir();
     let db_path = data_dir.join("postail.db");
 
     let db = if db_path.exists() {

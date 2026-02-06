@@ -1,8 +1,13 @@
 use std::path::PathBuf;
 use std::fs;
 
+pub fn get_default_data_dir() -> PathBuf {
+    dirs::data_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("postail")
+}
+
 pub fn get_data_dir() -> PathBuf {
-    // Check for override in ~/.config/postail/data_path
     let config_dir = dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("postail");
@@ -17,10 +22,7 @@ pub fn get_data_dir() -> PathBuf {
         }
     }
 
-    // Default
-    dirs::data_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("postail")
+    get_default_data_dir()
 }
 
 pub fn set_data_dir_override(path: &str) -> std::io::Result<()> {
