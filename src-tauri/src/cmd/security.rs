@@ -4,40 +4,13 @@ use crate::security::stores::keyring::KeyringStore;
 use crate::security::stores::tpm::get_tpm_store;
 use crate::security::stores::{SecretStore, StorageTier};
 use crate::security::{DbEncryption, SecurityManager};
-use serde::{Deserialize, Serialize};
+use crate::utils::config::{load_config, save_config, AppConfig};
+use serde::Serialize;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::command;
 use tokio::task::spawn_blocking;
 use tokio::time::timeout;
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct AppConfig {
-    pub security_method: String,
-}
-
-pub fn get_config_path() -> std::path::PathBuf {
-    crate::utils::config::get_data_dir()
-        .join("config.json")
-}
-
-pub fn load_config() -> Option<AppConfig> {
-    let path = get_config_path();
-    if !path.exists() {
-        return None;
-    }
-    let content = std::fs::read_to_string(path).ok()?;
-    serde_json::from_str(&content).ok()
-}
-
-pub fn save_config(config: &AppConfig) -> Result<(), String> {
-    let path = get_config_path();
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    let content = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
-    std::fs::write(path, content).map_err(|e| e.to_string())
-}
 
 #[derive(Serialize)]
 pub struct SecurityOptions {
@@ -130,8 +103,7 @@ pub fn initialize_security_and_database(
         },
         "argon2" => match passphrase {
             Some(pass) => {
-                let storage_path = crate::utils::config::get_data_dir()
-                    .join("security");
+                let storage_path = crate::utils::config::get_data_dir().join("security");
                 let builder = PassphraseSecurityBuilder::new(storage_path, pass);
                 builder.build()
             }
