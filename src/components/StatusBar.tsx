@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
 	Send,
 	CheckCircle,
@@ -55,13 +56,13 @@ export function StatusBar({ onOpenOutbox, accounts }: StatusBarProps) {
 
 		const setup = async () => {
 			cleanupOutbox = await setupOutboxListeners(
-				undefined, // processing
+				undefined,
 				() => {
 					setShowSuccess(true)
 					setTimeout(() => setShowSuccess(false), 3000)
 				},
-				undefined, // retry
-				undefined // failed
+				undefined,
+				undefined
 			)
 			cleanupSync = await setupSyncListeners()
 		}
@@ -73,7 +74,6 @@ export function StatusBar({ onOpenOutbox, accounts }: StatusBarProps) {
 		}
 	}, [])
 
-	// Load initial sync statuses for all accounts and poll every 2 seconds
 	useEffect(() => {
 		if (accounts.length === 0) return
 
@@ -89,11 +89,19 @@ export function StatusBar({ onOpenOutbox, accounts }: StatusBarProps) {
 	}, [accounts])
 
 	const getOutboxStatusIcon = useCallback(() => {
-		if (showSuccess) return <CheckCircle className='h-3 w-3 text-green-500' />
-		if (sendingCount > 0) return <Loader2 className='h-3 w-3 animate-spin text-yellow-500' />
-		if (failedCount > 0) return <AlertCircle className='h-3 w-3 text-red-500' />
-		if (pendingCount > 0) return <Send className='h-3 w-3 text-blue-500' />
-		return <CheckCircle className='h-3 w-3 text-zinc-500' />
+		if (showSuccess)
+			return (
+				<motion.div
+					initial={{ scale: 0 }}
+					animate={{ scale: 1 }}
+					transition={{ type: 'spring', stiffness: 500, damping: 20 }}>
+					<CheckCircle className='h-3 w-3 text-green-400' />
+				</motion.div>
+			)
+		if (sendingCount > 0) return <Loader2 className='h-3 w-3 animate-spin text-amber-400' />
+		if (failedCount > 0) return <AlertCircle className='h-3 w-3 text-red-400' />
+		if (pendingCount > 0) return <Send className='h-3 w-3 text-blue-400' />
+		return <CheckCircle className='h-3 w-3 text-slate-600' />
 	}, [sendingCount, failedCount, pendingCount, showSuccess])
 
 	const getOutboxStatusText = useCallback(() => {
@@ -129,11 +137,11 @@ export function StatusBar({ onOpenOutbox, accounts }: StatusBarProps) {
 		const globalStatus = getGlobalSyncStatus()
 		switch (globalStatus.status) {
 			case 'syncing':
-				return <Loader2 className='h-3 w-3 animate-spin text-blue-500' />
+				return <Loader2 className='h-3 w-3 animate-spin text-blue-400' />
 			case 'error':
-				return <AlertCircle className='h-3 w-3 text-red-500' />
+				return <AlertCircle className='h-3 w-3 text-red-400' />
 			default:
-				return <CheckCircle className='h-3 w-3 text-green-500' />
+				return <CheckCircle className='h-3 w-3 text-green-500/70' />
 		}
 	}, [getGlobalSyncStatus])
 
@@ -175,8 +183,8 @@ export function StatusBar({ onOpenOutbox, accounts }: StatusBarProps) {
 					: null
 				return (
 					<div className='flex items-center gap-2'>
-						<Loader2 className='h-3 w-3 animate-spin text-blue-500' />
-						<span className='text-zinc-300'>
+						<Loader2 className='h-3 w-3 animate-spin text-blue-400' />
+						<span className='text-slate-300'>
 							{status.mailbox
 								? t('statusBar.syncingMailbox', 'Syncing {{mailbox}}', {
 										mailbox: status.mailbox,
@@ -187,7 +195,7 @@ export function StatusBar({ onOpenOutbox, accounts }: StatusBarProps) {
 						<Button
 							variant='ghost'
 							size='sm'
-							className='h-4 w-4 p-0 text-zinc-500 hover:text-red-400'
+							className='h-4 w-4 p-0 text-slate-600 hover:text-red-400'
 							onClick={(e) => handleCancelSync(accountId, e)}>
 							<X className='h-3 w-3' />
 						</Button>
@@ -197,14 +205,14 @@ export function StatusBar({ onOpenOutbox, accounts }: StatusBarProps) {
 			case 'error':
 				return (
 					<div className='flex items-center gap-2'>
-						<AlertCircle className='h-3 w-3 text-red-500' />
+						<AlertCircle className='h-3 w-3 text-red-400' />
 						<span className='max-w-[150px] truncate text-red-400' title={status.error}>
 							{status.error || t('statusBar.syncFailed', 'Sync failed')}
 						</span>
 						<Button
 							variant='ghost'
 							size='sm'
-							className='h-4 w-4 p-0 text-zinc-500 hover:text-blue-400'
+							className='h-4 w-4 p-0 text-slate-600 hover:text-blue-400'
 							onClick={(e) => handleRetrySync(accountId, e)}>
 							<RefreshCw className='h-3 w-3' />
 						</Button>
@@ -213,8 +221,8 @@ export function StatusBar({ onOpenOutbox, accounts }: StatusBarProps) {
 			default:
 				return (
 					<div className='flex items-center gap-2'>
-						<CheckCircle className='h-3 w-3 text-green-500' />
-						<span className='text-zinc-500'>
+						<CheckCircle className='h-3 w-3 text-green-500/70' />
+						<span className='text-slate-600'>
 							{t('statusBar.lastSynced', 'Last synced {{time}}', {
 								time: useSyncStore.getState().getFormattedLastSync(accountId),
 							})}
@@ -228,43 +236,55 @@ export function StatusBar({ onOpenOutbox, accounts }: StatusBarProps) {
 
 	return (
 		<TooltipProvider>
-			<div className='flex h-6 shrink-0 items-center justify-between border-t border-zinc-800 bg-zinc-950 px-2 text-xs text-zinc-500'>
+			<div className='relative flex h-7 shrink-0 items-center justify-between px-2 text-xs text-slate-500'>
+				{/* Top gradient border */}
+				<div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent' />
+
+				{/* Background */}
+				<div className='absolute inset-0 bg-slate-950/90 backdrop-blur-sm' />
+
 				{/* Left section - Sync status */}
 				<DropdownMenu open={isSyncMenuOpen} onOpenChange={setIsSyncMenuOpen}>
 					<DropdownMenuTrigger asChild>
 						<Button
 							variant='ghost'
 							size='sm'
-							className='h-5 gap-1.5 px-2 text-xs text-zinc-500 hover:text-zinc-300'>
+							className='relative z-10 h-5 gap-1.5 px-2 text-xs text-slate-500 hover:text-slate-300'>
 							{getGlobalSyncIcon()}
 							<span>{getGlobalSyncText()}</span>
-							<ChevronUp
-								className={`h-3 w-3 transition-transform ${isSyncMenuOpen ? 'rotate-180' : ''}`}
-							/>
+							<motion.div
+								animate={{ rotate: isSyncMenuOpen ? 180 : 0 }}
+								transition={{ duration: 0.2, ease: 'easeOut' }}>
+								<ChevronUp className='h-3 w-3' />
+							</motion.div>
 						</Button>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align='start' className='w-72 border-zinc-800 bg-zinc-900'>
-						<DropdownMenuLabel className='text-zinc-400'>
+					<DropdownMenuContent
+						align='start'
+						className='w-72 border-white/[0.06] bg-slate-900/95 backdrop-blur-xl'>
+						<DropdownMenuLabel className='text-slate-400'>
 							{t('statusBar.syncStatus', 'Sync Status')}
 						</DropdownMenuLabel>
-						<DropdownMenuSeparator className='bg-zinc-800' />
+						<DropdownMenuSeparator className='bg-white/[0.06]' />
 						{accounts.length === 0 ? (
-							<DropdownMenuItem disabled className='text-zinc-600'>
+							<DropdownMenuItem disabled className='text-slate-600'>
 								{t('statusBar.noAccounts', 'No accounts added')}
 							</DropdownMenuItem>
 						) : (
 							accounts.map((account) => (
 								<DropdownMenuItem
 									key={account.id}
-									className='flex cursor-default flex-col items-start gap-1 py-2'
+									className='flex cursor-default flex-col items-start gap-1.5 py-2.5'
 									onSelect={(e) => e.preventDefault()}>
 									<div className='flex w-full items-center gap-2'>
-										<Mail className='h-3 w-3 text-zinc-500' />
-										<span className='truncate font-medium text-zinc-300'>
+										<div className='flex h-5 w-5 items-center justify-center rounded bg-slate-800 ring-1 ring-white/[0.06]'>
+											<Mail className='h-3 w-3 text-slate-500' />
+										</div>
+										<span className='truncate text-sm font-medium text-slate-300'>
 											{account.email}
 										</span>
 									</div>
-									<div className='w-full pl-5'>
+									<div className='w-full pl-7'>
 										{getAccountStatusDisplay(account.id)}
 									</div>
 								</DropdownMenuItem>
@@ -274,21 +294,42 @@ export function StatusBar({ onOpenOutbox, accounts }: StatusBarProps) {
 				</DropdownMenu>
 
 				{/* Right section - Outbox status */}
-				<div className='flex items-center gap-3'>
+				<div className='relative z-10 flex items-center gap-3'>
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
 								variant='ghost'
 								size='sm'
-								className={`h-5 gap-1.5 px-2 text-xs ${
-									hasActivity ? 'text-zinc-300 hover:text-white' : 'text-zinc-600'
+								className={`h-5 gap-1.5 px-2 text-xs transition-colors ${
+									hasActivity
+										? 'text-slate-300 hover:text-white'
+										: 'text-slate-600 hover:text-slate-400'
 								}`}
 								onClick={onOpenOutbox}>
-								{getOutboxStatusIcon()}
+								<AnimatePresence mode='wait'>
+									<motion.div
+										key={
+											showSuccess
+												? 'success'
+												: sendingCount > 0
+													? 'sending'
+													: failedCount > 0
+														? 'failed'
+														: 'idle'
+										}
+										initial={{ scale: 0.5, opacity: 0 }}
+										animate={{ scale: 1, opacity: 1 }}
+										exit={{ scale: 0.5, opacity: 0 }}
+										transition={{ duration: 0.15 }}>
+										{getOutboxStatusIcon()}
+									</motion.div>
+								</AnimatePresence>
 								<span>{getOutboxStatusText()}</span>
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent side='top'>
+						<TooltipContent
+							side='top'
+							className='border-white/[0.06] bg-slate-900 text-slate-300'>
 							<p>
 								{hasActivity
 									? t('statusBar.clickToView', 'Click to view outbox')

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import { motion, AnimatePresence } from 'framer-motion'
 import { X, RotateCcw, Ban, Send, AlertCircle, Clock, CheckCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -20,31 +21,31 @@ const statusConfig: Record<
 > = {
 	PENDING: {
 		icon: Clock,
-		color: 'text-blue-500',
+		color: 'text-blue-400',
 		bgColor: 'bg-blue-500/10',
 		label: 'Pending',
 	},
 	PROCESSING: {
 		icon: Send,
-		color: 'text-yellow-500',
-		bgColor: 'bg-yellow-500/10',
+		color: 'text-amber-400',
+		bgColor: 'bg-amber-500/10',
 		label: 'Sending',
 	},
 	SENT: {
 		icon: CheckCircle,
-		color: 'text-green-500',
+		color: 'text-green-400',
 		bgColor: 'bg-green-500/10',
 		label: 'Sent',
 	},
 	RETRY: {
 		icon: RotateCcw,
-		color: 'text-orange-500',
+		color: 'text-orange-400',
 		bgColor: 'bg-orange-500/10',
 		label: 'Retrying',
 	},
 	FAILED: {
 		icon: AlertCircle,
-		color: 'text-red-500',
+		color: 'text-red-400',
 		bgColor: 'bg-red-500/10',
 		label: 'Failed',
 	},
@@ -99,87 +100,163 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 	if (!isOpen) return null
 
 	return (
-		<div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4'>
-			<Card className='flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden border-zinc-800 bg-zinc-950'>
-				<CardHeader className='flex-shrink-0 border-b border-zinc-800 px-4 py-3'>
-					<div className='flex items-center justify-between'>
-						<CardTitle className='text-lg font-semibold text-zinc-200'>
-							{t('outbox.title', 'Outbox')}
-							{activeItems.length > 0 && (
-								<Badge
-									variant='outline'
-									className='ml-2 border-blue-500/30 bg-blue-500/10 text-blue-500'>
-									{activeItems.length}
-								</Badge>
-							)}
-						</CardTitle>
-						<Button
-							variant='ghost'
-							size='icon'
-							className='h-8 w-8 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
-							onClick={onClose}>
-							<X className='h-4 w-4' />
-						</Button>
-					</div>
-				</CardHeader>
+		<AnimatePresence>
+			{isOpen && (
+				<motion.div
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1 }}
+					exit={{ opacity: 0 }}
+					transition={{ duration: 0.2 }}
+					className='fixed inset-0 z-50 flex items-center justify-center p-4'
+					onClick={onClose}>
+					{/* Backdrop */}
+					<motion.div
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						className='absolute inset-0 bg-black/60 backdrop-blur-sm'
+					/>
 
-				<CardContent className='flex-1 space-y-4 overflow-y-auto p-4'>
-					{isLoading ? (
-						<div className='flex h-32 items-center justify-center text-zinc-500'>
-							{t('outbox.loading', 'Loading...')}
-						</div>
-					) : items.length === 0 ? (
-						<div className='flex h-32 flex-col items-center justify-center text-center'>
-							<CheckCircle className='mb-3 h-10 w-10 text-green-500' />
-							<p className='text-zinc-400'>{t('outbox.empty', 'Outbox is empty')}</p>
-							<p className='mt-1 text-sm text-zinc-600'>
-								{t('outbox.emptyDescription', 'No emails waiting to be sent')}
-							</p>
-						</div>
-					) : (
-						<>
-							{/* Active Messages */}
-							{activeItems.length > 0 && (
-								<div className='space-y-2'>
-									<h3 className='text-sm font-medium text-zinc-400'>
-										{t('outbox.activeMessages', 'Active Messages')}
-									</h3>
-									{activeItems.map((item) => (
-										<OutboxItemCard
-											key={item.id}
-											item={item}
-											onRetry={handleRetry}
-											onCancel={handleCancel}
-											isRetrying={retryingId === item.id}
-											isCancelling={cancellingId === item.id}
-										/>
-									))}
+					{/* Panel */}
+					<motion.div
+						initial={{ opacity: 0, y: 24, scale: 0.96 }}
+						animate={{ opacity: 1, y: 0, scale: 1 }}
+						exit={{ opacity: 0, y: 16, scale: 0.97 }}
+						transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+						onClick={(e) => e.stopPropagation()}>
+						<Card className='flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden border-white/[0.06] bg-slate-950/95 shadow-2xl ring-1 shadow-black/40 ring-white/[0.08] backdrop-blur-xl'>
+							<CardHeader className='flex-shrink-0 border-b border-white/[0.06] px-5 py-4'>
+								<div className='flex items-center justify-between'>
+									<div className='flex items-center gap-3'>
+										<div className='flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/10 ring-1 ring-orange-500/20'>
+											<Send className='h-4 w-4 text-orange-400' />
+										</div>
+										<CardTitle className='text-lg font-semibold text-slate-200'>
+											{t('outbox.title', 'Outbox')}
+											{activeItems.length > 0 && (
+												<Badge
+													variant='outline'
+													className='ml-2 border-blue-500/20 bg-blue-500/10 text-xs text-blue-400'>
+													{activeItems.length}
+												</Badge>
+											)}
+										</CardTitle>
+									</div>
+									<motion.div
+										whileHover={{ scale: 1.1 }}
+										whileTap={{ scale: 0.9 }}>
+										<Button
+											variant='ghost'
+											size='icon'
+											className='h-8 w-8 text-slate-500 hover:bg-white/[0.06] hover:text-slate-300'
+											onClick={onClose}>
+											<X className='h-4 w-4' />
+										</Button>
+									</motion.div>
 								</div>
-							)}
+							</CardHeader>
 
-							{/* Recently Sent */}
-							{sentItems.length > 0 && (
-								<div className='space-y-2 border-t border-zinc-800 pt-4'>
-									<h3 className='text-sm font-medium text-zinc-400'>
-										{t('outbox.recentlySent', 'Recently Sent')}
-									</h3>
-									{sentItems.slice(0, 5).map((item) => (
-										<OutboxItemCard
-											key={item.id}
-											item={item}
-											onRetry={() => {}}
-											onCancel={() => {}}
-											isRetrying={false}
-											isCancelling={false}
-										/>
-									))}
-								</div>
-							)}
-						</>
-					)}
-				</CardContent>
-			</Card>
-		</div>
+							<CardContent className='hover-scrollbar flex-1 space-y-4 overflow-y-auto p-5'>
+								{isLoading ? (
+									<div className='flex h-32 items-center justify-center'>
+										<div className='flex flex-col items-center gap-3'>
+											<div className='relative h-8 w-8'>
+												<div className='absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-orange-500' />
+												<div
+													className='absolute inset-1 animate-spin rounded-full border-2 border-transparent border-b-orange-500/30'
+													style={{
+														animationDirection: 'reverse',
+														animationDuration: '1.5s',
+													}}
+												/>
+											</div>
+											<span className='text-sm text-slate-500'>
+												{t('outbox.loading', 'Loading...')}
+											</span>
+										</div>
+									</div>
+								) : items.length === 0 ? (
+									<motion.div
+										initial={{ opacity: 0, scale: 0.95 }}
+										animate={{ opacity: 1, scale: 1 }}
+										transition={{ delay: 0.1, duration: 0.3 }}
+										className='flex h-32 flex-col items-center justify-center text-center'>
+										<div className='mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-green-500/[0.08] ring-1 ring-green-500/20'>
+											<CheckCircle className='h-6 w-6 text-green-400/70' />
+										</div>
+										<p className='text-sm font-medium text-slate-400'>
+											{t('outbox.empty', 'Outbox is empty')}
+										</p>
+										<p className='mt-1 text-xs text-slate-600'>
+											{t(
+												'outbox.emptyDescription',
+												'No emails waiting to be sent'
+											)}
+										</p>
+									</motion.div>
+								) : (
+									<div className='stagger-children'>
+										{/* Active Messages */}
+										{activeItems.length > 0 && (
+											<div className='space-y-2'>
+												<h3 className='ml-1 text-xs font-semibold tracking-wider text-slate-500 uppercase'>
+													{t('outbox.activeMessages', 'Active Messages')}
+												</h3>
+												{activeItems.map((item, index) => (
+													<motion.div
+														key={item.id}
+														initial={{ opacity: 0, y: 12 }}
+														animate={{ opacity: 1, y: 0 }}
+														transition={{
+															delay: index * 0.05,
+															duration: 0.3,
+														}}>
+														<OutboxItemCard
+															item={item}
+															onRetry={handleRetry}
+															onCancel={handleCancel}
+															isRetrying={retryingId === item.id}
+															isCancelling={cancellingId === item.id}
+														/>
+													</motion.div>
+												))}
+											</div>
+										)}
+
+										{/* Recently Sent */}
+										{sentItems.length > 0 && (
+											<div className='space-y-2 border-t border-white/[0.06] pt-4'>
+												<h3 className='ml-1 text-xs font-semibold tracking-wider text-slate-500 uppercase'>
+													{t('outbox.recentlySent', 'Recently Sent')}
+												</h3>
+												{sentItems.slice(0, 5).map((item, index) => (
+													<motion.div
+														key={item.id}
+														initial={{ opacity: 0, y: 8 }}
+														animate={{ opacity: 1, y: 0 }}
+														transition={{
+															delay: 0.1 + index * 0.04,
+															duration: 0.3,
+														}}>
+														<OutboxItemCard
+															item={item}
+															onRetry={() => {}}
+															onCancel={() => {}}
+															isRetrying={false}
+															isCancelling={false}
+														/>
+													</motion.div>
+												))}
+											</div>
+										)}
+									</div>
+								)}
+							</CardContent>
+						</Card>
+					</motion.div>
+				</motion.div>
+			)}
+		</AnimatePresence>
 	)
 }
 
@@ -202,35 +279,37 @@ function OutboxItemCard({
 	const Icon = config.icon
 
 	return (
-		<div className='space-y-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3'>
+		<div className='group space-y-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 transition-colors hover:bg-white/[0.04]'>
 			<div className='flex items-start justify-between gap-3'>
-				<div className='flex min-w-0 flex-1 items-start gap-2'>
+				<div className='flex min-w-0 flex-1 items-start gap-2.5'>
 					<div className={`mt-0.5 ${config.color}`}>
 						<Icon className='h-4 w-4' />
 					</div>
 					<div className='min-w-0 flex-1'>
-						<p className='truncate text-sm font-medium text-zinc-200'>
+						<p className='truncate text-sm font-medium text-slate-200'>
 							{item.subject || '(No subject)'}
 						</p>
-						<p className='truncate text-xs text-zinc-500'>
+						<p className='truncate text-xs text-slate-500'>
 							{item.recipient || 'Unknown recipient'}
 						</p>
 					</div>
 				</div>
 				<Badge
 					variant='outline'
-					className={`flex-shrink-0 text-[10px] ${config.bgColor} ${config.color} border-current`}>
+					className={`flex-shrink-0 text-[10px] font-semibold ${config.bgColor} ${config.color} border-current/20`}>
 					{config.label}
 				</Badge>
 			</div>
 
 			{item.status === 'RETRY' && item.attempts > 0 && (
-				<p className='text-xs text-orange-400'>Attempt {item.attempts}/5</p>
+				<p className='text-xs text-orange-400/80'>Attempt {item.attempts}/5</p>
 			)}
 
 			{item.lastError && item.status === 'FAILED' && (
-				<Alert variant='destructive' className='py-2'>
-					<AlertDescription className='text-xs'>{item.lastError}</AlertDescription>
+				<Alert variant='destructive' className='border-red-500/20 bg-red-500/5 py-2'>
+					<AlertDescription className='text-xs text-red-400'>
+						{item.lastError}
+					</AlertDescription>
 				</Alert>
 			)}
 
@@ -239,7 +318,7 @@ function OutboxItemCard({
 					<Button
 						variant='outline'
 						size='sm'
-						className='h-7 border-orange-500/30 text-xs text-orange-400 hover:bg-orange-500/10'
+						className='h-7 border-orange-500/20 bg-orange-500/5 text-xs text-orange-400 hover:bg-orange-500/10 hover:text-orange-300'
 						onClick={() => onRetry(item.id)}
 						disabled={isRetrying || isCancelling}>
 						{isRetrying ? (
@@ -247,12 +326,12 @@ function OutboxItemCard({
 						) : (
 							<RotateCcw className='mr-1 h-3 w-3' />
 						)}
-						Retry
+						{!isRetrying && 'Retry'}
 					</Button>
 					<Button
 						variant='outline'
 						size='sm'
-						className='h-7 border-red-500/30 text-xs text-red-400 hover:bg-red-500/10'
+						className='h-7 border-red-500/20 bg-red-500/5 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300'
 						onClick={() => onCancel(item.id)}
 						disabled={isRetrying || isCancelling}>
 						{isCancelling ? (
@@ -260,7 +339,7 @@ function OutboxItemCard({
 						) : (
 							<Ban className='mr-1 h-3 w-3' />
 						)}
-						Cancel
+						{!isCancelling && 'Cancel'}
 					</Button>
 				</div>
 			)}

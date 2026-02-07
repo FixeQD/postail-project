@@ -27,6 +27,7 @@ export function TitleBar({
 	const { isSending } = useDraftStore()
 	const [isMobile, setIsMobile] = useState<boolean | null>(null)
 	const [searchQuery, setSearchQuery] = useState('')
+	const [searchFocused, setSearchFocused] = useState(false)
 
 	useEffect(() => {
 		try {
@@ -51,49 +52,82 @@ export function TitleBar({
 
 	return (
 		<div
-			className='flex h-14 shrink-0 items-center justify-between border-b border-slate-900 bg-slate-950 select-none'
+			className='glass relative flex h-14 shrink-0 items-center justify-between border-b border-white/[0.06] select-none'
 			onMouseDown={startDrag}>
+			{/* Subtle top highlight */}
+			<div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent' />
+
 			{/* Left: Branding */}
 			<div className='flex w-64 shrink-0 items-center gap-3 px-4 pl-6'>
-				<img src={icon} alt='Postail' className='h-8 w-8' />
-				<span className='text-lg font-bold tracking-tight text-white'>Postail</span>
+				<motion.img
+					src={icon}
+					alt='Postail'
+					className='h-8 w-8'
+					initial={false}
+					whileHover={{ rotate: [0, -8, 8, 0] }}
+					transition={{ duration: 0.4 }}
+				/>
+				<span className='gradient-text-brand text-lg font-bold tracking-tight'>
+					Postail
+				</span>
 			</div>
 
 			{/* Middle: Search Bar (Dashboard Only) */}
 			<div className='flex flex-1 justify-center px-4'>
 				{isDashboard && (
-					<div className='relative w-full max-w-2xl'>
-						<div className='pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3'>
-							<Search className='h-4 w-4 text-slate-500' />
+					<motion.div
+						className='relative w-full max-w-2xl'
+						animate={{ scale: searchFocused ? 1.01 : 1 }}
+						transition={{ duration: 0.2, ease: 'easeOut' }}>
+						<div className='pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5'>
+							<Search
+								className={`h-4 w-4 transition-colors duration-200 ${searchFocused ? 'text-orange-400' : 'text-slate-500'}`}
+							/>
 						</div>
 						<input
 							type='text'
+							data-search-input
 							value={searchQuery}
 							onChange={(e) => {
 								setSearchQuery(e.target.value)
 								onSearch?.(e.target.value)
 							}}
-							onMouseDown={(e) => e.stopPropagation()} // Allow interaction
+							onFocus={() => setSearchFocused(true)}
+							onBlur={() => setSearchFocused(false)}
+							onMouseDown={(e) => e.stopPropagation()}
 							placeholder={t('inbox:search.placeholder')}
-							className='block w-full rounded-lg bg-slate-900 py-2 pr-3 pl-10 text-sm text-slate-200 placeholder-slate-500 focus:bg-slate-800 focus:ring-1 focus:ring-slate-700 focus:outline-none'
+							className={`block w-full rounded-xl border py-2.5 pr-4 pl-10 text-sm text-slate-200 placeholder-slate-500 transition-all duration-200 focus:outline-none ${
+								searchFocused
+									? 'border-orange-500/30 bg-slate-900/90 shadow-lg ring-1 shadow-orange-500/5 ring-orange-500/20'
+									: 'border-white/[0.06] bg-slate-900/60 hover:border-white/[0.1] hover:bg-slate-900/80'
+							}`}
 						/>
-					</div>
+						{/* Focus glow underneath */}
+						<motion.div
+							className='pointer-events-none absolute inset-x-4 -bottom-1 h-4 rounded-full bg-orange-500/10 blur-md'
+							initial={false}
+							animate={{ opacity: searchFocused ? 1 : 0 }}
+							transition={{ duration: 0.2 }}
+						/>
+					</motion.div>
 				)}
 			</div>
 
 			<div className='flex w-64 shrink-0 items-center justify-end gap-2 px-2'>
 				{/* Dashboard Actions */}
 				{isDashboard && activeAccount && (
-					<div className='mr-4 flex items-center gap-3 border-r border-slate-800 pr-4'>
-						<button
-							className='relative text-slate-400 hover:text-slate-200'
+					<div className='mr-3 flex items-center gap-1 border-r border-white/[0.06] pr-3'>
+						<motion.button
+							className='relative flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-slate-200'
+							whileTap={{ scale: 0.9 }}
 							onMouseDown={(e) => e.stopPropagation()}>
-							<Bell className='h-5 w-5' />
-							<span className='absolute top-0 right-0 h-2 w-2 rounded-full bg-orange-500'></span>
-						</button>
+							<Bell className='h-[18px] w-[18px]' />
+							<span className='badge-pulse absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-orange-500' />
+						</motion.button>
+
 						<motion.button
 							id='outbox-button'
-							className='text-slate-400 hover:text-slate-200'
+							className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-slate-200'
 							onClick={(e) => {
 								e.stopPropagation()
 								onOpenOutbox?.()
@@ -101,31 +135,40 @@ export function TitleBar({
 							animate={
 								isSending
 									? {
-											scale: [1, 1.2, 1],
-											rotate: [0, 15, -15, 0],
-											color: '#fb923c', // orange-400
+											scale: [1, 1.15, 1],
+											rotate: [0, 12, -12, 0],
+											color: '#fb923c',
 										}
 									: {}
 							}
-							transition={{
-								duration: 0.5,
-								repeat: Infinity,
-								repeatType: 'loop',
-							}}
+							transition={
+								isSending
+									? {
+											duration: 0.5,
+											repeat: Infinity,
+											repeatType: 'loop',
+										}
+									: {}
+							}
+							whileTap={{ scale: 0.9 }}
 							onMouseDown={(e) => e.stopPropagation()}>
-							<Send className='h-5 w-5' />
+							<Send className='h-[18px] w-[18px]' />
 						</motion.button>
-						<button
-							className='text-slate-400 hover:text-slate-200'
+
+						<motion.button
+							className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-slate-200'
 							onClick={(e) => {
 								e.stopPropagation()
 								onOpenSettings?.()
 							}}
+							whileTap={{ scale: 0.9 }}
 							onMouseDown={(e) => e.stopPropagation()}>
-							<Settings className='h-5 w-5' />
-						</button>
-						<div className='h-8 w-8 overflow-hidden rounded-full bg-orange-600 ring-2 ring-slate-900'>
-							<div className='flex h-full w-full items-center justify-center font-bold text-white'>
+							<Settings className='h-[18px] w-[18px]' />
+						</motion.button>
+
+						{/* Avatar */}
+						<div className='ml-1 h-8 w-8 overflow-hidden rounded-full bg-gradient-to-br from-orange-500 to-orange-600 ring-2 ring-slate-950 ring-offset-1 ring-offset-slate-800/50'>
+							<div className='flex h-full w-full items-center justify-center text-sm font-bold text-white'>
 								{activeAccount.name.charAt(0).toUpperCase()}
 							</div>
 						</div>
@@ -133,39 +176,45 @@ export function TitleBar({
 				)}
 
 				{/* Window Controls */}
-				<div className='flex h-full items-center gap-1 pl-2'>
+				<div className='flex h-full items-center gap-0.5 pl-1'>
 					{/* Minimize */}
-					<button
+					<motion.button
 						onClick={(e) => {
 							e.stopPropagation()
 							minimize()
 						}}
 						onMouseDown={(e) => e.stopPropagation()}
-						className='group flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-800'>
-						<div className='h-0.5 w-3 rounded-full bg-slate-400 group-hover:bg-slate-200' />
-					</button>
+						whileHover={{ scale: 1.1 }}
+						whileTap={{ scale: 0.85 }}
+						className='group flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-white/[0.08]'>
+						<div className='h-0.5 w-2.5 rounded-full bg-slate-500 transition-colors group-hover:bg-slate-300' />
+					</motion.button>
 
 					{/* Maximize */}
-					<button
+					<motion.button
 						onClick={(e) => {
 							e.stopPropagation()
 							toggleMaximize()
 						}}
 						onMouseDown={(e) => e.stopPropagation()}
-						className='group flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-800'>
-						<div className='h-2.5 w-2.5 rounded-[2px] border-2 border-slate-400 group-hover:border-slate-200' />
-					</button>
+						whileHover={{ scale: 1.1 }}
+						whileTap={{ scale: 0.85 }}
+						className='group flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-white/[0.08]'>
+						<div className='h-2.5 w-2.5 rounded-[2px] border-[1.5px] border-slate-500 transition-colors group-hover:border-slate-300' />
+					</motion.button>
 
 					{/* Close */}
-					<button
+					<motion.button
 						onClick={(e) => {
 							e.stopPropagation()
 							close()
 						}}
 						onMouseDown={(e) => e.stopPropagation()}
-						className='group flex h-8 w-8 items-center justify-center rounded-full hover:bg-red-600'>
+						whileHover={{ scale: 1.1 }}
+						whileTap={{ scale: 0.85 }}
+						className='group flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-red-500/80'>
 						<svg
-							className='h-4 w-4 text-slate-400 group-hover:text-white'
+							className='h-3.5 w-3.5 text-slate-500 transition-colors group-hover:text-white'
 							fill='none'
 							stroke='currentColor'
 							viewBox='0 0 24 24'>
@@ -176,7 +225,7 @@ export function TitleBar({
 								d='M6 18L18 6M6 6l12 12'
 							/>
 						</svg>
-					</button>
+					</motion.button>
 				</div>
 			</div>
 		</div>

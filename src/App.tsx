@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { listen, Event } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { motion, AnimatePresence } from 'framer-motion'
 import { TitleBar } from './components/TitleBar'
 import { WelcomeScreen } from './components/Welcome/WelcomeScreen'
 import { EncryptionChoice } from './components/Welcome/EncryptionChoice'
@@ -15,6 +16,7 @@ import { Toaster, toast } from 'sonner'
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
 import type { AccountMeta } from './types/accounts'
 import { useSettingsStore } from './stores/settingsStore'
+import icon from './assets/icon.png'
 import './i18n'
 import { useTranslation } from 'react-i18next'
 
@@ -241,8 +243,26 @@ function App() {
 		switch (currentState) {
 			case 'init':
 				return (
-					<div className='flex h-full items-center justify-center text-slate-500'>
-						Loading...
+					<div className='flex h-full flex-col items-center justify-center gap-5'>
+						<motion.div
+							initial={{ opacity: 0, scale: 0.8 }}
+							animate={{ opacity: 1, scale: 1 }}
+							transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+							className='animate-subtle-float'>
+							<div className='relative flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-800/80 shadow-xl ring-1 ring-white/[0.08]'>
+								<img src={icon} alt='Postail' className='h-12 w-12' />
+								<div className='animate-glow-breathe absolute -inset-3 -z-10 rounded-3xl bg-orange-500/10 blur-xl' />
+							</div>
+						</motion.div>
+						<motion.div
+							initial={{ opacity: 0, y: 8 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ delay: 0.15, duration: 0.4 }}
+							className='flex flex-col items-center gap-2'>
+							<div className='relative h-5 w-5'>
+								<div className='absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-orange-500' />
+							</div>
+						</motion.div>
 					</div>
 				)
 			case 'welcome':
@@ -299,25 +319,42 @@ function App() {
 		}
 	}
 
-	// Only show title bar for suitable screens
-	const shouldShowTitleBar = true
-
 	return (
-		<div className='flex h-screen flex-col bg-slate-950 text-slate-100'>
-			{shouldShowTitleBar && (
-				<TitleBar
-					isDashboard={currentState === 'dashboard'}
-					activeAccount={activeAccount}
-					onOpenSettings={() => setCurrentState('settings')}
-					onSearch={(q) => console.log('Search:', q)}
-					onOpenOutbox={() => setOutboxOpen(true)}
-				/>
-			)}
-			<main className='flex-1 overflow-y-auto'>{renderCurrentScreen()}</main>
+		<div className='noise-overlay relative flex h-screen flex-col bg-slate-950 text-slate-100'>
+			<TitleBar
+				isDashboard={currentState === 'dashboard'}
+				activeAccount={activeAccount}
+				onOpenSettings={() => setCurrentState('settings')}
+				onSearch={(q) => console.log('Search:', q)}
+				onOpenOutbox={() => setOutboxOpen(true)}
+			/>
+			<main className='flex-1 overflow-y-auto'>
+				<AnimatePresence mode='wait'>
+					<motion.div
+						key={currentState}
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.2, ease: 'easeOut' }}
+						className='h-full'>
+						{renderCurrentScreen()}
+					</motion.div>
+				</AnimatePresence>
+			</main>
 			{currentState === 'dashboard' && (
 				<StatusBar onOpenOutbox={() => setOutboxOpen(true)} accounts={accounts} />
 			)}
-			<Toaster />
+			<Toaster
+				toastOptions={{
+					style: {
+						background: 'rgba(15, 23, 42, 0.95)',
+						border: '1px solid rgba(255, 255, 255, 0.06)',
+						color: '#e2e8f0',
+						backdropFilter: 'blur(12px)',
+						boxShadow: '0 8px 32px -4px rgba(0, 0, 0, 0.4)',
+					},
+				}}
+			/>
 		</div>
 	)
 }

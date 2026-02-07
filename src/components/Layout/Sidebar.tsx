@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Inbox, Send, Trash2, Archive, File, Pencil } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
 import { useQuery } from '@tanstack/react-query'
@@ -80,26 +80,26 @@ export const Sidebar = ({
 	}, [isResizing])
 
 	const getIconForMailbox = (mailbox: Mailbox) => {
+		const cls = 'h-[18px] w-[18px]'
 		switch (mailbox.role) {
 			case 'inbox':
-				return <Inbox className='h-5 w-5' />
+				return <Inbox className={cls} />
 			case 'sent':
-				return <Send className='h-5 w-5' />
+				return <Send className={cls} />
 			case 'trash':
-				return <Trash2 className='h-5 w-5' />
+				return <Trash2 className={cls} />
 			case 'archive':
-				return <Archive className='h-5 w-5' />
+				return <Archive className={cls} />
 			case 'drafts':
-				return <File className='h-5 w-5' />
+				return <File className={cls} />
 			case 'junk':
-				return <File className='h-5 w-5' />
+				return <File className={cls} />
 			default:
-				return <File className='h-5 w-5' />
+				return <File className={cls} />
 		}
 	}
 
 	const getMailboxLabel = (mailbox: Mailbox) => {
-		// Translation keys match roles usually
 		switch (mailbox.role) {
 			case 'inbox':
 				return t('inbox:sidebar.mailboxes.inbox')
@@ -116,86 +116,128 @@ export const Sidebar = ({
 		}
 	}
 
+	const sortedMailboxes = allMailboxes.sort((a, b) => {
+		if (a.name.toLowerCase() === 'inbox') return -1
+		if (b.name.toLowerCase() === 'inbox') return 1
+		if (a.role === 'drafts') return 1
+		if (b.role === 'drafts') return -1
+		return a.name.localeCompare(b.name)
+	})
+
 	return (
 		<>
 			<motion.div
 				ref={sidebarRef}
 				style={{ width }}
-				className='relative flex h-full flex-col bg-slate-950 p-4'>
-				<div className='absolute top-0 right-0 bottom-0 w-px bg-gradient-to-b from-transparent via-slate-800 to-transparent' />
+				className='relative flex h-full flex-col bg-slate-950 p-3'>
+				{/* Right edge gradient line */}
+				<div className='pointer-events-none absolute top-0 right-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/[0.06] to-transparent' />
+
 				{/* New Message Button */}
-				<div className='mb-2 flex flex-col gap-4'>
-					<button
+				<div className='mb-1 flex flex-col gap-3'>
+					<motion.button
 						type='button'
 						onClick={onCompose}
-						className={`group flex items-center rounded-xl bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 shadow-sm transition-all hover:bg-slate-700 hover:shadow-md active:scale-[0.98] ${isCollapsed ? 'mx-auto aspect-square h-12 w-12 justify-center px-0' : 'w-full'}`}>
-						<Pencil className='h-4 w-4 shrink-0 transition-transform group-hover:scale-110' />
+						whileHover={{ scale: 1.02 }}
+						whileTap={{ scale: 0.96 }}
+						className={`group relative flex items-center overflow-hidden rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/15 transition-shadow hover:shadow-xl hover:shadow-orange-500/25 ${isCollapsed ? 'mx-auto aspect-square h-11 w-11 justify-center px-0' : 'w-full'}`}>
+						{/* Shimmer effect on hover */}
+						<div className='absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full' />
+						<Pencil className='relative h-4 w-4 shrink-0' />
 						{!isCollapsed && (
-							<span className='ml-3 truncate'>{t('inbox:sidebar.newMessage')}</span>
+							<span className='relative ml-3 truncate'>
+								{t('inbox:sidebar.newMessage')}
+							</span>
 						)}
-					</button>
+					</motion.button>
 
 					{/* Separator */}
-					<div className='relative mx-2 h-px'>
-						<div className='absolute inset-0 bg-gradient-to-r from-transparent via-orange-500 to-transparent opacity-30 blur-[1px]' />
-						<div className='absolute inset-0 bg-gradient-to-r from-transparent via-slate-700 to-transparent' />
+					<div className='relative mx-3 h-px'>
+						<div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.08] to-transparent' />
 					</div>
 				</div>
 
 				{/* Mailboxes */}
-				<div className='flex-1 space-y-1 overflow-x-hidden overflow-y-auto'>
+				<div className='hover-scrollbar flex-1 space-y-0.5 overflow-x-hidden overflow-y-auto pt-1'>
 					{isLoading ? (
-						<div className='flex flex-col gap-2 p-2'>
+						<div className='stagger-children flex flex-col gap-2 p-2'>
 							{[1, 2, 3].map((i) => (
-								<div
-									key={i}
-									className='h-10 animate-pulse rounded-full bg-slate-900'
-								/>
+								<div key={i} className='skeleton h-10 rounded-xl' />
 							))}
 						</div>
 					) : (
-						<>
-							{allMailboxes
-								.sort((a, b) => {
-									if (a.name.toLowerCase() === 'inbox') return -1
-									if (a.role === 'drafts') return 1
-									if (b.role === 'drafts') return -1
-									return a.name.localeCompare(b.name)
-								})
-								.map((mailbox) => {
-									const isActive = activeMailbox === mailbox.name
-									return (
-										<button
-											type='button'
-											key={mailbox.name}
-											onClick={() => onMailboxSelect(mailbox.name)}
-											title={isCollapsed ? mailbox.display_name : undefined}
-											className={`relative flex w-full items-center rounded-l-3xl rounded-r-3xl px-4 py-3 text-sm font-medium transition-all ${
-												isActive
-													? 'bg-orange-500/10 text-orange-500'
-													: 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
-											} ${isCollapsed ? 'justify-center px-0' : ''}`}>
-											<div
-												className={`shrink-0 ${isActive ? 'text-orange-500' : 'text-slate-400'}`}>
-												{getIconForMailbox(mailbox)}
-											</div>
-											{!isCollapsed && (
-												<div className='ml-4 flex flex-1 items-center justify-between truncate'>
-													<span>{getMailboxLabel(mailbox)}</span>
-												</div>
+						<div className='stagger-children'>
+							{sortedMailboxes.map((mailbox) => {
+								const isActive = activeMailbox === mailbox.name
+								return (
+									<motion.button
+										type='button'
+										key={mailbox.name}
+										onClick={() => onMailboxSelect(mailbox.name)}
+										title={isCollapsed ? mailbox.display_name : undefined}
+										whileTap={{ scale: 0.97 }}
+										className={`relative flex w-full items-center rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
+											isActive
+												? 'text-orange-400'
+												: 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+										} ${isCollapsed ? 'justify-center px-0' : ''}`}>
+										{/* Active background */}
+										{isActive && (
+											<motion.div
+												layoutId='sidebar-active-bg'
+												className='absolute inset-0 rounded-xl bg-orange-500/10 ring-1 ring-orange-500/[0.15]'
+												transition={{
+													type: 'spring',
+													stiffness: 350,
+													damping: 30,
+												}}
+											/>
+										)}
+
+										{/* Active left indicator */}
+										<AnimatePresence>
+											{isActive && (
+												<motion.div
+													initial={{ scaleY: 0, opacity: 0 }}
+													animate={{ scaleY: 1, opacity: 1 }}
+													exit={{ scaleY: 0, opacity: 0 }}
+													transition={{
+														type: 'spring',
+														stiffness: 400,
+														damping: 25,
+													}}
+													className='absolute top-1/2 left-0 h-5 w-[3px] origin-center -translate-y-1/2 rounded-r-full bg-orange-500'
+												/>
 											)}
-										</button>
-									)
-								})}
-						</>
+										</AnimatePresence>
+
+										<div
+											className={`relative shrink-0 transition-colors duration-200 ${isActive ? 'text-orange-400' : ''}`}>
+											{getIconForMailbox(mailbox)}
+										</div>
+										{!isCollapsed && (
+											<div className='relative ml-3.5 flex flex-1 items-center justify-between truncate'>
+												<span>{getMailboxLabel(mailbox)}</span>
+											</div>
+										)}
+									</motion.button>
+								)
+							})}
+						</div>
 					)}
 				</div>
 
 				{/* Resizer Handle */}
 				<div
-					className={`absolute top-0 right-0 h-full w-1 cursor-col-resize transition-colors hover:bg-orange-500/50 active:bg-orange-500 ${isResizing ? 'bg-orange-500' : 'bg-transparent'}`}
-					onMouseDown={startResizing}
-				/>
+					className={`absolute top-0 right-0 h-full w-1.5 cursor-col-resize transition-all ${isResizing ? 'bg-orange-500/50' : 'bg-transparent hover:bg-orange-500/30'}`}
+					onMouseDown={startResizing}>
+					{/* Visual grip dots when hovering */}
+					<div className='pointer-events-none flex h-full flex-col items-center justify-center gap-1 opacity-0 transition-opacity hover:opacity-100'>
+						<div className='h-1 w-1 rounded-full bg-slate-500' />
+						<div className='h-1 w-1 rounded-full bg-slate-500' />
+						<div className='h-1 w-1 rounded-full bg-slate-500' />
+					</div>
+				</div>
 			</motion.div>
 		</>
 	)

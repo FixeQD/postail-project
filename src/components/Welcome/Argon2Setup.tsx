@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { motion } from 'framer-motion'
 import { useSecurityTranslation } from '../../hooks/useTypedTranslation'
-import { ArrowLeft, Lock, Eye, EyeOff, Check, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Lock, Eye, EyeOff, AlertTriangle, ShieldCheck } from 'lucide-react'
 
 export const Argon2Setup = ({
 	onBack,
@@ -50,170 +51,223 @@ export const Argon2Setup = ({
 
 	const isValid = passphrase.length >= 8 && passphrase === confirmPassphrase
 
+	const strengthLevel =
+		passphrase.length >= 12 ? 'strong' : passphrase.length >= 8 ? 'medium' : 'weak'
+
+	const strengthConfig = {
+		strong: { width: 'w-full', color: 'bg-green-400', text: 'text-green-400' },
+		medium: { width: 'w-2/3', color: 'bg-amber-400', text: 'text-amber-400' },
+		weak: { width: 'w-1/3', color: 'bg-red-400', text: 'text-red-400' },
+	}
+
 	return (
-		<div className='flex h-full flex-col'>
+		<div className='noise-overlay relative flex h-full flex-col'>
 			{/* Header */}
-			<div className='border-b border-slate-800 bg-slate-900/50 px-4 py-6 backdrop-blur-lg'>
+			<motion.div
+				initial={{ opacity: 0, y: -10 }}
+				animate={{ opacity: 1, y: 0 }}
+				transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+				className='relative border-b border-white/[0.06] bg-slate-900/40 px-4 py-6 backdrop-blur-lg'>
+				<div className='pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-orange-500/10 to-transparent' />
+
 				<div className='container mx-auto'>
 					<button
 						type='button'
 						onClick={onBack}
-						className='mb-6 flex items-center gap-2 text-sm text-slate-300 transition-colors hover:text-slate-100'>
-						<ArrowLeft className='h-4 w-4' />
+						className='group mb-6 flex items-center gap-2 text-sm text-slate-400 transition-colors hover:text-slate-100'>
+						<ArrowLeft className='h-4 w-4 transition-transform group-hover:-translate-x-0.5' />
 						{t('common:actions.back')}
 					</button>
-					<h1 className='text-4xl font-bold tracking-tight text-slate-100'>
-						{t('security:argon2.title')}
-					</h1>
-					<p className='mt-2 text-slate-400'>{t('security:argon2.subtitle')}</p>
+					<div className='flex items-center gap-3'>
+						<div className='flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/10 ring-1 ring-orange-500/20'>
+							<Lock className='h-5 w-5 text-orange-400' />
+						</div>
+						<div>
+							<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
+								{t('security:argon2.title')}
+							</h1>
+							<p className='mt-1 text-sm text-slate-400'>
+								{t('security:argon2.subtitle')}
+							</p>
+						</div>
+					</div>
 				</div>
-			</div>
+			</motion.div>
 
 			{/* Form */}
 			<div className='container mx-auto flex-1 px-4 py-8'>
-				<div className='mx-auto max-w-md'>
+				<motion.div
+					initial={{ opacity: 0, y: 20 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+					className='mx-auto max-w-md'>
 					<form onSubmit={handleSubmit} className='space-y-6'>
 						{/* Passphrase Input */}
-						<div>
+						<motion.div
+							initial={{ opacity: 0, y: 12 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ delay: 0.15, duration: 0.4 }}>
 							<label
 								htmlFor='passphrase'
-								className='mb-2 block text-sm font-medium text-slate-100'>
+								className='mb-2 block text-sm font-medium text-slate-200'>
 								{t('security:argon2.passphrase.label')}
 							</label>
-							<div className='relative'>
+							<div className='group relative'>
 								<input
 									id='passphrase'
 									type={showPassword ? 'text' : 'password'}
 									value={passphrase}
 									onChange={(e) => setPassphrase(e.target.value)}
-									className='w-full rounded-lg bg-slate-800/50 px-4 py-3 pr-12 text-slate-100 placeholder-slate-500 ring-1 ring-slate-700 focus:ring-orange-400 focus:outline-none'
+									className='w-full rounded-xl bg-slate-800/40 px-4 py-3 pr-12 text-slate-100 placeholder-slate-600 ring-1 ring-white/[0.08] transition-all duration-200 focus:bg-slate-800/60 focus:ring-orange-500/40 focus:outline-none'
 									placeholder={t('security:argon2.passphrase.placeholder')}
 									required
 								/>
 								<button
 									type='button'
 									onClick={() => setShowPassword(!showPassword)}
-									className='absolute top-1/2 right-3 -translate-y-1/2 text-slate-400 hover:text-slate-300'>
+									className='absolute top-1/2 right-3 -translate-y-1/2 rounded-lg p-1 text-slate-500 transition-colors hover:text-slate-300'>
 									{showPassword ? (
-										<EyeOff className='h-5 w-5' />
+										<EyeOff className='h-[18px] w-[18px]' />
 									) : (
-										<Eye className='h-5 w-5' />
+										<Eye className='h-[18px] w-[18px]' />
 									)}
 								</button>
 							</div>
-							<p className='mt-1 text-xs text-slate-400'>
+							<p className='mt-1.5 text-xs text-slate-500'>
 								{t('security:argon2.passphrase.hint')}
 							</p>
-						</div>
+						</motion.div>
 
 						{/* Confirm Passphrase Input */}
-						<div>
+						<motion.div
+							initial={{ opacity: 0, y: 12 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ delay: 0.25, duration: 0.4 }}>
 							<label
 								htmlFor='confirmPassphrase'
-								className='mb-2 block text-sm font-medium text-slate-100'>
+								className='mb-2 block text-sm font-medium text-slate-200'>
 								{t('security:argon2.confirm.label')}
 							</label>
-							<div className='relative'>
+							<div className='group relative'>
 								<input
 									id='confirmPassphrase'
 									type={showConfirmPassword ? 'text' : 'password'}
 									value={confirmPassphrase}
 									onChange={(e) => setConfirmPassphrase(e.target.value)}
-									className='w-full rounded-lg bg-slate-800/50 px-4 py-3 pr-12 text-slate-100 placeholder-slate-500 ring-1 ring-slate-700 focus:ring-orange-400 focus:outline-none'
+									className='w-full rounded-xl bg-slate-800/40 px-4 py-3 pr-12 text-slate-100 placeholder-slate-600 ring-1 ring-white/[0.08] transition-all duration-200 focus:bg-slate-800/60 focus:ring-orange-500/40 focus:outline-none'
 									placeholder={t('security:argon2.confirm.placeholder')}
 									required
 								/>
 								<button
 									type='button'
 									onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-									className='absolute top-1/2 right-3 -translate-y-1/2 text-slate-400 hover:text-slate-300'>
+									className='absolute top-1/2 right-3 -translate-y-1/2 rounded-lg p-1 text-slate-500 transition-colors hover:text-slate-300'>
 									{showConfirmPassword ? (
-										<EyeOff className='h-5 w-5' />
+										<EyeOff className='h-[18px] w-[18px]' />
 									) : (
-										<Eye className='h-5 w-5' />
+										<Eye className='h-[18px] w-[18px]' />
 									)}
 								</button>
 							</div>
-						</div>
+						</motion.div>
 
 						{/* Password Strength Indicator */}
 						{passphrase && (
-							<div className='space-y-2'>
+							<motion.div
+								initial={{ opacity: 0, height: 0 }}
+								animate={{ opacity: 1, height: 'auto' }}
+								transition={{ duration: 0.25 }}
+								className='space-y-2.5 overflow-hidden'>
 								<div className='flex items-center justify-between text-sm'>
-									<span className='text-slate-400'>
+									<span className='text-slate-500'>
 										{t('security:argon2.strength.label')}
 									</span>
 									<span
-										className={`font-medium ${
-											passphrase.length >= 12
-												? 'text-green-400'
-												: passphrase.length >= 8
-													? 'text-yellow-400'
-													: 'text-red-400'
-										}`}>
-										{passphrase.length >= 12
+										className={`text-xs font-semibold ${strengthConfig[strengthLevel].text}`}>
+										{strengthLevel === 'strong'
 											? t('security:argon2.strength.strong')
-											: passphrase.length >= 8
+											: strengthLevel === 'medium'
 												? t('security:argon2.strength.medium')
 												: t('security:argon2.strength.weak')}
 									</span>
 								</div>
-								<div className='h-2 rounded-full bg-slate-700'>
-									<div
-										className={`h-full rounded-full transition-all ${
-											passphrase.length >= 12
-												? 'w-full bg-green-400'
-												: passphrase.length >= 8
-													? 'w-2/3 bg-yellow-400'
-													: 'w-1/3 bg-red-400'
-										}`}
+								<div className='h-1.5 overflow-hidden rounded-full bg-slate-800'>
+									<motion.div
+										className={`h-full rounded-full ${strengthConfig[strengthLevel].color}`}
+										initial={{ width: 0 }}
+										animate={{
+											width:
+												strengthLevel === 'strong'
+													? '100%'
+													: strengthLevel === 'medium'
+														? '66%'
+														: '33%',
+										}}
+										transition={{
+											duration: 0.4,
+											ease: [0.16, 1, 0.3, 1],
+										}}
 									/>
 								</div>
-							</div>
+							</motion.div>
 						)}
 
 						{/* Error Message */}
 						{error && (
-							<div className='flex items-center gap-2 rounded-lg bg-red-900/50 p-4 text-red-400 ring-1 ring-red-400/20'>
-								<AlertTriangle className='h-5 w-5 shrink-0' />
-								<p className='text-sm'>{error}</p>
-							</div>
+							<motion.div
+								initial={{ opacity: 0, y: -8 }}
+								animate={{ opacity: 1, y: 0 }}
+								transition={{ duration: 0.2 }}
+								className='flex items-center gap-2.5 rounded-xl bg-red-500/10 p-4 ring-1 ring-red-500/20'>
+								<AlertTriangle className='h-4 w-4 shrink-0 text-red-400' />
+								<p className='text-sm text-red-400'>{error}</p>
+							</motion.div>
 						)}
 
 						{/* Submit Button */}
-						<button
+						<motion.button
 							type='submit'
 							disabled={!isValid || loading}
-							className='flex w-full items-center justify-center gap-2 rounded-lg bg-orange-600 px-6 py-3 font-medium text-white transition-colors hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50'>
+							whileHover={isValid && !loading ? { scale: 1.02 } : {}}
+							whileTap={isValid && !loading ? { scale: 0.97 } : {}}
+							className='flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition-all hover:shadow-xl hover:shadow-orange-500/30 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none'>
 							{loading ? (
 								<>
-									<div className='h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent' />
+									<div className='relative h-5 w-5'>
+										<div className='absolute inset-0 animate-spin rounded-full border-2 border-white/30 border-t-white' />
+									</div>
 									{t('security:argon2.creating')}
 								</>
 							) : (
 								<>
-									<Lock className='h-5 w-5' />
+									<Lock className='h-4 w-4' />
 									{t('security:argon2.create')}
 								</>
 							)}
-						</button>
+						</motion.button>
 					</form>
 
 					{/* Security Info */}
-					<div className='mt-8 rounded-lg bg-slate-800/30 p-4 ring-1 ring-slate-700/50'>
+					<motion.div
+						initial={{ opacity: 0, y: 12 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ delay: 0.4, duration: 0.5 }}
+						className='mt-8 rounded-2xl bg-slate-800/30 p-5 ring-1 ring-white/[0.06]'>
 						<div className='flex items-start gap-3'>
-							<Check className='mt-0.5 h-5 w-5 text-green-400' />
+							<div className='mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-500/10 ring-1 ring-green-500/20'>
+								<ShieldCheck className='h-4 w-4 text-green-400' />
+							</div>
 							<div>
-								<h4 className='mb-1 font-medium text-slate-100'>
+								<h4 className='mb-1 text-sm font-semibold text-slate-200'>
 									{t('security:argon2.info.title')}
 								</h4>
-								<p className='text-sm text-slate-400'>
+								<p className='text-xs leading-relaxed text-slate-500'>
 									{t('security:argon2.info.description')}
 								</p>
 							</div>
 						</div>
-					</div>
-				</div>
+					</motion.div>
+				</motion.div>
 			</div>
 		</div>
 	)

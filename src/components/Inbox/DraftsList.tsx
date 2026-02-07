@@ -1,7 +1,8 @@
 import { useEffect, type MouseEvent } from 'react'
 import { Virtuoso } from 'react-virtuoso'
 import { formatDistanceToNow } from 'date-fns'
-import { Trash2, Edit } from 'lucide-react'
+import { Trash2, Edit, FileText } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { useDraftStore } from '@/stores/draftStore'
 import type { ComposeDraft } from '@/types/compose'
@@ -20,7 +21,6 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 		const controller = new AbortController()
 		const current = accountId
 		loadDrafts(accountId, controller.signal).then((responseAccountId) => {
-			// Only apply if accountId hasn't changed since we started loading
 			if (responseAccountId !== current) return
 		})
 		return () => {
@@ -34,64 +34,134 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 	}
 
 	return (
-		<div className='flex h-full flex-col'>
-			<div className='border-b border-slate-800 p-4'>
-				<h2 className='text-lg font-semibold text-slate-200'>
+		<div className='flex h-full flex-col bg-slate-950'>
+			{/* Header */}
+			<motion.div
+				initial={{ opacity: 0, y: -8 }}
+				animate={{ opacity: 1, y: 0 }}
+				transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+				className='relative border-b border-white/[0.04] px-5 py-4'>
+				<h2 className='text-sm font-semibold tracking-wide text-slate-200'>
 					{t('inbox:sidebar.mailboxes.drafts')}
 				</h2>
-			</div>
-			<div className='flex-1'>
-				<Virtuoso
-					data={drafts}
-					itemContent={(_, draft) => {
-						if (!draft.id) return null
-						return (
-							<div
-								key={draft.id}
-								className='flex cursor-pointer items-center border-b border-slate-800 p-4 hover:bg-slate-900'
-								onClick={() => onDraftClick(draft)}>
-								<div className='flex-1'>
-									<div className='flex items-center justify-between'>
-										<h3 className='truncate text-sm font-medium text-slate-200'>
-											{draft.subject || t('compose.noSubject')}
-										</h3>
-										<span className='text-xs text-slate-500'>
-											{formatDistanceToNow(new Date(draft.updatedAt), {
-												addSuffix: true,
-											})}
-										</span>
+				{drafts.length > 0 && (
+					<span className='ml-2 inline-flex items-center rounded-full bg-orange-500/10 px-2 py-0.5 text-[11px] font-semibold text-orange-400 ring-1 ring-orange-500/20'>
+						{drafts.length}
+					</span>
+				)}
+				<div className='pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/[0.04] to-transparent' />
+			</motion.div>
+
+			{/* Empty state */}
+			{drafts.length === 0 && (
+				<motion.div
+					initial={{ opacity: 0, scale: 0.95 }}
+					animate={{ opacity: 1, scale: 1 }}
+					transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+					className='flex flex-1 flex-col items-center justify-center'>
+					<div className='flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-900/50 ring-1 ring-white/[0.06]'>
+						<FileText className='h-8 w-8 text-slate-700' />
+					</div>
+					<p className='mt-4 text-sm font-medium text-slate-400'>No drafts</p>
+					<p className='mt-1 text-xs text-slate-600'>
+						Your saved drafts will appear here
+					</p>
+				</motion.div>
+			)}
+
+			{/* List */}
+			{drafts.length > 0 && (
+				<div className='flex-1'>
+					<Virtuoso
+						data={drafts}
+						itemContent={(index, draft) => {
+							if (!draft.id) return null
+							return (
+								<motion.div
+									key={draft.id}
+									initial={{ opacity: 0, y: 8 }}
+									animate={{ opacity: 1, y: 0 }}
+									transition={{
+										delay: Math.min(index * 0.04, 0.3),
+										duration: 0.3,
+										ease: [0.16, 1, 0.3, 1],
+									}}
+									onClick={() => onDraftClick(draft)}
+									className='group relative flex cursor-pointer items-center border-b border-white/[0.04] px-5 py-3.5 transition-all duration-150 hover:bg-white/[0.03]'>
+									{/* Left accent line on hover */}
+									<div className='absolute top-1/2 left-0 h-0 w-[3px] -translate-y-1/2 rounded-r-full bg-orange-500 transition-all duration-200 group-hover:h-[60%]' />
+
+									{/* Draft icon */}
+									<div className='mr-3.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-500/[0.08] ring-1 ring-orange-500/[0.12] transition-all duration-200 group-hover:bg-orange-500/[0.12] group-hover:ring-orange-500/20'>
+										<Edit className='h-4 w-4 text-orange-400/80' />
 									</div>
-									<div className='mt-1 text-xs text-slate-400'>
-										{t('compose.to')}: {draft.to.map((r) => r.email).join(', ')}
+
+									{/* Content */}
+									<div className='min-w-0 flex-1'>
+										<div className='flex items-center justify-between gap-3'>
+											<h3 className='truncate text-[13px] font-medium text-slate-200 transition-colors group-hover:text-white'>
+												{draft.subject || t('compose.noSubject')}
+											</h3>
+											<span className='shrink-0 text-xs text-slate-600 tabular-nums'>
+												{formatDistanceToNow(new Date(draft.updatedAt), {
+													addSuffix: true,
+												})}
+											</span>
+										</div>
+										<div className='mt-1 text-xs text-slate-500'>
+											{t('compose.to')}:{' '}
+											<span className='text-slate-400'>
+												{draft.to.length > 0
+													? draft.to.map((r) => r.email).join(', ')
+													: '-'}
+											</span>
+										</div>
+										{draft.body && (
+											<div className='mt-1 truncate text-xs text-slate-600'>
+												{draft.body.slice(0, 120)}
+											</div>
+										)}
 									</div>
-									<div className='mt-1 truncate text-xs text-slate-500'>
-										{draft.body?.slice(0, 100)}...
-									</div>
-								</div>
-								<div className='ml-4 flex items-center gap-2'>
-									<Button
-										variant='ghost'
-										size='icon'
-										className='h-8 w-8 text-slate-400 hover:text-slate-200'
-										onClick={(e) => {
-											e.stopPropagation()
-											onDraftClick(draft)
-										}}>
-										<Edit className='h-4 w-4' />
-									</Button>
-									<Button
-										variant='ghost'
-										size='icon'
-										className='h-8 w-8 text-red-400 hover:text-red-300'
-										onClick={(e) => handleDelete(draft.id!, e)}>
-										<Trash2 className='h-4 w-4' />
-									</Button>
-								</div>
-							</div>
-						)
-					}}
-				/>
-			</div>
+
+									{/* Actions - visible on hover */}
+									<AnimatePresence>
+										<motion.div
+											initial={{ opacity: 0, scale: 0.9 }}
+											animate={{ opacity: 1, scale: 1 }}
+											className='ml-3 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100'>
+											<motion.div
+												whileHover={{ scale: 1.1 }}
+												whileTap={{ scale: 0.85 }}>
+												<Button
+													variant='ghost'
+													size='icon'
+													className='h-7 w-7 text-slate-500 hover:bg-white/[0.08] hover:text-slate-200'
+													onClick={(e) => {
+														e.stopPropagation()
+														onDraftClick(draft)
+													}}>
+													<Edit className='h-[15px] w-[15px]' />
+												</Button>
+											</motion.div>
+											<motion.div
+												whileHover={{ scale: 1.1 }}
+												whileTap={{ scale: 0.85 }}>
+												<Button
+													variant='ghost'
+													size='icon'
+													className='h-7 w-7 text-slate-500 hover:bg-red-500/10 hover:text-red-400'
+													onClick={(e) => handleDelete(draft.id!, e)}>
+													<Trash2 className='h-[15px] w-[15px]' />
+												</Button>
+											</motion.div>
+										</motion.div>
+									</AnimatePresence>
+								</motion.div>
+							)
+						}}
+					/>
+				</div>
+			)}
 		</div>
 	)
 }

@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion'
 import { useWelcomeTranslation } from '../../hooks/useTypedTranslation'
 import icon from '../../assets/icon.png'
 
@@ -5,33 +6,74 @@ export const WelcomeScreen = ({ onGetStarted }: { onGetStarted: () => void }) =>
 	const { t } = useWelcomeTranslation()
 
 	return (
-		<div className='flex h-full flex-col items-center justify-center p-8 text-center'>
-			{/* Logo Section */}
-			<div className='mb-8'>
-				<div className='mb-6 flex justify-center'>
-					<div className='flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-800 shadow-lg ring-1 ring-slate-700/50'>
-						<img src={icon} alt='Mail Icon' className='h-18 w-18' />
+		<div className='ambient-glow noise-overlay relative flex h-full flex-col items-center justify-center overflow-hidden p-8 text-center'>
+			{/* Background accent orbs */}
+			<div className='pointer-events-none absolute top-1/4 left-1/3 h-64 w-64 rounded-full bg-orange-500/[0.04] blur-[100px]' />
+			<div className='pointer-events-none absolute right-1/3 bottom-1/3 h-48 w-48 rounded-full bg-indigo-500/[0.04] blur-[80px]' />
+
+			{/* Logo */}
+			<motion.div
+				initial={{ opacity: 0, scale: 0.8 }}
+				animate={{ opacity: 1, scale: 1 }}
+				transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+				className='relative z-10 mb-8'>
+				<div className='animate-subtle-float'>
+					<div className='relative flex h-24 w-24 items-center justify-center rounded-2xl bg-slate-800/80 shadow-xl ring-1 ring-white/[0.08]'>
+						<img src={icon} alt='Postail' className='h-20 w-20' />
+						{/* Glow behind logo */}
+						<div className='animate-glow-breathe absolute -inset-3 -z-10 rounded-3xl bg-orange-500/10 blur-xl' />
 					</div>
 				</div>
-				<h1 className='mb-2 text-4xl font-bold tracking-tight text-slate-100'>
-					{t('welcome:title')}
-				</h1>
-				<p className='text-slate-400'>{t('welcome:subtitle')}</p>
-			</div>
+			</motion.div>
+
+			{/* Title */}
+			<motion.h1
+				initial={{ opacity: 0, y: 16 }}
+				animate={{ opacity: 1, y: 0 }}
+				transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+				className='gradient-text relative z-10 mb-3 text-5xl font-bold tracking-tight'>
+				{t('welcome:title')}
+			</motion.h1>
+
+			{/* Subtitle */}
+			<motion.p
+				initial={{ opacity: 0, y: 12 }}
+				animate={{ opacity: 1, y: 0 }}
+				transition={{ duration: 0.5, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
+				className='relative z-10 text-lg text-slate-400'>
+				{t('welcome:subtitle')}
+			</motion.p>
 
 			{/* Description */}
-			<div className='mb-12 max-w-md'>
-				<p className='leading-relaxed text-slate-400'>{t('welcome:description')}</p>
-			</div>
+			<motion.div
+				initial={{ opacity: 0, y: 12 }}
+				animate={{ opacity: 1, y: 0 }}
+				transition={{ duration: 0.5, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
+				className='relative z-10 mt-4 mb-12 max-w-md'>
+				<p className='leading-relaxed text-slate-500'>{t('welcome:description')}</p>
+			</motion.div>
 
-			{/* Get Started Button */}
-			<button
+			{/* CTA Button */}
+			<motion.button
 				type='button'
 				onClick={onGetStarted}
-				className='rounded-lg bg-indigo-600 px-8 py-3 font-semibold text-white shadow-lg transition-all duration-200 hover:bg-indigo-500 hover:shadow-indigo-500/40 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900 focus:outline-none'
+				initial={{ opacity: 0, y: 16 }}
+				animate={{ opacity: 1, y: 0 }}
+				transition={{ duration: 0.5, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+				whileHover={{ scale: 1.03, y: -1 }}
+				whileTap={{ scale: 0.97 }}
+				className='press-down relative z-10 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-10 py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition-shadow hover:shadow-xl hover:shadow-orange-500/30 focus:ring-2 focus:ring-orange-500/50 focus:ring-offset-2 focus:ring-offset-slate-950 focus:outline-none'
 				title={t('welcome:getStarted')}>
 				{t('welcome:getStarted')}
-			</button>
+			</motion.button>
+
+			{/* Decorative bottom gradient line */}
+			<motion.div
+				initial={{ scaleX: 0, opacity: 0 }}
+				animate={{ scaleX: 1, opacity: 1 }}
+				transition={{ duration: 0.8, delay: 0.7, ease: [0.16, 1, 0.3, 1] }}
+				className='absolute bottom-0 left-0 h-px w-full origin-center bg-gradient-to-r from-transparent via-orange-500/20 to-transparent'
+			/>
 		</div>
 	)
 }

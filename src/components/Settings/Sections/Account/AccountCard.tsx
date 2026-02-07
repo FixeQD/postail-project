@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
 	MoreVertical,
 	RefreshCw,
@@ -51,32 +51,45 @@ export function AccountCard({ account, onRemove, onSync }: AccountCardProps) {
 
 	const getProviderIcon = (type: string) => {
 		const lower = type.toLowerCase()
-		if (lower.includes('gmail')) return <Mail className='h-5 w-5 text-red-500' />
-		if (lower.includes('outlook')) return <Mail className='h-5 w-5 text-blue-500' />
+		if (lower.includes('gmail')) return <Mail className='h-5 w-5 text-red-400' />
+		if (lower.includes('outlook')) return <Mail className='h-5 w-5 text-blue-400' />
 		return <Mail className='h-5 w-5 text-slate-400' />
+	}
+
+	const getProviderGlow = (type: string) => {
+		const lower = type.toLowerCase()
+		if (lower.includes('gmail')) return 'group-hover:ring-red-500/20'
+		if (lower.includes('outlook')) return 'group-hover:ring-blue-500/20'
+		return 'group-hover:ring-white/[0.12]'
 	}
 
 	const getStatusBadge = () => {
 		if (status === 'Syncing') {
 			return (
-				<span className='inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-500 ring-1 ring-blue-500/20 ring-inset'>
+				<motion.span
+					initial={{ opacity: 0, scale: 0.9 }}
+					animate={{ opacity: 1, scale: 1 }}
+					className='inline-flex items-center rounded-full bg-blue-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-blue-400 ring-1 ring-blue-500/20 ring-inset'>
 					<Loader2 className='mr-1 h-3 w-3 animate-spin' />
 					Syncing...
-				</span>
+				</motion.span>
 			)
 		}
 
 		if (typeof status === 'object' && 'Error' in status) {
 			return (
-				<span className='inline-flex items-center rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-500 ring-1 ring-red-500/20 ring-inset'>
+				<motion.span
+					initial={{ opacity: 0, scale: 0.9 }}
+					animate={{ opacity: 1, scale: 1 }}
+					className='inline-flex items-center rounded-full bg-red-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-red-400 ring-1 ring-red-500/20 ring-inset'>
 					<AlertTriangle className='mr-1 h-3 w-3' />
 					Error
-				</span>
+				</motion.span>
 			)
 		}
 
 		return (
-			<span className='inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-500 ring-1 ring-emerald-500/20 ring-inset'>
+			<span className='inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-400 ring-1 ring-emerald-500/20 ring-inset'>
 				<CheckCircle2 className='mr-1 h-3 w-3' />
 				Synced
 			</span>
@@ -89,54 +102,74 @@ export function AccountCard({ account, onRemove, onSync }: AccountCardProps) {
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			exit={{ opacity: 0, scale: 0.95 }}
-			transition={{ duration: 0.2 }}>
-			<Card className='group relative overflow-hidden border-white/5 bg-white/5 backdrop-blur-md transition-all hover:border-white/10 hover:bg-white/10 hover:shadow-lg hover:shadow-black/20'>
-				<div className='absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100' />
+			transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}>
+			<Card className='group relative overflow-hidden border-white/[0.06] bg-white/[0.03] backdrop-blur-md transition-all duration-300 hover:border-white/[0.1] hover:bg-white/[0.06] hover:shadow-xl hover:shadow-black/30'>
+				{/* Hover gradient overlay */}
+				<div className='pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100' />
+
+				{/* Subtle top highlight */}
+				<div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100' />
 
 				<div className='relative flex items-center justify-between p-5'>
 					<div className='flex items-center gap-4'>
-						<div className='flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/50 ring-1 ring-white/10 transition-transform group-hover:scale-110'>
+						<div
+							className={cn(
+								'flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/60 ring-1 ring-white/[0.08] transition-all duration-300 group-hover:scale-105',
+								getProviderGlow(account.provider_type)
+							)}>
 							{getProviderIcon(account.provider_type)}
 						</div>
 
 						<div className='flex flex-col'>
-							<h3 className='font-semibold text-slate-100'>{account.name}</h3>
-							<p className='text-sm font-medium text-slate-400'>{account.email}</p>
-							<div className='mt-1 flex items-center gap-2'>
-								{getStatusBadge()}
-								<span className='text-xs text-slate-600'>{account.auth_type}</span>
+							<h3 className='text-[15px] font-semibold text-slate-100 transition-colors group-hover:text-white'>
+								{account.name}
+							</h3>
+							<p className='text-sm text-slate-400'>{account.email}</p>
+							<div className='mt-1.5 flex items-center gap-2'>
+								<AnimatePresence mode='wait'>
+									<motion.div key={typeof status === 'string' ? status : 'error'}>
+										{getStatusBadge()}
+									</motion.div>
+								</AnimatePresence>
+								<span className='text-[11px] text-slate-600'>
+									{account.auth_type}
+								</span>
 							</div>
 						</div>
 					</div>
 
-					<div className='flex items-center gap-2'>
-						<Button
-							variant='ghost'
-							size='icon'
-							className={cn(
-								'h-8 w-8 text-slate-400 hover:bg-white/5 hover:text-slate-100',
-								status === 'Syncing' && 'animate-spin'
-							)}
-							onClick={() => onSync(account.id)}
-							disabled={status === 'Syncing'}>
-							<RefreshCw className='h-4 w-4' />
-						</Button>
+					<div className='flex items-center gap-1'>
+						<motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.85 }}>
+							<Button
+								variant='ghost'
+								size='icon'
+								className={cn(
+									'h-8 w-8 text-slate-500 hover:bg-white/[0.06] hover:text-slate-200',
+									status === 'Syncing' && 'animate-spin'
+								)}
+								onClick={() => onSync(account.id)}
+								disabled={status === 'Syncing'}>
+								<RefreshCw className='h-4 w-4' />
+							</Button>
+						</motion.div>
 
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
 								<Button
 									variant='ghost'
 									size='icon'
-									className='h-8 w-8 text-slate-400 hover:bg-white/5 hover:text-slate-100'>
+									className='h-8 w-8 text-slate-500 hover:bg-white/[0.06] hover:text-slate-200'>
 									<MoreVertical className='h-4 w-4' />
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent
 								align='end'
-								className='w-48 border-slate-800 bg-slate-900 text-slate-200'>
-								<DropdownMenuLabel>Actions</DropdownMenuLabel>
-								<DropdownMenuSeparator className='bg-slate-800' />
-								<DropdownMenuItem className='cursor-pointer focus:bg-slate-800 focus:text-slate-100'>
+								className='w-48 border-white/[0.06] bg-slate-900/95 text-slate-200 backdrop-blur-xl'>
+								<DropdownMenuLabel className='text-slate-400'>
+									Actions
+								</DropdownMenuLabel>
+								<DropdownMenuSeparator className='bg-white/[0.06]' />
+								<DropdownMenuItem className='cursor-pointer focus:bg-white/[0.06] focus:text-slate-100'>
 									Edit settings
 								</DropdownMenuItem>
 								<DropdownMenuItem

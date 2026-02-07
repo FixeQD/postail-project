@@ -118,7 +118,7 @@ export const InboxScreen = ({
 
 	return (
 		<>
-			<div className='flex h-full overflow-hidden bg-slate-950'>
+			<div className='flex h-full overflow-hidden'>
 				<Sidebar
 					activeAccount={activeAccount}
 					activeMailbox={activeMailbox}

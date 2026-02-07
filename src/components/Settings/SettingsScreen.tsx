@@ -85,52 +85,99 @@ export function SettingsScreen({
 	return (
 		<div className='flex h-full bg-slate-950 text-slate-100'>
 			{showSidebar && (
-				<div className='flex w-64 flex-col border-r border-slate-800 bg-slate-900/30 p-4 backdrop-blur-xl'>
+				<motion.div
+					initial={{ opacity: 0, x: -12 }}
+					animate={{ opacity: 1, x: 0 }}
+					transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+					className='relative flex w-64 flex-col border-r border-white/[0.06] bg-slate-900/20 p-4 backdrop-blur-xl'>
+					{/* Right edge gradient */}
+					<div className='pointer-events-none absolute top-0 right-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/[0.06] to-transparent' />
+
 					{canGoBack && (
 						<button
 							type='button'
 							onClick={onBack}
-							className='group mb-8 flex items-center gap-2 px-4 py-2 text-slate-400 transition-colors hover:text-white'>
-							<ArrowLeft className='h-4 w-4 transition-transform group-hover:-translate-x-1' />
-							<span className='font-medium'>{t('settings:back')}</span>
+							className='group mb-8 flex items-center gap-2 rounded-xl px-4 py-2 text-slate-400 transition-colors hover:bg-white/[0.04] hover:text-white'>
+							<ArrowLeft className='h-4 w-4 transition-transform group-hover:-translate-x-0.5' />
+							<span className='text-sm font-medium'>{t('settings:back')}</span>
 						</button>
 					)}
 
-					<div className='flex-1 space-y-1'>
-						{SETTINGS_SECTIONS.map((section) => (
-							<button
-								key={section.id}
-								type='button'
-								onClick={() => setActiveSection(section.id)}
-								className={`flex w-full items-center gap-3 rounded-xl px-4 py-2.5 transition-all ${
-									activeSection === section.id
-										? 'bg-slate-100 text-slate-900 shadow-lg shadow-white/5'
-										: 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100'
-								}`}>
-								<section.icon className='h-4 w-4' />
-								<span className='text-sm font-semibold'>{section.label}</span>
-							</button>
-						))}
+					<div className='flex-1 space-y-0.5'>
+						{SETTINGS_SECTIONS.map((section) => {
+							const isActive = activeSection === section.id
+							return (
+								<motion.button
+									key={section.id}
+									type='button'
+									onClick={() => setActiveSection(section.id)}
+									whileTap={{ scale: 0.97 }}
+									className={`relative flex w-full items-center gap-3 rounded-xl px-4 py-2.5 transition-colors duration-200 ${
+										isActive
+											? 'text-slate-100'
+											: 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+									}`}>
+									{/* Active background pill */}
+									{isActive && (
+										<motion.div
+											layoutId='settings-active-bg'
+											className='absolute inset-0 rounded-xl bg-white/[0.08] ring-1 ring-white/[0.08]'
+											transition={{
+												type: 'spring',
+												stiffness: 350,
+												damping: 30,
+											}}
+										/>
+									)}
+
+									{/* Active left accent */}
+									<AnimatePresence>
+										{isActive && (
+											<motion.div
+												initial={{ scaleY: 0, opacity: 0 }}
+												animate={{ scaleY: 1, opacity: 1 }}
+												exit={{ scaleY: 0, opacity: 0 }}
+												transition={{
+													type: 'spring',
+													stiffness: 400,
+													damping: 25,
+												}}
+												className='absolute top-1/2 left-0 h-5 w-[3px] origin-center -translate-y-1/2 rounded-r-full bg-orange-500'
+											/>
+										)}
+									</AnimatePresence>
+
+									<section.icon
+										className={`relative h-4 w-4 transition-colors duration-200 ${isActive ? 'text-orange-400' : ''}`}
+									/>
+									<span className='relative text-sm font-semibold'>
+										{section.label}
+									</span>
+								</motion.button>
+							)
+						})}
 					</div>
 
-					<div className='border-t border-slate-800 pt-4'>
-						<button
+					<div className='border-t border-white/[0.06] pt-4'>
+						<motion.button
 							type='button'
-							className='flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-red-400 transition-all hover:bg-red-400/10'>
+							whileTap={{ scale: 0.97 }}
+							className='flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-red-400 transition-all hover:bg-red-500/10'>
 							<LogOut className='h-4 w-4' />
 							<span className='text-sm font-semibold'>{t('settings:logout')}</span>
-						</button>
+						</motion.button>
 					</div>
-				</div>
+				</motion.div>
 			)}
 
 			<div className='relative flex-1 overflow-hidden'>
 				<AnimatePresence mode='wait'>
 					<motion.div
 						key={activeSection}
-						initial={{ opacity: 0, y: 10 }}
+						initial={{ opacity: 0, y: 8 }}
 						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: -10 }}
+						exit={{ opacity: 0, y: -6 }}
+						transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
 						className='h-full overflow-y-auto'>
 						{renderSection()}
 					</motion.div>
