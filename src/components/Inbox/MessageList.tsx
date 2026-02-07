@@ -51,13 +51,16 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 	})()
 
 	useEffect(() => {
-		if (!needsSync || syncingRef.current) return
+		syncingRef.current = false
+		setIsSyncing(false)
+		setSyncError(null)
+
+		if (!needsSync) return
 
 		let cancelled = false
 		const doSync = async () => {
 			syncingRef.current = true
 			setIsSyncing(true)
-			setSyncError(null)
 			try {
 				await invoke('sync_single_mailbox', {
 					accountId: account.id,
@@ -85,15 +88,6 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 			cancelled = true
 		}
 	}, [needsSync, account.id, mailbox, mailboxKey, queryClient])
-
-	const prevMailboxRef = useRef(mailbox)
-	useEffect(() => {
-		if (prevMailboxRef.current === mailbox) return
-		prevMailboxRef.current = mailbox
-		syncingRef.current = false
-		setIsSyncing(false)
-		setSyncError(null)
-	}, [mailbox])
 
 	useEffect(() => {
 		if (isSyncing || syncError || needsSync) return
