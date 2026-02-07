@@ -5,6 +5,7 @@ use std::sync::LazyLock;
 use ammonia::Builder;
 use maplit::{hashmap, hashset};
 
+use crate::utils::sanitizer::css::fonts::ensure_web_safe_font_fallback;
 use crate::utils::sanitizer::css::parser::parse_css_declarations;
 use crate::utils::sanitizer::types::{IssueSeverity, SanitizeIssue, StyleSanitizeResult};
 
@@ -15,9 +16,6 @@ pub static TAG_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
 pub const DANGEROUS_CSS_PROPS: &[&str] = &[
     "position",
     "z-index",
-    "fixed",
-    "absolute",
-    "sticky",
     "animation",
     "animation-name",
     "animation-duration",
@@ -28,12 +26,20 @@ pub const DANGEROUS_CSS_PROPS: &[&str] = &[
     "animation-fill-mode",
     "animation-play-state",
     "transition",
+    "transition-property",
+    "transition-duration",
+    "transition-timing-function",
+    "transition-delay",
     "transform",
+    "transform-origin",
+    "transform-style",
     "perspective",
+    "perspective-origin",
     "filter",
     "backdrop-filter",
     "clip-path",
     "mask",
+    "mask-image",
     "mix-blend-mode",
     "isolation",
     "will-change",
@@ -124,17 +130,13 @@ thread_local! {
     pub static COLLECTED_ISSUES: RefCell<Vec<SanitizeIssue>> = const { RefCell::new(Vec::new()) };
 }
 
-pub fn create_email_sanitizer<'a>() -> Builder<'a> {
-    let mut builder = Builder::default();
-
-    let allowed_tags: std::collections::HashSet<&str> = ALLOWED_TAGS.iter().cloned().collect();
-    builder.tags(allowed_tags);
-
-    builder.tag_attributes(hashmap! [
+fn build_tag_attributes(
+) -> std::collections::HashMap<&'static str, std::collections::HashSet<&'static str>> {
+    hashmap! [
         "a" => hashset!["href", "title", "target", "style"],
         "body" => hashset!["style", "bgcolor", "text", "link", "vlink", "alink"],
         "img" => hashset!["src", "alt", "width", "height", "style"],
-        "table" => hashset!["width", "height", "border", "cellpadding", "cellspacing", "align", "bgcolor", "style"],
+        "table" => hashset!["width", "height", "border", "cellpadding", "cellspacing", "align", "bgcolor", "style", "role"],
         "td" => hashset!["width", "height", "align", "valign", "bgcolor", "colspan", "rowspan", "style"],
         "th" => hashset!["width", "height", "align", "valign", "bgcolor", "colspan", "rowspan", "style"],
         "tr" => hashset!["align", "valign", "bgcolor", "style"],
@@ -146,7 +148,15 @@ pub fn create_email_sanitizer<'a>() -> Builder<'a> {
         "html" => hashset!["lang", "style"],
         "col" => hashset!["width", "span", "style"],
         "colgroup" => hashset!["width", "span", "style"]
-    ]);
+    ]
+}
+
+pub fn create_email_sanitizer<'a>() -> Builder<'a> {
+    let mut builder = Builder::default();
+
+    let allowed_tags: std::collections::HashSet<&str> = ALLOWED_TAGS.iter().cloned().collect();
+    builder.tags(allowed_tags);
+    builder.tag_attributes(build_tag_attributes());
 
     builder.generic_attributes(hashset![
         "style",
@@ -179,24 +189,7 @@ pub fn create_sanitizer_with_tracking<'a>() -> Builder<'a> {
 
     let allowed_tags: std::collections::HashSet<&str> = ALLOWED_TAGS.iter().cloned().collect();
     builder.tags(allowed_tags);
-
-    builder.tag_attributes(hashmap! [
-        "a" => hashset!["href", "title", "target", "style"],
-        "body" => hashset!["style", "bgcolor", "text", "link", "vlink", "alink"],
-        "img" => hashset!["src", "alt", "width", "height", "style"],
-        "table" => hashset!["width", "height", "border", "cellpadding", "cellspacing", "align", "bgcolor", "style"],
-        "td" => hashset!["width", "height", "align", "valign", "bgcolor", "colspan", "rowspan", "style"],
-        "th" => hashset!["width", "height", "align", "valign", "bgcolor", "colspan", "rowspan", "style"],
-        "tr" => hashset!["align", "valign", "bgcolor", "style"],
-        "div" => hashset!["align", "style"],
-        "span" => hashset!["style"],
-        "p" => hashset!["align", "style"],
-        "font" => hashset!["color", "face", "size", "style"],
-        "hr" => hashset!["width", "size", "color", "style"],
-        "html" => hashset!["lang", "style"],
-        "col" => hashset!["width", "span", "style"],
-        "colgroup" => hashset!["width", "span", "style"]
-    ]);
+    builder.tag_attributes(build_tag_attributes());
 
     builder.generic_attributes(hashset![
         "style",
@@ -308,53 +301,11 @@ fn is_dangerous_property(prop: &str) -> bool {
     false
 }
 
-fn map_custom_font_to_safe(font: &str) -> Option<&'static str> {
-    let clean = font.trim_matches(|c| c == '"' || c == '\'').to_lowercase();
-
-    match clean.as_str() {
-        // Serif fonts - map to Georgia
-        "cormorant garamond" | "cormorant" | "garamond" | "playfair display" | "merriweather"
-        | "libre baskerville" | "crimson text" | "eb garamond" | "pt serif" | "noto serif"
-        | "source serif pro" | "alice" | "cardo" => Some("Georgia, 'Times New Roman', serif"),
-        // Sans-serif fonts - map to Arial/Helvetica
-        "inter" | "roboto" | "open sans" | "lato" | "montserrat" | "poppins" | "nunito"
-        | "raleway" | "ubuntu" | "work sans" | "fira sans" | "source sans pro" | "pt sans"
-        | "noto sans" => Some("Arial, Helvetica, sans-serif"),
-        // Monospace fonts
-        "fira code" | "jetbrains mono" | "source code pro" | "roboto mono" | "space mono"
-        | "ubuntu mono" | "ibm plex mono" => Some("'Courier New', Courier, monospace"),
-        _ => None,
-    }
-}
-
-fn ensure_web_safe_font_fallback(value: &str) -> String {
-    let fonts: Vec<&str> = value.split(',').map(|f| f.trim()).collect();
-
-    // Check if first font is a custom font that needs mapping
-    if let Some(first) = fonts.first() {
-        if let Some(mapped) = map_custom_font_to_safe(first) {
-            return mapped.to_string();
-        }
-    }
-
-    let has_safe_fallback = fonts.iter().any(|f| {
-        let clean = f.trim_matches(|c| c == '"' || c == '\'').to_lowercase();
-        WEB_SAFE_FONTS
-            .iter()
-            .any(|safe| safe.to_lowercase() == clean)
-    });
-
-    if has_safe_fallback {
-        return value.to_string();
-    }
-
-    format!("{}, sans-serif", value)
-}
-
 fn get_issue_details(prop: &str) -> (String, IssueSeverity) {
     match prop {
-        "position" | "fixed" | "absolute" | "sticky" => (
-            "position property is not supported by most email clients".to_string(),
+        "position" => (
+            "position property is not supported by most email clients - converted to table layout"
+                .to_string(),
             IssueSeverity::Warning,
         ),
         "z-index" => (
@@ -365,8 +316,13 @@ fn get_issue_details(prop: &str) -> (String, IssueSeverity) {
             "CSS animations are not supported in email clients".to_string(),
             IssueSeverity::Warning,
         ),
-        "transition" | "transform" | "perspective" => (
-            "CSS transitions/transforms are not supported in email clients".to_string(),
+        p if p.starts_with("transition") => (
+            "CSS transitions are not supported in email clients".to_string(),
+            IssueSeverity::Warning,
+        ),
+        "transform" | "transform-origin" | "transform-style" | "perspective"
+        | "perspective-origin" => (
+            "CSS transforms/perspective are not supported in email clients".to_string(),
             IssueSeverity::Warning,
         ),
         "filter" | "backdrop-filter" => (

@@ -1,5 +1,5 @@
 use postail_project_lib::utils::sanitizer::{
-    auto_fix_email_html, sanitize_email_html, sanitize_email_html_with_details,
+    auto_fix_email_html, parse_css_value, sanitize_email_html, sanitize_email_html_with_details,
     sanitize_style_attribute,
 };
 
@@ -142,4 +142,176 @@ fn test_auto_fix_preserves_safe_content() {
     assert!(result.contains("Hello"));
     assert!(result.contains("World"));
     assert!(result.contains("<strong>"));
+}
+
+// === Opacity bug fix tests ===
+
+#[test]
+fn test_opacity_zero_is_fixed_for_fade_animations() {
+    let html = r#"<div style="opacity: 0; animation: fadeIn 1s forwards;">Hello</div>"#;
+    let result = auto_fix_email_html(html);
+    assert!(
+        result.contains("opacity: 1"),
+        "opacity: 0 should become opacity: 1 when animation is stripped. Got: {}",
+        result
+    );
+}
+
+#[test]
+fn test_opacity_fractional_not_corrupted() {
+    let html = r#"<div style="opacity: 0.35;">Hello</div>"#;
+    let result = auto_fix_email_html(html);
+    assert!(
+        result.contains("opacity: 0.35"),
+        "opacity: 0.35 must not be corrupted. Got: {}",
+        result
+    );
+    assert!(
+        !result.contains("opacity: 1.35"),
+        "opacity: 0.35 must NOT become 1.35. Got: {}",
+        result
+    );
+}
+
+#[test]
+fn test_opacity_zero_point_five_not_corrupted() {
+    let html = r#"<div style="opacity: 0.5; animation: fadeIn 1s forwards;">Hello</div>"#;
+    let result = auto_fix_email_html(html);
+    assert!(
+        !result.contains("opacity: 1.5"),
+        "opacity: 0.5 must NOT become 1.5. Got: {}",
+        result
+    );
+}
+
+#[test]
+fn test_opacity_zero_point_zero_is_fixed() {
+    let html = r#"<div style="opacity: 0.0; animation: fadeIn 1s forwards;">Hello</div>"#;
+    let result = auto_fix_email_html(html);
+    assert!(
+        result.contains("opacity: 1"),
+        "opacity: 0.0 should become opacity: 1. Got: {}",
+        result
+    );
+}
+
+#[test]
+fn test_opacity_without_animation_stays() {
+    let html = r#"<div style="opacity: 0;">Hello</div>"#;
+    let result = auto_fix_email_html(html);
+    // No fade animation -> opacity: 0 should stay as-is (intentional hiding)
+    assert!(
+        result.contains("opacity: 0"),
+        "opacity: 0 without animation should stay. Got: {}",
+        result
+    );
+}
+
+// === clamp() resolution tests ===
+
+#[test]
+fn test_clamp_resolved_to_middle_value() {
+    let html = r#"<div style="font-size: clamp(1rem, 2rem, 3rem);">Hello</div>"#;
+    let result = auto_fix_email_html(html);
+    // clamp(1rem, 2rem, 3rem) -> preferred is 2rem -> 32px
+    assert!(
+        !result.contains("clamp"),
+        "clamp() should be resolved. Got: {}",
+        result
+    );
+    assert!(
+        result.contains("32px"),
+        "2rem should become 32px. Got: {}",
+        result
+    );
+}
+
+#[test]
+fn test_clamp_with_viewport_units() {
+    let html = r#"<div style="font-size: clamp(5rem, 14vw, 11rem);">Hello</div>"#;
+    let result = auto_fix_email_html(html);
+    assert!(
+        !result.contains("clamp"),
+        "clamp() should be resolved. Got: {}",
+        result
+    );
+    // 14vw * 6 = 84px
+    assert!(
+        result.contains("84px"),
+        "14vw should become 84px. Got: {}",
+        result
+    );
+}
+
+// === parse_css_value tests ===
+
+#[test]
+fn test_parse_css_value_rem() {
+    assert_eq!(parse_css_value("2rem"), 32.0);
+    assert_eq!(parse_css_value("1.5rem"), 24.0);
+}
+
+#[test]
+fn test_parse_css_value_px() {
+    assert_eq!(parse_css_value("120px"), 120.0);
+    assert_eq!(parse_css_value("-50px"), -50.0);
+}
+
+#[test]
+fn test_parse_css_value_percent() {
+    assert_eq!(parse_css_value("50%"), 50.0);
+}
+
+// === DANGEROUS_CSS_PROPS fix test ===
+
+#[test]
+fn test_css_values_not_treated_as_properties() {
+    let style = "display: block; color: red";
+    let result = sanitize_style_attribute(style);
+    let pos_style = "position: fixed; color: red";
+    let pos_result = sanitize_style_attribute(pos_style);
+    assert!(!pos_result.cleaned_style.contains("position"));
+    assert!(pos_result.cleaned_style.contains("color"));
+    assert!(result.cleaned_style.contains("display"));
+}
+
+// === Flexbox conversion test ===
+
+#[test]
+fn test_flexbox_column_centering() {
+    let html = r#"<div style="display: flex; flex-direction: column; align-items: center; justify-content: center;"><h1>Title</h1><p>Text</p></div>"#;
+    let result = auto_fix_email_html(html);
+    // Flexbox should be converted to a table
+    assert!(
+        result.contains("<table"),
+        "Flexbox should become table layout. Got: {}",
+        result
+    );
+    assert!(
+        result.contains("Title"),
+        "Content should be preserved. Got: {}",
+        result
+    );
+    assert!(
+        result.contains("Text"),
+        "Content should be preserved. Got: {}",
+        result
+    );
+}
+
+// === Details/issues reporting test ===
+
+#[test]
+fn test_details_report_flexbox_conversion() {
+    let html = r#"<div style="display: flex; flex-direction: column; align-items: center;"><p>Content</p></div>"#;
+    let result = sanitize_email_html_with_details(html);
+    let has_flex_issue = result
+        .issues
+        .iter()
+        .any(|i| i.property.contains("flex") || i.reason.contains("lex"));
+    assert!(
+        has_flex_issue,
+        "Should report flexbox conversion issue. Issues: {:?}",
+        result.issues
+    );
 }

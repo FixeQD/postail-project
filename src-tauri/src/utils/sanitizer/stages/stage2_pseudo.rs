@@ -129,10 +129,13 @@ pub fn expand_pseudo_elements(html: &str) -> String {
     let mut regex_cache: std::collections::HashMap<String, Regex> =
         std::collections::HashMap::new();
 
+    // Merge duplicate pseudo rules for the same class+pseudo kind.
+    let all_rules = merge_pseudo_rules(all_rules);
+
     for rule in &all_rules {
         let open_tag_pattern = format!(
-            r#"(?s)(<[a-zA-Z][a-zA-Z0-9]*\s[^>]*class=")([^"]*\b{}\b[^"]*)"#,
-            regex::escape(&rule.class)
+            r#"(?s)(<[a-zA-Z][a-zA-Z0-9]*\s[^>]*class=")([^"]*\b{class}\b[^"]*)"#,
+            class = regex::escape(&rule.class)
         );
         let open_tag_re = regex_cache
             .entry(open_tag_pattern.clone())
@@ -151,6 +154,11 @@ pub fn expand_pseudo_elements(html: &str) -> String {
         if rule.is_before {
             result = open_tag_re
                 .replace_all(&result, |caps: &regex::Captures| {
+                    // Verify class is a complete token, not part of a hyphenated name
+                    let class_value = &caps[2];
+                    if !class_value.split_whitespace().any(|t| t == rule.class) {
+                        return caps[0].to_string();
+                    }
                     format!(
                         "{}{}__PSEUDO_BEFORE_{}__",
                         &caps[1], &caps[2], rule.class_for_style
@@ -179,8 +187,8 @@ pub fn expand_pseudo_elements(html: &str) -> String {
             }
         } else {
             let open_full_pattern = format!(
-                r#"(?s)<([a-zA-Z][a-zA-Z0-9]*)\s[^>]*class="[^"]*\b{}\b[^"]*"[^>]*>"#,
-                regex::escape(&rule.class)
+                r#"(?s)<([a-zA-Z][a-zA-Z0-9]*)\s[^>]*class="([^"]*\b{class}\b[^"]*)"[^>]*>"#,
+                class = regex::escape(&rule.class)
             );
             let open_full_re = regex_cache
                 .entry(open_full_pattern.clone())
@@ -190,6 +198,10 @@ pub fn expand_pseudo_elements(html: &str) -> String {
 
             let mut insertions = Vec::new();
             for caps in open_full_re.captures_iter(&result) {
+                let class_value = &caps[2];
+                if !class_value.split_whitespace().any(|t| t == rule.class) {
+                    continue;
+                }
                 let tag_name = &caps[1];
                 let open_end = caps.get(0).unwrap().end();
                 let closing = format!("</{}>", tag_name);
@@ -335,58 +347,94 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
         }
     }
 
-    // ── Step 2: parse individual .class::pseudo { … } rules ─────────────────
-    let mut rules = Vec::new();
+    // ── Step 2: merge CSS bodies for same class+pseudo, THEN extract rules ─
+    let pseudo_re = Regex::new(r"^\s*\.([\w-]+)::(before|after)\s*$").unwrap();
+
+    // Group by (class, pseudo_kind) and merge CSS bodies
+    let mut grouped: std::collections::HashMap<(String, bool), Vec<String>> =
+        std::collections::HashMap::new();
 
     for (selector, body, _, _) in &pseudo_selectors {
-        // Parse .class::pseudo selector
-        let pseudo_re = Regex::new(r"^\s*\.([\w-]+)::(before|after)\s*$").unwrap();
         if let Some(caps) = pseudo_re.captures(selector) {
             let class = caps[1].to_string();
             let is_before = &caps[2] == "before";
+            grouped
+                .entry((class, is_before))
+                .or_default()
+                .push(body.to_string());
+        }
+    }
 
-            let decls = parse_css_declarations(body);
+    let mut rules = Vec::new();
 
-            let mut content = String::new();
-            let mut style_parts: Vec<String> = Vec::new();
-            let mut has_content_decl = false;
+    // Positioning props that don't work in email - strip from pseudo spans
+    const PSEUDO_STRIP_PROPS: &[&str] = &[
+        "position",
+        "top",
+        "left",
+        "right",
+        "bottom",
+        "inset",
+        "z-index",
+        "transform",
+        "transform-origin",
+    ];
 
-            let mut has_display = false;
-
-            for (prop, val) in &decls {
-                if prop.eq_ignore_ascii_case("content") {
-                    has_content_decl = true;
-                    content = val
-                        .trim_matches(|c: char| c == '"' || c == '\'')
-                        .to_string();
+    for ((class, is_before), bodies) in &grouped {
+        // Merge all CSS declarations for this class+pseudo, later overrides earlier
+        let mut merged_decls: Vec<(String, String)> = Vec::new();
+        for body in bodies {
+            for (prop, val) in parse_css_declarations(body) {
+                if let Some(pos) = merged_decls.iter().position(|(p, _)| *p == prop) {
+                    merged_decls[pos] = (prop, val);
                 } else {
-                    style_parts.push(format!("{}: {}", prop, val));
-                    if prop.eq_ignore_ascii_case("display") {
-                        has_display = true;
-                    }
+                    merged_decls.push((prop, val));
                 }
             }
-
-            if !has_display {
-                style_parts.push("display: inline-block".to_string());
-            }
-
-            if !has_content_decl {
-                continue;
-            }
-
-            let pseudo_kind = if is_before { "before" } else { "after" };
-            let class_for_style = format!("__pseudo_{}__{}", class, pseudo_kind);
-            let style_body = style_parts.join("; ");
-
-            rules.push(PseudoRule {
-                class,
-                is_before,
-                content,
-                style: style_body,
-                class_for_style,
-            });
         }
+
+        // Extract content and build style
+        let mut content = String::new();
+        let mut has_content_decl = false;
+        let mut style_parts: Vec<String> = Vec::new();
+        let mut has_display = false;
+
+        for (prop, val) in &merged_decls {
+            if prop.eq_ignore_ascii_case("content") {
+                has_content_decl = true;
+                content = val
+                    .trim_matches(|c: char| c == '"' || c == '\'')
+                    .to_string();
+            } else if PSEUDO_STRIP_PROPS.iter().any(|&p| p == prop.as_str()) {
+                // Skip positioning props - can't use them in email
+                continue;
+            } else {
+                style_parts.push(format!("{}: {}", prop, val));
+                if prop.eq_ignore_ascii_case("display") {
+                    has_display = true;
+                }
+            }
+        }
+
+        if !has_display {
+            style_parts.push("display: inline-block".to_string());
+        }
+
+        if !has_content_decl {
+            continue;
+        }
+
+        let pseudo_kind = if *is_before { "before" } else { "after" };
+        let class_for_style = format!("__pseudo_{}__{}", class, pseudo_kind);
+        let style_body = style_parts.join("; ");
+
+        rules.push(PseudoRule {
+            class: class.clone(),
+            is_before: *is_before,
+            content,
+            style: style_body,
+            class_for_style,
+        });
     }
 
     // Remove only the pseudo rules that we actually expanded into `rules`.
@@ -415,4 +463,45 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
     }
 
     (rules, cleaned_css)
+}
+
+/// Merge pseudo rules that target the same class + pseudo kind (before/after)
+fn merge_pseudo_rules(rules: Vec<PseudoRule>) -> Vec<PseudoRule> {
+    let mut merged: Vec<PseudoRule> = Vec::new();
+
+    for rule in rules {
+        let key_matches = merged.iter().position(|existing| {
+            existing.class == rule.class && existing.is_before == rule.is_before
+        });
+
+        if let Some(idx) = key_matches {
+            // Merge: parse both style strings, later properties override
+            let existing_decls = parse_css_declarations(&merged[idx].style);
+            let new_decls = parse_css_declarations(&rule.style);
+
+            let mut combined: Vec<(String, String)> = existing_decls;
+            for (prop, val) in new_decls {
+                if let Some(pos) = combined.iter().position(|(p, _)| *p == prop) {
+                    combined[pos] = (prop, val);
+                } else {
+                    combined.push((prop, val));
+                }
+            }
+
+            merged[idx].style = combined
+                .iter()
+                .map(|(p, v)| format!("{}: {}", p, v))
+                .collect::<Vec<_>>()
+                .join("; ");
+
+            // If the new rule has content and the existing one doesn't, take it
+            if !rule.content.is_empty() && merged[idx].content.is_empty() {
+                merged[idx].content = rule.content;
+            }
+        } else {
+            merged.push(rule);
+        }
+    }
+
+    merged
 }

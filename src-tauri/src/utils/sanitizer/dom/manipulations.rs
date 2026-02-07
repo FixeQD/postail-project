@@ -104,25 +104,46 @@ pub fn has_visual_content_dom(element: &kuchiki::ElementData) -> bool {
             "border",
             "border-color",
             "border-width",
+            "border-top",
+            "border-bottom",
+            "border-left",
+            "border-right",
             "box-shadow",
-            "width",
-            "height",
-            "min-width",
-            "min-height",
         ];
 
+        let mut has_dimensions = false;
+        let mut has_border_radius = false;
+
         for (prop, val) in &styles {
-            if visual_props.contains(&prop.as_str())
-                && val != "0"
-                && val != "none"
-                && val != "transparent"
-                && val != "auto"
-                && val != "0px"
-                && val != "0%"
-                && !val.is_empty()
-            {
+            let is_empty_val = val == "0"
+                || val == "none"
+                || val == "transparent"
+                || val == "auto"
+                || val == "0px"
+                || val == "0%"
+                || val.is_empty();
+
+            if visual_props.contains(&prop.as_str()) && !is_empty_val {
                 return true;
             }
+
+            // Track dimensions separately
+            if matches!(
+                prop.as_str(),
+                "width" | "height" | "min-width" | "min-height"
+            ) && !is_empty_val
+            {
+                has_dimensions = true;
+            }
+
+            if prop == "border-radius" && !is_empty_val {
+                has_border_radius = true;
+            }
+        }
+
+        // A sized element with border-radius is likely a decorative shape
+        if has_dimensions && has_border_radius {
+            return true;
         }
     }
 
@@ -135,34 +156,57 @@ pub fn has_visual_content_dom(element: &kuchiki::ElementData) -> bool {
 
 /// Remove dead (empty) elements from document
 pub fn strip_dead_elements_dom(document: &NodeRef) {
-    let mut nodes_to_remove: Vec<NodeRef> = Vec::new();
-    let mut nodes_to_cleanup: Vec<kuchiki::ElementData> = Vec::new();
+    for _ in 0..3 {
+        let mut nodes_to_remove: Vec<NodeRef> = Vec::new();
+        let mut nodes_to_cleanup: Vec<NodeRef> = Vec::new();
 
-    for node in document.descendants() {
-        if let Some(element) = node.as_element() {
-            let attrs = element.attributes.borrow();
-            if attrs.get("data-dead-if-empty").is_some() {
-                drop(attrs);
+        for node in document.descendants() {
+            if let Some(element) = node.as_element() {
+                let attrs = element.attributes.borrow();
+                if attrs.get("data-dead-if-empty").is_some() {
+                    drop(attrs);
 
-                let has_text = !node.text_contents().trim().is_empty();
-                let has_children = node.children().count() > 0;
-                let has_visual = has_visual_content_dom(element);
+                    let has_text = !node.text_contents().trim().is_empty();
+                    // Only count actual element children, not whitespace text nodes
+                    let has_element_children = node.children().any(|child| {
+                        if child.as_element().is_some() {
+                            return true;
+                        }
+                        if let Some(text) = child.as_text() {
+                            return !text.borrow().trim().is_empty();
+                        }
+                        false
+                    });
+                    let has_visual = has_visual_content_dom(element);
 
-                if !has_text && !has_children && !has_visual {
-                    nodes_to_remove.push(node.clone());
-                } else {
-                    nodes_to_cleanup.push(element.clone());
+                    if !has_text && !has_element_children && !has_visual {
+                        nodes_to_remove.push(node.clone());
+                    } else {
+                        nodes_to_cleanup.push(node.clone());
+                    }
                 }
             }
         }
-    }
 
-    for node in nodes_to_remove {
-        node.detach();
-    }
+        if nodes_to_remove.is_empty() {
+            for node in nodes_to_cleanup {
+                if let Some(element) = node.as_element() {
+                    let mut attrs = element.attributes.borrow_mut();
+                    attrs.remove("data-dead-if-empty");
+                }
+            }
+            break;
+        }
 
-    for element in nodes_to_cleanup {
-        let mut attrs = element.attributes.borrow_mut();
-        attrs.remove("data-dead-if-empty");
+        for node in nodes_to_remove {
+            node.detach();
+        }
+
+        for node in nodes_to_cleanup {
+            if let Some(element) = node.as_element() {
+                let mut attrs = element.attributes.borrow_mut();
+                attrs.remove("data-dead-if-empty");
+            }
+        }
     }
 }

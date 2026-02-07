@@ -55,12 +55,28 @@ pub fn parse_css_declarations(style: &str) -> Vec<(String, String)> {
     declarations
 }
 
-/// Parse a CSS value to extract numeric component
-/// e.g., "-120px" -> -120.0, "50%" -> 50.0
+/// Parse a CSS value to extract numeric component.
+/// Handles px, %, rem, em, vw, vh units.
+/// e.g., "-120px" -> -120.0, "50%" -> 50.0, "5rem" -> 80.0
 pub fn parse_css_value(value: &str) -> f32 {
-    let cleaned: String = value
+    let trimmed = value.trim();
+
+    // Handle calc() - just grab the first numeric value as a rough approximation
+    if trimmed.starts_with("calc(") {
+        let inner = &trimmed[5..trimmed.len().saturating_sub(1)];
+        return parse_css_value(inner);
+    }
+
+    let cleaned: String = trimmed
         .chars()
         .take_while(|c| c.is_ascii_digit() || *c == '-' || *c == '.')
         .collect();
-    cleaned.parse::<f32>().unwrap_or(0.0)
+    let numeric = cleaned.parse::<f32>().unwrap_or(0.0);
+
+    // Convert rem/em to px (1rem ~= 16px)
+    if trimmed.contains("rem") || trimmed.contains("em") {
+        return numeric * 16.0;
+    }
+
+    numeric
 }

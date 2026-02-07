@@ -10,8 +10,9 @@ use kuchiki::traits::TendrilSink;
 
 /// Internal helper to run the sanitization pipeline
 fn run_sanitization_pipeline(html: &str, is_auto_fix: bool, track_issues: bool) -> String {
-    let document = parse_html().one(html);
     let resolved = resolve_css_variables(html);
+
+    let document = parse_html().one(resolved.clone());
 
     let body_styles = extract_body_styles_from_css(&resolved);
     replace_body_with_div_dom(&document, body_styles);
@@ -21,8 +22,6 @@ fn run_sanitization_pipeline(html: &str, is_auto_fix: bool, track_issues: bool) 
 
     let expanded = expand_pseudo_elements(&html_content);
 
-    // Stage 3: Inline CSS styles
-    // For auto-fix, we explicitly remove imports/font-faces to prevent issues,
     let css_input = if is_auto_fix {
         let without_imports = IMPORT_REGEX.replace_all(&expanded, "");
         FONT_FACE_REGEX
@@ -101,7 +100,6 @@ pub fn sanitize_email_html_with_details(html: &str) -> SanitizeResult {
             std::collections::HashMap::new();
 
         for issue in issues_vec.iter() {
-            // Create a composite key for deduplication
             let key = format!("{}|{}", issue.property, issue.reason);
 
             unique_map
@@ -110,7 +108,6 @@ pub fn sanitize_email_html_with_details(html: &str) -> SanitizeResult {
                 .or_insert(issue.clone());
         }
 
-        // Convert map back to vector
         unique_map.into_values().collect()
     });
 
