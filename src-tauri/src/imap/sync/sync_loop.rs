@@ -18,6 +18,10 @@ lazy_static::lazy_static! {
     static ref STOP_FLAGS: std::sync::Mutex<std::collections::HashMap<String, Arc<AtomicBool>>> = std::sync::Mutex::new(std::collections::HashMap::new());
     static ref MAILBOX_TASKS: std::sync::Mutex<std::collections::HashMap<String, Vec<thread::JoinHandle<()>>>> = std::sync::Mutex::new(std::collections::HashMap::new());
     static ref IDLE_INTERRUPTS: std::sync::Mutex<std::collections::HashMap<String, stop_token::StopSource>> = std::sync::Mutex::new(std::collections::HashMap::new());
+
+    // Per-account mailbox watch
+    static ref WATCH_TASKS: std::sync::Mutex<std::collections::HashMap<String, thread::JoinHandle<()>>> = std::sync::Mutex::new(std::collections::HashMap::new());
+    static ref WATCH_STOP_FLAGS: std::sync::Mutex<std::collections::HashMap<String, Arc<AtomicBool>>> = std::sync::Mutex::new(std::collections::HashMap::new());
 }
 
 impl crate::imap::ImapManager {
@@ -167,6 +171,103 @@ impl crate::imap::ImapManager {
         None
     }
 
+    /// Start IDLE/poll watch for a single mailbox
+    pub async fn start_watch_mailbox(
+        &self,
+        account_id: &str,
+        mailbox_name: &str,
+    ) -> Result<(), AppError> {
+        // Stop previous watch for this account if running
+        self.stop_watch_mailbox(account_id).await;
+
+        let stop_flag = Arc::new(AtomicBool::new(false));
+        {
+            let mut flags = WATCH_STOP_FLAGS.lock().unwrap();
+            flags.insert(account_id.to_string(), stop_flag.clone());
+        }
+
+        let manager = self.clone();
+        let account_id_owned = account_id.to_string();
+        let mailbox_owned = mailbox_name.to_string();
+        let thread_name = format!("watch-{}", account_id);
+
+        let handle = thread::Builder::new()
+            .name(thread_name)
+            .spawn(move || {
+                tracing::info!(target: "postail", "[IMAP] Watch started for {}@{}", mailbox_owned, account_id_owned);
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build();
+                match rt {
+                    Ok(rt) => {
+                        rt.block_on(async {
+                            match manager
+                                .idle_mailbox(&account_id_owned, &mailbox_owned, &stop_flag)
+                                .await
+                            {
+                                Ok(()) => {
+                                    tracing::info!(target: "postail", "[IMAP] Watch ended cleanly for {}@{}", mailbox_owned, account_id_owned);
+                                }
+                                Err(e) => {
+                                    tracing::error!(target: "postail", "[IMAP] Watch error for {}@{}: {}", mailbox_owned, account_id_owned, e);
+                                }
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        tracing::error!(target: "postail", "[IMAP] Watch runtime error: {}", e);
+                    }
+                }
+            })
+            .map_err(|e| AppError::from(e.to_string()))?;
+
+        {
+            let mut tasks = WATCH_TASKS.lock().unwrap();
+            tasks.insert(account_id.to_string(), handle);
+        }
+
+        tracing::info!(target: "postail", "[IMAP] Watch thread spawned for {}@{}", mailbox_name, account_id);
+        Ok(())
+    }
+
+    /// Stop the active mailbox watch for an account.
+    pub async fn stop_watch_mailbox(&self, account_id: &str) {
+        // Signal stop
+        let flag = {
+            let flags = WATCH_STOP_FLAGS.lock().unwrap();
+            flags.get(account_id).cloned()
+        };
+        if let Some(f) = flag {
+            f.store(true, Ordering::SeqCst);
+        }
+
+        // Interrupt IDLE so the thread wakes up
+        {
+            let mut interrupts = IDLE_INTERRUPTS.lock().unwrap();
+            if let Some(interrupt) = interrupts.remove(account_id) {
+                tracing::info!(target: "postail", "[IMAP] Interrupting watch IDLE for {}", account_id);
+                drop(interrupt);
+            }
+        }
+
+        // Join the thread
+        let handle = {
+            let mut tasks = WATCH_TASKS.lock().unwrap();
+            tasks.remove(account_id)
+        };
+        if let Some(h) = handle {
+            let _ = h.join();
+        }
+
+        // Cleanup flag
+        {
+            let mut flags = WATCH_STOP_FLAGS.lock().unwrap();
+            flags.remove(account_id);
+        }
+
+        tracing::info!(target: "postail", "[IMAP] Watch stopped for {}", account_id);
+    }
+
     async fn start_sync_async(&self, account_id: &str) -> Result<(), AppError> {
         use crate::imap::sync_status::SYNC_STATUS_MANAGER;
         let stop_flag: Arc<AtomicBool> = SYNC_STATUS_MANAGER.get_stop_flag(account_id).await;
@@ -281,7 +382,7 @@ impl crate::imap::ImapManager {
         Ok(())
     }
 
-    async fn idle_mailbox(
+    pub(crate) async fn idle_mailbox(
         &self,
         account_id: &str,
         mailbox_name: &str,
@@ -375,6 +476,7 @@ impl crate::imap::ImapManager {
                         )
                         .await?;
                         *last_uid = new_highest_uid;
+                        mark_sync_complete(account_id).await;
                     }
                     idle = session.idle();
                     if idle.init().await.is_err() {
@@ -467,6 +569,7 @@ impl crate::imap::ImapManager {
                         )
                         .await?;
                         *last_uid = new_highest_uid;
+                        mark_sync_complete(account_id).await;
                     }
                 }
                 Err(e) => {
@@ -481,7 +584,7 @@ impl crate::imap::ImapManager {
         }
     }
 
-    async fn get_last_synced_uid(
+    pub(crate) async fn get_last_synced_uid(
         &self,
         account_id: &str,
         mailbox_name: &str,
@@ -499,7 +602,7 @@ impl crate::imap::ImapManager {
         Ok(last_uid.unwrap_or(0) as u32)
     }
 
-    async fn fetch_missing_messages(
+    pub(crate) async fn fetch_missing_messages(
         &self,
         account_id: &str,
         mailbox_name: &str,

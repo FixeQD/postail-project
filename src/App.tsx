@@ -116,7 +116,7 @@ function App() {
 	)
 
 	const handleAccountAdded = useCallback(async () => {
-		toast.success(t('app.accountAdded', 'Account added. Starting sync...'))
+		toast.success(t('app.accountAdded', 'Account added successfully'))
 		await fetchAccounts()
 	}, [fetchAccounts, t])
 

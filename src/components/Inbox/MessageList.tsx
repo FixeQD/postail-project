@@ -1,11 +1,12 @@
-import { useRef, useCallback, useState } from 'react'
+import { useRef, useCallback, useState, useEffect } from 'react'
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { format, isToday, isYesterday, isThisYear } from 'date-fns'
-import { Star, Archive, Trash2, MailOpen, Mail } from 'lucide-react'
+import { Star, Archive, Trash2, MailOpen, Mail, FolderSync } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import type { MailHeader } from '../../types/mail'
+import type { MailHeader, Mailbox } from '../../types/mail'
 import type { AccountMeta } from '../../types/accounts'
 import { useTypedTranslation } from '../../hooks/useTypedTranslation'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -21,11 +22,141 @@ const BATCH_SIZE = 50
 
 export const MessageList = ({ account, mailbox, onMessageClick }: MessageListProps) => {
 	const { t } = useTypedTranslation()
+	const queryClient = useQueryClient()
 	const virtuosoRef = useRef<VirtuosoHandle>(null)
 	const [hoveredMessageId, setHoveredMessageId] = useState<number | null>(null)
+	const [isSyncing, setIsSyncing] = useState(false)
+	const [syncError, setSyncError] = useState<string | null>(null)
+	const syncingRef = useRef(false)
+	const syncedRef = useRef<Set<string>>(new Set())
 	const { settings } = useSettingsStore()
 	const zenMode = settings['zen-mode']
 	const accentColor = useThemeStore((s) => s.accentColor)
+
+	const mailboxKey = `${account.id}:${mailbox}`
+
+	const { data: mailboxes, isLoading: mailboxesLoading } = useQuery({
+		queryKey: ['mailboxes', account.id],
+		queryFn: () => invoke<Mailbox[]>('fetch_mailboxes', { accountId: account.id }),
+		enabled: !!account,
+	})
+
+	const currentMailbox = mailboxes?.find((m) => m.name === mailbox)
+
+	const needsSync = (() => {
+		if (syncedRef.current.has(mailboxKey)) return false
+		if (mailboxesLoading || !mailboxes) return true
+		if (!currentMailbox) return true
+		return !currentMailbox.last_synced_uid
+	})()
+
+	useEffect(() => {
+		if (!needsSync || syncingRef.current) return
+
+		let cancelled = false
+		const doSync = async () => {
+			syncingRef.current = true
+			setIsSyncing(true)
+			setSyncError(null)
+			try {
+				await invoke('sync_single_mailbox', {
+					accountId: account.id,
+					mailbox,
+				})
+				if (!cancelled) {
+					syncedRef.current.add(mailboxKey)
+				}
+			} catch (e) {
+				if (!cancelled) {
+					setSyncError(String(e))
+				}
+			} finally {
+				syncingRef.current = false
+				setIsSyncing(false)
+				queryClient.invalidateQueries({ queryKey: ['mailboxes', account.id] })
+				queryClient.invalidateQueries({
+					queryKey: ['messages', account.id, mailbox],
+				})
+			}
+		}
+		doSync()
+
+		return () => {
+			cancelled = true
+		}
+	}, [needsSync, account.id, mailbox, mailboxKey, queryClient])
+
+	const prevMailboxRef = useRef(mailbox)
+	useEffect(() => {
+		if (prevMailboxRef.current === mailbox) return
+		prevMailboxRef.current = mailbox
+		syncingRef.current = false
+		setIsSyncing(false)
+		setSyncError(null)
+	}, [mailbox])
+
+	useEffect(() => {
+		if (isSyncing || syncError || needsSync) return
+
+		let stopped = false
+
+		const startWatch = async () => {
+			try {
+				await invoke('watch_mailbox', { accountId: account.id, mailbox })
+			} catch (e) {
+				if (!stopped) {
+					console.error('Failed to start mailbox watch:', e)
+				}
+			}
+		}
+		startWatch()
+
+		return () => {
+			stopped = true
+			invoke('unwatch_mailbox', { accountId: account.id }).catch((e) =>
+				console.error('Failed to stop mailbox watch:', e)
+			)
+		}
+	}, [account.id, mailbox, isSyncing, syncError, needsSync])
+
+	useEffect(() => {
+		const unlisten = listen('sync:completed', (event: { payload: { accountId: string } }) => {
+			if (event.payload.accountId === account.id) {
+				queryClient.invalidateQueries({
+					queryKey: ['messages', account.id, mailbox],
+				})
+			}
+		})
+
+		return () => {
+			unlisten.then((fn) => fn())
+		}
+	}, [account.id, mailbox, queryClient])
+
+	useEffect(() => {
+		const unlisten = listen(
+			'sync:progress',
+			(event: {
+				payload: { accountId: string; mailbox: string; current: number; total: number }
+			}) => {
+				const p = event.payload
+				if (
+					p.accountId === account.id &&
+					p.mailbox === mailbox &&
+					p.current === p.total &&
+					p.total > 0
+				) {
+					queryClient.invalidateQueries({
+						queryKey: ['messages', account.id, mailbox],
+					})
+				}
+			}
+		)
+
+		return () => {
+			unlisten.then((fn) => fn())
+		}
+	}, [account.id, mailbox, queryClient])
 
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
 		useInfiniteQuery({
@@ -46,6 +177,8 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 				const lastMessage = lastPage[lastPage.length - 1]
 				return lastMessage?.uid
 			},
+			// Block message fetching until sync is done
+			enabled: !needsSync && !isSyncing,
 		})
 
 	const allMessages = data?.pages.flatMap((page) => page) ?? []
@@ -63,6 +196,77 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 			fetchNextPage()
 		}
 	}, [hasNextPage, isFetchingNextPage, fetchNextPage])
+
+	// Syncing state
+	if (isSyncing) {
+		return (
+			<div className='flex h-full items-center justify-center'>
+				<motion.div
+					initial={{ opacity: 0, scale: 0.9 }}
+					animate={{ opacity: 1, scale: 1 }}
+					transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+					className='flex flex-col items-center gap-4'>
+					<div className='relative flex h-16 w-16 items-center justify-center'>
+						<div
+							className='absolute inset-0 animate-spin rounded-full border-2 border-transparent'
+							style={{
+								borderTopColor: accentColor,
+								animationDuration: '1.2s',
+							}}
+						/>
+						<div
+							className='absolute inset-2 animate-spin rounded-full border-2 border-transparent'
+							style={{
+								borderBottomColor: `rgba(var(--accent-rgb), 0.3)`,
+								animationDirection: 'reverse',
+								animationDuration: '1.8s',
+							}}
+						/>
+						<FolderSync className='h-6 w-6' style={{ color: accentColor }} />
+					</div>
+					<div className='flex flex-col items-center gap-1'>
+						<span className='text-sm font-medium text-slate-300'>
+							Syncing messages...
+						</span>
+						<span className='text-xs text-slate-600'>
+							{currentMailbox?.display_name || mailbox}
+						</span>
+					</div>
+				</motion.div>
+			</div>
+		)
+	}
+
+	// Sync error state
+	if (syncError) {
+		return (
+			<div className='flex h-full items-center justify-center'>
+				<motion.div
+					initial={{ opacity: 0, scale: 0.9 }}
+					animate={{ opacity: 1, scale: 1 }}
+					className='flex flex-col items-center gap-3'>
+					<div className='flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10 ring-1 ring-red-500/20'>
+						<FolderSync className='h-5 w-5 text-red-400' />
+					</div>
+					<p className='text-sm font-medium text-red-400'>Failed to sync mailbox</p>
+					<p className='max-w-xs text-center text-xs text-slate-600'>{syncError}</p>
+					<button
+						onClick={() => {
+							syncedRef.current.delete(mailboxKey)
+							setSyncError(null)
+							syncingRef.current = false
+							setIsSyncing(false)
+							queryClient.invalidateQueries({
+								queryKey: ['mailboxes', account.id],
+							})
+						}}
+						className='mt-1 rounded-lg px-4 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/[0.08] transition-colors hover:bg-white/[0.04]'>
+						Retry
+					</button>
+				</motion.div>
+			</div>
+		)
+	}
 
 	if (isLoading) {
 		return (

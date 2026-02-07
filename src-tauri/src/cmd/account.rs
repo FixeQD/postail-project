@@ -21,15 +21,14 @@ pub async fn add_account(input: AccountInput) -> Result<AccountMeta, String> {
         db_add_account(conn, input, &security).map_err(|e| e.to_string())?
     };
 
-    // Auto-start sync for the new account
+    // Only sync folder list
     if let Err(e) = {
         let imap = IMAP_MANAGER.lock().await;
-        imap.start_sync(&account.id).await
+        imap.fetch_mailboxes(&account.id).await
     } {
-        tracing::warn!(target: "postail", "[Account] Failed to auto-start sync for new account {}: {}", account.id, e);
-        // Don't fail account creation if sync fails to start
+        tracing::warn!(target: "postail", "[Account] Failed to sync mailbox list for new account {}: {}", account.id, e);
     } else {
-        tracing::info!(target: "postail", "[Account] Auto-started sync for new account {}", account.id);
+        tracing::info!(target: "postail", "[Account] Synced mailbox list for new account {}", account.id);
     }
 
     Ok(account)
@@ -157,15 +156,14 @@ pub async fn complete_oauth_flow(code: String, state: String) -> Result<AccountM
         db_add_account(conn, account_input, &security).map_err(|e| e.to_string())?
     };
 
-    // Auto-start sync for the new OAuth account
+    // Only sync folder list
     if let Err(e) = {
         let imap = IMAP_MANAGER.lock().await;
-        imap.start_sync(&account.id).await
+        imap.fetch_mailboxes(&account.id).await
     } {
-        tracing::warn!(target: "postail", "[Account] Failed to auto-start sync for new OAuth account {}: {}", account.id, e);
-        // Don't fail account creation if sync fails to start
+        tracing::warn!(target: "postail", "[Account] Failed to sync mailbox list for new OAuth account {}: {}", account.id, e);
     } else {
-        tracing::info!(target: "postail", "[Account] Auto-started sync for new OAuth account {}", account.id);
+        tracing::info!(target: "postail", "[Account] Synced mailbox list for new OAuth account {}", account.id);
     }
 
     Ok(account)
