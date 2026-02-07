@@ -1,4 +1,4 @@
-use crate::db::{Contact};
+use crate::db::Contact;
 use crate::globals::{DB_CONN, SECURITY};
 use std::sync::Arc;
 use tauri::command;

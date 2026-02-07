@@ -2,9 +2,7 @@ use crate::db::accounts::{
     add_account as db_add_account, list_accounts as db_list_accounts,
     remove_account as db_remove_account,
 };
-use crate::db::{
-    AccountInput, AccountMeta, Credentials, ImapConfig, OAuthCredentials, SmtpConfig,
-};
+use crate::db::{AccountInput, AccountMeta, Credentials, ImapConfig, OAuthCredentials, SmtpConfig};
 use crate::globals::{DB_CONN, IMAP_MANAGER, SECURITY};
 use crate::oauth;
 use chrono::Utc;

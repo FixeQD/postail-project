@@ -6,8 +6,8 @@ use tracing;
 
 use crate::error::{AppError, ImapError, SyncError};
 use crate::imap::sync_status::{
-    mark_sync_complete, mark_sync_error, start_sync_status_tracking,
-    update_sync_status, SYNC_STATUS_MANAGER,
+    mark_sync_complete, mark_sync_error, start_sync_status_tracking, update_sync_status,
+    SYNC_STATUS_MANAGER,
 };
 
 const RFC_IDLE_TIMEOUT_SECS: u64 = 29 * 60;
@@ -24,7 +24,9 @@ impl crate::imap::ImapManager {
     pub async fn start_sync(&self, account_id: &str) -> Result<(), AppError> {
         let account_email = {
             let conn_guard = self.conn.lock().unwrap();
-            let conn = conn_guard.as_ref().ok_or_else(|| AppError::from("Database not initialized"))?;
+            let conn = conn_guard
+                .as_ref()
+                .ok_or_else(|| AppError::from("Database not initialized"))?;
             crate::db::accounts::get_account_email(conn, account_id)
                 .map_err(|e| AppError::from(e.to_string()))?
                 .unwrap_or_else(|| account_id.to_string())
@@ -201,7 +203,7 @@ impl crate::imap::ImapManager {
     ) -> Result<(), AppError> {
         let mailboxes = self.fetch_mailboxes(account_id).await?;
         let total_mailboxes = mailboxes.len() as u32;
-        
+
         // Set total mailbox count
         SYNC_STATUS_MANAGER
             .set_mailbox_counters(account_id, 0, total_mailboxes)
@@ -229,7 +231,7 @@ impl crate::imap::ImapManager {
         if stop_flag.load(Ordering::SeqCst) {
             return Ok(());
         }
-        
+
         mark_sync_complete(account_id).await;
 
         let inbox_name = mailboxes
@@ -285,7 +287,6 @@ impl crate::imap::ImapManager {
         mailbox_name: &str,
         stop_flag: &Arc<AtomicBool>,
     ) -> Result<(), AppError> {
-
         let mut session = self.connect_imap(account_id).await?;
         let mailbox = session.select(mailbox_name).await.map_err(AppError::from)?;
 

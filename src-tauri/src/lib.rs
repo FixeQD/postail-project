@@ -76,7 +76,9 @@ pub fn run() {
             cmd::settings::get_setting,
             cmd::settings::set_setting,
             cmd::settings::migrate_data_path,
-            cmd::settings::get_default_data_dir
+            cmd::settings::get_default_data_dir,
+            cmd::settings::get_theme_config,
+            cmd::settings::set_theme_config
         ])
         .register_uri_scheme_protocol("postail", protocol::handler)
         .run(tauri::generate_context!())

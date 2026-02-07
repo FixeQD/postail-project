@@ -1,4 +1,4 @@
-use crate::db::{OutboxItem};
+use crate::db::OutboxItem;
 use crate::globals::{DB_CONN, SMTP_MANAGER};
 use std::sync::Arc;
 use tauri::command;

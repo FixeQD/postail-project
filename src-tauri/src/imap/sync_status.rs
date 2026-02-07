@@ -1,8 +1,8 @@
+use serde::Serialize;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
-use tokio::sync::Mutex as AsyncMutex;
 use tauri::{AppHandle, Emitter};
-use serde::Serialize;
+use tokio::sync::Mutex as AsyncMutex;
 
 use crate::db::SyncStatusEnum;
 
@@ -10,33 +10,33 @@ use crate::db::SyncStatusEnum;
 #[serde(tag = "type")]
 pub enum SyncEvent {
     #[serde(rename = "started")]
-    Started { 
+    Started {
         #[serde(rename = "accountId")]
-        account_id: String, 
+        account_id: String,
         #[serde(rename = "accountEmail")]
-        account_email: String 
+        account_email: String,
     },
     #[serde(rename = "progress")]
-    Progress { 
+    Progress {
         #[serde(rename = "accountId")]
-        account_id: String, 
-        mailbox: String, 
-        current: u32, 
+        account_id: String,
+        mailbox: String,
+        current: u32,
         total: u32,
         #[serde(rename = "mailboxProgress")]
         mailbox_progress: Option<MailboxProgress>,
     },
     #[serde(rename = "completed")]
-    Completed { 
+    Completed {
         #[serde(rename = "accountId")]
-        account_id: String, 
-        timestamp: u64 
+        account_id: String,
+        timestamp: u64,
     },
     #[serde(rename = "error")]
-    Error { 
+    Error {
         #[serde(rename = "accountId")]
-        account_id: String, 
-        error: String 
+        account_id: String,
+        error: String,
     },
 }
 
@@ -277,7 +277,7 @@ pub async fn update_sync_status(
 ) {
     // Decode IMAP UTF-7 mailbox name
     let decoded_mailbox = utf7_imap::decode_utf7_imap(mailbox.to_string());
-    
+
     SYNC_STATUS_MANAGER
         .set_status(account_id, SyncStatusEnum::Syncing)
         .await;
@@ -287,12 +287,11 @@ pub async fn update_sync_status(
     SYNC_STATUS_MANAGER
         .set_progress(account_id, current_uid, total_uids)
         .await;
-    
+
     // Get mailbox counters
-    let (current_mailbox, total_mailboxes) = SYNC_STATUS_MANAGER
-        .get_mailbox_counters(account_id)
-        .await;
-    
+    let (current_mailbox, total_mailboxes) =
+        SYNC_STATUS_MANAGER.get_mailbox_counters(account_id).await;
+
     // Emit progress event
     SYNC_STATUS_MANAGER.emit_event(SyncEvent::Progress {
         account_id: account_id.to_string(),
@@ -315,7 +314,7 @@ pub async fn mark_sync_error(account_id: &str, error: &str) {
         .set_status(account_id, SyncStatusEnum::Error(error.to_string()))
         .await;
     SYNC_STATUS_MANAGER.set_error(account_id, Some(error)).await;
-    
+
     // Emit error event
     SYNC_STATUS_MANAGER.emit_event(SyncEvent::Error {
         account_id: account_id.to_string(),
@@ -329,7 +328,7 @@ pub async fn mark_sync_complete(account_id: &str) {
         .await;
     SYNC_STATUS_MANAGER.set_mailbox(account_id, None).await;
     SYNC_STATUS_MANAGER.update_last_sync(account_id).await;
-    
+
     // Emit completed event
     let timestamp = chrono::Utc::now().timestamp() as u64;
     SYNC_STATUS_MANAGER.emit_event(SyncEvent::Completed {
@@ -339,8 +338,10 @@ pub async fn mark_sync_complete(account_id: &str) {
 }
 
 pub async fn start_sync_status_tracking(account_id: &str, account_email: &str) {
-    SYNC_STATUS_MANAGER.register_account(account_id, account_email).await;
-    
+    SYNC_STATUS_MANAGER
+        .register_account(account_id, account_email)
+        .await;
+
     // Emit started event
     SYNC_STATUS_MANAGER.emit_event(SyncEvent::Started {
         account_id: account_id.to_string(),

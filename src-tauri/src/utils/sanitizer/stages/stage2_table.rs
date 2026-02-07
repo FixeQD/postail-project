@@ -940,9 +940,7 @@ fn create_table_cell(class: &str, align: Option<&str>, colspan: Option<usize>) -
             attrs.insert("colspan", c.to_string());
         }
 
-        if class.contains("left") {
-            attrs.insert("width", "50%".to_string());
-        } else if class.contains("right") {
+        if class.contains("left") || class.contains("right") {
             attrs.insert("width", "50%".to_string());
         }
     }

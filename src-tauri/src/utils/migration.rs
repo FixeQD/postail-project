@@ -1,7 +1,7 @@
-use std::fs;
-use std::path::{Path, PathBuf};
 use crate::globals::{DB_CONN, IMAP_MANAGER, SMTP_MANAGER};
 use crate::utils::config::{get_data_dir, set_data_dir_override};
+use std::fs;
+use std::path::{Path, PathBuf};
 
 pub async fn perform_migration(new_path: &str) -> Result<(), String> {
     let old_dir = get_data_dir();
@@ -15,7 +15,7 @@ pub async fn perform_migration(new_path: &str) -> Result<(), String> {
 
     // 1. Stop all workers
     tracing::info!(target: "postail", "[Migration] Stopping workers...");
-    
+
     // Stop IMAP syncs
     {
         tracing::info!(target: "postail", "[Migration] Stopping IMAP syncs...");

@@ -1,6 +1,6 @@
-use rusqlite::params;
 use crate::db::init_db;
 use crate::error::DBError;
+use rusqlite::params;
 use std::collections::HashMap;
 
 pub fn get_all_settings() -> Result<HashMap<String, String>, DBError> {

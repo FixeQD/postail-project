@@ -242,8 +242,7 @@ pub fn connect_db_with_key(hex_key: &str) -> Result<Connection, DBError> {
 }
 
 fn save_creds_blob(id: &str, data: &[u8]) -> Result<String, DBError> {
-    let dir = crate::utils::config::get_data_dir()
-        .join("creds");
+    let dir = crate::utils::config::get_data_dir().join("creds");
     fs::create_dir_all(&dir)?;
     let path = dir.join(format!("{}.enc", id));
     fs::write(&path, data)?;

@@ -405,7 +405,7 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
                 content = val
                     .trim_matches(|c: char| c == '"' || c == '\'')
                     .to_string();
-            } else if PSEUDO_STRIP_PROPS.iter().any(|&p| p == prop.as_str()) {
+            } else if PSEUDO_STRIP_PROPS.contains(&prop.as_str()) {
                 // Skip positioning props - can't use them in email
                 continue;
             } else {

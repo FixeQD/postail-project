@@ -38,14 +38,15 @@ pub fn start_maintenance_scheduler(db_conn: Arc<Mutex<Option<Connection>>>) {
                 }
                 thread::sleep(Duration::from_secs(1));
             }
-            
+
             if !MAINTENANCE_RUNNING.load(std::sync::atomic::Ordering::SeqCst) {
                 tracing::info!(target: "postail", "Maintenance scheduler stopping");
                 break;
             }
-            
-            static LAST_CHECKPOINT: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
-            
+
+            static LAST_CHECKPOINT: std::sync::Mutex<Option<std::time::Instant>> =
+                std::sync::Mutex::new(None);
+
             let should_checkpoint = {
                 let mut last = LAST_CHECKPOINT.lock().unwrap();
                 if last.is_none() || last.unwrap().elapsed() >= WAL_CHECKPOINT_INTERVAL {
