@@ -8,7 +8,8 @@ pub async fn start_sync(account_id: String) -> Result<(), String> {
     let res = {
         let imap = IMAP_MANAGER.lock().await;
         imap.start_sync(&account_id).await
-    }; match res {
+    };
+    match res {
         Ok(()) => {
             tracing::info!(target: "postail", "[UI] start_sync succeeded");
             Ok(())
