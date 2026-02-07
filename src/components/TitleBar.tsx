@@ -7,6 +7,7 @@ import icon from '../assets/icon.png'
 import type { AccountMeta } from '../types/accounts'
 import { useTypedTranslation } from '../hooks/useTypedTranslation'
 import { useDraftStore } from '../stores/draftStore'
+import { useThemeStore } from '@/stores/themeStore'
 
 interface TitleBarProps {
 	isDashboard?: boolean
@@ -25,6 +26,7 @@ export function TitleBar({
 }: TitleBarProps) {
 	const { t } = useTypedTranslation()
 	const { isSending } = useDraftStore()
+	const accentColor = useThemeStore((s) => s.accentColor)
 	const [isMobile, setIsMobile] = useState<boolean | null>(null)
 	const [searchQuery, setSearchQuery] = useState('')
 	const [searchFocused, setSearchFocused] = useState(false)
@@ -81,7 +83,8 @@ export function TitleBar({
 						transition={{ duration: 0.2, ease: 'easeOut' }}>
 						<div className='pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5'>
 							<Search
-								className={`h-4 w-4 transition-colors duration-200 ${searchFocused ? 'text-orange-400' : 'text-slate-500'}`}
+								className='h-4 w-4 transition-colors duration-200'
+								style={{ color: searchFocused ? accentColor : undefined }}
 							/>
 						</div>
 						<input
@@ -98,13 +101,22 @@ export function TitleBar({
 							placeholder={t('inbox:search.placeholder')}
 							className={`block w-full rounded-xl border py-2.5 pr-4 pl-10 text-sm text-slate-200 placeholder-slate-500 transition-all duration-200 focus:outline-none ${
 								searchFocused
-									? 'border-orange-500/30 bg-slate-900/90 shadow-lg ring-1 shadow-orange-500/5 ring-orange-500/20'
+									? 'bg-slate-900/90 shadow-lg ring-1'
 									: 'border-white/[0.06] bg-slate-900/60 hover:border-white/[0.1] hover:bg-slate-900/80'
 							}`}
+							style={
+								searchFocused
+									? {
+											borderColor: `rgba(var(--accent-rgb), 0.3)`,
+											boxShadow: `0 4px 12px -2px rgba(var(--accent-rgb), 0.05), 0 0 0 1px rgba(var(--accent-rgb), 0.2)`,
+										}
+									: undefined
+							}
 						/>
 						{/* Focus glow underneath */}
 						<motion.div
-							className='pointer-events-none absolute inset-x-4 -bottom-1 h-4 rounded-full bg-orange-500/10 blur-md'
+							className='pointer-events-none absolute inset-x-4 -bottom-1 h-4 rounded-full blur-md'
+							style={{ backgroundColor: `rgba(var(--accent-rgb), 0.1)` }}
 							initial={false}
 							animate={{ opacity: searchFocused ? 1 : 0 }}
 							transition={{ duration: 0.2 }}
@@ -122,7 +134,10 @@ export function TitleBar({
 							whileTap={{ scale: 0.9 }}
 							onMouseDown={(e) => e.stopPropagation()}>
 							<Bell className='h-[18px] w-[18px]' />
-							<span className='badge-pulse absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-orange-500' />
+							<span
+								className='badge-pulse absolute top-1.5 right-1.5 h-2 w-2 rounded-full'
+								style={{ backgroundColor: accentColor }}
+							/>
 						</motion.button>
 
 						<motion.button
@@ -137,7 +152,7 @@ export function TitleBar({
 									? {
 											scale: [1, 1.15, 1],
 											rotate: [0, 12, -12, 0],
-											color: '#fb923c',
+											color: accentColor,
 										}
 									: {}
 							}
@@ -167,8 +182,12 @@ export function TitleBar({
 						</motion.button>
 
 						{/* Avatar */}
-						<div className='ml-1 h-8 w-8 overflow-hidden rounded-full bg-gradient-to-br from-orange-500 to-orange-600 ring-2 ring-slate-950 ring-offset-1 ring-offset-slate-800/50'>
-							<div className='flex h-full w-full items-center justify-center text-sm font-bold text-white'>
+						<div
+							className='ml-1 h-8 w-8 overflow-hidden rounded-full ring-2 ring-slate-950 ring-offset-1 ring-offset-slate-800/50'
+							style={{
+								background: `linear-gradient(135deg, var(--accent-color), var(--accent-dark))`,
+							}}>
+							<div className='text-accent-contrast flex h-full w-full items-center justify-center text-sm font-bold'>
 								{activeAccount.name.charAt(0).toUpperCase()}
 							</div>
 						</div>

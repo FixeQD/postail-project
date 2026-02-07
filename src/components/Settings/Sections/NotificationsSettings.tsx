@@ -7,10 +7,8 @@ export function NotificationsSettings() {
 	const { t } = useSettingsTranslation()
 
 	return (
-		<div className='flex h-full flex-col p-8 max-w-3xl mx-auto w-full space-y-8'>
-			<motion.div
-				initial={{ opacity: 0, y: -20 }}
-				animate={{ opacity: 1, y: 0 }}>
+		<div className='mx-auto flex h-full w-full max-w-3xl flex-col space-y-8 p-8'>
+			<motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
 				<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
 					{t('settings:notifications.title')}
 				</h1>
@@ -19,7 +17,7 @@ export function NotificationsSettings() {
 
 			<div className='space-y-6'>
 				<section>
-					<h2 className='text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 ml-2'>
+					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
 						{t('settings:notifications.alerts.title')}
 					</h2>
 					<div className='space-y-3'>
@@ -41,7 +39,7 @@ export function NotificationsSettings() {
 				</section>
 
 				<section>
-					<h2 className='text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 ml-2'>
+					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
 						{t('settings:notifications.badge.title')}
 					</h2>
 					<div className='space-y-3'>
@@ -56,14 +54,16 @@ export function NotificationsSettings() {
 				</section>
 
 				<section>
-					<h2 className='text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 ml-2'>
+					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
 						{t('settings:notifications.filters.title')}
 					</h2>
 					<div className='space-y-3'>
 						<ToggleSetting
 							icon={Star}
 							label={t('settings:notifications.filters.importantOnly.label')}
-							description={t('settings:notifications.filters.importantOnly.description')}
+							description={t(
+								'settings:notifications.filters.importantOnly.description'
+							)}
 							value={false}
 							onChange={() => {}}
 						/>

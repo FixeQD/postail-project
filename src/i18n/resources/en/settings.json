@@ -100,6 +100,15 @@
 	"appearance": {
 		"title": "Appearance",
 		"subtitle": "Customize how Postail looks.",
+		"accentColor": {
+			"title": "Accent Color",
+			"description": "Used for buttons, highlights, and active states.",
+			"custom": "Custom"
+		},
+		"background": {
+			"title": "Background",
+			"description": "Sets the base tone of the interface."
+		},
 		"theme": {
 			"title": "Theme",
 			"darkMode": {

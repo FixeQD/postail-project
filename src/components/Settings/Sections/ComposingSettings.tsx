@@ -7,10 +7,8 @@ export function ComposingSettings() {
 	const { t } = useSettingsTranslation()
 
 	return (
-		<div className='flex h-full flex-col p-8 max-w-3xl mx-auto w-full space-y-8'>
-			<motion.div
-				initial={{ opacity: 0, y: -20 }}
-				animate={{ opacity: 1, y: 0 }}>
+		<div className='mx-auto flex h-full w-full max-w-3xl flex-col space-y-8 p-8'>
+			<motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
 				<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
 					{t('settings:composing.title')}
 				</h1>
@@ -19,7 +17,7 @@ export function ComposingSettings() {
 
 			<div className='space-y-6'>
 				<section>
-					<h2 className='text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 ml-2'>
+					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
 						{t('settings:composing.sending.title')}
 					</h2>
 					<div className='space-y-3'>
@@ -34,7 +32,7 @@ export function ComposingSettings() {
 				</section>
 
 				<section>
-					<h2 className='text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 ml-2'>
+					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
 						{t('settings:composing.drafts.title')}
 					</h2>
 					<div className='space-y-3'>
@@ -49,7 +47,7 @@ export function ComposingSettings() {
 				</section>
 
 				<section>
-					<h2 className='text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 ml-2'>
+					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
 						{t('settings:composing.editor.title')}
 					</h2>
 					<div className='space-y-3'>

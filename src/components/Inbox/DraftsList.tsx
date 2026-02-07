@@ -5,6 +5,7 @@ import { Trash2, Edit, FileText } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { useDraftStore } from '@/stores/draftStore'
+import { useThemeStore } from '@/stores/themeStore'
 import type { ComposeDraft } from '@/types/compose'
 import { Button } from '@/components/ui/button'
 
@@ -16,6 +17,7 @@ interface DraftsListProps {
 export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 	const { t } = useTranslation()
 	const { drafts, loadDrafts, deleteDraft } = useDraftStore()
+	const accentColor = useThemeStore((s) => s.accentColor)
 
 	useEffect(() => {
 		const controller = new AbortController()
@@ -34,7 +36,7 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 	}
 
 	return (
-		<div className='flex h-full flex-col bg-slate-950'>
+		<div className='flex h-full flex-col'>
 			{/* Header */}
 			<motion.div
 				initial={{ opacity: 0, y: -8 }}
@@ -45,7 +47,13 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 					{t('inbox:sidebar.mailboxes.drafts')}
 				</h2>
 				{drafts.length > 0 && (
-					<span className='ml-2 inline-flex items-center rounded-full bg-orange-500/10 px-2 py-0.5 text-[11px] font-semibold text-orange-400 ring-1 ring-orange-500/20'>
+					<span
+						className='ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1'
+						style={{
+							backgroundColor: `rgba(var(--accent-rgb), 0.1)`,
+							color: accentColor,
+							boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.2)`,
+						}}>
 						{drafts.length}
 					</span>
 				)}
@@ -89,11 +97,22 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 									onClick={() => onDraftClick(draft)}
 									className='group relative flex cursor-pointer items-center border-b border-white/[0.04] px-5 py-3.5 transition-all duration-150 hover:bg-white/[0.03]'>
 									{/* Left accent line on hover */}
-									<div className='absolute top-1/2 left-0 h-0 w-[3px] -translate-y-1/2 rounded-r-full bg-orange-500 transition-all duration-200 group-hover:h-[60%]' />
+									<div
+										className='absolute top-1/2 left-0 h-0 w-[3px] -translate-y-1/2 rounded-r-full transition-all duration-200 group-hover:h-[60%]'
+										style={{ backgroundColor: accentColor }}
+									/>
 
 									{/* Draft icon */}
-									<div className='mr-3.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-500/[0.08] ring-1 ring-orange-500/[0.12] transition-all duration-200 group-hover:bg-orange-500/[0.12] group-hover:ring-orange-500/20'>
-										<Edit className='h-4 w-4 text-orange-400/80' />
+									<div
+										className='mr-3.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 transition-all duration-200'
+										style={{
+											backgroundColor: `rgba(var(--accent-rgb), 0.08)`,
+											boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.12)`,
+										}}>
+										<Edit
+											className='h-4 w-4'
+											style={{ color: `rgba(var(--accent-rgb), 0.8)` }}
+										/>
 									</div>
 
 									{/* Content */}

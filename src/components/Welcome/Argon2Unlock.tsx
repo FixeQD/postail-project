@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { motion } from 'framer-motion'
 import { useSecurityTranslation } from '../../hooks/useTypedTranslation'
+import { useThemeStore } from '@/stores/themeStore'
 import { ArrowLeft, Lock, Eye, EyeOff, AlertTriangle } from 'lucide-react'
 import icon from '../../assets/icon.png'
 
@@ -13,6 +14,7 @@ export const Argon2Unlock = ({
 	onUnlock: () => void
 }) => {
 	const { t } = useSecurityTranslation()
+	const accentColor = useThemeStore((s) => s.accentColor)
 	const [passphrase, setPassphrase] = useState('')
 	const [showPassword, setShowPassword] = useState(false)
 	const [loading, setLoading] = useState(false)
@@ -41,7 +43,10 @@ export const Argon2Unlock = ({
 	return (
 		<div className='ambient-glow noise-overlay relative flex h-full flex-col items-center justify-center overflow-hidden'>
 			{/* Background accent orbs */}
-			<div className='pointer-events-none absolute top-1/4 left-1/3 h-64 w-64 rounded-full bg-orange-500/[0.04] blur-[100px]' />
+			<div
+				className='pointer-events-none absolute top-1/4 left-1/3 h-64 w-64 rounded-full blur-[100px]'
+				style={{ backgroundColor: `rgba(var(--accent-rgb), 0.04)` }}
+			/>
 			<div className='pointer-events-none absolute right-1/4 bottom-1/3 h-48 w-48 rounded-full bg-indigo-500/[0.03] blur-[80px]' />
 
 			{/* Back button - top left */}
@@ -74,7 +79,10 @@ export const Argon2Unlock = ({
 						className='animate-subtle-float mb-6'>
 						<div className='relative flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-800/80 shadow-xl ring-1 ring-white/[0.08]'>
 							<img src={icon} alt='Postail' className='h-16 w-16' />
-							<div className='animate-glow-breathe absolute -inset-3 -z-10 rounded-3xl bg-orange-500/10 blur-xl' />
+							<div
+								className='animate-glow-breathe absolute -inset-3 -z-10 rounded-3xl blur-xl'
+								style={{ backgroundColor: `rgba(var(--accent-rgb), 0.1)` }}
+							/>
 						</div>
 					</motion.div>
 
@@ -111,9 +119,8 @@ export const Argon2Unlock = ({
 						<div className='group relative'>
 							<div className='pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5'>
 								<Lock
-									className={`h-4 w-4 transition-colors duration-200 ${
-										passphrase ? 'text-orange-400' : 'text-slate-600'
-									}`}
+									className='h-4 w-4 transition-colors duration-200'
+									style={{ color: passphrase ? accentColor : undefined }}
 								/>
 							</div>
 							<input
@@ -121,7 +128,7 @@ export const Argon2Unlock = ({
 								type={showPassword ? 'text' : 'password'}
 								value={passphrase}
 								onChange={(e) => setPassphrase(e.target.value)}
-								className='w-full rounded-xl bg-slate-800/40 py-3.5 pr-12 pl-10 text-slate-100 placeholder-slate-600 ring-1 ring-white/[0.08] transition-all duration-200 focus:bg-slate-800/60 focus:ring-orange-500/40 focus:outline-none'
+								className='w-full rounded-xl bg-slate-800/40 py-3.5 pr-12 pl-10 text-slate-100 placeholder-slate-600 ring-1 ring-white/[0.08] transition-all duration-200 focus:bg-slate-800/60 focus:outline-none'
 								placeholder={t('security:argon2.passphrase.placeholder')}
 								required
 								autoFocus
@@ -157,11 +164,15 @@ export const Argon2Unlock = ({
 						disabled={loading || !passphrase}
 						whileHover={!loading && passphrase ? { scale: 1.02 } : {}}
 						whileTap={!loading && passphrase ? { scale: 0.97 } : {}}
-						className='flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition-all hover:shadow-xl hover:shadow-orange-500/30 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none'>
+						className='text-accent-contrast flex w-full items-center justify-center gap-2.5 rounded-xl px-6 py-3.5 text-sm font-semibold shadow-lg transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none'
+						style={{
+							background: `linear-gradient(to right, var(--accent-dark), var(--accent-color))`,
+							boxShadow: `0 8px 24px -4px rgba(var(--accent-rgb), 0.2)`,
+						}}>
 						{loading ? (
 							<>
 								<div className='relative h-5 w-5'>
-									<div className='absolute inset-0 animate-spin rounded-full border-2 border-white/30 border-t-white' />
+									<div className='border-accent-contrast border-t-accent-contrast absolute inset-0 animate-spin rounded-full border-2' />
 								</div>
 								Unlocking...
 							</>
@@ -180,7 +191,10 @@ export const Argon2Unlock = ({
 				initial={{ scaleX: 0, opacity: 0 }}
 				animate={{ scaleX: 1, opacity: 1 }}
 				transition={{ duration: 0.8, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
-				className='absolute bottom-0 left-0 h-px w-full origin-center bg-gradient-to-r from-transparent via-orange-500/20 to-transparent'
+				className='absolute bottom-0 left-0 h-px w-full origin-center'
+				style={{
+					background: `linear-gradient(to right, transparent, rgba(var(--accent-rgb), 0.2), transparent)`,
+				}}
 			/>
 		</div>
 	)

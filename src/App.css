@@ -1,6 +1,30 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+@property --accent-color {
+	syntax: '<color>';
+	initial-value: #f97316;
+	inherits: true;
+}
+
+@property --accent-light {
+	syntax: '<color>';
+	initial-value: #fb923c;
+	inherits: true;
+}
+
+@property --accent-dark {
+	syntax: '<color>';
+	initial-value: #ea580c;
+	inherits: true;
+}
+
+@property --accent-text {
+	syntax: '<color>';
+	initial-value: #ffffff;
+	inherits: true;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -77,6 +101,25 @@
 	--sidebar-accent-foreground: oklch(0.205 0 0);
 	--sidebar-border: oklch(0.922 0 0);
 	--sidebar-ring: oklch(0.708 0 0);
+
+	/* Accent color system - overridden by ThemeProvider via JS */
+	--accent-color: #f97316;
+	--accent-rgb: 249, 115, 22;
+	--accent-light: #fb923c;
+	--accent-light-rgb: 251, 146, 60;
+	--accent-dark: #ea580c;
+	--accent-dark-rgb: 234, 88, 12;
+	--accent-text: #ffffff;
+	--accent-text-rgb: 255, 255, 255;
+
+	/* App background - overridden by ThemeProvider via JS */
+	--app-bg: #020617;
+
+	transition:
+		--accent-color 0.4s ease,
+		--accent-light 0.4s ease,
+		--accent-dark 0.4s ease,
+		--accent-text 0.4s ease;
 }
 
 .dark {
@@ -157,14 +200,14 @@
 
 /* ─── Selection ─── */
 ::selection {
-	background: rgba(249, 115, 22, 0.25);
+	background: rgba(var(--accent-rgb), 0.25);
 	color: #fff;
 }
 
 /* ─── Smooth focus rings ─── */
 *:focus-visible {
 	outline: none;
-	box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.4);
+	box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.4);
 	border-radius: inherit;
 	transition: box-shadow 0.15s ease;
 }
@@ -216,10 +259,10 @@
 @keyframes subtle-pulse-ring {
 	0%,
 	100% {
-		box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.15);
+		box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.15);
 	}
 	50% {
-		box-shadow: 0 0 0 8px rgba(249, 115, 22, 0);
+		box-shadow: 0 0 0 8px rgba(var(--accent-rgb), 0);
 	}
 }
 
@@ -344,11 +387,19 @@
 	-webkit-backdrop-filter: blur(8px) saturate(1.2);
 }
 
-/* ─── Glow effects ─── */
+/* ─── Glow effects (accent-aware) ─── */
+.glow-accent {
+	box-shadow:
+		0 0 20px -4px rgba(var(--accent-rgb), 0.2),
+		0 0 6px -2px rgba(var(--accent-rgb), 0.15);
+	transition: box-shadow 0.4s ease;
+}
+
 .glow-orange {
 	box-shadow:
-		0 0 20px -4px rgba(249, 115, 22, 0.2),
-		0 0 6px -2px rgba(249, 115, 22, 0.15);
+		0 0 20px -4px rgba(var(--accent-rgb), 0.2),
+		0 0 6px -2px rgba(var(--accent-rgb), 0.15);
+	transition: box-shadow 0.4s ease;
 }
 
 .glow-blue {
@@ -393,11 +444,33 @@
 	background-clip: text;
 }
 
+/* Contrast-safe text color on accent backgrounds */
+.text-accent-contrast {
+	color: var(--accent-text) !important;
+	transition: color 0.4s ease;
+}
+
+.border-accent-contrast {
+	border-color: rgba(var(--accent-text-rgb), 0.3);
+	transition: border-color 0.4s ease;
+}
+
+.border-t-accent-contrast {
+	border-top-color: var(--accent-text) !important;
+	transition: border-top-color 0.4s ease;
+}
+
 .gradient-text-brand {
-	background: linear-gradient(135deg, #fb923c 0%, #f97316 40%, #ea580c 100%);
+	background: linear-gradient(
+		135deg,
+		var(--accent-light) 0%,
+		var(--accent-color) 40%,
+		var(--accent-dark) 100%
+	);
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 	background-clip: text;
+	transition: background 0.4s ease;
 }
 
 /* ─── Subtle noise texture overlay ─── */
@@ -427,7 +500,7 @@
 	transform: translate(-50%, -50%);
 	background: radial-gradient(
 		ellipse at center,
-		rgba(249, 115, 22, 0.06) 0%,
+		rgba(var(--accent-rgb), 0.06) 0%,
 		rgba(99, 102, 241, 0.03) 40%,
 		transparent 70%
 	);
@@ -449,10 +522,12 @@
 	transform: translateY(-50%);
 	width: 3px;
 	height: 60%;
-	background: linear-gradient(180deg, #f97316, #fb923c);
+	background: linear-gradient(180deg, var(--accent-color), var(--accent-light));
 	border-radius: 0 4px 4px 0;
 	opacity: 0;
-	transition: opacity 0.2s ease;
+	transition:
+		background 0.4s ease,
+		opacity 0.2s ease;
 }
 .message-unread-indicator.is-unread::before {
 	opacity: 1;
@@ -470,9 +545,11 @@
 	transform: translateY(-50%);
 	width: 3px;
 	height: 20px;
-	background: #f97316;
+	background: var(--accent-color);
 	border-radius: 0 4px 4px 0;
-	transition: height 0.2s ease;
+	transition:
+		height 0.2s ease,
+		background 0.4s ease;
 }
 
 /* ─── Smooth transitions for interactive elements ─── */
@@ -489,8 +566,8 @@ input,
 input:focus,
 textarea:focus {
 	box-shadow:
-		0 0 0 1px rgba(249, 115, 22, 0.3),
-		0 0 12px -4px rgba(249, 115, 22, 0.15);
+		0 0 0 1px rgba(var(--accent-rgb), 0.3),
+		0 0 12px -4px rgba(var(--accent-rgb), 0.15);
 }
 
 /* ─── Badge pulse for notifications ─── */
@@ -543,4 +620,29 @@ textarea:focus {
 /* ─── Dialog overlay ─── */
 [data-state='open'][role='dialog'] {
 	animation: fade-in-scale 0.2s ease-out;
+}
+
+/* ─── react-colorful overrides ─── */
+.color-picker-container .react-colorful {
+	width: 200px;
+	height: 200px;
+	border-radius: 12px;
+	overflow: hidden;
+}
+
+.color-picker-container .react-colorful__saturation {
+	border-radius: 12px 12px 0 0;
+}
+
+.color-picker-container .react-colorful__hue {
+	height: 14px;
+	border-radius: 0 0 12px 12px;
+}
+
+.color-picker-container .react-colorful__saturation-pointer,
+.color-picker-container .react-colorful__hue-pointer {
+	width: 20px;
+	height: 20px;
+	border: 3px solid #fff;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }

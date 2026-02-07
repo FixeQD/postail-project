@@ -11,6 +11,7 @@ import {
 	Lock,
 	PenLine,
 } from 'lucide-react'
+import { useThemeStore } from '@/stores/themeStore'
 import { AccountsScreen } from './Sections/Account/AccountsScreen'
 import { GeneralSettings } from './Sections/GeneralSettings'
 import { PrivacySettings } from './Sections/PrivacySettings'
@@ -39,6 +40,7 @@ export function SettingsScreen({
 	showSidebar = true,
 }: SettingsScreenProps) {
 	const { t } = useSettingsTranslation()
+	const accentColor = useThemeStore((s) => s.accentColor)
 	const [activeSection, setActiveSection] = useState('accounts')
 
 	const SETTINGS_SECTIONS = [
@@ -83,7 +85,7 @@ export function SettingsScreen({
 	}
 
 	return (
-		<div className='flex h-full bg-slate-950 text-slate-100'>
+		<div className='flex h-full text-slate-100'>
 			{showSidebar && (
 				<motion.div
 					initial={{ opacity: 0, x: -12 }}
@@ -142,13 +144,15 @@ export function SettingsScreen({
 													stiffness: 400,
 													damping: 25,
 												}}
-												className='absolute top-1/2 left-0 h-5 w-[3px] origin-center -translate-y-1/2 rounded-r-full bg-orange-500'
+												className='absolute top-1/2 left-0 h-5 w-[3px] origin-center -translate-y-1/2 rounded-r-full'
+												style={{ backgroundColor: accentColor }}
 											/>
 										)}
 									</AnimatePresence>
 
 									<section.icon
-										className={`relative h-4 w-4 transition-colors duration-200 ${isActive ? 'text-orange-400' : ''}`}
+										className='relative h-4 w-4 transition-colors duration-200'
+										style={isActive ? { color: accentColor } : undefined}
 									/>
 									<span className='relative text-sm font-semibold'>
 										{section.label}

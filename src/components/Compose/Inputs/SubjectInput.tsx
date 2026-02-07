@@ -42,7 +42,7 @@ export function SubjectInput({
 				initial={{ scaleX: 0 }}
 				animate={{ scaleX: isFocused || isHovered ? 1 : 0 }}
 				transition={{ duration: 0.25, ease: 'easeOut' }}
-				className='absolute bottom-0 left-0 h-[1px] w-full bg-zinc-500 origin-center pointer-events-none'
+				className='pointer-events-none absolute bottom-0 left-0 h-[1px] w-full origin-center bg-zinc-500'
 			/>
 		</motion.div>
 	)

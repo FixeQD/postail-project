@@ -9,6 +9,7 @@ import type { MailHeader } from '../../types/mail'
 import type { AccountMeta } from '../../types/accounts'
 import { useTypedTranslation } from '../../hooks/useTypedTranslation'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useThemeStore } from '@/stores/themeStore'
 
 interface MessageListProps {
 	account: AccountMeta
@@ -24,6 +25,7 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 	const [hoveredMessageId, setHoveredMessageId] = useState<number | null>(null)
 	const { settings } = useSettingsStore()
 	const zenMode = settings['zen-mode']
+	const accentColor = useThemeStore((s) => s.accentColor)
 
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
 		useInfiniteQuery({
@@ -67,10 +69,17 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 			<div className='flex h-full items-center justify-center'>
 				<div className='flex flex-col items-center gap-3'>
 					<div className='relative h-10 w-10'>
-						<div className='absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-orange-500' />
 						<div
-							className='absolute inset-1 animate-spin rounded-full border-2 border-transparent border-b-orange-500/30'
-							style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}
+							className='absolute inset-0 animate-spin rounded-full border-2 border-transparent'
+							style={{ borderTopColor: accentColor }}
+						/>
+						<div
+							className='absolute inset-1 animate-spin rounded-full border-2 border-transparent'
+							style={{
+								borderBottomColor: `rgba(var(--accent-rgb), 0.3)`,
+								animationDirection: 'reverse',
+								animationDuration: '1.5s',
+							}}
 						/>
 					</div>
 					<span className='text-sm text-slate-500'>Loading messages...</span>
@@ -115,7 +124,7 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 	}
 
 	return (
-		<div className='flex h-full flex-1 flex-col bg-slate-950'>
+		<div className='flex h-full flex-1 flex-col'>
 			<Virtuoso
 				ref={virtuosoRef}
 				data={allMessages}
@@ -141,7 +150,11 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 							<div className='flex items-center gap-2.5 pr-3'>
 								<input
 									type='checkbox'
-									className='h-[15px] w-[15px] cursor-pointer rounded border-slate-700 bg-transparent text-orange-500 transition-colors checked:bg-orange-500 focus:ring-1 focus:ring-orange-500/30 focus:ring-offset-0'
+									className='h-[15px] w-[15px] cursor-pointer rounded border-slate-700 bg-transparent transition-colors focus:ring-1 focus:ring-offset-0'
+									style={{
+										accentColor: accentColor,
+										color: accentColor,
+									}}
 									onClick={(e) => e.stopPropagation()}
 								/>
 								<button
@@ -235,7 +248,13 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 
 							{/* Unread dot indicator (right side) */}
 							{isUnread && !zenMode && (
-								<div className='ml-2 h-2 w-2 shrink-0 rounded-full bg-orange-500 shadow-sm shadow-orange-500/30' />
+								<div
+									className='ml-2 h-2 w-2 shrink-0 rounded-full'
+									style={{
+										backgroundColor: accentColor,
+										boxShadow: `0 1px 3px rgba(var(--accent-rgb), 0.3)`,
+									}}
+								/>
 							)}
 						</div>
 					)

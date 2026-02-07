@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { motion } from 'framer-motion'
 import { useSecurityTranslation } from '../../hooks/useTypedTranslation'
+import { useThemeStore } from '@/stores/themeStore'
 import { ArrowLeft, Lock, Eye, EyeOff, AlertTriangle, ShieldCheck } from 'lucide-react'
 
 export const Argon2Setup = ({
@@ -12,6 +13,7 @@ export const Argon2Setup = ({
 	onComplete: () => void
 }) => {
 	const { t } = useSecurityTranslation()
+	const accentColor = useThemeStore((s) => s.accentColor)
 	const [passphrase, setPassphrase] = useState('')
 	const [confirmPassphrase, setConfirmPassphrase] = useState('')
 	const [showPassword, setShowPassword] = useState(false)
@@ -68,7 +70,12 @@ export const Argon2Setup = ({
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
 				className='relative border-b border-white/[0.06] bg-slate-900/40 px-4 py-6 backdrop-blur-lg'>
-				<div className='pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-orange-500/10 to-transparent' />
+				<div
+					className='pointer-events-none absolute inset-x-0 bottom-0 h-px'
+					style={{
+						background: `linear-gradient(to right, transparent, rgba(var(--accent-rgb), 0.1), transparent)`,
+					}}
+				/>
 
 				<div className='container mx-auto'>
 					<button
@@ -79,8 +86,13 @@ export const Argon2Setup = ({
 						{t('common:actions.back')}
 					</button>
 					<div className='flex items-center gap-3'>
-						<div className='flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/10 ring-1 ring-orange-500/20'>
-							<Lock className='h-5 w-5 text-orange-400' />
+						<div
+							className='flex h-10 w-10 items-center justify-center rounded-xl ring-1'
+							style={{
+								backgroundColor: `rgba(var(--accent-rgb), 0.1)`,
+								boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.2)`,
+							}}>
+							<Lock className='h-5 w-5' style={{ color: accentColor }} />
 						</div>
 						<div>
 							<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
@@ -118,7 +130,12 @@ export const Argon2Setup = ({
 									type={showPassword ? 'text' : 'password'}
 									value={passphrase}
 									onChange={(e) => setPassphrase(e.target.value)}
-									className='w-full rounded-xl bg-slate-800/40 px-4 py-3 pr-12 text-slate-100 placeholder-slate-600 ring-1 ring-white/[0.08] transition-all duration-200 focus:bg-slate-800/60 focus:ring-orange-500/40 focus:outline-none'
+									className='w-full rounded-xl bg-slate-800/40 px-4 py-3 pr-12 text-slate-100 placeholder-slate-600 ring-1 ring-white/[0.08] transition-all duration-200 focus:bg-slate-800/60 focus:outline-none'
+									style={
+										{
+											'--tw-ring-color': `rgba(var(--accent-rgb), 0.4)`,
+										} as React.CSSProperties
+									}
 									placeholder={t('security:argon2.passphrase.placeholder')}
 									required
 								/>
@@ -154,7 +171,12 @@ export const Argon2Setup = ({
 									type={showConfirmPassword ? 'text' : 'password'}
 									value={confirmPassphrase}
 									onChange={(e) => setConfirmPassphrase(e.target.value)}
-									className='w-full rounded-xl bg-slate-800/40 px-4 py-3 pr-12 text-slate-100 placeholder-slate-600 ring-1 ring-white/[0.08] transition-all duration-200 focus:bg-slate-800/60 focus:ring-orange-500/40 focus:outline-none'
+									className='w-full rounded-xl bg-slate-800/40 px-4 py-3 pr-12 text-slate-100 placeholder-slate-600 ring-1 ring-white/[0.08] transition-all duration-200 focus:bg-slate-800/60 focus:outline-none'
+									style={
+										{
+											'--tw-ring-color': `rgba(var(--accent-rgb), 0.4)`,
+										} as React.CSSProperties
+									}
 									placeholder={t('security:argon2.confirm.placeholder')}
 									required
 								/>
@@ -230,11 +252,15 @@ export const Argon2Setup = ({
 							disabled={!isValid || loading}
 							whileHover={isValid && !loading ? { scale: 1.02 } : {}}
 							whileTap={isValid && !loading ? { scale: 0.97 } : {}}
-							className='flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition-all hover:shadow-xl hover:shadow-orange-500/30 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none'>
+							className='text-accent-contrast flex w-full items-center justify-center gap-2.5 rounded-xl px-6 py-3.5 text-sm font-semibold shadow-lg transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none'
+							style={{
+								background: `linear-gradient(to right, var(--accent-dark), var(--accent-color))`,
+								boxShadow: `0 8px 24px -4px rgba(var(--accent-rgb), 0.2)`,
+							}}>
 							{loading ? (
 								<>
 									<div className='relative h-5 w-5'>
-										<div className='absolute inset-0 animate-spin rounded-full border-2 border-white/30 border-t-white' />
+										<div className='border-accent-contrast border-t-accent-contrast absolute inset-0 animate-spin rounded-full border-2' />
 									</div>
 									{t('security:argon2.creating')}
 								</>

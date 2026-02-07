@@ -2,5 +2,15 @@
 	"title": "Welcome to Postail",
 	"subtitle": "Secure email client for the modern era",
 	"description": "Choose your preferred encryption method to secure your email accounts",
-	"getStarted": "Get Started"
+	"getStarted": "Get Started",
+	"customize": {
+		"title": "Make it yours",
+		"subtitle": "Pick your accent color and background",
+		"accentColor": "Accent Color",
+		"accentColorHint": "Used for buttons, highlights, and active states",
+		"background": "Background",
+		"backgroundHint": "Sets the base tone of the interface",
+		"preview": "Preview",
+		"continue": "Continue"
+	}
 }

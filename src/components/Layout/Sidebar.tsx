@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { Mailbox } from '../../types/mail'
 import type { AccountMeta } from '../../types/accounts'
 import { useTypedTranslation } from '../../hooks/useTypedTranslation'
+import { useThemeStore } from '@/stores/themeStore'
 
 interface SidebarProps {
 	activeAccount: AccountMeta | null
@@ -25,6 +26,7 @@ export const Sidebar = ({
 	onCompose,
 }: SidebarProps) => {
 	const { t } = useTypedTranslation()
+	const accentColor = useThemeStore((s) => s.accentColor)
 	const [width, setWidth] = useState(DEFAULT_WIDTH)
 	const [isResizing, setIsResizing] = useState(false)
 	const sidebarRef = useRef<HTMLDivElement>(null)
@@ -129,7 +131,7 @@ export const Sidebar = ({
 			<motion.div
 				ref={sidebarRef}
 				style={{ width }}
-				className='relative flex h-full flex-col bg-slate-950 p-3'>
+				className='relative flex h-full flex-col p-3'>
 				{/* Right edge gradient line */}
 				<div className='pointer-events-none absolute top-0 right-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/[0.06] to-transparent' />
 
@@ -140,7 +142,11 @@ export const Sidebar = ({
 						onClick={onCompose}
 						whileHover={{ scale: 1.02 }}
 						whileTap={{ scale: 0.96 }}
-						className={`group relative flex items-center overflow-hidden rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/15 transition-shadow hover:shadow-xl hover:shadow-orange-500/25 ${isCollapsed ? 'mx-auto aspect-square h-11 w-11 justify-center px-0' : 'w-full'}`}>
+						className={`text-accent-contrast group relative flex items-center overflow-hidden rounded-xl px-4 py-3 text-sm font-semibold shadow-lg transition-shadow hover:shadow-xl ${isCollapsed ? 'mx-auto aspect-square h-11 w-11 justify-center px-0' : 'w-full'}`}
+						style={{
+							background: `linear-gradient(to right, var(--accent-dark), var(--accent-color))`,
+							boxShadow: `0 8px 20px -4px rgba(var(--accent-rgb), 0.15)`,
+						}}>
 						{/* Shimmer effect on hover */}
 						<div className='absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full' />
 						<Pencil className='relative h-4 w-4 shrink-0' />
@@ -178,14 +184,19 @@ export const Sidebar = ({
 										whileTap={{ scale: 0.97 }}
 										className={`relative flex w-full items-center rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
 											isActive
-												? 'text-orange-400'
+												? ''
 												: 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
-										} ${isCollapsed ? 'justify-center px-0' : ''}`}>
+										} ${isCollapsed ? 'justify-center px-0' : ''}`}
+										style={isActive ? { color: accentColor } : undefined}>
 										{/* Active background */}
 										{isActive && (
 											<motion.div
 												layoutId='sidebar-active-bg'
-												className='absolute inset-0 rounded-xl bg-orange-500/10 ring-1 ring-orange-500/[0.15]'
+												className='absolute inset-0 rounded-xl ring-1'
+												style={{
+													backgroundColor: `rgba(var(--accent-rgb), 0.1)`,
+													boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.15)`,
+												}}
 												transition={{
 													type: 'spring',
 													stiffness: 350,
@@ -206,13 +217,15 @@ export const Sidebar = ({
 														stiffness: 400,
 														damping: 25,
 													}}
-													className='absolute top-1/2 left-0 h-5 w-[3px] origin-center -translate-y-1/2 rounded-r-full bg-orange-500'
+													className='absolute top-1/2 left-0 h-5 w-[3px] origin-center -translate-y-1/2 rounded-r-full'
+													style={{ backgroundColor: accentColor }}
 												/>
 											)}
 										</AnimatePresence>
 
 										<div
-											className={`relative shrink-0 transition-colors duration-200 ${isActive ? 'text-orange-400' : ''}`}>
+											className='relative shrink-0 transition-colors duration-200'
+											style={isActive ? { color: accentColor } : undefined}>
 											{getIconForMailbox(mailbox)}
 										</div>
 										{!isCollapsed && (
@@ -229,7 +242,19 @@ export const Sidebar = ({
 
 				{/* Resizer Handle */}
 				<div
-					className={`absolute top-0 right-0 h-full w-1.5 cursor-col-resize transition-all ${isResizing ? 'bg-orange-500/50' : 'bg-transparent hover:bg-orange-500/30'}`}
+					className='absolute top-0 right-0 h-full w-1.5 cursor-col-resize transition-all'
+					style={{
+						backgroundColor: isResizing
+							? `rgba(var(--accent-rgb), 0.5)`
+							: 'transparent',
+					}}
+					onMouseEnter={(e) => {
+						if (!isResizing)
+							e.currentTarget.style.backgroundColor = `rgba(var(--accent-rgb), 0.3)`
+					}}
+					onMouseLeave={(e) => {
+						if (!isResizing) e.currentTarget.style.backgroundColor = 'transparent'
+					}}
 					onMouseDown={startResizing}>
 					{/* Visual grip dots when hovering */}
 					<div className='pointer-events-none flex h-full flex-col items-center justify-center gap-1 opacity-0 transition-opacity hover:opacity-100'>

@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use crate::db::settings;
-use crate::utils::config::get_default_data_dir as get_default_path;
+use crate::utils::config::{get_default_data_dir as get_default_path, ThemeConfig};
+use std::collections::HashMap;
 
 #[tauri::command]
 pub async fn get_default_data_dir() -> Result<String, String> {
@@ -10,10 +10,13 @@ pub async fn get_default_data_dir() -> Result<String, String> {
 #[tauri::command]
 pub async fn get_all_settings() -> Result<HashMap<String, String>, String> {
     let mut all = settings::get_all_settings().map_err(|e| e.to_string())?;
-    
+
     let data_path = crate::utils::config::get_data_dir();
-    all.insert("data-path".to_string(), data_path.to_string_lossy().to_string());
-    
+    all.insert(
+        "data-path".to_string(),
+        data_path.to_string_lossy().to_string(),
+    );
+
     Ok(all)
 }
 
@@ -28,7 +31,24 @@ pub async fn set_setting(key: String, value: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn migrate_data_path(app_handle: tauri::AppHandle, new_path: String) -> Result<(), String> {
+pub async fn migrate_data_path(
+    app_handle: tauri::AppHandle,
+    new_path: String,
+) -> Result<(), String> {
     crate::utils::migration::perform_migration(&new_path).await?;
     app_handle.restart();
+}
+
+#[tauri::command]
+pub async fn get_theme_config() -> Result<ThemeConfig, String> {
+    Ok(crate::utils::config::load_theme_config())
+}
+
+#[tauri::command]
+pub async fn set_theme_config(accent_color: String, background: String) -> Result<(), String> {
+    let theme = ThemeConfig {
+        accent_color,
+        background,
+    };
+    crate::utils::config::save_theme_config(&theme)
 }

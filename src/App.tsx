@@ -5,6 +5,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TitleBar } from './components/TitleBar'
 import { WelcomeScreen } from './components/Welcome/WelcomeScreen'
+import { AccentColorStep } from './components/Welcome/AccentColorStep'
 import { EncryptionChoice } from './components/Welcome/EncryptionChoice'
 import { Argon2Setup } from './components/Welcome/Argon2Setup'
 import { Argon2Unlock } from './components/Welcome/Argon2Unlock'
@@ -16,6 +17,7 @@ import { Toaster, toast } from 'sonner'
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
 import type { AccountMeta } from './types/accounts'
 import { useSettingsStore } from './stores/settingsStore'
+import { useThemeStore } from './stores/themeStore'
 import icon from './assets/icon.png'
 import './i18n'
 import { useTranslation } from 'react-i18next'
@@ -23,6 +25,7 @@ import { useTranslation } from 'react-i18next'
 type AppState =
 	| 'init'
 	| 'welcome'
+	| 'customize'
 	| 'security'
 	| 'accounts'
 	| 'argon2-setup'
@@ -34,10 +37,12 @@ function App() {
 	const { t } = useTranslation()
 	const [currentState, setCurrentState] = useState<AppState>('init')
 	const loadSettings = useSettingsStore((s) => s.loadSettings)
+	const { loadTheme, accentColor, persistTheme } = useThemeStore()
 
 	useEffect(() => {
 		loadSettings()
-	}, [loadSettings])
+		loadTheme()
+	}, [loadSettings, loadTheme])
 	const [accounts, setAccounts] = useState<AccountMeta[]>([])
 	const [activeAccount, setActiveAccount] = useState<AccountMeta | null>(null)
 	const [activeMailbox, setActiveMailbox] = useState('INBOX')
@@ -163,6 +168,12 @@ function App() {
 	}, [accounts, activeAccount])
 
 	const handleGetStarted = () => {
+		setCurrentState('customize')
+	}
+
+	const handleCustomizeDone = () => {
+		// Don't persist yet - DB isn't initialized. Theme is in memory + CSS vars.
+		// It will be persisted after security init completes.
 		setCurrentState('security')
 	}
 
@@ -175,6 +186,7 @@ function App() {
 				await invoke('initialize_security', { method })
 				console.log(`${method} security initialized successfully, switching to accounts`)
 				await new Promise((resolve) => setTimeout(resolve, 100))
+				await persistTheme()
 				await loadSettings()
 				await fetchAccounts({ forceShowAccountsOnEmpty: true })
 			} catch (error) {
@@ -186,8 +198,10 @@ function App() {
 	}
 
 	const handleBack = () => {
-		if (currentState === 'security') {
+		if (currentState === 'customize') {
 			setCurrentState('welcome')
+		} else if (currentState === 'security') {
+			setCurrentState('customize')
 		} else if (currentState === 'settings') {
 			setCurrentState('dashboard')
 		}
@@ -251,7 +265,10 @@ function App() {
 							className='animate-subtle-float'>
 							<div className='relative flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-800/80 shadow-xl ring-1 ring-white/[0.08]'>
 								<img src={icon} alt='Postail' className='h-12 w-12' />
-								<div className='animate-glow-breathe absolute -inset-3 -z-10 rounded-3xl bg-orange-500/10 blur-xl' />
+								<div
+									className='animate-glow-breathe absolute -inset-3 -z-10 rounded-3xl blur-xl'
+									style={{ backgroundColor: `rgba(var(--accent-rgb), 0.1)` }}
+								/>
 							</div>
 						</motion.div>
 						<motion.div
@@ -260,13 +277,18 @@ function App() {
 							transition={{ delay: 0.15, duration: 0.4 }}
 							className='flex flex-col items-center gap-2'>
 							<div className='relative h-5 w-5'>
-								<div className='absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-orange-500' />
+								<div
+									className='absolute inset-0 animate-spin rounded-full border-2 border-transparent'
+									style={{ borderTopColor: accentColor }}
+								/>
 							</div>
 						</motion.div>
 					</div>
 				)
 			case 'welcome':
 				return <WelcomeScreen onGetStarted={handleGetStarted} />
+			case 'customize':
+				return <AccentColorStep onNext={handleCustomizeDone} onBack={handleBack} />
 			case 'security':
 				return (
 					<EncryptionChoice onChoiceSelected={handleSecurityChoice} onBack={handleBack} />
@@ -275,7 +297,8 @@ function App() {
 				return (
 					<Argon2Setup
 						onBack={handleBack}
-						onComplete={() => {
+						onComplete={async () => {
+							await persistTheme()
 							fetchAccounts({ forceShowAccountsOnEmpty: true })
 						}}
 					/>
@@ -320,7 +343,9 @@ function App() {
 	}
 
 	return (
-		<div className='noise-overlay relative flex h-screen flex-col bg-slate-950 text-slate-100'>
+		<div
+			className='noise-overlay relative flex h-screen flex-col text-slate-100 transition-colors duration-500 ease-in-out'
+			style={{ backgroundColor: 'var(--app-bg, #020617)' }}>
 			<TitleBar
 				isDashboard={currentState === 'dashboard'}
 				activeAccount={activeAccount}

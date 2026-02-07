@@ -75,17 +75,20 @@ const IssueItem = memo(function IssueItem({
 	const Icon = config.icon
 
 	return (
-		<div className={`flex gap-3 p-3.5 border-l-2 bg-zinc-900/30 ${config.borderColor} ${!isLast ? 'border-b border-zinc-800' : ''} hover:bg-zinc-800/50 transition-colors`}>
+		<div
+			className={`flex gap-3 border-l-2 bg-zinc-900/30 p-3.5 ${config.borderColor} ${!isLast ? 'border-b border-zinc-800' : ''} transition-colors hover:bg-zinc-800/50`}>
 			<div className={`mt-0.5 flex-shrink-0 ${config.color}`}>
 				<Icon className='h-4 w-4' />
 			</div>
 			<div className='min-w-0 flex-1'>
 				<div className='mb-1.5 flex items-center gap-2'>
-					<code className='font-mono text-xs font-bold text-zinc-300'>{issue.property}</code>
+					<code className='font-mono text-xs font-bold text-zinc-300'>
+						{issue.property}
+					</code>
 					{issue.count > 1 && (
 						<Badge
 							variant='secondary'
-							className='scale-90 px-1.5 py-0 text-[10px] bg-zinc-700/50 text-zinc-400'>
+							className='scale-90 bg-zinc-700/50 px-1.5 py-0 text-[10px] text-zinc-400'>
 							x{issue.count}
 						</Badge>
 					)}

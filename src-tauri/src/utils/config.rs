@@ -36,11 +36,30 @@ pub fn set_data_dir_override(path: &str) -> std::io::Result<()> {
     Ok(())
 }
 
+// ─── Theme config ───
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ThemeConfig {
+    pub accent_color: String,
+    pub background: String,
+}
+
+impl Default for ThemeConfig {
+    fn default() -> Self {
+        Self {
+            accent_color: "#f97316".to_string(),
+            background: "slate".to_string(),
+        }
+    }
+}
+
 // ─── App config (persisted as JSON next to the DB) ───
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppConfig {
     pub security_method: String,
+    #[serde(default)]
+    pub theme: Option<ThemeConfig>,
 }
 
 pub fn get_config_path() -> PathBuf {
@@ -63,4 +82,19 @@ pub fn save_config(config: &AppConfig) -> Result<(), String> {
     }
     let content = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
     fs::write(path, content).map_err(|e| e.to_string())
+}
+
+// ─── Theme-specific helpers (work before DB unlock) ───
+
+pub fn load_theme_config() -> ThemeConfig {
+    load_config().and_then(|c| c.theme).unwrap_or_default()
+}
+
+pub fn save_theme_config(theme: &ThemeConfig) -> Result<(), String> {
+    let mut config = load_config().unwrap_or_else(|| AppConfig {
+        security_method: String::new(),
+        theme: None,
+    });
+    config.theme = Some(theme.clone());
+    save_config(&config)
 }

@@ -75,7 +75,6 @@ export interface SecurityTranslations {
 	}
 }
 
-
 export interface ErrorTranslations {
 	network: {
 		title: string

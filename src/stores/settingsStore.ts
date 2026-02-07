@@ -34,7 +34,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 		try {
 			// Persist to backend
 			await invoke('set_setting', { key, value: String(value) })
-			
+
 			// Update local state
 			set((state) => ({
 				settings: { ...state.settings, [key]: value },
@@ -48,15 +48,20 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 		set({ isLoading: true })
 		try {
 			const allSettings = await invoke<Record<string, string>>('get_all_settings')
-			
+
 			// Map backend strings to typed settings
 			const mappedSettings = { ...DEFAULT_SETTINGS }
-			
-			if (allSettings['zen-mode']) mappedSettings['zen-mode'] = allSettings['zen-mode'] === 'true'
-			if (allSettings['undo-send-delay']) mappedSettings['undo-send-delay'] = parseInt(allSettings['undo-send-delay'])
+
+			if (allSettings['zen-mode'])
+				mappedSettings['zen-mode'] = allSettings['zen-mode'] === 'true'
+			if (allSettings['undo-send-delay'])
+				mappedSettings['undo-send-delay'] = parseInt(allSettings['undo-send-delay'])
 			if (allSettings['data-path']) mappedSettings['data-path'] = allSettings['data-path']
-			if (allSettings['auto-lock-timeout']) mappedSettings['auto-lock-timeout'] = parseInt(allSettings['auto-lock-timeout'])
-			if (allSettings['block-external-images']) mappedSettings['block-external-images'] = allSettings['block-external-images'] === 'true'
+			if (allSettings['auto-lock-timeout'])
+				mappedSettings['auto-lock-timeout'] = parseInt(allSettings['auto-lock-timeout'])
+			if (allSettings['block-external-images'])
+				mappedSettings['block-external-images'] =
+					allSettings['block-external-images'] === 'true'
 
 			set({ settings: mappedSettings })
 		} catch (error) {

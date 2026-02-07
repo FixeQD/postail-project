@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { Plus, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAccountsTranslation } from '@/hooks/useTypedTranslation'
+
 import { AccountCard } from './AccountCard'
 import { AddAccountDialog } from './AddAccountDialog'
 import type { AccountMeta } from '@/types/accounts'
@@ -30,7 +31,12 @@ export function AccountsScreen({ accounts, onRemoveAccount, onSyncAccount }: Acc
 				</div>
 				<AddAccountDialog>
 					<motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-						<Button className='rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-6 text-white shadow-lg shadow-orange-500/20 transition-shadow hover:shadow-xl hover:shadow-orange-500/30'>
+						<Button
+							className='text-accent-contrast rounded-xl px-6 shadow-lg transition-shadow hover:shadow-xl'
+							style={{
+								background: `linear-gradient(to right, var(--accent-dark), var(--accent-color))`,
+								boxShadow: `0 8px 24px -4px rgba(var(--accent-rgb), 0.2)`,
+							}}>
 							<Plus className='mr-2 h-4 w-4' />
 							{t('settings:accounts.list.add')}
 						</Button>

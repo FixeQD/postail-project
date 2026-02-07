@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { motion } from 'framer-motion'
 import { useSecurityTranslation } from '../../hooks/useTypedTranslation'
+import { useThemeStore } from '@/stores/themeStore'
 import { TPMOption } from './TPMOption'
 import { KeyringOption } from './KeyringOption'
 import { Argon2Option } from './Argon2Option'
@@ -22,6 +23,7 @@ export const EncryptionChoice = ({
 	onBack: () => void
 }) => {
 	const { t } = useSecurityTranslation()
+	const accentColor = useThemeStore((s) => s.accentColor)
 	const [securityOptions, setSecurityOptions] = useState<SecurityOptions | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [tpmDialogOpen, setTpmDialogOpen] = useState(false)
@@ -69,10 +71,17 @@ export const EncryptionChoice = ({
 					animate={{ opacity: 1 }}
 					className='flex flex-col items-center gap-4'>
 					<div className='relative h-12 w-12'>
-						<div className='absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-orange-500' />
 						<div
-							className='absolute inset-1.5 animate-spin rounded-full border-2 border-transparent border-b-orange-500/30'
-							style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}
+							className='absolute inset-0 animate-spin rounded-full border-2 border-transparent'
+							style={{ borderTopColor: accentColor }}
+						/>
+						<div
+							className='absolute inset-1.5 animate-spin rounded-full border-2 border-transparent'
+							style={{
+								borderBottomColor: `rgba(var(--accent-rgb), 0.3)`,
+								animationDirection: 'reverse',
+								animationDuration: '1.5s',
+							}}
 						/>
 					</div>
 					<p className='text-sm text-slate-400'>{t('common:status.loading')}</p>
@@ -105,7 +114,12 @@ export const EncryptionChoice = ({
 					transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
 					className='relative border-b border-white/[0.06] bg-slate-900/40 px-4 py-6 backdrop-blur-lg'>
 					{/* Top highlight line */}
-					<div className='pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-orange-500/10 to-transparent' />
+					<div
+						className='pointer-events-none absolute inset-x-0 bottom-0 h-px'
+						style={{
+							background: `linear-gradient(to right, transparent, rgba(var(--accent-rgb), 0.1), transparent)`,
+						}}
+					/>
 
 					<div className='container mx-auto'>
 						<button
@@ -116,8 +130,13 @@ export const EncryptionChoice = ({
 							{t('common:actions.back')}
 						</button>
 						<div className='flex items-center gap-3'>
-							<div className='flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/10 ring-1 ring-orange-500/20'>
-								<Shield className='h-5 w-5 text-orange-400' />
+							<div
+								className='flex h-10 w-10 items-center justify-center rounded-xl ring-1'
+								style={{
+									backgroundColor: `rgba(var(--accent-rgb), 0.1)`,
+									boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.2)`,
+								}}>
+								<Shield className='h-5 w-5' style={{ color: accentColor }} />
 							</div>
 							<div>
 								<h1 className='text-3xl font-bold tracking-tight text-slate-100'>

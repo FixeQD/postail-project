@@ -148,8 +148,10 @@ pub fn initialize_security_and_database(
     crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
     SMTP_MANAGER.lock().unwrap().start_outbox_worker();
 
+    let existing_theme = load_config().and_then(|c| c.theme);
     save_config(&AppConfig {
         security_method: method.to_string(),
+        theme: existing_theme,
     })?;
 
     Ok(())

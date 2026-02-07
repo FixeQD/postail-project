@@ -102,7 +102,9 @@ export function AddAccountDialog({ children }: Omit<AddAccountDialogProps, 'onAc
 			</DialogTrigger>
 			<DialogContent className='border-slate-800 bg-slate-900/95 text-slate-100 backdrop-blur-xl sm:max-w-md'>
 				<DialogHeader>
-					<DialogTitle className='text-xl font-bold'>{t('settings:accounts.title')}</DialogTitle>
+					<DialogTitle className='text-xl font-bold'>
+						{t('settings:accounts.title')}
+					</DialogTitle>
 					<DialogDescription className='text-slate-400'>
 						{t('settings:accounts.subtitle')}
 					</DialogDescription>

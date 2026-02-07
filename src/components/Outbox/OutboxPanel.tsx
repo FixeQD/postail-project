@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useOutboxStore, setupOutboxListeners } from '@/stores/outboxStore'
+import { useThemeStore } from '@/stores/themeStore'
 import type { OutboxItem } from '@/stores/outboxStore'
 
 interface OutboxPanelProps {
@@ -39,8 +40,8 @@ const statusConfig: Record<
 	},
 	RETRY: {
 		icon: RotateCcw,
-		color: 'text-orange-400',
-		bgColor: 'bg-orange-500/10',
+		color: 'text-accent-dynamic',
+		bgColor: 'bg-accent-dynamic/10',
 		label: 'Retrying',
 	},
 	FAILED: {
@@ -53,6 +54,7 @@ const statusConfig: Record<
 
 export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 	const { t } = useTranslation()
+	const accentColor = useThemeStore((s) => s.accentColor)
 	const { items, isLoading, loadOutbox, retryMessage, cancelMessage } = useOutboxStore()
 	const [retryingId, setRetryingId] = useState<string | null>(null)
 	const [cancellingId, setCancellingId] = useState<string | null>(null)
@@ -128,8 +130,16 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 							<CardHeader className='flex-shrink-0 border-b border-white/[0.06] px-5 py-4'>
 								<div className='flex items-center justify-between'>
 									<div className='flex items-center gap-3'>
-										<div className='flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/10 ring-1 ring-orange-500/20'>
-											<Send className='h-4 w-4 text-orange-400' />
+										<div
+											className='flex h-8 w-8 items-center justify-center rounded-lg ring-1'
+											style={{
+												backgroundColor: `rgba(var(--accent-rgb), 0.1)`,
+												boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.2)`,
+											}}>
+											<Send
+												className='h-4 w-4'
+												style={{ color: accentColor }}
+											/>
 										</div>
 										<CardTitle className='text-lg font-semibold text-slate-200'>
 											{t('outbox.title', 'Outbox')}
@@ -161,10 +171,14 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 									<div className='flex h-32 items-center justify-center'>
 										<div className='flex flex-col items-center gap-3'>
 											<div className='relative h-8 w-8'>
-												<div className='absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-orange-500' />
 												<div
-													className='absolute inset-1 animate-spin rounded-full border-2 border-transparent border-b-orange-500/30'
+													className='absolute inset-0 animate-spin rounded-full border-2 border-transparent'
+													style={{ borderTopColor: accentColor }}
+												/>
+												<div
+													className='absolute inset-1 animate-spin rounded-full border-2 border-transparent'
 													style={{
+														borderBottomColor: `rgba(var(--accent-rgb), 0.3)`,
 														animationDirection: 'reverse',
 														animationDuration: '1.5s',
 													}}
@@ -275,14 +289,18 @@ function OutboxItemCard({
 	isRetrying,
 	isCancelling,
 }: OutboxItemCardProps) {
+	const accentColor = useThemeStore((s) => s.accentColor)
 	const config = statusConfig[item.status]
 	const Icon = config.icon
+	const isAccentStatus = item.status === 'RETRY'
 
 	return (
 		<div className='group space-y-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 transition-colors hover:bg-white/[0.04]'>
 			<div className='flex items-start justify-between gap-3'>
 				<div className='flex min-w-0 flex-1 items-start gap-2.5'>
-					<div className={`mt-0.5 ${config.color}`}>
+					<div
+						className={`mt-0.5 ${isAccentStatus ? '' : config.color}`}
+						style={isAccentStatus ? { color: accentColor } : undefined}>
 						<Icon className='h-4 w-4' />
 					</div>
 					<div className='min-w-0 flex-1'>
@@ -302,7 +320,9 @@ function OutboxItemCard({
 			</div>
 
 			{item.status === 'RETRY' && item.attempts > 0 && (
-				<p className='text-xs text-orange-400/80'>Attempt {item.attempts}/5</p>
+				<p className='text-xs' style={{ color: `rgba(var(--accent-rgb), 0.8)` }}>
+					Attempt {item.attempts}/5
+				</p>
 			)}
 
 			{item.lastError && item.status === 'FAILED' && (
@@ -318,7 +338,12 @@ function OutboxItemCard({
 					<Button
 						variant='outline'
 						size='sm'
-						className='h-7 border-orange-500/20 bg-orange-500/5 text-xs text-orange-400 hover:bg-orange-500/10 hover:text-orange-300'
+						className='h-7 text-xs'
+						style={{
+							borderColor: `rgba(var(--accent-rgb), 0.2)`,
+							backgroundColor: `rgba(var(--accent-rgb), 0.05)`,
+							color: `rgba(var(--accent-rgb), 0.85)`,
+						}}
 						onClick={() => onRetry(item.id)}
 						disabled={isRetrying || isCancelling}>
 						{isRetrying ? (
