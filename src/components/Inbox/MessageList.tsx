@@ -115,45 +115,6 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 		}
 	}, [account.id, mailbox, isSyncing, syncError, needsSync])
 
-	useEffect(() => {
-		const unlisten = listen('sync:completed', (event: { payload: { accountId: string } }) => {
-			if (event.payload.accountId === account.id) {
-				queryClient.invalidateQueries({
-					queryKey: ['messages', account.id, mailbox],
-				})
-			}
-		})
-
-		return () => {
-			unlisten.then((fn) => fn())
-		}
-	}, [account.id, mailbox, queryClient])
-
-	useEffect(() => {
-		const unlisten = listen(
-			'sync:progress',
-			(event: {
-				payload: { accountId: string; mailbox: string; current: number; total: number }
-			}) => {
-				const p = event.payload
-				if (
-					p.accountId === account.id &&
-					p.mailbox === mailbox &&
-					p.current === p.total &&
-					p.total > 0
-				) {
-					queryClient.invalidateQueries({
-						queryKey: ['messages', account.id, mailbox],
-					})
-				}
-			}
-		)
-
-		return () => {
-			unlisten.then((fn) => fn())
-		}
-	}, [account.id, mailbox, queryClient])
-
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
 		useInfiniteQuery({
 			queryKey: ['messages', account.id, mailbox],
@@ -178,6 +139,65 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 		})
 
 	const allMessages = data?.pages.flatMap((page) => page) ?? []
+
+	// Force-refresh infinite query by removing cache, triggering a full refetch from page 1
+	const refreshMessages = useCallback(() => {
+		queryClient.removeQueries({ queryKey: ['messages', account.id, mailbox] })
+	}, [account.id, mailbox, queryClient])
+
+	useEffect(() => {
+		const unlisten = listen('sync:completed', (event: { payload: { accountId: string } }) => {
+			if (event.payload.accountId === account.id) {
+				refreshMessages()
+			}
+		})
+
+		return () => {
+			unlisten.then((fn) => fn())
+		}
+	}, [account.id, refreshMessages])
+
+	useEffect(() => {
+		const unlisten = listen(
+			'sync:new_messages',
+			(event: { payload: { accountId: string; mailbox: string; count: number } }) => {
+				const p = event.payload
+				if (p.accountId === account.id && p.mailbox === mailbox) {
+					refreshMessages()
+					queryClient.invalidateQueries({
+						queryKey: ['mailboxes', account.id],
+					})
+				}
+			}
+		)
+
+		return () => {
+			unlisten.then((fn) => fn())
+		}
+	}, [account.id, mailbox, refreshMessages, queryClient])
+
+	useEffect(() => {
+		const unlisten = listen(
+			'sync:progress',
+			(event: {
+				payload: { accountId: string; mailbox: string; current: number; total: number }
+			}) => {
+				const p = event.payload
+				if (
+					p.accountId === account.id &&
+					p.mailbox === mailbox &&
+					p.current === p.total &&
+					p.total > 0
+				) {
+					refreshMessages()
+				}
+			}
+		)
+
+		return () => {
+			unlisten.then((fn) => fn())
+		}
+	}, [account.id, mailbox, refreshMessages])
 
 	const formatDate = (dateString: string) => {
 		const date = new Date(dateString)

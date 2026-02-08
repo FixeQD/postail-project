@@ -27,8 +27,8 @@ impl crate::imap::ImapManager {
         let mut session = self.connect_imap(account_id).await?;
         session.select(mailbox).await.map_err(|e| e.to_string())?;
 
-        let sequence_set = if let Some(anchor) = anchor {
-            format!("{}:*", anchor + 1)
+        let uid_set = if let Some(anchor) = anchor {
+            format!("{}:*", anchor)
         } else {
             "1:*".to_string()
         };
@@ -37,8 +37,8 @@ impl crate::imap::ImapManager {
         let mut headers = Vec::new();
         {
             let mut fetches = session
-                .fetch(
-                    sequence_set,
+                .uid_fetch(
+                    uid_set,
                     "(UID INTERNALDATE FLAGS ENVELOPE BODY.PEEK[HEADER.FIELDS (SUBJECT FROM TO)])",
                 )
                 .await

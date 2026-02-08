@@ -38,6 +38,13 @@ pub enum SyncEvent {
         account_id: String,
         error: String,
     },
+    #[serde(rename = "new_messages")]
+    NewMessages {
+        #[serde(rename = "accountId")]
+        account_id: String,
+        mailbox: String,
+        count: u32,
+    },
 }
 
 #[derive(Clone, Serialize)]
@@ -95,9 +102,22 @@ impl SyncStatusManager {
                 SyncEvent::Progress { .. } => "sync:progress",
                 SyncEvent::Completed { .. } => "sync:completed",
                 SyncEvent::Error { .. } => "sync:error",
+                SyncEvent::NewMessages { .. } => "sync:new_messages",
             };
-            let _ = handle.emit::<SyncEvent>(event_name, event);
+            if let Err(e) = handle.emit::<SyncEvent>(event_name, event) {
+                tracing::error!(target: "postail", "[SYNC] Failed to emit event: {}", e);
+            }
+        } else {
+            tracing::warn!(target: "postail", "[SYNC] Cannot emit event - app_handle not set");
         }
+    }
+
+    pub async fn emit_new_messages(&self, account_id: &str, mailbox: &str, count: u32) {
+        self.emit_event(SyncEvent::NewMessages {
+            account_id: account_id.to_string(),
+            mailbox: mailbox.to_string(),
+            count,
+        });
     }
 
     pub async fn register_account(&self, account_id: &str, account_email: &str) {

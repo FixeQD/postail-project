@@ -4,6 +4,7 @@ use std::thread;
 use tokio::time::{timeout, Duration};
 use tracing;
 
+use crate::db::accounts::get_account_email;
 use crate::error::{AppError, ImapError, SyncError};
 use crate::imap::sync_status::{
     mark_sync_complete, mark_sync_error, start_sync_status_tracking, update_sync_status,
@@ -179,6 +180,21 @@ impl crate::imap::ImapManager {
     ) -> Result<(), AppError> {
         // Stop previous watch for this account if running
         self.stop_watch_mailbox(account_id).await;
+
+        // Register account for status tracking so frontend gets events
+        let account_email = {
+            let conn_guard = self.conn.lock().unwrap();
+            let conn = conn_guard
+                .as_ref()
+                .ok_or_else(|| AppError::from("Database not initialized"))?;
+            get_account_email(conn, account_id)
+                .map_err(|e| AppError::from(e.to_string()))?
+                .unwrap_or_else(|| account_id.to_string())
+        };
+        SYNC_STATUS_MANAGER
+            .register_account(account_id, &account_email)
+            .await;
+        tracing::info!(target: "postail", "[IMAP] Registered account {} for watch", account_id);
 
         let stop_flag = Arc::new(AtomicBool::new(false));
         {
@@ -468,6 +484,7 @@ impl crate::imap::ImapManager {
                     let new_highest_uid =
                         mailbox.uid_next.map(|u| u.saturating_sub(1)).unwrap_or(0);
                     if new_highest_uid > *last_uid {
+                        let new_count = new_highest_uid - *last_uid;
                         self.fetch_missing_messages(
                             account_id,
                             mailbox_name,
@@ -477,6 +494,14 @@ impl crate::imap::ImapManager {
                         .await?;
                         *last_uid = new_highest_uid;
                         mark_sync_complete(account_id).await;
+                        SYNC_STATUS_MANAGER
+                            .emit_new_messages(account_id, mailbox_name, new_count)
+                            .await;
+                    } else {
+                        tracing::debug!(target: "postail",
+                            "[IMAP] IDLE wakeup but no new messages in {}@{}",
+                            mailbox_name, account_id
+                        );
                     }
                     idle = session.idle();
                     if idle.init().await.is_err() {
@@ -561,6 +586,7 @@ impl crate::imap::ImapManager {
                     let new_highest_uid =
                         mailbox.uid_next.map(|u| u.saturating_sub(1)).unwrap_or(0);
                     if new_highest_uid > *last_uid {
+                        let new_count = new_highest_uid - *last_uid;
                         self.fetch_missing_messages(
                             account_id,
                             mailbox_name,
@@ -570,6 +596,9 @@ impl crate::imap::ImapManager {
                         .await?;
                         *last_uid = new_highest_uid;
                         mark_sync_complete(account_id).await;
+                        SYNC_STATUS_MANAGER
+                            .emit_new_messages(account_id, mailbox_name, new_count)
+                            .await;
                     }
                 }
                 Err(e) => {
@@ -609,7 +638,7 @@ impl crate::imap::ImapManager {
         start_uid: u32,
         end_uid: u32,
     ) -> Result<(), AppError> {
-        if start_uid >= end_uid {
+        if start_uid > end_uid {
             return Ok(());
         }
 
@@ -619,7 +648,7 @@ impl crate::imap::ImapManager {
         let mut latest_uid = start_uid;
         let mut processed = 0u32;
 
-        while anchor < end_uid {
+        while anchor <= end_uid {
             update_sync_status(account_id, mailbox_name, processed, total).await;
 
             let headers = self
