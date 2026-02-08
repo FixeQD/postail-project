@@ -1,6 +1,6 @@
 import React, { useState, useRef, KeyboardEvent, useEffect } from 'react'
 import { X, User } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { invoke } from '@tauri-apps/api/core'
 import { cn } from '@/lib/utils'
 import { useAnimationsEnabled } from '@/hooks/useMotion'

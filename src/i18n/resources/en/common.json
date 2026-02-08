@@ -59,6 +59,9 @@
 	},
 	"statusBar": {
 		"synced": "Synced",
+		"allSynced": "All synced",
+		"syncStatus": "Sync Status",
+		"lastSynced": "Last synced {{time}}",
 		"sent": "Message sent!",
 		"sending": "Sending {{count}}...",
 		"failed": "{{count}} failed",
