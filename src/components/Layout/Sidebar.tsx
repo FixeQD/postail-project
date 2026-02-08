@@ -7,6 +7,7 @@ import type { Mailbox } from '../../types/mail'
 import type { AccountMeta } from '../../types/accounts'
 import { useTypedTranslation } from '../../hooks/useTypedTranslation'
 import { useThemeStore } from '@/stores/themeStore'
+import { useAnimationsEnabled } from '@/hooks/useMotion'
 
 interface SidebarProps {
 	activeAccount: AccountMeta | null
@@ -27,6 +28,7 @@ export const Sidebar = ({
 }: SidebarProps) => {
 	const { t } = useTypedTranslation()
 	const accentColor = useThemeStore((s) => s.accentColor)
+	const animationsEnabled = useAnimationsEnabled()
 	const [width, setWidth] = useState(DEFAULT_WIDTH)
 	const [isResizing, setIsResizing] = useState(false)
 	const sidebarRef = useRef<HTMLDivElement>(null)
@@ -140,8 +142,9 @@ export const Sidebar = ({
 					<motion.button
 						type='button'
 						onClick={onCompose}
-						whileHover={{ scale: 1.02 }}
-						whileTap={{ scale: 0.96 }}
+						{...(animationsEnabled
+							? { whileHover: { scale: 1.02 }, whileTap: { scale: 0.96 } }
+							: {})}
 						className={`text-accent-contrast group relative flex items-center overflow-hidden rounded-xl px-4 py-3 text-sm font-semibold shadow-lg transition-shadow hover:shadow-xl ${isCollapsed ? 'mx-auto aspect-square h-11 w-11 justify-center px-0' : 'w-full'}`}
 						style={{
 							background: `linear-gradient(to right, var(--accent-dark), var(--accent-color))`,
@@ -181,7 +184,9 @@ export const Sidebar = ({
 										key={mailbox.name}
 										onClick={() => onMailboxSelect(mailbox.name)}
 										title={isCollapsed ? mailbox.display_name : undefined}
-										whileTap={{ scale: 0.97 }}
+										{...(animationsEnabled
+											? { whileTap: { scale: 0.97 } }
+											: {})}
 										className={`relative flex w-full items-center rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
 											isActive
 												? ''
@@ -191,37 +196,43 @@ export const Sidebar = ({
 										{/* Active background */}
 										{isActive && (
 											<motion.div
-												layoutId='sidebar-active-bg'
+												{...(animationsEnabled
+													? {
+															layoutId: 'sidebar-active-bg',
+															transition: {
+																type: 'spring',
+																stiffness: 350,
+																damping: 30,
+															},
+														}
+													: {})}
 												className='absolute inset-0 rounded-xl ring-1'
 												style={{
 													backgroundColor: `rgba(var(--accent-rgb), 0.1)`,
 													boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.15)`,
 												}}
-												transition={{
-													type: 'spring',
-													stiffness: 350,
-													damping: 30,
-												}}
 											/>
 										)}
 
 										{/* Active left indicator */}
-										<AnimatePresence>
-											{isActive && (
-												<motion.div
-													initial={{ scaleY: 0, opacity: 0 }}
-													animate={{ scaleY: 1, opacity: 1 }}
-													exit={{ scaleY: 0, opacity: 0 }}
-													transition={{
-														type: 'spring',
-														stiffness: 400,
-														damping: 25,
-													}}
-													className='absolute top-1/2 left-0 h-5 w-[3px] origin-center -translate-y-1/2 rounded-r-full'
-													style={{ backgroundColor: accentColor }}
-												/>
-											)}
-										</AnimatePresence>
+										{isActive && (
+											<motion.div
+												{...(animationsEnabled
+													? {
+															initial: { scaleY: 0, opacity: 0 },
+															animate: { scaleY: 1, opacity: 1 },
+															exit: { scaleY: 0, opacity: 0 },
+															transition: {
+																type: 'spring',
+																stiffness: 400,
+																damping: 25,
+															},
+														}
+													: {})}
+												className='absolute top-1/2 left-0 h-5 w-[3px] origin-center -translate-y-1/2 rounded-r-full'
+												style={{ backgroundColor: accentColor }}
+											/>
+										)}
 
 										<div
 											className='relative shrink-0 transition-colors duration-200'

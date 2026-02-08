@@ -12,6 +12,7 @@ import {
 	PenLine,
 } from 'lucide-react'
 import { useThemeStore } from '@/stores/themeStore'
+import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { AccountsScreen } from './Sections/Account/AccountsScreen'
 import { GeneralSettings } from './Sections/GeneralSettings'
 import { PrivacySettings } from './Sections/PrivacySettings'
@@ -41,6 +42,7 @@ export function SettingsScreen({
 }: SettingsScreenProps) {
 	const { t } = useSettingsTranslation()
 	const accentColor = useThemeStore((s) => s.accentColor)
+	const animationsEnabled = useAnimationsEnabled()
 	const [activeSection, setActiveSection] = useState('accounts')
 
 	const SETTINGS_SECTIONS = [
@@ -88,9 +90,13 @@ export function SettingsScreen({
 		<div className='flex h-full text-slate-100'>
 			{showSidebar && (
 				<motion.div
-					initial={{ opacity: 0, x: -12 }}
-					animate={{ opacity: 1, x: 0 }}
-					transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+					{...(animationsEnabled
+						? {
+								initial: { opacity: 0, x: -12 },
+								animate: { opacity: 1, x: 0 },
+								transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
+							}
+						: {})}
 					className='relative flex w-64 flex-col border-r border-white/[0.06] bg-slate-900/20 p-4 backdrop-blur-xl'>
 					{/* Right edge gradient */}
 					<div className='pointer-events-none absolute top-0 right-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/[0.06] to-transparent' />
@@ -113,7 +119,7 @@ export function SettingsScreen({
 									key={section.id}
 									type='button'
 									onClick={() => setActiveSection(section.id)}
-									whileTap={{ scale: 0.97 }}
+									{...(animationsEnabled ? { whileTap: { scale: 0.97 } } : {})}
 									className={`relative flex w-full items-center gap-3 rounded-xl px-4 py-2.5 transition-colors duration-200 ${
 										isActive
 											? 'text-slate-100'
@@ -122,33 +128,39 @@ export function SettingsScreen({
 									{/* Active background pill */}
 									{isActive && (
 										<motion.div
-											layoutId='settings-active-bg'
+											{...(animationsEnabled
+												? {
+														layoutId: 'settings-active-bg',
+														transition: {
+															type: 'spring',
+															stiffness: 350,
+															damping: 30,
+														},
+													}
+												: {})}
 											className='absolute inset-0 rounded-xl bg-white/[0.08] ring-1 ring-white/[0.08]'
-											transition={{
-												type: 'spring',
-												stiffness: 350,
-												damping: 30,
-											}}
 										/>
 									)}
 
 									{/* Active left accent */}
-									<AnimatePresence>
-										{isActive && (
-											<motion.div
-												initial={{ scaleY: 0, opacity: 0 }}
-												animate={{ scaleY: 1, opacity: 1 }}
-												exit={{ scaleY: 0, opacity: 0 }}
-												transition={{
-													type: 'spring',
-													stiffness: 400,
-													damping: 25,
-												}}
-												className='absolute top-1/2 left-0 h-5 w-[3px] origin-center -translate-y-1/2 rounded-r-full'
-												style={{ backgroundColor: accentColor }}
-											/>
-										)}
-									</AnimatePresence>
+									{isActive && (
+										<motion.div
+											{...(animationsEnabled
+												? {
+														initial: { scaleY: 0, opacity: 0 },
+														animate: { scaleY: 1, opacity: 1 },
+														exit: { scaleY: 0, opacity: 0 },
+														transition: {
+															type: 'spring',
+															stiffness: 400,
+															damping: 25,
+														},
+													}
+												: {})}
+											className='absolute top-1/2 left-0 h-5 w-[3px] origin-center -translate-y-1/2 rounded-r-full'
+											style={{ backgroundColor: accentColor }}
+										/>
+									)}
 
 									<section.icon
 										className='relative h-4 w-4 transition-colors duration-200'
@@ -165,7 +177,7 @@ export function SettingsScreen({
 					<div className='border-t border-white/[0.06] pt-4'>
 						<motion.button
 							type='button'
-							whileTap={{ scale: 0.97 }}
+							{...(animationsEnabled ? { whileTap: { scale: 0.97 } } : {})}
 							className='flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-red-400 transition-all hover:bg-red-500/10'>
 							<LogOut className='h-4 w-4' />
 							<span className='text-sm font-semibold'>{t('settings:logout')}</span>
@@ -175,17 +187,21 @@ export function SettingsScreen({
 			)}
 
 			<div className='relative flex-1 overflow-hidden'>
-				<AnimatePresence mode='wait'>
-					<motion.div
-						key={activeSection}
-						initial={{ opacity: 0, y: 8 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: -6 }}
-						transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-						className='h-full overflow-y-auto'>
-						{renderSection()}
-					</motion.div>
-				</AnimatePresence>
+				{animationsEnabled ? (
+					<AnimatePresence mode='wait'>
+						<motion.div
+							key={activeSection}
+							initial={{ opacity: 0, y: 8 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -6 }}
+							transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+							className='h-full overflow-y-auto'>
+							{renderSection()}
+						</motion.div>
+					</AnimatePresence>
+				) : (
+					<div className='h-full overflow-y-auto'>{renderSection()}</div>
+				)}
 			</div>
 		</div>
 	)

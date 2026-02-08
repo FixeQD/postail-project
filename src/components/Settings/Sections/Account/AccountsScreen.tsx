@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { Plus, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAccountsTranslation } from '@/hooks/useTypedTranslation'
+import { useAnimationsEnabled } from '@/hooks/useMotion'
 
 import { AccountCard } from './AccountCard'
 import { AddAccountDialog } from './AddAccountDialog'
@@ -15,13 +16,18 @@ interface AccountsScreenProps {
 
 export function AccountsScreen({ accounts, onRemoveAccount, onSyncAccount }: AccountsScreenProps) {
 	const { t } = useAccountsTranslation()
+	const animationsEnabled = useAnimationsEnabled()
 
 	return (
 		<div className='flex h-full flex-col overflow-y-auto p-8'>
 			<motion.div
-				initial={{ opacity: 0, y: -16 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+				{...(animationsEnabled
+					? {
+							initial: { opacity: 0, y: -16 },
+							animate: { opacity: 1, y: 0 },
+							transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+						}
+					: {})}
 				className='mb-8 flex items-center justify-between'>
 				<div>
 					<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
@@ -30,7 +36,10 @@ export function AccountsScreen({ accounts, onRemoveAccount, onSyncAccount }: Acc
 					<p className='mt-1 text-sm text-slate-400'>{t('settings:accounts.subtitle')}</p>
 				</div>
 				<AddAccountDialog>
-					<motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+					<motion.div
+						{...(animationsEnabled
+							? { whileHover: { scale: 1.03 }, whileTap: { scale: 0.97 } }
+							: {})}>
 						<Button
 							className='text-accent-contrast rounded-xl px-6 shadow-lg transition-shadow hover:shadow-xl'
 							style={{
@@ -48,13 +57,17 @@ export function AccountsScreen({ accounts, onRemoveAccount, onSyncAccount }: Acc
 				{accounts.map((account, index) => (
 					<motion.div
 						key={account.id}
-						initial={{ opacity: 0, y: 20, scale: 0.96 }}
-						animate={{ opacity: 1, y: 0, scale: 1 }}
-						transition={{
-							delay: index * 0.08,
-							duration: 0.4,
-							ease: [0.16, 1, 0.3, 1],
-						}}>
+						{...(animationsEnabled
+							? {
+									initial: { opacity: 0, y: 20, scale: 0.96 },
+									animate: { opacity: 1, y: 0, scale: 1 },
+									transition: {
+										delay: index * 0.08,
+										duration: 0.4,
+										ease: [0.16, 1, 0.3, 1],
+									},
+								}
+							: {})}>
 						<AccountCard
 							account={account}
 							onRemove={onRemoveAccount}
@@ -65,9 +78,13 @@ export function AccountsScreen({ accounts, onRemoveAccount, onSyncAccount }: Acc
 
 				{accounts.length === 0 && (
 					<motion.div
-						initial={{ opacity: 0, scale: 0.95 }}
-						animate={{ opacity: 1, scale: 1 }}
-						transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+						{...(animationsEnabled
+							? {
+									initial: { opacity: 0, scale: 0.95 },
+									animate: { opacity: 1, scale: 1 },
+									transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
+								}
+							: {})}
 						className='col-span-full flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/[0.06] bg-white/[0.02] py-24 text-center transition-all duration-300 hover:border-white/[0.12] hover:bg-white/[0.04]'>
 						<div className='mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-800/60 ring-1 ring-white/[0.06]'>
 							<Mail className='h-7 w-7 text-slate-500' />

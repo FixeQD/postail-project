@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useOutboxStore, setupOutboxListeners } from '@/stores/outboxStore'
 import { useThemeStore } from '@/stores/themeStore'
+import { useAnimationsEnabled } from '@/hooks/useMotion'
 import type { OutboxItem } from '@/stores/outboxStore'
 
 interface OutboxPanelProps {
@@ -55,6 +56,7 @@ const statusConfig: Record<
 export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 	const { t } = useTranslation()
 	const accentColor = useThemeStore((s) => s.accentColor)
+	const animationsEnabled = useAnimationsEnabled()
 	const { items, isLoading, loadOutbox, retryMessage, cancelMessage } = useOutboxStore()
 	const [retryingId, setRetryingId] = useState<string | null>(null)
 	const [cancellingId, setCancellingId] = useState<string | null>(null)
@@ -105,26 +107,38 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 		<AnimatePresence>
 			{isOpen && (
 				<motion.div
-					initial={{ opacity: 0 }}
-					animate={{ opacity: 1 }}
-					exit={{ opacity: 0 }}
-					transition={{ duration: 0.2 }}
+					{...(animationsEnabled
+						? {
+								initial: { opacity: 0 },
+								animate: { opacity: 1 },
+								exit: { opacity: 0 },
+								transition: { duration: 0.2 },
+							}
+						: {})}
 					className='fixed inset-0 z-50 flex items-center justify-center p-4'
 					onClick={onClose}>
 					{/* Backdrop */}
 					<motion.div
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
+						{...(animationsEnabled
+							? {
+									initial: { opacity: 0 },
+									animate: { opacity: 1 },
+									exit: { opacity: 0 },
+								}
+							: {})}
 						className='absolute inset-0 bg-black/60 backdrop-blur-sm'
 					/>
 
 					{/* Panel */}
 					<motion.div
-						initial={{ opacity: 0, y: 24, scale: 0.96 }}
-						animate={{ opacity: 1, y: 0, scale: 1 }}
-						exit={{ opacity: 0, y: 16, scale: 0.97 }}
-						transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+						{...(animationsEnabled
+							? {
+									initial: { opacity: 0, y: 24, scale: 0.96 },
+									animate: { opacity: 1, y: 0, scale: 1 },
+									exit: { opacity: 0, y: 16, scale: 0.97 },
+									transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
+								}
+							: {})}
 						onClick={(e) => e.stopPropagation()}>
 						<Card className='flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden border-white/[0.06] bg-slate-950/95 shadow-2xl ring-1 shadow-black/40 ring-white/[0.08] backdrop-blur-xl'>
 							<CardHeader className='flex-shrink-0 border-b border-white/[0.06] px-5 py-4'>
@@ -153,8 +167,12 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 										</CardTitle>
 									</div>
 									<motion.div
-										whileHover={{ scale: 1.1 }}
-										whileTap={{ scale: 0.9 }}>
+										{...(animationsEnabled
+											? {
+													whileHover: { scale: 1.1 },
+													whileTap: { scale: 0.9 },
+												}
+											: {})}>
 										<Button
 											variant='ghost'
 											size='icon'
@@ -191,9 +209,13 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 									</div>
 								) : items.length === 0 ? (
 									<motion.div
-										initial={{ opacity: 0, scale: 0.95 }}
-										animate={{ opacity: 1, scale: 1 }}
-										transition={{ delay: 0.1, duration: 0.3 }}
+										{...(animationsEnabled
+											? {
+													initial: { opacity: 0, scale: 0.95 },
+													animate: { opacity: 1, scale: 1 },
+													transition: { delay: 0.1, duration: 0.3 },
+												}
+											: {})}
 										className='flex h-32 flex-col items-center justify-center text-center'>
 										<div className='mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-green-500/[0.08] ring-1 ring-green-500/20'>
 											<CheckCircle className='h-6 w-6 text-green-400/70' />
@@ -219,12 +241,16 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 												{activeItems.map((item, index) => (
 													<motion.div
 														key={item.id}
-														initial={{ opacity: 0, y: 12 }}
-														animate={{ opacity: 1, y: 0 }}
-														transition={{
-															delay: index * 0.05,
-															duration: 0.3,
-														}}>
+														{...(animationsEnabled
+															? {
+																	initial: { opacity: 0, y: 12 },
+																	animate: { opacity: 1, y: 0 },
+																	transition: {
+																		delay: index * 0.05,
+																		duration: 0.3,
+																	},
+																}
+															: {})}>
 														<OutboxItemCard
 															item={item}
 															onRetry={handleRetry}
@@ -246,12 +272,16 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 												{sentItems.slice(0, 5).map((item, index) => (
 													<motion.div
 														key={item.id}
-														initial={{ opacity: 0, y: 8 }}
-														animate={{ opacity: 1, y: 0 }}
-														transition={{
-															delay: 0.1 + index * 0.04,
-															duration: 0.3,
-														}}>
+														{...(animationsEnabled
+															? {
+																	initial: { opacity: 0, y: 8 },
+																	animate: { opacity: 1, y: 0 },
+																	transition: {
+																		delay: 0.1 + index * 0.04,
+																		duration: 0.3,
+																	},
+																}
+															: {})}>
 														<OutboxItemCard
 															item={item}
 															onRetry={() => {}}

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { useDraftStore } from '@/stores/draftStore'
 import { useThemeStore } from '@/stores/themeStore'
+import { useAnimationsEnabled } from '@/hooks/useMotion'
 import type { ComposeDraft } from '@/types/compose'
 import { Button } from '@/components/ui/button'
 
@@ -18,6 +19,7 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 	const { t } = useTranslation()
 	const { drafts, loadDrafts, deleteDraft } = useDraftStore()
 	const accentColor = useThemeStore((s) => s.accentColor)
+	const animationsEnabled = useAnimationsEnabled()
 
 	useEffect(() => {
 		const controller = new AbortController()
@@ -39,9 +41,13 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 		<div className='flex h-full flex-col'>
 			{/* Header */}
 			<motion.div
-				initial={{ opacity: 0, y: -8 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+				{...(animationsEnabled
+					? {
+							initial: { opacity: 0, y: -8 },
+							animate: { opacity: 1, y: 0 },
+							transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
+						}
+					: {})}
 				className='relative border-b border-white/[0.04] px-5 py-4'>
 				<h2 className='text-sm font-semibold tracking-wide text-slate-200'>
 					{t('inbox:sidebar.mailboxes.drafts')}
@@ -63,9 +69,13 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 			{/* Empty state */}
 			{drafts.length === 0 && (
 				<motion.div
-					initial={{ opacity: 0, scale: 0.95 }}
-					animate={{ opacity: 1, scale: 1 }}
-					transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+					{...(animationsEnabled
+						? {
+								initial: { opacity: 0, scale: 0.95 },
+								animate: { opacity: 1, scale: 1 },
+								transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+							}
+						: {})}
 					className='flex flex-1 flex-col items-center justify-center'>
 					<div className='flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-900/50 ring-1 ring-white/[0.06]'>
 						<FileText className='h-8 w-8 text-slate-700' />
@@ -87,13 +97,17 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 							return (
 								<motion.div
 									key={draft.id}
-									initial={{ opacity: 0, y: 8 }}
-									animate={{ opacity: 1, y: 0 }}
-									transition={{
-										delay: Math.min(index * 0.04, 0.3),
-										duration: 0.3,
-										ease: [0.16, 1, 0.3, 1],
-									}}
+									{...(animationsEnabled
+										? {
+												initial: { opacity: 0, y: 8 },
+												animate: { opacity: 1, y: 0 },
+												transition: {
+													delay: Math.min(index * 0.04, 0.3),
+													duration: 0.3,
+													ease: [0.16, 1, 0.3, 1],
+												},
+											}
+										: {})}
 									onClick={() => onDraftClick(draft)}
 									className='group relative flex cursor-pointer items-center border-b border-white/[0.04] px-5 py-3.5 transition-all duration-150 hover:bg-white/[0.03]'>
 									{/* Left accent line on hover */}
@@ -143,38 +157,41 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 									</div>
 
 									{/* Actions - visible on hover */}
-									<AnimatePresence>
+									<div className='ml-3 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100'>
 										<motion.div
-											initial={{ opacity: 0, scale: 0.9 }}
-											animate={{ opacity: 1, scale: 1 }}
-											className='ml-3 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100'>
-											<motion.div
-												whileHover={{ scale: 1.1 }}
-												whileTap={{ scale: 0.85 }}>
-												<Button
-													variant='ghost'
-													size='icon'
-													className='h-7 w-7 text-slate-500 hover:bg-white/[0.08] hover:text-slate-200'
-													onClick={(e) => {
-														e.stopPropagation()
-														onDraftClick(draft)
-													}}>
-													<Edit className='h-[15px] w-[15px]' />
-												</Button>
-											</motion.div>
-											<motion.div
-												whileHover={{ scale: 1.1 }}
-												whileTap={{ scale: 0.85 }}>
-												<Button
-													variant='ghost'
-													size='icon'
-													className='h-7 w-7 text-slate-500 hover:bg-red-500/10 hover:text-red-400'
-													onClick={(e) => handleDelete(draft.id!, e)}>
-													<Trash2 className='h-[15px] w-[15px]' />
-												</Button>
-											</motion.div>
+											{...(animationsEnabled
+												? {
+														whileHover: { scale: 1.1 },
+														whileTap: { scale: 0.85 },
+													}
+												: {})}>
+											<Button
+												variant='ghost'
+												size='icon'
+												className='h-7 w-7 text-slate-500 hover:bg-white/[0.08] hover:text-slate-200'
+												onClick={(e) => {
+													e.stopPropagation()
+													onDraftClick(draft)
+												}}>
+												<Edit className='h-[15px] w-[15px]' />
+											</Button>
 										</motion.div>
-									</AnimatePresence>
+										<motion.div
+											{...(animationsEnabled
+												? {
+														whileHover: { scale: 1.1 },
+														whileTap: { scale: 0.85 },
+													}
+												: {})}>
+											<Button
+												variant='ghost'
+												size='icon'
+												className='h-7 w-7 text-slate-500 hover:bg-red-500/10 hover:text-red-400'
+												onClick={(e) => handleDelete(draft.id!, e)}>
+												<Trash2 className='h-[15px] w-[15px]' />
+											</Button>
+										</motion.div>
+									</div>
 								</motion.div>
 							)
 						}}

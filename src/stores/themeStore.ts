@@ -142,10 +142,12 @@ function applyBackgroundCSSVariables(bgHex: string) {
 interface ThemeState {
 	accentColor: string
 	backgroundId: string
+	animationsEnabled: boolean
 	isLoaded: boolean
 
 	setAccentColor: (hex: string) => void
 	setBackgroundId: (id: string) => void
+	setAnimationsEnabled: (enabled: boolean) => void
 	persistTheme: () => Promise<void>
 	loadTheme: () => Promise<void>
 	applyTheme: () => void
@@ -157,11 +159,16 @@ const DEFAULT_BG_ID = 'slate'
 export const useThemeStore = create<ThemeState>((set, get) => ({
 	accentColor: DEFAULT_ACCENT,
 	backgroundId: DEFAULT_BG_ID,
+	animationsEnabled: true,
 	isLoaded: false,
 
 	setAccentColor: (hex: string) => {
 		set({ accentColor: hex })
 		applyAccentCSSVariables(hex)
+	},
+
+	setAnimationsEnabled: (enabled: boolean) => {
+		set({ animationsEnabled: enabled })
 	},
 
 	setBackgroundId: (id: string) => {
@@ -172,11 +179,12 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 	},
 
 	persistTheme: async () => {
-		const { accentColor, backgroundId } = get()
+		const { accentColor, backgroundId, animationsEnabled } = get()
 		try {
 			await invoke('set_theme_config', {
 				accentColor,
 				background: backgroundId,
+				animationsEnabled,
 			})
 		} catch (e) {
 			console.error('Failed to persist theme:', e)
@@ -185,14 +193,22 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 
 	loadTheme: async () => {
 		try {
-			const theme = await invoke<{ accent_color: string; background: string }>(
-				'get_theme_config'
-			)
+			const theme = await invoke<{
+				accent_color: string
+				background: string
+				animations_enabled: boolean
+			}>('get_theme_config')
 
 			const accent = theme.accent_color || DEFAULT_ACCENT
 			const bgId = theme.background || DEFAULT_BG_ID
+			const animations = theme.animations_enabled ?? true
 
-			set({ accentColor: accent, backgroundId: bgId, isLoaded: true })
+			set({
+				accentColor: accent,
+				backgroundId: bgId,
+				animationsEnabled: animations,
+				isLoaded: true,
+			})
 
 			applyAccentCSSVariables(accent)
 			const preset = BACKGROUND_PRESETS.find((p) => p.id === bgId)

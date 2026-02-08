@@ -8,8 +8,15 @@ import { useThemeStore, ACCENT_PRESETS, BACKGROUND_PRESETS } from '@/stores/them
 
 export function AppearanceSettings() {
 	const { t } = useSettingsTranslation()
-	const { accentColor, setAccentColor, backgroundId, setBackgroundId, persistTheme } =
-		useThemeStore()
+	const {
+		accentColor,
+		setAccentColor,
+		backgroundId,
+		setBackgroundId,
+		animationsEnabled,
+		setAnimationsEnabled,
+		persistTheme,
+	} = useThemeStore()
 	const [showCustomPicker, setShowCustomPicker] = useState(false)
 	const [customColor, setCustomColor] = useState(accentColor)
 
@@ -36,9 +43,26 @@ export function AppearanceSettings() {
 		persistTheme()
 	}
 
+	const fade = (delay = 0) =>
+		animationsEnabled
+			? {
+					initial: { opacity: 0, y: 16 } as const,
+					animate: { opacity: 1, y: 0 } as const,
+					transition: { delay, duration: 0.4 },
+				}
+			: {}
+
+	const hover = animationsEnabled ? { whileHover: { scale: 1.15 }, whileTap: { scale: 0.9 } } : {}
+	const hoverSmall = animationsEnabled
+		? { whileHover: { scale: 1.05 }, whileTap: { scale: 0.95 } }
+		: {}
+
 	return (
 		<div className='mx-auto flex h-full w-full max-w-3xl flex-col space-y-8 overflow-y-auto p-8'>
-			<motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
+			<motion.div
+				{...(animationsEnabled
+					? { initial: { opacity: 0, y: -20 }, animate: { opacity: 1, y: 0 } }
+					: {})}>
 				<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
 					{t('settings:appearance.title')}
 				</h1>
@@ -47,10 +71,7 @@ export function AppearanceSettings() {
 
 			<div className='space-y-8'>
 				{/* Accent Color */}
-				<motion.section
-					initial={{ opacity: 0, y: 16 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ delay: 0.05, duration: 0.4 }}>
+				<motion.section {...fade(0.05)}>
 					<h2 className='mb-2 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
 						{t('settings:appearance.accentColor.title')}
 					</h2>
@@ -68,8 +89,7 @@ export function AppearanceSettings() {
 										key={preset.id}
 										type='button'
 										onClick={() => handlePresetClick(preset.hex)}
-										whileHover={{ scale: 1.15 }}
-										whileTap={{ scale: 0.9 }}
+										{...hover}
 										className='group relative flex flex-col items-center gap-1.5'
 										title={preset.name}>
 										<div
@@ -80,21 +100,27 @@ export function AppearanceSettings() {
 													? `0 0 0 2px var(--app-bg, #020617), 0 0 0 4px ${preset.hex}, 0 4px 16px -2px ${preset.hex}40`
 													: `0 4px 12px -2px ${preset.hex}30`,
 											}}>
-											<AnimatePresence>
-												{isSelected && (
-													<motion.div
-														initial={{ scale: 0 }}
-														animate={{ scale: 1 }}
-														exit={{ scale: 0 }}
-														transition={{
-															type: 'spring',
-															stiffness: 500,
-															damping: 25,
-														}}>
-														<Check className='text-accent-contrast h-4 w-4 drop-shadow-md' />
-													</motion.div>
-												)}
-											</AnimatePresence>
+											{animationsEnabled ? (
+												<AnimatePresence>
+													{isSelected && (
+														<motion.div
+															initial={{ scale: 0 }}
+															animate={{ scale: 1 }}
+															exit={{ scale: 0 }}
+															transition={{
+																type: 'spring',
+																stiffness: 500,
+																damping: 25,
+															}}>
+															<Check className='text-accent-contrast h-4 w-4 drop-shadow-md' />
+														</motion.div>
+													)}
+												</AnimatePresence>
+											) : (
+												isSelected && (
+													<Check className='text-accent-contrast h-4 w-4 drop-shadow-md' />
+												)
+											)}
 										</div>
 										<span
 											className={`text-[10px] font-medium transition-colors ${isSelected ? 'text-slate-200' : 'text-slate-600'}`}>
@@ -108,8 +134,7 @@ export function AppearanceSettings() {
 							<motion.button
 								type='button'
 								onClick={() => setShowCustomPicker(!showCustomPicker)}
-								whileHover={{ scale: 1.15 }}
-								whileTap={{ scale: 0.9 }}
+								{...hover}
 								className='group flex flex-col items-center gap-1.5'
 								title={t('settings:appearance.accentColor.custom')}>
 								<div
@@ -137,93 +162,27 @@ export function AppearanceSettings() {
 						</div>
 
 						{/* Custom picker expand */}
-						<AnimatePresence>
-							{showCustomPicker && (
-								<motion.div
-									initial={{ opacity: 0, height: 0 }}
-									animate={{ opacity: 1, height: 'auto' }}
-									exit={{ opacity: 0, height: 0 }}
-									transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-									className='overflow-hidden'>
-									<div className='mt-2 flex items-start gap-6 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4'>
-										<div className='color-picker-container'>
-											<HexColorPicker
-												color={customColor}
-												onChange={handleCustomColorChange}
-											/>
-										</div>
-										<div className='flex flex-col gap-3'>
-											<label className='text-xs font-medium text-slate-400'>
-												Hex
-											</label>
-											<div className='flex items-center gap-2'>
-												<div
-													className='h-8 w-8 rounded-lg shadow-inner ring-1 ring-white/[0.1]'
-													style={{ backgroundColor: customColor }}
-												/>
-												<input
-													type='text'
-													value={customColor}
-													onChange={(e) => {
-														const val = e.target.value
-														if (/^#[0-9a-fA-F]{0,6}$/.test(val)) {
-															setCustomColor(val)
-															if (val.length === 7)
-																setAccentColor(val)
-														}
-													}}
-													onBlur={handleCustomColorComplete}
-													className='w-24 rounded-lg bg-slate-800/60 px-3 py-1.5 font-mono text-sm text-slate-200 ring-1 ring-white/[0.08] transition-all focus:ring-white/[0.2] focus:outline-none'
-													maxLength={7}
-												/>
-											</div>
-
-											{/* Mini preview */}
-											<div className='mt-2 space-y-2'>
-												<p className='text-[10px] font-semibold tracking-wider text-slate-600 uppercase'>
-													Preview
-												</p>
-												<button
-													type='button'
-													className='text-accent-contrast rounded-lg px-4 py-1.5 text-xs font-semibold shadow-md transition-transform hover:scale-105'
-													style={{
-														background: `linear-gradient(to right, ${customColor}, ${customColor}dd)`,
-														boxShadow: `0 4px 12px -2px ${customColor}40`,
-													}}>
-													Button
-												</button>
-												<div className='flex items-center gap-2'>
-													<div
-														className='h-2 w-2 rounded-full'
-														style={{ backgroundColor: customColor }}
-													/>
-													<span
-														className='text-xs font-medium'
-														style={{ color: customColor }}>
-														Active text
-													</span>
-												</div>
-											</div>
-
-											<button
-												type='button'
-												onClick={handleCustomColorComplete}
-												className='mt-2 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/[0.1] transition-colors hover:bg-white/[0.06] hover:text-white'>
-												Apply
-											</button>
-										</div>
-									</div>
-								</motion.div>
-							)}
-						</AnimatePresence>
+						{animationsEnabled ? (
+							<AnimatePresence>
+								{showCustomPicker && (
+									<motion.div
+										initial={{ opacity: 0, height: 0 }}
+										animate={{ opacity: 1, height: 'auto' }}
+										exit={{ opacity: 0, height: 0 }}
+										transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+										className='overflow-hidden'>
+										{renderCustomPicker()}
+									</motion.div>
+								)}
+							</AnimatePresence>
+						) : (
+							showCustomPicker && renderCustomPicker()
+						)}
 					</div>
 				</motion.section>
 
 				{/* Background */}
-				<motion.section
-					initial={{ opacity: 0, y: 16 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ delay: 0.1, duration: 0.4 }}>
+				<motion.section {...fade(0.1)}>
 					<h2 className='mb-2 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
 						{t('settings:appearance.background.title')}
 					</h2>
@@ -240,8 +199,7 @@ export function AppearanceSettings() {
 										key={preset.id}
 										type='button'
 										onClick={() => handleBackgroundChange(preset.id)}
-										whileHover={{ scale: 1.05 }}
-										whileTap={{ scale: 0.95 }}
+										{...hoverSmall}
 										className='group flex flex-col items-center gap-2'>
 										<div
 											className='flex h-14 w-full items-center justify-center rounded-xl ring-1 transition-all duration-200'
@@ -275,10 +233,7 @@ export function AppearanceSettings() {
 				</motion.section>
 
 				{/* Theme */}
-				<motion.section
-					initial={{ opacity: 0, y: 16 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ delay: 0.15, duration: 0.4 }}>
+				<motion.section {...fade(0.15)}>
 					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
 						{t('settings:appearance.theme.title')}
 					</h2>
@@ -294,10 +249,7 @@ export function AppearanceSettings() {
 				</motion.section>
 
 				{/* Layout */}
-				<motion.section
-					initial={{ opacity: 0, y: 16 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ delay: 0.2, duration: 0.4 }}>
+				<motion.section {...fade(0.2)}>
 					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
 						{t('settings:appearance.layout.title')}
 					</h2>
@@ -320,12 +272,80 @@ export function AppearanceSettings() {
 							icon={Sparkles}
 							label={t('settings:appearance.layout.animations.label')}
 							description={t('settings:appearance.layout.animations.description')}
-							value={true}
-							onChange={() => {}}
+							value={animationsEnabled}
+							onChange={(val) => {
+								setAnimationsEnabled(val)
+								persistTheme()
+							}}
 						/>
 					</div>
 				</motion.section>
 			</div>
 		</div>
 	)
+
+	function renderCustomPicker() {
+		return (
+			<div className='mt-2 flex items-start gap-6 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4'>
+				<div className='color-picker-container'>
+					<HexColorPicker color={customColor} onChange={handleCustomColorChange} />
+				</div>
+				<div className='flex flex-col gap-3'>
+					<label className='text-xs font-medium text-slate-400'>Hex</label>
+					<div className='flex items-center gap-2'>
+						<div
+							className='h-8 w-8 rounded-lg shadow-inner ring-1 ring-white/[0.1]'
+							style={{ backgroundColor: customColor }}
+						/>
+						<input
+							type='text'
+							value={customColor}
+							onChange={(e) => {
+								const val = e.target.value
+								if (/^#[0-9a-fA-F]{0,6}$/.test(val)) {
+									setCustomColor(val)
+									if (val.length === 7) setAccentColor(val)
+								}
+							}}
+							onBlur={handleCustomColorComplete}
+							className='w-24 rounded-lg bg-slate-800/60 px-3 py-1.5 font-mono text-sm text-slate-200 ring-1 ring-white/[0.08] transition-all focus:ring-white/[0.2] focus:outline-none'
+							maxLength={7}
+						/>
+					</div>
+
+					{/* Mini preview */}
+					<div className='mt-2 space-y-2'>
+						<p className='text-[10px] font-semibold tracking-wider text-slate-600 uppercase'>
+							Preview
+						</p>
+						<button
+							type='button'
+							className='text-accent-contrast rounded-lg px-4 py-1.5 text-xs font-semibold shadow-md transition-transform hover:scale-105'
+							style={{
+								background: `linear-gradient(to right, ${customColor}, ${customColor}dd)`,
+								boxShadow: `0 4px 12px -2px ${customColor}40`,
+							}}>
+							Button
+						</button>
+						<div className='flex items-center gap-2'>
+							<div
+								className='h-2 w-2 rounded-full'
+								style={{ backgroundColor: customColor }}
+							/>
+							<span className='text-xs font-medium' style={{ color: customColor }}>
+								Active text
+							</span>
+						</div>
+					</div>
+
+					<button
+						type='button'
+						onClick={handleCustomColorComplete}
+						className='mt-2 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/[0.1] transition-colors hover:bg-white/[0.06] hover:text-white'>
+						Apply
+					</button>
+				</div>
+			</div>
+		)
+	}
 }

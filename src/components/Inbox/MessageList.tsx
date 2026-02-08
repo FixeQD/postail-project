@@ -11,6 +11,7 @@ import type { AccountMeta } from '../../types/accounts'
 import { useTypedTranslation } from '../../hooks/useTypedTranslation'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useThemeStore } from '@/stores/themeStore'
+import { useAnimationsEnabled } from '@/hooks/useMotion'
 
 interface MessageListProps {
 	account: AccountMeta
@@ -22,6 +23,7 @@ const BATCH_SIZE = 50
 
 export const MessageList = ({ account, mailbox, onMessageClick }: MessageListProps) => {
 	const { t } = useTypedTranslation()
+	const animationsEnabled = useAnimationsEnabled()
 	const queryClient = useQueryClient()
 	const virtuosoRef = useRef<VirtuosoHandle>(null)
 	const [hoveredMessageId, setHoveredMessageId] = useState<number | null>(null)
@@ -196,9 +198,13 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 		return (
 			<div className='flex h-full items-center justify-center'>
 				<motion.div
-					initial={{ opacity: 0, scale: 0.9 }}
-					animate={{ opacity: 1, scale: 1 }}
-					transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+					{...(animationsEnabled
+						? {
+								initial: { opacity: 0, scale: 0.9 },
+								animate: { opacity: 1, scale: 1 },
+								transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
+							}
+						: {})}
 					className='flex flex-col items-center gap-4'>
 					<div className='relative flex h-16 w-16 items-center justify-center'>
 						<div
@@ -236,8 +242,12 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 		return (
 			<div className='flex h-full items-center justify-center'>
 				<motion.div
-					initial={{ opacity: 0, scale: 0.9 }}
-					animate={{ opacity: 1, scale: 1 }}
+					{...(animationsEnabled
+						? {
+								initial: { opacity: 0, scale: 0.9 },
+								animate: { opacity: 1, scale: 1 },
+							}
+						: {})}
 					className='flex flex-col items-center gap-3'>
 					<div className='flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10 ring-1 ring-red-500/20'>
 						<FolderSync className='h-5 w-5 text-red-400' />
@@ -303,9 +313,13 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 		return (
 			<div className='flex h-full flex-col items-center justify-center text-slate-500'>
 				<motion.div
-					initial={{ opacity: 0, scale: 0.9 }}
-					animate={{ opacity: 1, scale: 1 }}
-					transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+					{...(animationsEnabled
+						? {
+								initial: { opacity: 0, scale: 0.9 },
+								animate: { opacity: 1, scale: 1 },
+								transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+							}
+						: {})}
 					className='flex flex-col items-center'>
 					<div className='flex h-24 w-24 items-center justify-center rounded-2xl bg-slate-900/50 ring-1 ring-white/[0.06]'>
 						<Mail className='h-10 w-10 text-slate-700' />
@@ -393,55 +407,96 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 
 							{/* Date or Actions */}
 							<div className='ml-3 flex w-24 shrink-0 justify-end'>
-								<AnimatePresence mode='wait'>
-									{isHovered ? (
-										<motion.div
-											key='actions'
-											initial={{ opacity: 0, scale: 0.9 }}
-											animate={{ opacity: 1, scale: 1 }}
-											exit={{ opacity: 0, scale: 0.9 }}
-											transition={{ duration: 0.12 }}
-											className='flex items-center gap-0.5'>
-											<ActionBtn
-												icon={<Archive className='h-[15px] w-[15px]' />}
-												tooltip={t('inbox:messageList.actions.archive')}
-											/>
-											<ActionBtn
-												icon={<Trash2 className='h-[15px] w-[15px]' />}
-												tooltip={t('inbox:messageList.actions.delete')}
-												destructive
-											/>
-											<ActionBtn
-												icon={
-													isUnread ? (
-														<MailOpen className='h-[15px] w-[15px]' />
-													) : (
-														<Mail className='h-[15px] w-[15px]' />
-													)
-												}
-												tooltip={
-													isUnread
-														? t('inbox:messageList.actions.markRead')
-														: t('inbox:messageList.actions.markUnread')
-												}
-											/>
-										</motion.div>
-									) : (
-										<motion.span
-											key='date'
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											exit={{ opacity: 0 }}
-											transition={{ duration: 0.1 }}
-											className={`text-xs tabular-nums ${
-												isUnread && !zenMode
-													? 'font-medium text-slate-300'
-													: 'text-slate-600'
-											}`}>
-											{formatDate(message.internal_date)}
-										</motion.span>
-									)}
-								</AnimatePresence>
+								{animationsEnabled ? (
+									<AnimatePresence mode='wait'>
+										{isHovered ? (
+											<motion.div
+												key='actions'
+												initial={{ opacity: 0, scale: 0.9 }}
+												animate={{ opacity: 1, scale: 1 }}
+												exit={{ opacity: 0, scale: 0.9 }}
+												transition={{ duration: 0.12 }}
+												className='flex items-center gap-0.5'>
+												<ActionBtn
+													icon={<Archive className='h-[15px] w-[15px]' />}
+													tooltip={t('inbox:messageList.actions.archive')}
+												/>
+												<ActionBtn
+													icon={<Trash2 className='h-[15px] w-[15px]' />}
+													tooltip={t('inbox:messageList.actions.delete')}
+													destructive
+												/>
+												<ActionBtn
+													icon={
+														isUnread ? (
+															<MailOpen className='h-[15px] w-[15px]' />
+														) : (
+															<Mail className='h-[15px] w-[15px]' />
+														)
+													}
+													tooltip={
+														isUnread
+															? t(
+																	'inbox:messageList.actions.markRead'
+																)
+															: t(
+																	'inbox:messageList.actions.markUnread'
+																)
+													}
+												/>
+											</motion.div>
+										) : (
+											<motion.span
+												key='date'
+												initial={{ opacity: 0 }}
+												animate={{ opacity: 1 }}
+												exit={{ opacity: 0 }}
+												transition={{ duration: 0.1 }}
+												className={`text-xs tabular-nums ${
+													isUnread && !zenMode
+														? 'font-medium text-slate-300'
+														: 'text-slate-600'
+												}`}>
+												{formatDate(message.internal_date)}
+											</motion.span>
+										)}
+									</AnimatePresence>
+								) : isHovered ? (
+									<div className='flex items-center gap-0.5'>
+										<ActionBtn
+											icon={<Archive className='h-[15px] w-[15px]' />}
+											tooltip={t('inbox:messageList.actions.archive')}
+										/>
+										<ActionBtn
+											icon={<Trash2 className='h-[15px] w-[15px]' />}
+											tooltip={t('inbox:messageList.actions.delete')}
+											destructive
+										/>
+										<ActionBtn
+											icon={
+												isUnread ? (
+													<MailOpen className='h-[15px] w-[15px]' />
+												) : (
+													<Mail className='h-[15px] w-[15px]' />
+												)
+											}
+											tooltip={
+												isUnread
+													? t('inbox:messageList.actions.markRead')
+													: t('inbox:messageList.actions.markUnread')
+											}
+										/>
+									</div>
+								) : (
+									<span
+										className={`text-xs tabular-nums ${
+											isUnread && !zenMode
+												? 'font-medium text-slate-300'
+												: 'text-slate-600'
+										}`}>
+										{formatDate(message.internal_date)}
+									</span>
+								)}
 							</div>
 
 							{/* Unread dot indicator (right side) */}
@@ -470,17 +525,21 @@ const ActionBtn = ({
 	icon: React.ReactNode
 	tooltip: string
 	destructive?: boolean
-}) => (
-	<motion.button
-		whileHover={{ scale: 1.1 }}
-		whileTap={{ scale: 0.85 }}
-		className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
-			destructive
-				? 'text-slate-400 hover:bg-red-500/10 hover:text-red-400'
-				: 'text-slate-400 hover:bg-white/[0.08] hover:text-slate-200'
-		}`}
-		title={tooltip}
-		onClick={(e) => e.stopPropagation()}>
-		{icon}
-	</motion.button>
-)
+}) => {
+	const animationsEnabled = useAnimationsEnabled()
+	return (
+		<motion.button
+			{...(animationsEnabled
+				? { whileHover: { scale: 1.1 }, whileTap: { scale: 0.85 } }
+				: {})}
+			className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
+				destructive
+					? 'text-slate-400 hover:bg-red-500/10 hover:text-red-400'
+					: 'text-slate-400 hover:bg-white/[0.08] hover:text-slate-200'
+			}`}
+			title={tooltip}
+			onClick={(e) => e.stopPropagation()}>
+			{icon}
+		</motion.button>
+	)
+}

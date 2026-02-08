@@ -45,10 +45,15 @@ pub async fn get_theme_config() -> Result<ThemeConfig, String> {
 }
 
 #[tauri::command]
-pub async fn set_theme_config(accent_color: String, background: String) -> Result<(), String> {
+pub async fn set_theme_config(
+    accent_color: String,
+    background: String,
+    animations_enabled: bool,
+) -> Result<(), String> {
     let theme = ThemeConfig {
         accent_color,
         background,
+        animations_enabled,
     };
     crate::utils::config::save_theme_config(&theme)
 }

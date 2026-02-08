@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useAnimationsEnabled } from '@/hooks/useMotion'
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -32,6 +33,7 @@ interface AccountCardProps {
 type SyncStatus = 'Idle' | 'Syncing' | { Error: string }
 
 export function AccountCard({ account, onRemove, onSync }: AccountCardProps) {
+	const animationsEnabled = useAnimationsEnabled()
 	const [status, setStatus] = useState<SyncStatus>('Idle')
 
 	useEffect(() => {
@@ -63,12 +65,15 @@ export function AccountCard({ account, onRemove, onSync }: AccountCardProps) {
 		return 'group-hover:ring-white/[0.12]'
 	}
 
+	const motionFade = animationsEnabled
+		? { initial: { opacity: 0, scale: 0.9 }, animate: { opacity: 1, scale: 1 } }
+		: {}
+
 	const getStatusBadge = () => {
 		if (status === 'Syncing') {
 			return (
 				<motion.span
-					initial={{ opacity: 0, scale: 0.9 }}
-					animate={{ opacity: 1, scale: 1 }}
+					{...motionFade}
 					className='inline-flex items-center rounded-full bg-blue-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-blue-400 ring-1 ring-blue-500/20 ring-inset'>
 					<Loader2 className='mr-1 h-3 w-3 animate-spin' />
 					Syncing...
@@ -79,8 +84,7 @@ export function AccountCard({ account, onRemove, onSync }: AccountCardProps) {
 		if (typeof status === 'object' && 'Error' in status) {
 			return (
 				<motion.span
-					initial={{ opacity: 0, scale: 0.9 }}
-					animate={{ opacity: 1, scale: 1 }}
+					{...motionFade}
 					className='inline-flex items-center rounded-full bg-red-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-red-400 ring-1 ring-red-500/20 ring-inset'>
 					<AlertTriangle className='mr-1 h-3 w-3' />
 					Error
@@ -98,11 +102,15 @@ export function AccountCard({ account, onRemove, onSync }: AccountCardProps) {
 
 	return (
 		<motion.div
-			layout
-			initial={{ opacity: 0, y: 20 }}
-			animate={{ opacity: 1, y: 0 }}
-			exit={{ opacity: 0, scale: 0.95 }}
-			transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}>
+			{...(animationsEnabled
+				? {
+						layout: true,
+						initial: { opacity: 0, y: 20 },
+						animate: { opacity: 1, y: 0 },
+						exit: { opacity: 0, scale: 0.95 },
+						transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
+					}
+				: {})}>
 			<Card className='group relative overflow-hidden border-white/[0.06] bg-white/[0.03] backdrop-blur-md transition-all duration-300 hover:border-white/[0.1] hover:bg-white/[0.06] hover:shadow-xl hover:shadow-black/30'>
 				{/* Hover gradient overlay */}
 				<div className='pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100' />
@@ -126,11 +134,16 @@ export function AccountCard({ account, onRemove, onSync }: AccountCardProps) {
 							</h3>
 							<p className='text-sm text-slate-400'>{account.email}</p>
 							<div className='mt-1.5 flex items-center gap-2'>
-								<AnimatePresence mode='wait'>
-									<motion.div key={typeof status === 'string' ? status : 'error'}>
-										{getStatusBadge()}
-									</motion.div>
-								</AnimatePresence>
+								{animationsEnabled ? (
+									<AnimatePresence mode='wait'>
+										<motion.div
+											key={typeof status === 'string' ? status : 'error'}>
+											{getStatusBadge()}
+										</motion.div>
+									</AnimatePresence>
+								) : (
+									<div>{getStatusBadge()}</div>
+								)}
 								<span className='text-[11px] text-slate-600'>
 									{account.auth_type}
 								</span>
@@ -139,7 +152,10 @@ export function AccountCard({ account, onRemove, onSync }: AccountCardProps) {
 					</div>
 
 					<div className='flex items-center gap-1'>
-						<motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.85 }}>
+						<motion.div
+							{...(animationsEnabled
+								? { whileHover: { scale: 1.1 }, whileTap: { scale: 0.85 } }
+								: {})}>
 							<Button
 								variant='ghost'
 								size='icon'

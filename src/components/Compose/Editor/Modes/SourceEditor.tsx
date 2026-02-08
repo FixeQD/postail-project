@@ -8,6 +8,7 @@ import 'monaco-editor/esm/vs/language/css/monaco.contribution'
 import 'monaco-editor/esm/vs/basic-languages/html/html.contribution'
 import { loader, Editor } from '@monaco-editor/react'
 import { useDraftStore } from '@/stores/draftStore'
+import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { memo, useCallback, useEffect } from 'react'
 import { html_beautify } from 'js-beautify'
 import { motion } from 'framer-motion'
@@ -84,19 +85,32 @@ export const SourceEditor = memo(({ htmlRef, onChange, isFixing, onMount }: Sour
 		markDirty()
 	}, [htmlRef, onChange, markDirty])
 
+	const animationsEnabled = useAnimationsEnabled()
+
 	return (
 		<motion.div
 			className='relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#1e1e1e]'
-			initial={{
-				filter: isFixing ? 'blur(6px) brightness(0.6)' : 'blur(0px) brightness(1)',
-			}}
-			animate={{
-				filter: isFixing ? 'blur(6px) brightness(0.6)' : 'blur(0px) brightness(1)',
-			}}
-			transition={{
-				duration: 0.3,
-				ease: 'easeInOut',
-			}}>
+			{...(animationsEnabled
+				? {
+						initial: {
+							filter: isFixing
+								? 'blur(6px) brightness(0.6)'
+								: 'blur(0px) brightness(1)',
+						},
+						animate: {
+							filter: isFixing
+								? 'blur(6px) brightness(0.6)'
+								: 'blur(0px) brightness(1)',
+						},
+						transition: { duration: 0.3, ease: 'easeInOut' },
+					}
+				: {
+						style: {
+							filter: isFixing
+								? 'blur(6px) brightness(0.6)'
+								: 'blur(0px) brightness(1)',
+						},
+					})}>
 			<Editor
 				height='100%'
 				defaultLanguage='html'

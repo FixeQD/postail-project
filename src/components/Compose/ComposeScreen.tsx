@@ -9,6 +9,7 @@ import { X, Minimize2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 
+import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { Button } from '@/components/ui/button'
 import { useDraftStore } from '@/stores/draftStore'
 import { useComposeShortcuts } from '@/hooks/useComposeShortcuts'
@@ -29,6 +30,7 @@ interface ComposeScreenProps {
 
 export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenProps) {
 	const { t } = useTranslation()
+	const animationsEnabled = useAnimationsEnabled()
 	const {
 		currentDraft,
 		isComposing,
@@ -259,35 +261,36 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		<AnimatePresence>
 			{open && (
 				<motion.div
-					initial={{ opacity: 0, y: 50, scale: 0.95 }}
-					animate={
-						isSending || isFlying
-							? {
-									opacity: 0,
-									scale: 0.1,
-									x: activeTarget.x,
-									y: activeTarget.y,
-									transition: { duration: 0.5, ease: 'easeInOut' },
-								}
-							: { opacity: 1, y: 0, scale: 1, x: 0 }
-					}
-					exit={
-						isFlying
-							? {
-									opacity: 0,
-									scale: 0.1,
-									x: activeTarget.x,
-									y: activeTarget.y,
-									transition: { duration: 0.5, ease: 'easeInOut' }, // Ensure exit matches animate
-								}
-							: {
-									opacity: 0,
-									y: 20,
-									scale: 0.95,
-									transition: { duration: 0.2 },
-								}
-					}
-					transition={{ type: 'spring', duration: 0.4, bounce: 0.3 }}
+					{...(animationsEnabled
+						? {
+								initial: { opacity: 0, y: 50, scale: 0.95 },
+								animate:
+									isSending || isFlying
+										? {
+												opacity: 0,
+												scale: 0.1,
+												x: activeTarget.x,
+												y: activeTarget.y,
+												transition: { duration: 0.5, ease: 'easeInOut' },
+											}
+										: { opacity: 1, y: 0, scale: 1, x: 0 },
+								exit: isFlying
+									? {
+											opacity: 0,
+											scale: 0.1,
+											x: activeTarget.x,
+											y: activeTarget.y,
+											transition: { duration: 0.5, ease: 'easeInOut' },
+										}
+									: {
+											opacity: 0,
+											y: 20,
+											scale: 0.95,
+											transition: { duration: 0.2 },
+										},
+								transition: { type: 'spring', duration: 0.4, bounce: 0.3 },
+							}
+						: {})}
 					className={`fixed z-50 flex flex-col rounded-t-xl bg-zinc-950 text-zinc-100 shadow-2xl ring-1 ring-zinc-800 ${isDragging ? 'shadow-blue-900/20' : ''}`}
 					style={{
 						left: `${activePosition.x}px`,

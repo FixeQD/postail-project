@@ -622,6 +622,17 @@ textarea:focus {
 	animation: fade-in-scale 0.2s ease-out;
 }
 
+/* ─── Kill all animations when disabled ─── */
+[data-animations='off'],
+[data-animations='off'] *,
+[data-animations='off'] *::before,
+[data-animations='off'] *::after {
+	animation-duration: 0s !important;
+	animation-delay: 0s !important;
+	transition-duration: 0s !important;
+	transition-delay: 0s !important;
+}
+
 /* ─── react-colorful overrides ─── */
 .color-picker-container .react-colorful {
 	width: 200px;

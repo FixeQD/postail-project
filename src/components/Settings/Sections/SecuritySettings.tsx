@@ -2,13 +2,18 @@ import { motion } from 'framer-motion'
 import { Timer, FileKey, ClipboardX } from 'lucide-react'
 import { ToggleSetting } from '@/components/ui/toggle-setting'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
+import { useAnimationsEnabled } from '@/hooks/useMotion'
 
 export function SecuritySettings() {
 	const { t } = useSettingsTranslation()
+	const animationsEnabled = useAnimationsEnabled()
 
 	return (
 		<div className='mx-auto flex h-full w-full max-w-3xl flex-col space-y-8 p-8'>
-			<motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
+			<motion.div
+				{...(animationsEnabled
+					? { initial: { opacity: 0, y: -20 }, animate: { opacity: 1, y: 0 } }
+					: {})}>
 				<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
 					{t('settings:security.title')}
 				</h1>

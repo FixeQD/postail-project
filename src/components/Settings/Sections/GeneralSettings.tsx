@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Folder, Database, Coffee, Send, RotateCcw } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 import { open } from '@tauri-apps/plugin-dialog'
 import { toast } from 'sonner'
@@ -34,6 +35,7 @@ const SettingCard = ({ label, description, icon: Icon, children }: any) => (
 
 export function GeneralSettings() {
 	const { t } = useSettingsTranslation()
+	const animationsEnabled = useAnimationsEnabled()
 	const { settings, setSetting } = useSettingsStore()
 	const [isMigrationDialogOpen, setIsMigrationDialogOpen] = useState(false)
 	const [pendingPath, setPendingPath] = useState<string | null>(null)
@@ -97,7 +99,10 @@ export function GeneralSettings() {
 
 	return (
 		<div className='mx-auto flex h-full w-full max-w-3xl flex-col space-y-8 p-8'>
-			<motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
+			<motion.div
+				{...(animationsEnabled
+					? { initial: { opacity: 0, y: -20 }, animate: { opacity: 1, y: 0 } }
+					: {})}>
 				<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
 					{t('settings:general.title')}
 				</h1>

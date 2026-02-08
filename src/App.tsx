@@ -18,6 +18,7 @@ import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
 import type { AccountMeta } from './types/accounts'
 import { useSettingsStore } from './stores/settingsStore'
 import { useThemeStore } from './stores/themeStore'
+import { useAnimationsEnabled } from './hooks/useMotion'
 import icon from './assets/icon.png'
 import './i18n'
 import { useTranslation } from 'react-i18next'
@@ -38,11 +39,16 @@ function App() {
 	const [currentState, setCurrentState] = useState<AppState>('init')
 	const loadSettings = useSettingsStore((s) => s.loadSettings)
 	const { loadTheme, accentColor, persistTheme } = useThemeStore()
+	const animationsEnabled = useAnimationsEnabled()
 
 	useEffect(() => {
 		loadSettings()
 		loadTheme()
 	}, [loadSettings, loadTheme])
+
+	useEffect(() => {
+		document.documentElement.setAttribute('data-animations', animationsEnabled ? 'on' : 'off')
+	}, [animationsEnabled])
 	const [accounts, setAccounts] = useState<AccountMeta[]>([])
 	const [activeAccount, setActiveAccount] = useState<AccountMeta | null>(null)
 	const [activeMailbox, setActiveMailbox] = useState('INBOX')
@@ -354,17 +360,21 @@ function App() {
 				onOpenOutbox={() => setOutboxOpen(true)}
 			/>
 			<main className='flex-1 overflow-y-auto'>
-				<AnimatePresence mode='wait'>
-					<motion.div
-						key={currentState}
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						transition={{ duration: 0.2, ease: 'easeOut' }}
-						className='h-full'>
-						{renderCurrentScreen()}
-					</motion.div>
-				</AnimatePresence>
+				{animationsEnabled ? (
+					<AnimatePresence mode='wait'>
+						<motion.div
+							key={currentState}
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+							transition={{ duration: 0.2, ease: 'easeOut' }}
+							className='h-full'>
+							{renderCurrentScreen()}
+						</motion.div>
+					</AnimatePresence>
+				) : (
+					<div className='h-full'>{renderCurrentScreen()}</div>
+				)}
 			</main>
 			{currentState === 'dashboard' && (
 				<StatusBar onOpenOutbox={() => setOutboxOpen(true)} accounts={accounts} />
