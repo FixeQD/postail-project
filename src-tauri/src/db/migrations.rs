@@ -47,6 +47,11 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         set_db_version(conn, 1)?;
     }
 
+    if current_version < 2 {
+        migrate_to_v2(conn)?;
+        set_db_version(conn, 2)?;
+    }
+
     Ok(())
 }
 
@@ -67,6 +72,17 @@ fn migrate_to_v1(conn: &Connection) -> Result<(), DBError> {
     }
 
     conn.execute("CREATE INDEX IF NOT EXISTS idx_messages_has_attachments ON messages(account_id, mailbox, has_attachments) WHERE has_attachments = 1", [])?;
+
+    Ok(())
+}
+
+fn migrate_to_v2(conn: &Connection) -> Result<(), DBError> {
+    if !column_exists(conn, "flag_sync_queue", "synced_at")? {
+        conn.execute(
+            "ALTER TABLE flag_sync_queue ADD COLUMN synced_at INTEGER",
+            [],
+        )?;
+    }
 
     Ok(())
 }

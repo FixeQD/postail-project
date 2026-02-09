@@ -3,6 +3,19 @@ use chrono::{TimeZone, Utc};
 
 use crate::db::{MailHeader, MessageBatchItem, DEFAULT_BATCH_SIZE};
 
+fn flag_to_string(flag: &async_imap::types::Flag) -> String {
+    match flag {
+        async_imap::types::Flag::Seen => "\\Seen".to_string(),
+        async_imap::types::Flag::Answered => "\\Answered".to_string(),
+        async_imap::types::Flag::Flagged => "\\Flagged".to_string(),
+        async_imap::types::Flag::Deleted => "\\Deleted".to_string(),
+        async_imap::types::Flag::Draft => "\\Draft".to_string(),
+        async_imap::types::Flag::Recent => "\\Recent".to_string(),
+        async_imap::types::Flag::MayCreate => "\\*".to_string(),
+        async_imap::types::Flag::Custom(s) => s.to_string(),
+    }
+}
+
 impl crate::imap::ImapManager {
     pub fn fetch_headers_sync(
         &self,
@@ -95,7 +108,7 @@ impl crate::imap::ImapManager {
                     .unwrap_or_default();
                 let flags = fetch
                     .flags()
-                    .map(|flag| format!("{:?}", flag))
+                    .map(|flag| flag_to_string(&flag))
                     .collect::<Vec<_>>();
                 let internal_date = fetch.internal_date().ok_or("No internal date")?;
                 let snippet = None;

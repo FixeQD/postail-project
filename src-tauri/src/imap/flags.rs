@@ -3,6 +3,19 @@ use crate::globals::DB_CONN;
 use crate::imap::ImapManager;
 use async_std::stream::StreamExt;
 
+fn flag_to_string(flag: &async_imap::types::Flag) -> String {
+    match flag {
+        async_imap::types::Flag::Seen => "\\Seen".to_string(),
+        async_imap::types::Flag::Answered => "\\Answered".to_string(),
+        async_imap::types::Flag::Flagged => "\\Flagged".to_string(),
+        async_imap::types::Flag::Deleted => "\\Deleted".to_string(),
+        async_imap::types::Flag::Draft => "\\Draft".to_string(),
+        async_imap::types::Flag::Recent => "\\Recent".to_string(),
+        async_imap::types::Flag::MayCreate => "\\*".to_string(),
+        async_imap::types::Flag::Custom(s) => s.to_string(),
+    }
+}
+
 pub fn format_uid_set(uids: &[u32]) -> String {
     if uids.is_empty() {
         return String::new();
@@ -74,10 +87,15 @@ impl ImapManager {
             mailbox, account_id, uid_set, store_query
         );
 
-        session
-            .uid_store(&uid_set, &store_query)
-            .await
-            .map_err(AppError::from)?;
+        {
+            let mut store_stream = session
+                .uid_store(&uid_set, &store_query)
+                .await
+                .map_err(AppError::from)?;
+
+            // Consume the stream
+            while let Some(_) = store_stream.next().await {}
+        }
 
         session.logout().await.map_err(AppError::from)?;
 
@@ -114,10 +132,7 @@ impl ImapManager {
         while let Some(fetch) = fetches.next().await {
             let fetch = fetch.map_err(AppError::from)?;
             let uid = fetch.uid.ok_or_else(|| AppError::from("No UID"))?;
-            let flags: Vec<String> = fetch
-                .flags()
-                .map(|flag| format!("{:?}", flag))
-                .collect();
+            let flags: Vec<String> = fetch.flags().map(|flag| flag_to_string(&flag)).collect();
 
             flag_updates.push((uid, flags));
         }
@@ -133,12 +148,14 @@ impl ImapManager {
         let update_count = flag_updates.len();
 
         for (uid, flags) in flag_updates {
-            // Skip if this UID has pending flag changes in the queue
+            // Skip if this UID has pending or recently synced flag changes in the queue
+            let recent_threshold = chrono::Utc::now().timestamp() - 10;
             let has_pending: bool = conn
                 .query_row(
-                    "SELECT COUNT(*) FROM flag_sync_queue 
-                     WHERE account_id = ? AND mailbox = ? AND uid = ?",
-                    rusqlite::params![account_id, mailbox, uid],
+                    "SELECT COUNT(*) FROM flag_sync_queue
+                     WHERE account_id = ? AND mailbox = ? AND uid = ?
+                     AND (synced_at IS NULL OR synced_at > ?)",
+                    rusqlite::params![account_id, mailbox, uid, recent_threshold],
                     |row| row.get::<_, i64>(0),
                 )
                 .map(|count| count > 0)
@@ -152,8 +169,8 @@ impl ImapManager {
                 continue;
             }
 
-            let flags_json = serde_json::to_string(&flags)
-                .map_err(|e| AppError::from(e.to_string()))?;
+            let flags_json =
+                serde_json::to_string(&flags).map_err(|e| AppError::from(e.to_string()))?;
 
             let rows_updated = conn.execute(
                 "UPDATE messages SET flags_json = ? WHERE account_id = ? AND mailbox = ? AND uid = ?",
@@ -174,6 +191,17 @@ impl ImapManager {
             update_count, mailbox, account_id
         );
 
+        // Cleanup old synced operations (older than 10 seconds)
+        let deleted = crate::db::cleanup_old_synced_operations(conn)
+            .map_err(|e| AppError::from(e.to_string()))?;
+
+        if deleted > 0 {
+            tracing::debug!(target: "postail",
+                "[FLAG_SYNC] Cleaned up {} old synced queue items",
+                deleted
+            );
+        }
+
         Ok(())
     }
 }
@@ -192,4 +220,3 @@ mod tests {
         assert_eq!(format_uid_set(&[]), "");
     }
 }
-

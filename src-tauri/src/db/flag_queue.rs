@@ -48,7 +48,7 @@ pub fn get_pending_flag_operations(
     let mut stmt = conn.prepare(
         "SELECT id, account_id, mailbox, uid, operation, flags, created_at, attempts, last_error
          FROM flag_sync_queue
-         WHERE account_id = ? AND attempts < ?
+         WHERE account_id = ? AND attempts < ? AND synced_at IS NULL
          ORDER BY created_at ASC",
     )?;
 
@@ -74,7 +74,10 @@ pub fn get_pending_flag_operations(
 }
 
 pub fn mark_flag_operation_success(conn: &Connection, id: i64) -> Result<(), DBError> {
-    conn.execute("DELETE FROM flag_sync_queue WHERE id = ?", params![id])?;
+    conn.execute(
+        "UPDATE flag_sync_queue SET synced_at = ? WHERE id = ?",
+        params![Utc::now().timestamp(), id],
+    )?;
     Ok(())
 }
 
@@ -84,6 +87,15 @@ pub fn mark_flag_operation_failed(conn: &Connection, id: i64, error: &str) -> Re
         params![error, id],
     )?;
     Ok(())
+}
+
+pub fn cleanup_old_synced_operations(conn: &Connection) -> Result<usize, DBError> {
+    let threshold = Utc::now().timestamp() - 10;
+    let deleted = conn.execute(
+        "DELETE FROM flag_sync_queue WHERE synced_at IS NOT NULL AND synced_at < ?",
+        params![threshold],
+    )?;
+    Ok(deleted)
 }
 
 pub fn clear_flag_queue(conn: &Connection, account_id: &str) -> Result<(), DBError> {
