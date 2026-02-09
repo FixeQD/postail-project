@@ -52,6 +52,11 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         set_db_version(conn, 2)?;
     }
 
+    if current_version < 3 {
+        migrate_to_v3(conn)?;
+        set_db_version(conn, 3)?;
+    }
+
     Ok(())
 }
 
@@ -82,6 +87,21 @@ fn migrate_to_v2(conn: &Connection) -> Result<(), DBError> {
             "ALTER TABLE flag_sync_queue ADD COLUMN synced_at INTEGER",
             [],
         )?;
+    }
+
+    Ok(())
+}
+
+fn migrate_to_v3(conn: &Connection) -> Result<(), DBError> {
+    if !column_exists(conn, "mailboxes", "role")? {
+        conn.execute(
+            "ALTER TABLE mailboxes ADD COLUMN role TEXT DEFAULT 'other'",
+            [],
+        )?;
+    }
+
+    if !column_exists(conn, "mailboxes", "attributes_json")? {
+        conn.execute("ALTER TABLE mailboxes ADD COLUMN attributes_json TEXT", [])?;
     }
 
     Ok(())

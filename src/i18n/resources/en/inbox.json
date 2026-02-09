@@ -1,13 +1,6 @@
 {
 	"sidebar": {
-		"newMessage": "New Message",
-		"mailboxes": {
-			"inbox": "Inbox",
-			"sent": "Sent",
-			"drafts": "Drafts",
-			"trash": "Trash",
-			"archive": "Archive"
-		}
+		"newMessage": "New Message"
 	},
 	"search": {
 		"placeholder": "Search in inbox..."

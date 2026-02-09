@@ -30,34 +30,41 @@ pub fn fetch_mailboxes(account_id: String) -> Result<Vec<Mailbox>, String> {
         }
     };
 
+    let canonical_prefix = provider_kind.and_then(|k| oauth::ProviderInfo::get(k).canonical_prefix);
+
+    // Filter out provider namespace folder (e.g., "[Gmail]" for Gmail)
+    if let Some(prefix) = canonical_prefix {
+        let namespace = prefix.trim_end_matches('/');
+        mailboxes.retain(|mb| mb.name != namespace);
+    }
+
+    if let Some(prefix) = canonical_prefix {
+        let canonical_roles = &[
+            "sent", "trash", "drafts", "junk", "flagged", "all", "archive",
+        ];
+
+        let mut canonical_roles_seen = std::collections::HashSet::new();
+        for mb in &mailboxes {
+            if mb.name.starts_with(prefix) && canonical_roles.contains(&mb.role.as_str()) {
+                canonical_roles_seen.insert(mb.role.clone());
+            }
+        }
+
+        mailboxes.retain(|mb| {
+            if mb.name.starts_with(prefix) {
+                return true; // Keep all canonical folders
+            }
+            !canonical_roles_seen.contains(&mb.role)
+        });
+    }
+
     for mailbox in &mut mailboxes {
+        // Decode UTF-7 IMAP to display name
         let decoded = utf7_imap::decode_utf7_imap(mailbox.name.clone());
         mailbox.display_name = decoded.clone();
 
-        let lower = decoded.to_lowercase();
-        mailbox.role = "other".to_string();
-
-        if lower == "inbox" {
-            mailbox.role = "inbox".to_string();
-            mailbox.display_name = "Inbox".to_string();
-        } else if lower.contains("draft") {
-            mailbox.role = "drafts".to_string();
-        } else if lower.contains("sent") {
-            mailbox.role = "sent".to_string();
-        } else if lower.contains("trash") || lower.contains("bin") || lower.contains("deleted") {
-            mailbox.role = "trash".to_string();
-        } else if lower.contains("junk") || lower.contains("spam") {
-            mailbox.role = "junk".to_string();
-        } else if lower.contains("archive") {
-            mailbox.role = "archive".to_string();
-        }
-
+        // Clean up provider-specific prefixes
         if let Some(kind) = provider_kind {
-            let info = oauth::ProviderInfo::get(kind);
-            if mailbox.name == info.sent_folder {
-                mailbox.role = "sent".to_string();
-            }
-
             if kind == oauth::ProviderKind::Gmail && mailbox.display_name.starts_with("[Gmail]/") {
                 mailbox.display_name = mailbox.display_name.replace("[Gmail]/", "");
             }
@@ -72,6 +79,8 @@ pub fn fetch_mailboxes(account_id: String) -> Result<Vec<Mailbox>, String> {
             "trash" => 3,
             "archive" => 4,
             "junk" => 5,
+            "flagged" => 6,
+            "all" => 7,
             _ => 10,
         };
 

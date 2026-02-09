@@ -2,6 +2,24 @@ use async_std::stream::StreamExt;
 
 use crate::db::{fetch_mailboxes as db_fetch_mailboxes, upsert_mailbox, Mailbox};
 
+fn detect_mailbox_role_from_attributes(
+    attributes: &[async_imap::types::NameAttribute],
+) -> Option<String> {
+    for attr in attributes {
+        match attr {
+            async_imap::types::NameAttribute::All => return Some("all".to_string()),
+            async_imap::types::NameAttribute::Archive => return Some("archive".to_string()),
+            async_imap::types::NameAttribute::Drafts => return Some("drafts".to_string()),
+            async_imap::types::NameAttribute::Flagged => return Some("flagged".to_string()),
+            async_imap::types::NameAttribute::Junk => return Some("junk".to_string()),
+            async_imap::types::NameAttribute::Sent => return Some("sent".to_string()),
+            async_imap::types::NameAttribute::Trash => return Some("trash".to_string()),
+            _ => {}
+        }
+    }
+    None
+}
+
 impl crate::imap::ImapManager {
     pub fn fetch_mailboxes_sync(&self, account_id: &str) -> Result<Vec<Mailbox>, String> {
         let conn_guard = self.conn.lock().unwrap();
@@ -24,10 +42,14 @@ impl crate::imap::ImapManager {
             while let Some(mb) = mailboxes.next().await {
                 let mb = mb.map_err(|e| e.to_string())?;
                 let name = mb.name().to_string();
+
+                // Detect role from SPECIAL-USE attributes (RFC 6154), default to "other"
+                let role = detect_mailbox_role_from_attributes(mb.attributes())
+                    .unwrap_or_else(|| "other".to_string());
                 let mailbox = Mailbox {
                     name,
-                    display_name: mb.name().to_string(), // Default
-                    role: "other".to_string(),           // Default
+                    display_name: mb.name().to_string(),
+                    role,
                     uid_validity: None,
                     highest_modseq: None,
                     last_synced_uid: None,

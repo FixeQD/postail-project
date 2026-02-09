@@ -1,6 +1,16 @@
 import { useRef, useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Inbox, Send, Trash2, Archive, File, Pencil } from 'lucide-react'
+import {
+	Inbox,
+	Send,
+	Trash2,
+	Archive,
+	File,
+	Pencil,
+	Star,
+	AlertTriangle,
+	Layers,
+} from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
 import { useQuery } from '@tanstack/react-query'
 import type { Mailbox } from '../../types/mail'
@@ -97,26 +107,13 @@ export const Sidebar = ({
 			case 'drafts':
 				return <File className={cls} />
 			case 'junk':
-				return <File className={cls} />
+				return <AlertTriangle className={cls} />
+			case 'flagged':
+				return <Star className={cls} />
+			case 'all':
+				return <Layers className={cls} />
 			default:
 				return <File className={cls} />
-		}
-	}
-
-	const getMailboxLabel = (mailbox: Mailbox) => {
-		switch (mailbox.role) {
-			case 'inbox':
-				return t('inbox:sidebar.mailboxes.inbox')
-			case 'sent':
-				return t('inbox:sidebar.mailboxes.sent')
-			case 'drafts':
-				return t('inbox:sidebar.mailboxes.drafts')
-			case 'trash':
-				return t('inbox:sidebar.mailboxes.trash')
-			case 'archive':
-				return t('inbox:sidebar.mailboxes.archive')
-			default:
-				return mailbox.display_name
 		}
 	}
 
@@ -241,7 +238,7 @@ export const Sidebar = ({
 										</div>
 										{!isCollapsed && (
 											<div className='relative ml-3.5 flex flex-1 items-center justify-between truncate'>
-												<span>{getMailboxLabel(mailbox)}</span>
+												<span>{mailbox.display_name}</span>
 											</div>
 										)}
 									</motion.button>

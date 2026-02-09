@@ -55,7 +55,7 @@ pub struct ProviderInfo {
     pub scopes: &'static str,
     pub imap_host: &'static str,
     pub smtp_host: &'static str,
-    pub sent_folder: &'static str,
+    pub canonical_prefix: Option<&'static str>,
 }
 
 impl ProviderInfo {
@@ -69,7 +69,7 @@ impl ProviderInfo {
                 scopes: "https://mail.google.com/ https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.readonly",
                 imap_host: "imap.gmail.com",
                 smtp_host: "smtp.gmail.com",
-                sent_folder: "[Gmail]/Sent Mail",
+                canonical_prefix: Some("[Gmail]/"),
             },
             ProviderKind::Outlook => ProviderInfo {
                 kind,
@@ -79,7 +79,7 @@ impl ProviderInfo {
                 scopes: "https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/SMTP.Send",
                 imap_host: "outlook.office365.com",
                 smtp_host: "smtp-mail.outlook.com",
-                sent_folder: "Sent Items",
+                canonical_prefix: None,
             },
         }
     }
