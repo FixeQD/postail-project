@@ -395,6 +395,13 @@ impl crate::imap::ImapManager {
                 .await?;
         }
 
+        if let Err(e) = self.sync_flags_from_server(account_id, mailbox_name, None).await {
+            tracing::warn!(target: "postail",
+                "[IMAP] Initial flag sync failed for {}@{}: {}",
+                mailbox_name, account_id, e
+            );
+        }
+
         Ok(())
     }
 
@@ -499,9 +506,15 @@ impl crate::imap::ImapManager {
                             .await;
                     } else {
                         tracing::debug!(target: "postail",
-                            "[IMAP] IDLE wakeup but no new messages in {}@{}",
+                            "[IMAP] IDLE wakeup but no new messages in {}@{}, syncing flags",
                             mailbox_name, account_id
                         );
+                        if let Err(e) = self.sync_flags_from_server(account_id, mailbox_name, None).await {
+                            tracing::warn!(target: "postail",
+                                "[IMAP] Flag sync failed for {}@{}: {}",
+                                mailbox_name, account_id, e
+                            );
+                        }
                     }
                     idle = session.idle();
                     if idle.init().await.is_err() {
@@ -599,6 +612,13 @@ impl crate::imap::ImapManager {
                         SYNC_STATUS_MANAGER
                             .emit_new_messages(account_id, mailbox_name, new_count)
                             .await;
+                    } else {
+                        if let Err(e) = self.sync_flags_from_server(account_id, mailbox_name, None).await {
+                            tracing::warn!(target: "postail",
+                                "[IMAP] Flag sync failed during poll for {}@{}: {}",
+                                mailbox_name, account_id, e
+                            );
+                        }
                     }
                 }
                 Err(e) => {

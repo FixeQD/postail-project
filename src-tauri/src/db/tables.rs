@@ -74,7 +74,7 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
     create_fts_table(
         conn,
         "messages_fts",
-        &["subject", "from_addr", "snippet", "body_plain"],
+        &["subject", "from_addr", "snippet"],
         "messages",
         "id",
     )?;
@@ -159,6 +159,26 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
         &[("key", "TEXT PRIMARY KEY"), ("value", "TEXT NOT NULL")],
     )?;
 
+    create_table_if_not_exists(
+        conn,
+        "flag_sync_queue",
+        &[
+            ("id", "INTEGER PRIMARY KEY"),
+            ("account_id", "TEXT NOT NULL"),
+            ("mailbox", "TEXT NOT NULL"),
+            ("uid", "INTEGER NOT NULL"),
+            ("operation", "TEXT NOT NULL"),
+            ("flags", "TEXT NOT NULL"),
+            ("created_at", "INTEGER NOT NULL"),
+            ("attempts", "INTEGER DEFAULT 0"),
+            ("last_error", "TEXT"),
+            (
+                "FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE",
+                "",
+            ),
+        ],
+    )?;
+
     Ok(())
 }
 
@@ -204,6 +224,14 @@ pub fn create_indexes(conn: &Connection) -> Result<(), DBError> {
         "idx_contacts_frequency_date",
         "contacts",
         &["frequency DESC", "last_contact_at DESC"],
+        false,
+    )?;
+
+    create_index_if_not_exists(
+        conn,
+        "idx_flag_sync_queue_account",
+        "flag_sync_queue",
+        &["account_id", "attempts"],
         false,
     )?;
 

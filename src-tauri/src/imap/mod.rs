@@ -5,6 +5,7 @@ use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
 pub mod connection;
+pub mod flags;
 pub mod mailbox;
 pub mod sync;
 pub mod sync_status;

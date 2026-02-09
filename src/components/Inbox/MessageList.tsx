@@ -6,6 +6,7 @@ import { listen } from '@tauri-apps/api/event'
 import { format, isToday, isYesterday, isThisYear } from 'date-fns'
 import { Star, Archive, Trash2, MailOpen, Mail, FolderSync } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { toast } from 'sonner'
 import type { MailHeader, Mailbox } from '../../types/mail'
 import type { AccountMeta } from '../../types/accounts'
 import { useTypedTranslation } from '../../hooks/useTypedTranslation'
@@ -275,6 +276,7 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 					<p className='text-sm font-medium text-red-400'>Failed to sync mailbox</p>
 					<p className='max-w-xs text-center text-xs text-slate-600'>{syncError}</p>
 					<button
+						type='button'
 						onClick={() => {
 							syncedRef.current.delete(mailboxKey)
 							setSyncError(null)
@@ -367,11 +369,12 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 					const isHovered = hoveredMessageId === message.uid
 
 					return (
-						<div
+						<button
+							type='button'
 							onMouseEnter={() => setHoveredMessageId(message.uid)}
 							onMouseLeave={() => setHoveredMessageId(null)}
 							onClick={() => onMessageClick(message.uid)}
-							className={`message-unread-indicator group relative flex cursor-pointer items-center border-b border-white/[0.04] px-4 py-3 transition-all duration-150 ${
+							className={`message-unread-indicator group relative flex w-full cursor-pointer items-center border-b border-white/[0.04] px-4 py-3 text-left transition-all duration-150 ${
 								isUnread && !zenMode ? 'is-unread' : ''
 							} ${
 								isUnread && !zenMode
@@ -390,6 +393,7 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 									onClick={(e) => e.stopPropagation()}
 								/>
 								<button
+									type='button'
 									className='rounded-md p-0.5 text-slate-700 transition-colors hover:text-amber-400 focus:outline-none'
 									onClick={(e) => e.stopPropagation()}>
 									<Star className='h-4 w-4' />
@@ -463,6 +467,30 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 																	'inbox:messageList.actions.markUnread'
 																)
 													}
+													onClick={async () => {
+														try {
+															await invoke('mark_read', {
+																accountId: account.id,
+																mailbox,
+																uids: [message.uid],
+																read: isUnread,
+															})
+															queryClient.invalidateQueries({
+																queryKey: [
+																	'messages',
+																	account.id,
+																	mailbox,
+																],
+															})
+														} catch (error) {
+															toast.error(
+																`Failed to mark message as ${isUnread ? 'read' : 'unread'}`,
+																{
+																	description: String(error),
+																}
+															)
+														}
+													}}
 												/>
 											</motion.div>
 										) : (
@@ -505,6 +533,26 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 													? t('inbox:messageList.actions.markRead')
 													: t('inbox:messageList.actions.markUnread')
 											}
+											onClick={async () => {
+												try {
+													await invoke('mark_read', {
+														accountId: account.id,
+														mailbox,
+														uids: [message.uid],
+														read: isUnread,
+													})
+													queryClient.invalidateQueries({
+														queryKey: ['messages', account.id, mailbox],
+													})
+												} catch (error) {
+													toast.error(
+														`Failed to mark message as ${isUnread ? 'read' : 'unread'}`,
+														{
+															description: String(error),
+														}
+													)
+												}
+											}}
 										/>
 									</div>
 								) : (
@@ -529,7 +577,7 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 									}}
 								/>
 							)}
-						</div>
+						</button>
 					)
 				}}
 			/>
@@ -541,14 +589,17 @@ const ActionBtn = ({
 	icon,
 	tooltip,
 	destructive,
+	onClick,
 }: {
 	icon: React.ReactNode
 	tooltip: string
 	destructive?: boolean
+	onClick?: (e: React.MouseEvent) => void
 }) => {
 	const animationsEnabled = useAnimationsEnabled()
 	return (
 		<motion.button
+			type='button'
 			{...(animationsEnabled
 				? { whileHover: { scale: 1.1 }, whileTap: { scale: 0.85 } }
 				: {})}
@@ -558,7 +609,10 @@ const ActionBtn = ({
 					: 'text-slate-400 hover:bg-white/[0.08] hover:text-slate-200'
 			}`}
 			title={tooltip}
-			onClick={(e) => e.stopPropagation()}>
+			onClick={(e) => {
+				e.stopPropagation()
+				onClick?.(e)
+			}}>
 			{icon}
 		</motion.button>
 	)
