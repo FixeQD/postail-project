@@ -154,6 +154,9 @@ pub fn initialize_security_and_database(
         theme: existing_theme,
     })?;
 
+    // Load lock settings from db
+    crate::security::load_lock_settings();
+
     Ok(())
 }
 
@@ -163,4 +166,65 @@ pub async fn initialize_security(method: String, passphrase: Option<String>) -> 
         return Err("Passphrase required for Argon2".to_string());
     }
     initialize_security_and_database(&method, passphrase)
+}
+
+use crate::security::lock::{
+    get_timeout_minutes, is_locked, is_using_encryption_password, record_activity, set_pin,
+    set_timeout, unlock, use_encryption_password,
+};
+
+#[command]
+pub fn record_lock_activity() {
+    record_activity();
+}
+
+#[command]
+pub fn is_app_locked() -> bool {
+    is_locked()
+}
+
+#[command]
+pub fn unlock_app(password: String) -> Result<(), String> {
+    let security = SECURITY.lock().unwrap();
+    let db_password = if security.is_initialized() {
+        Some(hex::encode(security.get_master_key_raw()))
+    } else {
+        None
+    };
+    unlock(&password, db_password.as_deref())
+}
+
+#[command]
+pub fn set_auto_lock_timeout(minutes: u32) {
+    set_timeout(minutes);
+}
+
+#[command]
+pub fn get_auto_lock_timeout() -> u32 {
+    get_timeout_minutes()
+}
+
+#[command]
+pub fn set_auto_lock_pin(pin: String) {
+    set_pin(&pin);
+}
+
+#[command]
+pub fn use_encryption_password_for_lock() {
+    use_encryption_password();
+}
+
+#[command]
+pub fn is_lock_using_encryption_password() -> bool {
+    is_using_encryption_password()
+}
+
+#[command]
+pub fn is_lock_configured() -> bool {
+    crate::security::is_lock_configured()
+}
+
+#[command]
+pub fn get_security_method() -> Option<String> {
+    load_config().map(|c| c.security_method)
 }

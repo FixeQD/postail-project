@@ -31,7 +31,14 @@ pub fn run() {
             let handle = app.handle().clone();
             utils::oauth_server::start(handle.clone());
             SMTP_MANAGER.lock().unwrap().set_app_handle(handle.clone());
-            set_sync_status_app_handle(handle);
+            set_sync_status_app_handle(handle.clone());
+
+            // Start auto-lock timer
+            let timer_handle = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                crate::security::start_lock_timer(timer_handle).await;
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -45,6 +52,16 @@ pub fn run() {
             cmd::security::check_security_options,
             cmd::security::check_tpm_availability,
             cmd::security::initialize_security,
+            cmd::security::record_lock_activity,
+            cmd::security::is_app_locked,
+            cmd::security::unlock_app,
+            cmd::security::set_auto_lock_timeout,
+            cmd::security::get_auto_lock_timeout,
+            cmd::security::set_auto_lock_pin,
+            cmd::security::use_encryption_password_for_lock,
+            cmd::security::is_lock_using_encryption_password,
+            cmd::security::is_lock_configured,
+            cmd::security::get_security_method,
             cmd::mail::listing::fetch_mailboxes,
             cmd::mail::listing::fetch_headers,
             cmd::mail::listing::fetch_message_full,

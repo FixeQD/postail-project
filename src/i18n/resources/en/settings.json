@@ -82,7 +82,25 @@
 			"title": "Session",
 			"autoLock": {
 				"label": "Auto-lock",
-				"description": "Lock the app after a period of inactivity."
+				"description": "Lock the app after a period of inactivity.",
+				"timeout": {
+					"label": "Lock after",
+					"options": {
+						"1min": "1 minute",
+						"5min": "5 minutes",
+						"10min": "10 minutes",
+						"15min": "15 minutes",
+						"30min": "30 minutes",
+						"60min": "1 hour"
+					}
+				},
+				"setupPin": {
+					"title": "Set up PIN",
+					"description": "Create a PIN to unlock the app when auto-lock is enabled.",
+					"pinPlaceholder": "Enter PIN",
+					"confirmPlaceholder": "Confirm PIN",
+					"usePassword": "Use encryption password instead"
+				}
 			}
 		},
 		"data": {

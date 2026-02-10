@@ -13,8 +13,10 @@ import { SettingsScreen } from './components/Settings/SettingsScreen'
 import { InboxScreen } from './components/Inbox/InboxScreen'
 import { OutboxPanel } from './components/Outbox/OutboxPanel'
 import { StatusBar } from './components/StatusBar'
+import { LockScreen } from './components/LockScreen'
 import { Toaster, toast } from 'sonner'
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
+import { useAutoLock } from './hooks/useAutoLock'
 import type { AccountMeta } from './types/accounts'
 import { useSettingsStore } from './stores/settingsStore'
 import { useThemeStore } from './stores/themeStore'
@@ -40,6 +42,7 @@ function App() {
 	const loadSettings = useSettingsStore((s) => s.loadSettings)
 	const { loadTheme, accentColor, persistTheme } = useThemeStore()
 	const animationsEnabled = useAnimationsEnabled()
+	const { isLocked, unlock, useEncryptionPassword } = useAutoLock()
 
 	useEffect(() => {
 		loadSettings()
@@ -389,6 +392,11 @@ function App() {
 						boxShadow: '0 8px 32px -4px rgba(0, 0, 0, 0.4)',
 					},
 				}}
+			/>
+			<LockScreen
+				isLocked={isLocked}
+				onUnlock={unlock}
+				useEncryptionPassword={useEncryptionPassword}
 			/>
 		</div>
 	)
