@@ -47,3 +47,20 @@ pub fn upsert_mailbox(
     )?;
     Ok(())
 }
+
+pub fn get_mailbox_by_role(
+    conn: &Connection,
+    account_id: &str,
+    role: &str,
+) -> Result<Option<String>, DBError> {
+    let result: Result<String, rusqlite::Error> = conn.query_row(
+        "SELECT name FROM mailboxes WHERE account_id = ? AND role = ? LIMIT 1",
+        params![account_id, role],
+        |row| row.get(0),
+    );
+    match result {
+        Ok(name) => Ok(Some(name)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e.into()),
+    }
+}

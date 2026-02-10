@@ -11,6 +11,8 @@ pub struct FlagOperation {
     pub uid: u32,
     pub operation: String,
     pub flags: Vec<String>,
+    pub target_mailbox: Option<String>, // For MOVE operations
+    pub operation_type: String,         // "flag" or "move"
     pub created_at: i64,
     pub attempts: i32,
     pub last_error: Option<String>,
@@ -26,8 +28,8 @@ pub fn enqueue_flag_change(
 ) -> Result<i64, DBError> {
     let flags_json = serde_json::to_string(flags)?;
     conn.execute(
-        "INSERT INTO flag_sync_queue (account_id, mailbox, uid, operation, flags, created_at, attempts)
-         VALUES (?, ?, ?, ?, ?, ?, 0)",
+        "INSERT INTO flag_sync_queue (account_id, mailbox, uid, operation, flags, operation_type, created_at, attempts)
+         VALUES (?, ?, ?, ?, ?, 'flag', ?, 0)",
         params![
             account_id,
             mailbox,
@@ -40,13 +42,34 @@ pub fn enqueue_flag_change(
     Ok(conn.last_insert_rowid())
 }
 
+pub fn enqueue_move_operation(
+    conn: &Connection,
+    account_id: &str,
+    source_mailbox: &str,
+    target_mailbox: &str,
+    uid: u32,
+) -> Result<i64, DBError> {
+    conn.execute(
+        "INSERT INTO flag_sync_queue (account_id, mailbox, uid, operation, flags, operation_type, target_mailbox, created_at, attempts)
+         VALUES (?, ?, ?, 'move', '[]', 'move', ?, ?, 0)",
+        params![
+            account_id,
+            source_mailbox,
+            uid,
+            target_mailbox,
+            Utc::now().timestamp()
+        ],
+    )?;
+    Ok(conn.last_insert_rowid())
+}
+
 pub fn get_pending_flag_operations(
     conn: &Connection,
     account_id: &str,
     max_attempts: i32,
 ) -> Result<Vec<FlagOperation>, DBError> {
     let mut stmt = conn.prepare(
-        "SELECT id, account_id, mailbox, uid, operation, flags, created_at, attempts, last_error
+        "SELECT id, account_id, mailbox, uid, operation, flags, operation_type, target_mailbox, created_at, attempts, last_error
          FROM flag_sync_queue
          WHERE account_id = ? AND attempts < ? AND synced_at IS NULL
          ORDER BY created_at ASC",
@@ -63,9 +86,13 @@ pub fn get_pending_flag_operations(
                 uid: row.get(3)?,
                 operation: row.get(4)?,
                 flags,
-                created_at: row.get(6)?,
-                attempts: row.get(7)?,
-                last_error: row.get(8)?,
+                operation_type: row
+                    .get::<_, Option<String>>(6)?
+                    .unwrap_or_else(|| "flag".to_string()),
+                target_mailbox: row.get(7)?,
+                created_at: row.get(8)?,
+                attempts: row.get(9)?,
+                last_error: row.get(10)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;

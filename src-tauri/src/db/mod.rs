@@ -29,7 +29,7 @@ pub use crate::db::contacts::*;
 pub use crate::db::drafts::*;
 pub use crate::db::flag_queue::*;
 pub use crate::db::imap::*;
-pub use crate::db::mailbox::{fetch_mailboxes, upsert_mailbox};
+pub use crate::db::mailbox::{fetch_mailboxes, get_mailbox_by_role, upsert_mailbox};
 pub use crate::db::message_bodies::*;
 pub use crate::db::messages::{
     batch_insert_messages, fetch_headers, fetch_message_full, mark_read, move_to_trash,

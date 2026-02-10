@@ -57,7 +57,7 @@ pub fn run() {
             cmd::mail::sync::unwatch_mailbox,
             cmd::mail::actions::search_messages,
             cmd::mail::actions::mark_read,
-            cmd::mail::actions::move_to_trash,
+            cmd::mail::actions::delete_messages,
             cmd::smtp::enqueue_message,
             cmd::smtp::list_outbox,
             cmd::smtp::retry_sending,

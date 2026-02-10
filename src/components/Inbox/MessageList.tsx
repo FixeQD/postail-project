@@ -4,7 +4,7 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { format, isToday, isYesterday, isThisYear } from 'date-fns'
-import { Star, Archive, Trash2, MailOpen, Mail, FolderSync } from 'lucide-react'
+import { Star, Trash2, MailOpen, Mail, FolderSync } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import type { MailHeader, Mailbox } from '../../types/mail'
@@ -392,12 +392,19 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 									}}
 									onClick={(e) => e.stopPropagation()}
 								/>
-								<button
-									type='button'
+								<span
+									role='button'
+									tabIndex={0}
 									className='rounded-md p-0.5 text-slate-700 transition-colors hover:text-amber-400 focus:outline-none'
-									onClick={(e) => e.stopPropagation()}>
+									onClick={(e) => e.stopPropagation()}
+									onKeyDown={(e) => {
+										if (e.key === 'Enter' || e.key === ' ') {
+											e.preventDefault()
+											// TODO: implement star toggle
+										}
+									}}>
 									<Star className='h-4 w-4' />
-								</button>
+								</span>
 							</div>
 
 							{/* Main Content */}
@@ -442,13 +449,68 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 												transition={{ duration: 0.12 }}
 												className='flex items-center gap-0.5'>
 												<ActionBtn
-													icon={<Archive className='h-[15px] w-[15px]' />}
-													tooltip={t('inbox:messageList.actions.archive')}
-												/>
-												<ActionBtn
 													icon={<Trash2 className='h-[15px] w-[15px]' />}
 													tooltip={t('inbox:messageList.actions.delete')}
 													destructive
+													onClick={async () => {
+														const queryKey = [
+															'messages',
+															account.id,
+															mailbox,
+														] as const
+														const previousData =
+															queryClient.getQueryData<{
+																pages: MailHeader[][]
+															}>(queryKey)
+
+														if (previousData) {
+															const newPages = previousData.pages.map(
+																(page: MailHeader[]) =>
+																	page.filter(
+																		(m: MailHeader) =>
+																			m.uid !== message.uid
+																	)
+															)
+															queryClient.setQueryData(queryKey, {
+																...previousData,
+																pages: newPages,
+															})
+														}
+
+														try {
+															await invoke('delete_messages', {
+																accountId: account.id,
+																mailbox,
+																uids: [message.uid],
+															})
+															const trashMailbox = mailboxes?.find(
+																(m) => m.role === 'trash'
+															)
+															if (trashMailbox) {
+																queryClient.invalidateQueries({
+																	queryKey: [
+																		'messages',
+																		account.id,
+																		trashMailbox.name,
+																	],
+																})
+															}
+														} catch (error) {
+															// Rollback on error
+															if (previousData) {
+																queryClient.setQueryData(
+																	queryKey,
+																	previousData
+																)
+															}
+															toast.error(
+																'Failed to delete message',
+																{
+																	description: String(error),
+																}
+															)
+														}
+													}}
 												/>
 												<ActionBtn
 													icon={
@@ -509,52 +571,6 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 											</motion.span>
 										)}
 									</AnimatePresence>
-								) : isHovered ? (
-									<div className='flex items-center gap-0.5'>
-										<ActionBtn
-											icon={<Archive className='h-[15px] w-[15px]' />}
-											tooltip={t('inbox:messageList.actions.archive')}
-										/>
-										<ActionBtn
-											icon={<Trash2 className='h-[15px] w-[15px]' />}
-											tooltip={t('inbox:messageList.actions.delete')}
-											destructive
-										/>
-										<ActionBtn
-											icon={
-												isUnread ? (
-													<MailOpen className='h-[15px] w-[15px]' />
-												) : (
-													<Mail className='h-[15px] w-[15px]' />
-												)
-											}
-											tooltip={
-												isUnread
-													? t('inbox:messageList.actions.markRead')
-													: t('inbox:messageList.actions.markUnread')
-											}
-											onClick={async () => {
-												try {
-													await invoke('mark_read', {
-														accountId: account.id,
-														mailbox,
-														uids: [message.uid],
-														read: isUnread,
-													})
-													queryClient.invalidateQueries({
-														queryKey: ['messages', account.id, mailbox],
-													})
-												} catch (error) {
-													toast.error(
-														`Failed to mark message as ${isUnread ? 'read' : 'unread'}`,
-														{
-															description: String(error),
-														}
-													)
-												}
-											}}
-										/>
-									</div>
 								) : (
 									<span
 										className={`text-xs tabular-nums ${

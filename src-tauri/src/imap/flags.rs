@@ -204,6 +204,67 @@ impl ImapManager {
 
         Ok(())
     }
+
+    pub async fn move_messages_remote(
+        &self,
+        account_id: &str,
+        source_mailbox: &str,
+        target_mailbox: &str,
+        uids: &[u32],
+    ) -> Result<(), AppError> {
+        if uids.is_empty() {
+            return Ok(());
+        }
+
+        let mut session = self.connect_imap(account_id).await?;
+        session.select(source_mailbox).await.map_err(AppError::from)?;
+
+        let uid_set = format_uid_set(uids);
+
+        tracing::info!(target: "postail",
+            "[IMAP] Moving messages from {} to {}: {}",
+            source_mailbox, target_mailbox, uid_set
+        );
+
+        // Try UID MOVE first (RFC 6851)
+        match session.uid_mv(&uid_set, target_mailbox).await {
+            Ok(_) => {
+                tracing::info!(target: "postail",
+                    "[IMAP] Successfully moved {} messages using UID MOVE", uids.len()
+                );
+            }
+            Err(e) => {
+                // Fallback: COPY + STORE \Deleted + EXPUNGE
+                tracing::warn!(target: "postail",
+                    "[IMAP] UID MOVE failed ({}), falling back to COPY+DELETE", e
+                );
+
+                session
+                    .uid_copy(&uid_set, target_mailbox)
+                    .await
+                    .map_err(AppError::from)?;
+
+                {
+                    let mut store_stream = session
+                        .uid_store(&uid_set, "+FLAGS.SILENT (\\Deleted)")
+                        .await
+                        .map_err(AppError::from)?;
+
+                    while let Some(_) = store_stream.next().await {}
+                }
+
+                session.expunge().await.map_err(AppError::from)?;
+
+                tracing::info!(target: "postail",
+                    "[IMAP] Successfully moved {} messages using COPY+DELETE", uids.len()
+                );
+            }
+        }
+
+        session.logout().await.map_err(AppError::from)?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
