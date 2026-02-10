@@ -47,7 +47,13 @@ impl ImapManager {
                     .ok_or("Database not initialized".to_string())?;
                 let mut stmt = conn
                     .prepare(
-                        "INSERT OR REPLACE INTO mailboxes (account_id, name, uid_validity, last_synced_uid) VALUES (?, ?, ?, 0)",
+                        "INSERT INTO mailboxes (account_id, name, uid_validity, last_synced_uid) VALUES (?, ?, ?, 0)
+                         ON CONFLICT(account_id, name) DO UPDATE SET
+                            uid_validity = excluded.uid_validity,
+                            last_synced_uid = CASE 
+                                WHEN mailboxes.uid_validity != excluded.uid_validity THEN 0 
+                                ELSE mailboxes.last_synced_uid 
+                            END",
                     )
                     .map_err(|e| e.to_string())?;
                 stmt.execute([account_id, mailbox_name, &server_uidvalidity.to_string()])
