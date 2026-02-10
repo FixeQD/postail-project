@@ -30,16 +30,26 @@ static LOCK_STATE: Lazy<Arc<Mutex<LockState>>> =
 pub fn load_settings() {
     let mut state = LOCK_STATE.lock().unwrap();
 
-    // Load timeout
+    // Load timeout (default 5 minutes if not set)
     if let Ok(Some(timeout_str)) = get_setting("lock_timeout_minutes") {
         if let Ok(minutes) = timeout_str.parse::<u64>() {
-            state.timeout = Duration::from_secs(minutes * 60);
+            if minutes > 0 {
+                state.timeout = Duration::from_secs(minutes * 60);
+            } else {
+                state.timeout = Duration::from_secs(300); // 5 min default
+            }
+        } else {
+            state.timeout = Duration::from_secs(300);
         }
+    } else {
+        state.timeout = Duration::from_secs(300); // 5 min default
     }
 
     // Load PIN hash
     if let Ok(Some(pin_hash)) = get_setting("lock_pin_hash") {
-        state.pin_hash = Some(pin_hash);
+        if !pin_hash.is_empty() {
+            state.pin_hash = Some(pin_hash);
+        }
     }
 
     // Load encryption password flag

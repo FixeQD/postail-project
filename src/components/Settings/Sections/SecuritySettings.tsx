@@ -78,8 +78,11 @@ export function SecuritySettings() {
 	const handlePinSetup = async () => {
 		if (useEncryptionPassword) {
 			await invoke('use_encryption_password_for_lock')
+			await invoke('set_auto_lock_timeout', { minutes: 5 })
 			setShowPinSetup(false)
 			setAutoLockEnabled(true)
+			setIsLockConfigured(true)
+			setTimeout(5)
 			toast.success('Auto-lock enabled with encryption password')
 			return
 		}
@@ -95,11 +98,13 @@ export function SecuritySettings() {
 		}
 
 		await invoke('set_auto_lock_pin', { pin })
+		await invoke('set_auto_lock_timeout', { minutes: 5 })
 		setShowPinSetup(false)
 		setAutoLockEnabled(true)
 		setIsLockConfigured(true)
 		setPin('')
 		setConfirmPin('')
+		setTimeout(5)
 		toast.success('Auto-lock enabled')
 	}
 
@@ -181,9 +186,11 @@ export function SecuritySettings() {
 										className='flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/50 px-4 py-2 text-sm text-slate-200 transition-colors hover:bg-slate-700/50'>
 										<span>
 											{t('settings:security.session.autoLock.timeout.label')}:{' '}
-											{t(
-												`settings:security.session.autoLock.timeout.options.${TIMEOUT_OPTIONS.find((o) => o.value === timeout)?.label}`
-											)}
+											{TIMEOUT_OPTIONS.find((o) => o.value === timeout)
+												? t(
+														`settings:security.session.autoLock.timeout.options.${TIMEOUT_OPTIONS.find((o) => o.value === timeout)?.label}`
+													)
+												: `${timeout} minutes`}
 										</span>
 										<ChevronDown className='h-4 w-4' />
 									</button>
