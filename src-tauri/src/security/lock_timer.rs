@@ -1,6 +1,5 @@
 use crate::security::lock::{lock, should_lock};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use tokio::time::{interval, Duration};
 

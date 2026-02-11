@@ -3,6 +3,7 @@ use rusqlite::{params, Connection};
 use std::fs;
 use tempfile::NamedTempFile;
 
+use postail_project_lib::db::backup::run_migrations;
 use postail_project_lib::db::tables::create_tables;
 use postail_project_lib::db::{
     add_account, list_accounts, remove_account, AccountInput, Credentials, ImapConfig,
@@ -16,6 +17,7 @@ fn init_temp_db() -> Connection {
     fs::remove_file(db_path).unwrap();
     let conn = Connection::open(db_path).unwrap();
     create_tables(&conn).unwrap();
+    run_migrations(&conn).unwrap();
     conn
 }
 

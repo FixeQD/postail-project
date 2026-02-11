@@ -125,6 +125,17 @@ pub const MIGRATIONS: &[Migration] = &[
             Ok(())
         },
     },
+    Migration {
+        version: 5,
+        name: "Add role column to mailboxes",
+        up: |conn| {
+            conn.execute(
+                "ALTER TABLE mailboxes ADD COLUMN role TEXT NOT NULL DEFAULT 'other'",
+                [],
+            )?;
+            Ok(())
+        },
+    },
 ];
 
 pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {

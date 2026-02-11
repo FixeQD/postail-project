@@ -253,7 +253,10 @@ impl ImapManager {
                     while let Some(_) = store_stream.next().await {}
                 }
 
-                session.expunge().await.map_err(AppError::from)?;
+                {
+                    let mut expunge_stream = Box::pin(session.expunge().await.map_err(AppError::from)?);
+                    while let Some(_) = expunge_stream.next().await {}
+                }
 
                 tracing::info!(target: "postail",
                     "[IMAP] Successfully moved {} messages using COPY+DELETE", uids.len()
