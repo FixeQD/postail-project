@@ -8,6 +8,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { toast } from 'sonner'
 
 const TIMEOUT_OPTIONS = [
+	{ value: 0, label: 'disabled' },
 	{ value: 1, label: '1min' },
 	{ value: 5, label: '5min' },
 	{ value: 10, label: '10min' },
@@ -73,6 +74,11 @@ export function SecuritySettings() {
 		setTimeout(minutes)
 		await invoke('set_auto_lock_timeout', { minutes })
 		setShowTimeoutDropdown(false)
+		if (minutes === 0) {
+			setAutoLockEnabled(false)
+			setIsLockConfigured(false)
+			toast.success('Auto-lock disabled')
+		}
 	}
 
 	const handlePinSetup = async () => {
@@ -186,11 +192,13 @@ export function SecuritySettings() {
 										className='flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/50 px-4 py-2 text-sm text-slate-200 transition-colors hover:bg-slate-700/50'>
 										<span>
 											{t('settings:security.session.autoLock.timeout.label')}:{' '}
-											{TIMEOUT_OPTIONS.find((o) => o.value === timeout)
-												? t(
-														`settings:security.session.autoLock.timeout.options.${TIMEOUT_OPTIONS.find((o) => o.value === timeout)?.label}`
-													)
-												: `${timeout} minutes`}
+											{timeout === 0
+												? 'Disabled'
+												: TIMEOUT_OPTIONS.find((o) => o.value === timeout)
+													? t(
+															`settings:security.session.autoLock.timeout.options.${TIMEOUT_OPTIONS.find((o) => o.value === timeout)?.label}`
+														)
+													: `${timeout} minutes`}
 										</span>
 										<ChevronDown className='h-4 w-4' />
 									</button>

@@ -86,6 +86,7 @@
 				"timeout": {
 					"label": "Lock after",
 					"options": {
+						"disabled": "Disabled",
 						"1min": "1 minute",
 						"5min": "5 minutes",
 						"10min": "10 minutes",

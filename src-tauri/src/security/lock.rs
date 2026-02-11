@@ -17,7 +17,7 @@ impl Default for LockState {
         Self {
             is_locked: false,
             last_activity: Instant::now(),
-            timeout: Duration::from_secs(0), // Disabled by default
+            timeout: Duration::from_secs(0), // Disabled by default (0 = no auto-lock)
             pin_hash: None,
             use_encryption_password: false,
         }
@@ -30,19 +30,11 @@ static LOCK_STATE: Lazy<Arc<Mutex<LockState>>> =
 pub fn load_settings() {
     let mut state = LOCK_STATE.lock().unwrap();
 
-    // Load timeout (default 5 minutes if not set)
+    // Load timeout (default 0/disabled if not set)
     if let Ok(Some(timeout_str)) = get_setting("lock_timeout_minutes") {
         if let Ok(minutes) = timeout_str.parse::<u64>() {
-            if minutes > 0 {
-                state.timeout = Duration::from_secs(minutes * 60);
-            } else {
-                state.timeout = Duration::from_secs(300); // 5 min default
-            }
-        } else {
-            state.timeout = Duration::from_secs(300);
+            state.timeout = Duration::from_secs(minutes * 60);
         }
-    } else {
-        state.timeout = Duration::from_secs(300); // 5 min default
     }
 
     // Load PIN hash
@@ -104,6 +96,10 @@ pub fn is_locked() -> bool {
 pub fn should_lock() -> bool {
     let state = LOCK_STATE.lock().unwrap();
     if state.is_locked {
+        return false;
+    }
+    // Don't lock if timeout is 0 (disabled)
+    if state.timeout.as_secs() == 0 {
         return false;
     }
     // Don't lock if no PIN is configured
