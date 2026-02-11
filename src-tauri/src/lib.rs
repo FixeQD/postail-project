@@ -62,6 +62,7 @@ pub fn run() {
             cmd::security::is_lock_using_encryption_password,
             cmd::security::is_lock_configured,
             cmd::security::get_security_method,
+            cmd::security::generate_recovery_phrase,
             cmd::mail::listing::fetch_mailboxes,
             cmd::mail::listing::fetch_headers,
             cmd::mail::listing::fetch_message_full,

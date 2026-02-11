@@ -4,6 +4,7 @@ use crate::security::stores::keyring::KeyringStore;
 use crate::security::stores::tpm::get_tpm_store;
 use crate::security::stores::{SecretStore, StorageTier};
 use crate::security::{DbEncryption, SecurityManager};
+use crate::security::recovery::RecoveryStore;
 use crate::utils::config::{load_config, save_config, AppConfig};
 use serde::Serialize;
 use std::sync::Arc;
@@ -83,6 +84,7 @@ pub fn get_app_initialization_status() -> InitStatus {
 pub fn initialize_security_and_database(
     method: &str,
     passphrase: Option<String>,
+    recovery_phrase: Option<String>,
 ) -> Result<(), String> {
     tracing::info!(target: "postail", "Initializing security with method: {}", method);
 
@@ -124,6 +126,16 @@ pub fn initialize_security_and_database(
         }
     }
 
+    // create recovery store if phrase was provided (argon2 setup only)
+    if let Some(phrase) = recovery_phrase {
+        let storage_path = crate::utils::config::get_data_dir().join("security");
+        let recovery_store = RecoveryStore::new(storage_path);
+        let security = SECURITY.lock().unwrap();
+        let master_key = security.export_master_key().map_err(|e| e.to_string())?;
+        recovery_store.create(&master_key, &phrase).map_err(|e| e.to_string())?;
+        tracing::info!(target: "postail", "Recovery store created");
+    }
+
     let encryption = {
         let security = SECURITY.lock().unwrap();
         let master_key_raw = security.get_master_key_raw();
@@ -161,11 +173,20 @@ pub fn initialize_security_and_database(
 }
 
 #[command]
-pub async fn initialize_security(method: String, passphrase: Option<String>) -> Result<(), String> {
+pub async fn initialize_security(
+    method: String,
+    passphrase: Option<String>,
+    recovery_phrase: Option<String>,
+) -> Result<(), String> {
     if method == "argon2" && passphrase.is_none() {
         return Err("Passphrase required for Argon2".to_string());
     }
-    initialize_security_and_database(&method, passphrase)
+    initialize_security_and_database(&method, passphrase, recovery_phrase)
+}
+
+#[command]
+pub fn generate_recovery_phrase() -> String {
+    crate::security::recovery::generate_phrase()
 }
 
 use crate::security::lock::{
