@@ -20,12 +20,12 @@ interface DecryptedTextProps extends HTMLMotionProps<'span'> {
 
 export default function DecryptedText({
 	text,
-	speed = 50,
-	maxIterations = 10,
+	speed = 30,
+	maxIterations = 40,
 	sequential = false,
 	revealDirection = 'start',
 	useOriginalCharsOnly = false,
-	characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!@#$%^&*()_+',
+	characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
 	className = '',
 	parentClassName = '',
 	encryptedClassName = '',

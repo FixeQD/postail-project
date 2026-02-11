@@ -13,7 +13,16 @@ export const RecoveryStep = ({ onNext }: { onNext: (phrase: string) => void }) =
 	const [words, setWords] = useState<string[]>([])
 	const [copied, setCopied] = useState(false)
 	const [saved, setSaved] = useState(false)
+	const [visibleIndices, setVisibleIndices] = useState<Set<number>>(new Set())
 	const [loading, setLoading] = useState(true)
+
+	const handleAnimationComplete = (index: number) => {
+		setVisibleIndices((prev) => {
+			const next = new Set(prev)
+			next.add(index)
+			return next
+		})
+	}
 
 	useEffect(() => {
 		const generate = async () => {
@@ -126,19 +135,24 @@ export const RecoveryStep = ({ onNext }: { onNext: (phrase: string) => void }) =
 										initial={{ opacity: 0, y: 10 }}
 										animate={{ opacity: 1, y: 0 }}
 										transition={{ delay: i * 0.05 + 0.2 }}
+										onAnimationComplete={() => handleAnimationComplete(i)}
 										className='group relative flex items-center gap-3 overflow-hidden rounded-lg bg-slate-800/40 px-3 py-2.5 ring-1 ring-white/[0.06] transition-all hover:bg-slate-800/60 hover:ring-white/[0.1]'>
 										<span className='w-6 shrink-0 text-xs font-medium text-slate-500'>
 											{i + 1}.
 										</span>
 										<span className='font-mono text-sm font-medium text-slate-200'>
-											<DecryptedText
-												text={word}
-												animateOn='view'
-												revealDirection='start'
-												speed={50}
-												maxIterations={10}
-												characters='abcdefghijklmnopqrstuvwxyz'
-											/>
+											{visibleIndices.has(i) ? (
+												<DecryptedText
+													text={word}
+													animateOn='view'
+													revealDirection='start'
+													speed={50}
+													maxIterations={20}
+													characters='abcdefghijklmnopqrstuvwxyz'
+												/>
+											) : (
+												<span className='invisible'>{word}</span>
+											)}
 										</span>
 									</motion.div>
 								))}
