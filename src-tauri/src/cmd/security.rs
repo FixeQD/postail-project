@@ -189,6 +189,80 @@ pub fn generate_recovery_phrase() -> String {
     crate::security::recovery::generate_phrase()
 }
 
+#[command]
+pub async fn unlock_with_recovery_phrase(phrase: String) -> Result<(), String> {
+    let storage_path = crate::utils::config::get_data_dir().join("security");
+    let recovery_store = crate::security::recovery::RecoveryStore::new(storage_path.clone());
+
+    if !recovery_store.exists() {
+        return Err("No recovery store found".to_string());
+    }
+
+    // decrypt master key from recovery phrase
+    let master_key = recovery_store.unlock(&phrase).map_err(|e| e.to_string())?;
+
+    let holder = crate::security::recovery::RecoveryKeyHolder::with_key(master_key);
+    let security = SecurityManager::with_store(Arc::new(holder), StorageTier::Passphrase);
+
+    {
+        let mut security_guard = SECURITY.lock().unwrap();
+        *security_guard = security;
+        security_guard.unlock().map_err(|e| e.to_string())?;
+    }
+
+    let encryption = {
+        let security = SECURITY.lock().unwrap();
+        let master_key_raw = security.get_master_key_raw();
+        DbEncryption::derive_from_master_key(&master_key_raw).map_err(|e| e.to_string())?
+    };
+    let hex_key = encryption.hex_key();
+
+    let data_dir = crate::utils::config::get_data_dir();
+    let db_path = data_dir.join("postail.db");
+
+    let db = if db_path.exists() {
+        crate::db::connect_db_with_key(&hex_key).map_err(|e| e.to_string())?
+    } else {
+        return Err("No database found to unlock".to_string());
+    };
+
+    {
+        let mut db_guard = DB_CONN.lock().unwrap();
+        *db_guard = Some(db);
+    }
+
+    crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
+    SMTP_MANAGER.lock().unwrap().start_outbox_worker();
+    crate::security::load_lock_settings();
+
+    tracing::info!(target: "postail", "Unlocked via recovery phrase");
+    Ok(())
+}
+
+#[command]
+pub fn verify_recovery_words(
+    phrase: String,
+    indices: Vec<usize>,
+    words: Vec<String>,
+) -> Result<bool, String> {
+    let phrase_words: Vec<&str> = phrase.split_whitespace().collect();
+
+    if phrase_words.len() != 12 {
+        return Err("Invalid phrase length".to_string());
+    }
+
+    for (idx, word) in indices.iter().zip(words.iter()) {
+        if *idx >= phrase_words.len() {
+            return Err(format!("Index {} out of range", idx));
+        }
+        if phrase_words[*idx] != word.trim().to_lowercase() {
+            return Ok(false);
+        }
+    }
+
+    Ok(true)
+}
+
 use crate::security::lock::{
     get_timeout_minutes, is_locked, is_using_encryption_password, record_activity, set_pin,
     set_timeout, unlock, use_encryption_password,

@@ -9,6 +9,51 @@ use zeroize::Zeroize;
 use crate::error::{Result, SecurityError};
 use crate::security::crypto::{decrypt_with_key, encrypt_with_key};
 use crate::security::master_key::{MasterKey, MASTER_KEY_LENGTH};
+use crate::security::stores::SecretStore;
+
+pub struct RecoveryKeyHolder {
+    key: std::sync::Mutex<Option<MasterKey>>,
+}
+
+impl RecoveryKeyHolder {
+    pub fn with_key(key: MasterKey) -> Self {
+        Self {
+            key: std::sync::Mutex::new(Some(key)),
+        }
+    }
+}
+
+impl SecretStore for RecoveryKeyHolder {
+    fn store(&self, key: &MasterKey) -> Result<()> {
+        *self.key.lock().unwrap() = Some(key.clone());
+        Ok(())
+    }
+
+    fn retrieve(&self) -> Result<MasterKey> {
+        self.key
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or(SecurityError::MasterKeyNotFound)
+    }
+
+    fn delete(&self) -> Result<()> {
+        *self.key.lock().unwrap() = None;
+        Ok(())
+    }
+
+    fn exists(&self) -> bool {
+        self.key.lock().unwrap().is_some()
+    }
+
+    fn is_available(&self) -> bool {
+        true
+    }
+
+    fn name(&self) -> &'static str {
+        "Recovery Key Holder"
+    }
+}
 
 const HKDF_INFO: &[u8] = b"postail-recovery-key-v1";
 
