@@ -27,6 +27,14 @@
 			"copied": "Copied!",
 			"saved": "Saved!",
 			"continue": "I have saved my recovery phrase"
+		},
+		"verify": {
+			"title": "Verify Recovery Phrase",
+			"description": "Enter the following words from your recovery phrase to confirm you have saved it securely.",
+			"wordLabel": "Word #{{number}}",
+			"placeholder": "Enter word #{{number}}",
+			"verify": "Verify & Continue",
+			"error": "Incorrect words. Please check your phrase and try again."
 		}
 	}
 }

@@ -127,12 +127,15 @@ pub fn initialize_security_and_database(
     }
 
     // create recovery store if phrase was provided (argon2 setup only)
-    if let Some(phrase) = recovery_phrase {
+    let phrase_to_use = recovery_phrase.or_else(|| crate::security::recovery::get_pending_phrase());
+
+    if let Some(phrase) = phrase_to_use {
         let storage_path = crate::utils::config::get_data_dir().join("security");
         let recovery_store = RecoveryStore::new(storage_path);
         let security = SECURITY.lock().unwrap();
         let master_key = security.export_master_key().map_err(|e| e.to_string())?;
         recovery_store.create(&master_key, &phrase).map_err(|e| e.to_string())?;
+        crate::security::recovery::clear_pending_phrase(); // Clear checking phrase after use
         tracing::info!(target: "postail", "Recovery store created");
     }
 
@@ -186,7 +189,9 @@ pub async fn initialize_security(
 
 #[command]
 pub fn generate_recovery_phrase() -> String {
-    crate::security::recovery::generate_phrase()
+    let phrase = crate::security::recovery::generate_phrase();
+    crate::security::recovery::store_pending_phrase(phrase.clone());
+    phrase
 }
 
 #[command]
@@ -241,26 +246,11 @@ pub async fn unlock_with_recovery_phrase(phrase: String) -> Result<(), String> {
 
 #[command]
 pub fn verify_recovery_words(
-    phrase: String,
     indices: Vec<usize>,
     words: Vec<String>,
 ) -> Result<bool, String> {
-    let phrase_words: Vec<&str> = phrase.split_whitespace().collect();
-
-    if phrase_words.len() != 12 {
-        return Err("Invalid phrase length".to_string());
-    }
-
-    for (idx, word) in indices.iter().zip(words.iter()) {
-        if *idx >= phrase_words.len() {
-            return Err(format!("Index {} out of range", idx));
-        }
-        if phrase_words[*idx] != word.trim().to_lowercase() {
-            return Ok(false);
-        }
-    }
-
-    Ok(true)
+    crate::security::recovery::verify_pending_phrase(&indices, &words)
+        .map_err(|e| e.to_string())
 }
 
 use crate::security::lock::{

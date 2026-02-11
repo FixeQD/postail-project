@@ -1,6 +1,9 @@
 use std::fs;
 use std::path::PathBuf;
 
+use lazy_static::lazy_static;
+use std::sync::Mutex;
+
 use bip39::{Language, Mnemonic, MnemonicType};
 use hkdf::Hkdf;
 use sha2::Sha256;
@@ -53,6 +56,49 @@ impl SecretStore for RecoveryKeyHolder {
     fn name(&self) -> &'static str {
         "Recovery Key Holder"
     }
+}
+
+lazy_static! {
+    static ref PENDING_PHRASE: Mutex<Option<String>> = Mutex::new(None);
+}
+
+pub fn store_pending_phrase(phrase: String) {
+    let mut guard = PENDING_PHRASE.lock().unwrap();
+    *guard = Some(phrase);
+}
+
+pub fn get_pending_phrase() -> Option<String> {
+    let guard = PENDING_PHRASE.lock().unwrap();
+    guard.clone()
+}
+
+pub fn clear_pending_phrase() {
+    let mut guard = PENDING_PHRASE.lock().unwrap();
+    *guard = None;
+}
+
+pub fn verify_pending_phrase(indices: &[usize], words: &[String]) -> Result<bool> {
+    let guard = PENDING_PHRASE.lock().unwrap();
+    let phrase = match &*guard {
+        Some(p) => p,
+        None => return Ok(false), // No pending phrase to verify against
+    };
+
+    let phrase_words: Vec<&str> = phrase.split_whitespace().collect();
+    if phrase_words.len() != 12 {
+        return Ok(false);
+    }
+
+    for (idx, word) in indices.iter().zip(words.iter()) {
+        if *idx >= phrase_words.len() {
+            return Ok(false);
+        }
+        if phrase_words[*idx] != word.trim().to_lowercase() {
+            return Ok(false);
+        }
+    }
+
+    Ok(true)
 }
 
 const HKDF_INFO: &[u8] = b"postail-recovery-key-v1";

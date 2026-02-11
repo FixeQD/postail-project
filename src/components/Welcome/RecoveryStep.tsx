@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
-import { Copy, Download, Printer, Check, ShieldAlert, ArrowRight } from 'lucide-react'
+import { Copy, Download, Check, ShieldAlert, ArrowRight } from 'lucide-react'
 import DecryptedText from '../DecryptedText'
 import { useThemeStore } from '@/stores/themeStore'
 
