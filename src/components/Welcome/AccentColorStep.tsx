@@ -194,20 +194,20 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 									exit={{ opacity: 0, height: 0 }}
 									transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
 									className='overflow-hidden'>
-									<div className='flex items-start gap-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5'>
-										<div className='color-picker-container'>
+									<div className='flex items-start gap-6 rounded-2xl border border-white/[0.08] bg-slate-950/40 p-5 shadow-inner backdrop-blur-md'>
+										<div className='color-picker-container shadow-2xl'>
 											<HexColorPicker
 												color={customColor}
 												onChange={handleCustomColorChange}
 											/>
 										</div>
 										<div className='flex flex-col gap-3'>
-											<label className='text-xs font-medium text-slate-400'>
+											<label className='text-[10px] font-bold tracking-widest text-slate-500 uppercase'>
 												Hex
 											</label>
 											<div className='flex items-center gap-2'>
 												<div
-													className='h-8 w-8 rounded-lg shadow-inner ring-1 ring-white/[0.1]'
+													className='h-9 w-9 rounded-lg shadow-lg ring-1 ring-white/[0.1]'
 													style={{ backgroundColor: customColor }}
 												/>
 												<input
@@ -221,32 +221,32 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 																setAccentColor(val)
 														}
 													}}
-													className='w-24 rounded-lg bg-slate-800/60 px-3 py-1.5 font-mono text-sm text-slate-200 ring-1 ring-white/[0.08] transition-all focus:ring-white/[0.2] focus:outline-none'
+													className='w-28 rounded-lg bg-slate-900/80 px-3 py-2 font-mono text-sm text-slate-100 ring-1 ring-white/[0.08] transition-all focus:ring-white/[0.2] focus:outline-none'
 													maxLength={7}
 												/>
 											</div>
 
 											{/* Preview mini elements */}
-											<div className='mt-2 space-y-2'>
-												<p className='text-[10px] font-semibold tracking-wider text-slate-600 uppercase'>
+											<div className='mt-3 space-y-3'>
+												<p className='text-[10px] font-bold tracking-widest text-slate-500 uppercase'>
 													Preview
 												</p>
 												<button
 													type='button'
-													className='text-accent-contrast rounded-lg px-4 py-1.5 text-xs font-semibold shadow-md transition-transform hover:scale-105'
+													className='text-accent-contrast rounded-xl px-5 py-2 text-xs font-bold shadow-lg transition-transform hover:scale-105 active:scale-95'
 													style={{
 														background: `linear-gradient(to right, ${customColor}, ${customColor}dd)`,
-														boxShadow: `0 4px 12px -2px ${customColor}40`,
+														boxShadow: `0 8px 20px -4px ${customColor}40`,
 													}}>
 													Button
 												</button>
-												<div className='flex items-center gap-2'>
+												<div className='flex items-center gap-2.5'>
 													<div
-														className='h-2 w-2 rounded-full'
+														className='h-2.5 w-2.5 rounded-full shadow-sm'
 														style={{ backgroundColor: customColor }}
 													/>
 													<span
-														className='text-xs font-medium'
+														className='text-xs font-bold'
 														style={{ color: customColor }}>
 														Active text
 													</span>

@@ -418,13 +418,18 @@ function App() {
 				<StatusBar onOpenOutbox={() => setOutboxOpen(true)} accounts={accounts} />
 			)}
 			<Toaster
+				position='bottom-right'
+				offset={24}
 				toastOptions={{
 					style: {
-						background: 'rgba(15, 23, 42, 0.95)',
-						border: '1px solid rgba(255, 255, 255, 0.06)',
-						color: '#e2e8f0',
-						backdropFilter: 'blur(12px)',
-						boxShadow: '0 8px 32px -4px rgba(0, 0, 0, 0.4)',
+						background: 'rgba(15, 23, 42, 0.9)',
+						border: '1px solid rgba(255, 255, 255, 0.08)',
+						color: '#f8fafc',
+						backdropFilter: 'blur(16px)',
+						WebkitBackdropFilter: 'blur(16px)',
+						boxShadow: '0 10px 40px -6px rgba(0, 0, 0, 0.5)',
+						borderRadius: '14px',
+						padding: '12px 16px',
 					},
 				}}
 			/>
