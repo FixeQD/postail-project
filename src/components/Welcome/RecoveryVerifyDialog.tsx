@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { useWelcomeTranslation } from '../../hooks/useTypedTranslation'
+import { useTranslation } from 'react-i18next'
 import {
 	Dialog,
 	DialogContent,
@@ -23,7 +23,7 @@ export function RecoveryVerifyDialog({
 	onClose,
 	onVerified,
 }: RecoveryVerifyDialogProps) {
-	const { t } = useWelcomeTranslation()
+	const { t } = useTranslation(['welcome', 'common'])
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const [indices, setIndices] = useState<number[]>([])
 	const [inputs, setInputs] = useState<string[]>(['', '', ''])
