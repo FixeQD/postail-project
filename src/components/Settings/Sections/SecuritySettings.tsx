@@ -178,7 +178,7 @@ export function SecuritySettings() {
 							<motion.div
 								initial={{ opacity: 0, height: 0 }}
 								animate={{ opacity: 1, height: 'auto' }}
-								className='mt-2 ml-11 space-y-2'>
+								className='mt-2 ml-11 flex flex-wrap items-center gap-2'>
 								<div className='relative'>
 									<button
 										type='button'
@@ -228,7 +228,7 @@ export function SecuritySettings() {
 											setPin('')
 											setConfirmPin('')
 										}}
-										className='rounded-lg border border-slate-600 bg-slate-800/50 px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-slate-700/50'>
+										className='flex h-9 items-center justify-center rounded-lg border border-slate-700 bg-slate-900/50 px-4 text-sm text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-300'>
 										Change PIN
 									</button>
 								)}
