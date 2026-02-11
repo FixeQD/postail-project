@@ -9,6 +9,8 @@ import { AccentColorStep } from './components/Welcome/AccentColorStep'
 import { EncryptionChoice } from './components/Welcome/EncryptionChoice'
 import { Argon2Setup } from './components/Welcome/Argon2Setup'
 import { Argon2Unlock } from './components/Welcome/Argon2Unlock'
+import { RecoveryStep } from './components/Welcome/RecoveryStep'
+import { RecoveryVerifyDialog } from './components/Welcome/RecoveryVerifyDialog'
 import { SettingsScreen } from './components/Settings/SettingsScreen'
 import { InboxScreen } from './components/Inbox/InboxScreen'
 import { OutboxPanel } from './components/Outbox/OutboxPanel'
@@ -35,6 +37,7 @@ type AppState =
 	| 'dashboard'
 	| 'argon2-unlock'
 	| 'settings'
+	| 'recovery-setup'
 
 function App() {
 	const { t } = useTranslation()
@@ -56,6 +59,8 @@ function App() {
 	const [activeAccount, setActiveAccount] = useState<AccountMeta | null>(null)
 	const [activeMailbox, setActiveMailbox] = useState('INBOX')
 	const [outboxOpen, setOutboxOpen] = useState(false)
+	const [tempPassphrase, setTempPassphrase] = useState<string | null>(null)
+	const [showRecoveryVerify, setShowRecoveryVerify] = useState(false)
 
 	useGlobalShortcuts({
 		onNewMessage: () => {
@@ -206,6 +211,24 @@ function App() {
 		}
 	}
 
+	const handleRecoveryVerified = async () => {
+		try {
+			console.log('Recovery phrase verified, initializing Argon2...')
+			await invoke('initialize_security', {
+				method: 'argon2',
+				passphrase: tempPassphrase,
+			})
+			setShowRecoveryVerify(false)
+			await new Promise((resolve) => setTimeout(resolve, 100))
+			await persistTheme()
+			await loadSettings()
+			await fetchAccounts({ forceShowAccountsOnEmpty: true })
+		} catch (error) {
+			console.error('Failed to initialize Argon2 security:', error)
+			// TODO: Show error?
+		}
+	}
+
 	const handleBack = () => {
 		if (currentState === 'customize') {
 			setCurrentState('welcome')
@@ -306,11 +329,23 @@ function App() {
 				return (
 					<Argon2Setup
 						onBack={handleBack}
-						onComplete={async () => {
-							await persistTheme()
-							fetchAccounts({ forceShowAccountsOnEmpty: true })
+						onComplete={() => {}}
+						onInitialize={async (pass) => {
+							setTempPassphrase(pass)
+							setCurrentState('recovery-setup')
 						}}
 					/>
+				)
+			case 'recovery-setup':
+				return (
+					<>
+						<RecoveryStep onNext={() => setShowRecoveryVerify(true)} />
+						<RecoveryVerifyDialog
+							open={showRecoveryVerify}
+							onClose={() => setShowRecoveryVerify(false)}
+							onVerified={handleRecoveryVerified}
+						/>
+					</>
 				)
 			case 'argon2-unlock':
 				return <Argon2Unlock onBack={handleBack} onUnlock={handleUnlockSuccess} />
