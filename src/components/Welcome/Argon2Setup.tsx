@@ -8,9 +8,11 @@ import { ArrowLeft, Lock, Eye, EyeOff, AlertTriangle, ShieldCheck } from 'lucide
 export const Argon2Setup = ({
 	onBack,
 	onComplete,
+	onInitialize,
 }: {
 	onBack: () => void
 	onComplete: () => void
+	onInitialize?: (passphrase: string) => Promise<void>
 }) => {
 	const { t } = useSecurityTranslation()
 	const accentColor = useThemeStore((s) => s.accentColor)
@@ -38,10 +40,14 @@ export const Argon2Setup = ({
 		setError(null)
 
 		try {
-			await invoke('initialize_security', {
-				method: 'argon2',
-				passphrase,
-			})
+			if (onInitialize) {
+				await onInitialize(passphrase)
+			} else {
+				await invoke('initialize_security', {
+					method: 'argon2',
+					passphrase,
+				})
+			}
 			onComplete()
 		} catch (err) {
 			console.error('Failed to initialize Argon2 security:', err)

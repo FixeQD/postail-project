@@ -4,6 +4,7 @@ pub mod lock;
 pub mod lock_timer;
 pub mod manager;
 pub mod master_key;
+pub mod recovery;
 pub mod stores;
 pub mod tpm_init;
 pub mod zeroize_helpers;

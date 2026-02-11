@@ -4,6 +4,7 @@ use crate::security::stores::keyring::KeyringStore;
 use crate::security::stores::tpm::get_tpm_store;
 use crate::security::stores::{SecretStore, StorageTier};
 use crate::security::{DbEncryption, SecurityManager};
+use crate::security::recovery::RecoveryStore;
 use crate::utils::config::{load_config, save_config, AppConfig};
 use serde::Serialize;
 use std::sync::Arc;
@@ -83,6 +84,7 @@ pub fn get_app_initialization_status() -> InitStatus {
 pub fn initialize_security_and_database(
     method: &str,
     passphrase: Option<String>,
+    recovery_phrase: Option<String>,
 ) -> Result<(), String> {
     tracing::info!(target: "postail", "Initializing security with method: {}", method);
 
@@ -124,6 +126,19 @@ pub fn initialize_security_and_database(
         }
     }
 
+    // create recovery store if phrase was provided (argon2 setup only)
+    let phrase_to_use = recovery_phrase.or_else(|| crate::security::recovery::get_pending_phrase());
+
+    if let Some(phrase) = phrase_to_use {
+        let storage_path = crate::utils::config::get_data_dir().join("security");
+        let recovery_store = RecoveryStore::new(storage_path);
+        let security = SECURITY.lock().unwrap();
+        let master_key = security.export_master_key().map_err(|e| e.to_string())?;
+        recovery_store.create(&master_key, &phrase).map_err(|e| e.to_string())?;
+        crate::security::recovery::clear_pending_phrase(); // Clear checking phrase after use
+        tracing::info!(target: "postail", "Recovery store created");
+    }
+
     let encryption = {
         let security = SECURITY.lock().unwrap();
         let master_key_raw = security.get_master_key_raw();
@@ -161,11 +176,81 @@ pub fn initialize_security_and_database(
 }
 
 #[command]
-pub async fn initialize_security(method: String, passphrase: Option<String>) -> Result<(), String> {
+pub async fn initialize_security(
+    method: String,
+    passphrase: Option<String>,
+    recovery_phrase: Option<String>,
+) -> Result<(), String> {
     if method == "argon2" && passphrase.is_none() {
         return Err("Passphrase required for Argon2".to_string());
     }
-    initialize_security_and_database(&method, passphrase)
+    initialize_security_and_database(&method, passphrase, recovery_phrase)
+}
+
+#[command]
+pub fn generate_recovery_phrase() -> String {
+    let phrase = crate::security::recovery::generate_phrase();
+    crate::security::recovery::store_pending_phrase(phrase.clone());
+    phrase
+}
+
+#[command]
+pub async fn unlock_with_recovery_phrase(phrase: String) -> Result<(), String> {
+    let storage_path = crate::utils::config::get_data_dir().join("security");
+    let recovery_store = crate::security::recovery::RecoveryStore::new(storage_path.clone());
+
+    if !recovery_store.exists() {
+        return Err("No recovery store found".to_string());
+    }
+
+    // decrypt master key from recovery phrase
+    let master_key = recovery_store.unlock(&phrase).map_err(|e| e.to_string())?;
+
+    let holder = crate::security::recovery::RecoveryKeyHolder::with_key(master_key);
+    let security = SecurityManager::with_store(Arc::new(holder), StorageTier::Passphrase);
+
+    {
+        let mut security_guard = SECURITY.lock().unwrap();
+        *security_guard = security;
+        security_guard.unlock().map_err(|e| e.to_string())?;
+    }
+
+    let encryption = {
+        let security = SECURITY.lock().unwrap();
+        let master_key_raw = security.get_master_key_raw();
+        DbEncryption::derive_from_master_key(&master_key_raw).map_err(|e| e.to_string())?
+    };
+    let hex_key = encryption.hex_key();
+
+    let data_dir = crate::utils::config::get_data_dir();
+    let db_path = data_dir.join("postail.db");
+
+    let db = if db_path.exists() {
+        crate::db::connect_db_with_key(&hex_key).map_err(|e| e.to_string())?
+    } else {
+        return Err("No database found to unlock".to_string());
+    };
+
+    {
+        let mut db_guard = DB_CONN.lock().unwrap();
+        *db_guard = Some(db);
+    }
+
+    crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
+    SMTP_MANAGER.lock().unwrap().start_outbox_worker();
+    crate::security::load_lock_settings();
+
+    tracing::info!(target: "postail", "Unlocked via recovery phrase");
+    Ok(())
+}
+
+#[command]
+pub fn verify_recovery_words(
+    indices: Vec<usize>,
+    words: Vec<String>,
+) -> Result<bool, String> {
+    crate::security::recovery::verify_pending_phrase(&indices, &words)
+        .map_err(|e| e.to_string())
 }
 
 use crate::security::lock::{

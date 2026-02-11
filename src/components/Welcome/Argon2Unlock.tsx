@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { motion } from 'framer-motion'
-import { useSecurityTranslation } from '../../hooks/useTypedTranslation'
+import { useTypedTranslation } from '../../hooks/useTypedTranslation'
 import { useThemeStore } from '@/stores/themeStore'
 import { ArrowLeft, Lock, Eye, EyeOff, AlertTriangle } from 'lucide-react'
 import icon from '../../assets/icon.png'
@@ -13,9 +13,11 @@ export const Argon2Unlock = ({
 	onBack: () => void
 	onUnlock: () => void
 }) => {
-	const { t } = useSecurityTranslation()
+	const { t } = useTypedTranslation(['common', 'security', 'welcome'])
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const [passphrase, setPassphrase] = useState('')
+	const [recoveryPhrase, setRecoveryPhrase] = useState('')
+	const [isRecoveryMode, setIsRecoveryMode] = useState(false)
 	const [showPassword, setShowPassword] = useState(false)
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
@@ -27,14 +29,24 @@ export const Argon2Unlock = ({
 		setError(null)
 
 		try {
-			await invoke('initialize_security', {
-				method: 'argon2',
-				passphrase,
-			})
+			if (isRecoveryMode) {
+				await invoke('unlock_with_recovery_phrase', {
+					phrase: recoveryPhrase,
+				})
+			} else {
+				await invoke('initialize_security', {
+					method: 'argon2',
+					passphrase,
+				})
+			}
 			onUnlock()
 		} catch (err) {
-			console.error('Failed to unlock with Argon2:', err)
-			setError('Failed to unlock database. Incorrect password?')
+			console.error('Failed to unlock:', err)
+			setError(
+				isRecoveryMode
+					? t('welcome:recovery.verify.error')
+					: 'Failed to unlock database. Incorrect password?'
+			)
 		} finally {
 			setLoading(false)
 		}
@@ -110,41 +122,87 @@ export const Argon2Unlock = ({
 					transition={{ delay: 0.3, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
 					className='space-y-5'>
 					{/* Passphrase Input */}
-					<div>
-						<label
-							htmlFor='passphrase'
-							className='mb-2 block text-sm font-medium text-slate-300'>
-							{t('security:argon2.passphrase.label')}
-						</label>
-						<div className='group relative'>
-							<div className='pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5'>
-								<Lock
-									className='h-4 w-4 transition-colors duration-200'
-									style={{ color: passphrase ? accentColor : undefined }}
+					{/* Input Fields */}
+					<motion.div
+						key={isRecoveryMode ? 'recovery' : 'password'}
+						initial={{ opacity: 0, x: isRecoveryMode ? 20 : -20 }}
+						animate={{ opacity: 1, x: 0 }}
+						exit={{ opacity: 0, x: isRecoveryMode ? -20 : 20 }}
+						transition={{ duration: 0.3 }}>
+						{isRecoveryMode ? (
+							<div>
+								<label
+									htmlFor='recoveryPhrase'
+									className='mb-2 block text-sm font-medium text-slate-300'>
+									{t('welcome:recovery.unlock.label')}
+								</label>
+								<textarea
+									id='recoveryPhrase'
+									value={recoveryPhrase}
+									onChange={(e) => setRecoveryPhrase(e.target.value)}
+									className='min-h-[120px] w-full resize-none rounded-xl bg-slate-800/40 px-4 py-3 text-slate-100 placeholder-slate-600 ring-1 ring-white/[0.08] transition-all duration-200 focus:bg-slate-800/60 focus:outline-none'
+									placeholder={t('welcome:recovery.unlock.placeholder')}
+									required
+									autoFocus
+									style={
+										{
+											'--tw-ring-color': `rgba(var(--accent-rgb), 0.4)`,
+										} as React.CSSProperties
+									}
 								/>
+								<p className='mt-2 text-xs text-slate-500'>
+									{t('welcome:recovery.unlock.hint')}
+								</p>
 							</div>
-							<input
-								id='passphrase'
-								type={showPassword ? 'text' : 'password'}
-								value={passphrase}
-								onChange={(e) => setPassphrase(e.target.value)}
-								className='w-full rounded-xl bg-slate-800/40 py-3.5 pr-12 pl-10 text-slate-100 placeholder-slate-600 ring-1 ring-white/[0.08] transition-all duration-200 focus:bg-slate-800/60 focus:outline-none'
-								placeholder={t('security:argon2.passphrase.placeholder')}
-								required
-								autoFocus
-							/>
-							<button
-								type='button'
-								onClick={() => setShowPassword(!showPassword)}
-								className='absolute top-1/2 right-3 -translate-y-1/2 rounded-lg p-1 text-slate-500 transition-colors hover:text-slate-300'>
-								{showPassword ? (
-									<EyeOff className='h-[18px] w-[18px]' />
-								) : (
-									<Eye className='h-[18px] w-[18px]' />
-								)}
-							</button>
-						</div>
-					</div>
+						) : (
+							<div>
+								<label
+									htmlFor='passphrase'
+									className='mb-2 block text-sm font-medium text-slate-300'>
+									{t('security:argon2.passphrase.label')}
+								</label>
+								<div className='group relative'>
+									<div className='pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5'>
+										<Lock
+											className='h-4 w-4 transition-colors duration-200'
+											style={{ color: passphrase ? accentColor : undefined }}
+										/>
+									</div>
+									<input
+										id='passphrase'
+										type={showPassword ? 'text' : 'password'}
+										value={passphrase}
+										onChange={(e) => setPassphrase(e.target.value)}
+										className='w-full rounded-xl bg-slate-800/40 py-3.5 pr-12 pl-10 text-slate-100 placeholder-slate-600 ring-1 ring-white/[0.08] transition-all duration-200 focus:bg-slate-800/60 focus:outline-none'
+										placeholder={t('security:argon2.passphrase.placeholder')}
+										required
+										autoFocus
+									/>
+									<button
+										type='button'
+										onClick={() => setShowPassword(!showPassword)}
+										className='absolute top-1/2 right-3 -translate-y-1/2 rounded-lg p-1 text-slate-500 transition-colors hover:text-slate-300'>
+										{showPassword ? (
+											<EyeOff className='h-[18px] w-[18px]' />
+										) : (
+											<Eye className='h-[18px] w-[18px]' />
+										)}
+									</button>
+								</div>
+								<div className='mt-2 flex justify-end'>
+									<button
+										type='button'
+										onClick={() => {
+											setIsRecoveryMode(true)
+											setError(null)
+										}}
+										className='text-xs text-slate-500 hover:text-slate-300 transition-colors'>
+										{t('welcome:recovery.unlock.forgotPassword')}
+									</button>
+								</div>
+							</div>
+						)}
+					</motion.div>
 
 					{/* Error Message */}
 					{error && (
@@ -161,9 +219,9 @@ export const Argon2Unlock = ({
 					{/* Submit Button */}
 					<motion.button
 						type='submit'
-						disabled={loading || !passphrase}
-						whileHover={!loading && passphrase ? { scale: 1.02 } : {}}
-						whileTap={!loading && passphrase ? { scale: 0.97 } : {}}
+						disabled={loading || (isRecoveryMode ? !recoveryPhrase : !passphrase)}
+						whileHover={!loading && (isRecoveryMode ? recoveryPhrase : passphrase) ? { scale: 1.02 } : {}}
+						whileTap={!loading && (isRecoveryMode ? recoveryPhrase : passphrase) ? { scale: 0.97 } : {}}
 						className='text-accent-contrast flex w-full items-center justify-center gap-2.5 rounded-xl px-6 py-3.5 text-sm font-semibold shadow-lg transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none'
 						style={{
 							background: `linear-gradient(to right, var(--accent-dark), var(--accent-color))`,
@@ -179,10 +237,24 @@ export const Argon2Unlock = ({
 						) : (
 							<>
 								<Lock className='h-4 w-4' />
-								Unlock
+								{isRecoveryMode
+									? t('welcome:recovery.unlock.button')
+									: 'Unlock'}
 							</>
 						)}
 					</motion.button>
+					
+					{isRecoveryMode && (
+						<button
+							type='button'
+							onClick={() => {
+								setIsRecoveryMode(false)
+								setError(null)
+							}}
+							className='w-full text-center text-xs text-slate-500 hover:text-slate-300 transition-colors'>
+							{t('welcome:recovery.unlock.usePassword')}
+						</button>
+					)}
 				</motion.form>
 			</motion.div>
 

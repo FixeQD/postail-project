@@ -11,6 +11,40 @@
 		"background": "Background",
 		"backgroundHint": "Sets the base tone of the interface",
 		"preview": "Preview",
-		"continue": "Continue"
+	"continue": "Continue"
+	},
+	"recovery": {
+		"title": "Recovery Phrase",
+		"subtitle": "Your only way to recover access if you forget your password",
+		"warning": {
+			"title": "Save this phrase securely",
+			"description": "If you lose your password, these 12 words are the ONLY way to unlock your account. Write them down and keep them safe."
+		},
+		"action": {
+			"copy": "Copy",
+			"save": "Save to File",
+			"print": "Print",
+			"copied": "Copied!",
+			"saved": "Saved!",
+			"continue": "I have saved my recovery phrase"
+		},
+		"verify": {
+			"title": "Verify Recovery Phrase",
+			"description": "Enter the following words from your recovery phrase to confirm you have saved it securely.",
+			"wordLabel": "Word #{{number}}",
+			"placeholder": "Enter word #{{number}}",
+			"verify": "Verify & Continue",
+			"error": "Incorrect words. Please check your phrase and try again."
+		},
+		"unlock": {
+			"forgotPassword": "Forgot password?",
+			"useRecoveryPhrase": "Use recovery phrase instead",
+			"usePassword": "Use password instead",
+			"label": "Recovery Phrase",
+			"placeholder": "Enter your 12-word recovery phrase here",
+			"hint": "Separate words with spaces",
+			"button": "Recover Account",
+			"recovering": "Recovering..."
+		}
 	}
 }
