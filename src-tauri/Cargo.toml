@@ -71,6 +71,7 @@ kuchiki = "0.8.1"
 html5ever = "0.25"
 markup5ever = "0.10"
 once_cell = "1.21.3"
+tiny-bip39 = "2.0.0"
 
 # TPM support (Linux)
 [target.'cfg(target_os = "linux")'.dependencies]
