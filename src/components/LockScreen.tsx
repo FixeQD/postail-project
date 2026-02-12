@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Lock } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
-import { toast } from 'sonner'
+import { toast } from './ui/custom/Toaster'
 
 interface LockScreenProps {
 	isLocked: boolean

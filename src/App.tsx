@@ -16,7 +16,7 @@ import { InboxScreen } from './components/Inbox/InboxScreen'
 import { OutboxPanel } from './components/Outbox/OutboxPanel'
 import { StatusBar } from './components/StatusBar'
 import { LockScreen } from './components/LockScreen'
-import { Toaster, toast } from 'sonner'
+import { AnimatedToaster, toast } from './components/ui/custom/Toaster'
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
 import { useAutoLock } from './hooks/useAutoLock'
 import type { AccountMeta } from './types/accounts'
@@ -417,22 +417,7 @@ function App() {
 			{currentState === 'dashboard' && (
 				<StatusBar onOpenOutbox={() => setOutboxOpen(true)} accounts={accounts} />
 			)}
-			<Toaster
-				position='bottom-right'
-				offset={24}
-				toastOptions={{
-					style: {
-						background: 'rgba(15, 23, 42, 0.9)',
-						border: '1px solid rgba(255, 255, 255, 0.08)',
-						color: '#f8fafc',
-						backdropFilter: 'blur(16px)',
-						WebkitBackdropFilter: 'blur(16px)',
-						boxShadow: '0 10px 40px -6px rgba(0, 0, 0, 0.5)',
-						borderRadius: '14px',
-						padding: '12px 16px',
-					},
-				}}
-			/>
+			<AnimatedToaster />
 			<LockScreen
 				isLocked={isLocked}
 				onUnlock={unlock}

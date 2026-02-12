@@ -7,7 +7,7 @@ import { ListNode, ListItemNode } from '@lexical/list'
 import { LinkNode } from '@lexical/link'
 import { X, Minimize2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { toast } from 'sonner'
+import { toast } from '../ui/custom/Toaster'
 
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { Button } from '@/components/ui/button'

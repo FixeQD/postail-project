@@ -6,7 +6,7 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 import { open } from '@tauri-apps/plugin-dialog'
-import { toast } from 'sonner'
+import { toast } from '../../ui/custom/Toaster'
 import {
 	Dialog,
 	DialogContent,

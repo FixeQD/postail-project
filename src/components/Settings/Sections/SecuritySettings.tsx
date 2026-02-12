@@ -5,7 +5,7 @@ import { ToggleSetting } from '@/components/ui/toggle-setting'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { invoke } from '@tauri-apps/api/core'
-import { toast } from 'sonner'
+import { toast } from '../../ui/custom/Toaster'
 
 const TIMEOUT_OPTIONS = [
 	{ value: 0, label: 'disabled' },
