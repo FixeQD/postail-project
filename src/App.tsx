@@ -16,7 +16,7 @@ import { InboxScreen } from './components/Inbox/InboxScreen'
 import { OutboxPanel } from './components/Outbox/OutboxPanel'
 import { StatusBar } from './components/StatusBar'
 import { LockScreen } from './components/LockScreen'
-import { AnimatedToaster, toast } from './components/ui/custom/Toaster'
+import { Toaster, toast } from './components/ui/custom/Toaster'
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
 import { useAutoLock } from './hooks/useAutoLock'
 import type { AccountMeta } from './types/accounts'
@@ -417,7 +417,7 @@ function App() {
 			{currentState === 'dashboard' && (
 				<StatusBar onOpenOutbox={() => setOutboxOpen(true)} accounts={accounts} />
 			)}
-			<AnimatedToaster />
+			<Toaster />
 			<LockScreen
 				isLocked={isLocked}
 				onUnlock={unlock}

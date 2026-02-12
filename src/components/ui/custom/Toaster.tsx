@@ -19,7 +19,7 @@ const icons: Record<ToastType, React.ReactNode> = {
 	loading: <Loader2Icon className='size-5 animate-spin text-slate-400' />,
 }
 
-export function AnimatedToaster() {
+export function Toaster() {
 	const { toasts, removeToast } = useToastStore()
 
 	return (
