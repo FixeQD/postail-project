@@ -13,17 +13,28 @@ pub fn get_data_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
         .join("postail");
 
+    let mut data_dir = get_default_data_dir();
+
     let override_file = config_dir.join("data_path");
     if override_file.exists() {
         if let Ok(content) = fs::read_to_string(&override_file) {
             let path = PathBuf::from(content.trim());
             if path.is_absolute() {
-                return path;
+                data_dir = path;
+            } else {
+                // Handle relative paths from the config dir
+                data_dir = config_dir.join(path);
             }
         }
     }
 
-    get_default_data_dir()
+    if let Ok(canonical) = fs::canonicalize(&data_dir) {
+        canonical
+    } else {
+        std::env::current_dir()
+            .map(|cwd| cwd.join(&data_dir))
+            .unwrap_or(data_dir)
+    }
 }
 
 pub fn set_data_dir_override(path: &str) -> std::io::Result<()> {

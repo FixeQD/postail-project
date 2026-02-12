@@ -171,9 +171,14 @@ impl SecurityManager {
         let mut derived_key = [0u8; 32];
         let salt = b"postail-email-client-v1";
         let argon2 = Argon2::default();
+        let passphrase_trimmed = passphrase.trim();
+        
         argon2
-            .hash_password_into(passphrase.as_bytes(), salt, &mut derived_key)
-            .map_err(|_| SecurityError::KeyDerivation("Failed to derive key".to_string()))?;
+            .hash_password_into(passphrase_trimmed.as_bytes(), salt, &mut derived_key)
+            .map_err(|e| {
+                tracing::error!(target: "postail", "[Security] Key derivation failed: {}", e);
+                SecurityError::KeyDerivation(e.to_string())
+            })?;
 
         let master_key = MasterKey::from_bytes(&derived_key)?;
         derived_key.zeroize();
@@ -188,9 +193,14 @@ impl SecurityManager {
         let mut derived_key = [0u8; 32];
         let salt = b"postail-email-client-v1";
         let argon2 = Argon2::default();
+        let passphrase_trimmed = passphrase.trim();
+        
         argon2
-            .hash_password_into(passphrase.as_bytes(), salt, &mut derived_key)
-            .map_err(|_| SecurityError::KeyDerivation("Failed to derive key".to_string()))?;
+            .hash_password_into(passphrase_trimmed.as_bytes(), salt, &mut derived_key)
+            .map_err(|e| {
+                tracing::error!(target: "postail", "[Security] Key derivation failed: {}", e);
+                SecurityError::KeyDerivation(e.to_string())
+            })?;
 
         let master_key = MasterKey::from_bytes(&derived_key)?;
         derived_key.zeroize();
@@ -208,7 +218,7 @@ impl PassphraseSecurityBuilder {
     pub fn new(storage_path: PathBuf, passphrase: String) -> Self {
         Self {
             storage_path,
-            passphrase,
+            passphrase: passphrase.trim().to_string(),
         }
     }
 

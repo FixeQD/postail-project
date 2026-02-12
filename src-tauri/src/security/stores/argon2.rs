@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::PathBuf;
+use tracing;
 
 use argon2::{
     password_hash::{rand_core::OsRng, SaltString},
@@ -25,11 +26,13 @@ impl Argon2Store {
     pub fn new(storage_path: PathBuf, passphrase: String) -> Self {
         Self {
             storage_path,
-            passphrase,
+            passphrase: passphrase.trim().to_string(),
         }
     }
 
     fn derive_key_from_passphrase(&self, salt: &[u8]) -> Result<MasterKey> {
+        let passphrase_bytes = self.passphrase.trim().as_bytes();
+
         let params = Params::new(
             ARGON2_MEMORY_COST,
             ARGON2_TIME_COST,
@@ -42,8 +45,11 @@ impl Argon2Store {
 
         let mut output = [0u8; MASTER_KEY_LENGTH];
         argon2
-            .hash_password_into(self.passphrase.as_bytes(), salt, &mut output)
-            .map_err(|e| SecurityError::KeyDerivation(e.to_string()))?;
+            .hash_password_into(passphrase_bytes, salt, &mut output)
+            .map_err(|e| {
+                tracing::error!(target: "postail", "[Security] Argon2 key derivation failed: {}", e);
+                SecurityError::KeyDerivation(e.to_string())
+            })?;
 
         MasterKey::from_bytes(&output)
     }
@@ -103,8 +109,10 @@ impl SecretStore for Argon2Store {
         let encrypted = &data[1 + salt_len..];
 
         let derived_key = self.derive_key_from_passphrase(salt)?;
-        let decrypted = decrypt_with_key(&derived_key, encrypted)
-            .map_err(|_| SecurityError::InvalidPassphrase)?;
+        let decrypted = decrypt_with_key(&derived_key, encrypted).map_err(|e| {
+            tracing::error!(target: "postail", "[Security] Failed to decrypt master key: {}. Possible incorrect passphrase or corrupted file.", e);
+            SecurityError::InvalidPassphrase
+        })?;
 
         MasterKey::from_bytes(&decrypted)
     }

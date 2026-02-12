@@ -1,3 +1,4 @@
+use std::fs;
 use std::sync::Mutex;
 use tracing;
 
@@ -52,23 +53,54 @@ impl DbEncryption {
     }
 
     fn get_or_create_salt() -> Result<Vec<u8>, DbEncryptionError> {
+        let salt_file = crate::utils::config::get_data_dir()
+            .join("security")
+            .join("db_salt");
+        
+        // 1. Try Keyring first
         let entry = Entry::new(DB_ENC_SALT_SERVICE, DB_ENC_SALT_KEY)
             .map_err(|e| DbEncryptionError::Keyring(e.to_string()))?;
 
         match entry.get_password() {
-            Ok(salt_hex) => hex::decode(salt_hex).map_err(DbEncryptionError::Hex),
-            Err(keyring::Error::NoEntry) => {
-                let salt: Vec<u8> = (0..32).map(|_| rand::random::<u8>()).collect();
-                let salt_hex = hex::encode(&salt);
-
-                entry
-                    .set_password(&salt_hex)
-                    .map_err(|e| DbEncryptionError::Keyring(e.to_string()))?;
-
-                Ok(salt)
+            Ok(salt_hex) => {
+                if let Ok(salt) = hex::decode(&salt_hex) {
+                    return Ok(salt);
+                }
             }
-            Err(e) => Err(DbEncryptionError::Keyring(e.to_string())),
+            Err(_) => {}
         }
+
+        // 2. Try File Fallback
+        if salt_file.exists() {
+            if let Ok(salt_hex) = fs::read_to_string(&salt_file) {
+                if let Ok(salt) = hex::decode(salt_hex.trim()) {
+                    // Try to restore to keyring if it was missing
+                    let _ = entry.set_password(&hex::encode(&salt));
+                    
+                    return Ok(salt);
+                }
+            }
+        }
+
+        // 3. Generate new salt
+        tracing::info!(target: "postail", "[Security] No DB salt found in keyring or file. Generating new salt...");
+        let salt: Vec<u8> = (0..32).map(|_| rand::random::<u8>()).collect();
+        let salt_hex = hex::encode(&salt);
+
+        // Try to save to both
+        if let Err(e) = entry.set_password(&salt_hex) {
+            tracing::warn!(target: "postail", "[Security] Failed to save salt to keyring: {}", e);
+        }
+
+        if let Some(parent) = salt_file.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        
+        if let Err(e) = fs::write(&salt_file, &salt_hex) {
+            tracing::error!(target: "postail", "[Security] Failed to save salt to file: {}", e);
+        }
+
+        Ok(salt)
     }
 
     pub fn hex_key(&self) -> String {

@@ -111,7 +111,8 @@ pub fn generate_phrase() -> String {
 
 /// Derives a 32-byte MasterKey from a BIP39 recovery phrase.
 pub fn derive_recovery_key(phrase: &str) -> Result<MasterKey> {
-    let mnemonic = Mnemonic::from_phrase(phrase, Language::English)
+    let phrase_trimmed = phrase.trim();
+    let mnemonic = Mnemonic::from_phrase(phrase_trimmed, Language::English)
         .map_err(|e| SecurityError::KeyDerivation(format!("invalid recovery phrase: {}", e)))?;
 
     let seed = bip39::Seed::new(&mnemonic, "");
