@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { HexColorPicker } from 'react-colorful'
+import { ColorPicker } from '../ui/custom/ColorPicker'
+
 import { ArrowLeft, ArrowRight, Palette, Check, Pipette } from 'lucide-react'
 import { useThemeStore, ACCENT_PRESETS, BACKGROUND_PRESETS } from '@/stores/themeStore'
 import { useTranslation } from 'react-i18next'
@@ -195,12 +196,7 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 									transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
 									className='overflow-hidden'>
 									<div className='flex items-start gap-6 rounded-2xl border border-white/[0.08] bg-slate-950/40 p-5 shadow-inner backdrop-blur-md'>
-										<div className='color-picker-container shadow-2xl'>
-											<HexColorPicker
-												color={customColor}
-												onChange={handleCustomColorChange}
-											/>
-										</div>
+										<ColorPicker color={customColor} onChange={handleCustomColorChange} />
 										<div className='flex flex-col gap-3'>
 											<label className='text-[10px] font-bold tracking-widest text-slate-500 uppercase'>
 												Hex
