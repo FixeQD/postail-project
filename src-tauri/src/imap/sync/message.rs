@@ -1,4 +1,4 @@
-use async_std::stream::StreamExt;
+use futures::StreamExt;
 use mailparse::parse_mail;
 
 use crate::db;

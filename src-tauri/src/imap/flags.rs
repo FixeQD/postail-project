@@ -1,7 +1,7 @@
 use crate::error::AppError;
 use crate::globals::DB_CONN;
 use crate::imap::ImapManager;
-use async_std::stream::StreamExt;
+use futures::StreamExt;
 
 fn flag_to_string(flag: &async_imap::types::Flag) -> String {
     match flag {

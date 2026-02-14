@@ -1,4 +1,4 @@
-use async_std::stream::StreamExt;
+use futures::StreamExt;
 
 use crate::db::{fetch_mailboxes as db_fetch_mailboxes, upsert_mailbox, Mailbox};
 

@@ -1,30 +1,12 @@
-use rand::Rng;
-use serde_json;
-use std::net::TcpListener;
-use std::thread;
 use tauri::{AppHandle, Emitter};
 use tracing;
-
-fn pick_available_port() -> u16 {
-    let mut rng = rand::rng();
-    let start = rng.random_range(1024..=49151);
-    for port in start..=65535 {
-        if let Ok(_listener) = TcpListener::bind(("127.0.0.1", port)) {
-            return port;
-        }
-    }
-    for port in 1024..start {
-        if let Ok(_listener) = TcpListener::bind(("127.0.0.1", port)) {
-            return port;
-        }
-    }
-    0
-}
+use tiny_http::Response;
 
 pub fn start(handle: AppHandle) {
-    let port = pick_available_port();
+    let port = portpicker::pick_unused_port().unwrap_or(8765);
     crate::globals::set_oauth_port(port);
-    thread::spawn(move || {
+
+    std::thread::spawn(move || {
         let server_addr = format!("127.0.0.1:{}", port);
         let server = match tiny_http::Server::http(&server_addr) {
             Ok(s) => s,
@@ -33,6 +15,8 @@ pub fn start(handle: AppHandle) {
                 return;
             }
         };
+
+        tracing::info!(target: "postail", "OAuth server started on {}", server_addr);
 
         for request in server.incoming_requests() {
             if request.url().starts_with("/oauth/callback") {
@@ -52,7 +36,7 @@ pub fn start(handle: AppHandle) {
                 }
 
                 let response_html = "<!DOCTYPE html><html><head><title>Postail</title><style>body{display:flex;justify-content:center;align-items:center;height:100vh;margin:0;font-family:sans-serif;background-color:#1a1a1a;color:white;}</style></head><body><div><h1>Authentication successful!</h1><p>You can now close this tab.</p></div></body></html>";
-                let response = tiny_http::Response::from_string(response_html);
+                let response = Response::from_string(response_html);
 
                 let response = match "Content-Type: text/html".parse::<tiny_http::Header>() {
                     Ok(header) => response.with_header(header),
@@ -64,7 +48,7 @@ pub fn start(handle: AppHandle) {
 
                 let _ = request.respond(response);
             } else {
-                let response = tiny_http::Response::from_string("Not Found").with_status_code(404);
+                let response = Response::from_string("Not Found").with_status_code(404);
                 let _ = request.respond(response);
             }
         }

@@ -1,4 +1,4 @@
-use async_std::stream::StreamExt;
+use futures::StreamExt;
 use chrono::{TimeZone, Utc};
 
 use crate::db::{MailHeader, MessageBatchItem, DEFAULT_BATCH_SIZE};
