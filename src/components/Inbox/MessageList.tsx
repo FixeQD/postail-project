@@ -369,12 +369,19 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 					const isHovered = hoveredMessageId === message.uid
 
 					return (
-						<button
-							type='button'
+						<div
+							role='button'
+							tabIndex={0}
 							onMouseEnter={() => setHoveredMessageId(message.uid)}
 							onMouseLeave={() => setHoveredMessageId(null)}
 							onClick={() => onMessageClick(message.uid)}
-							className={`message-unread-indicator group relative flex w-full cursor-pointer items-center border-b border-white/[0.04] px-4 py-3 text-left transition-all duration-150 ${
+							onKeyDown={(e) => {
+								if (e.key === 'Enter' || e.key === ' ') {
+									e.preventDefault()
+									onMessageClick(message.uid)
+								}
+							}}
+							className={`message-unread-indicator group relative flex w-full cursor-pointer items-center border-b border-white/[0.04] px-4 py-3 text-left transition-all duration-150 outline-none focus-visible:bg-white/[0.05] ${
 								isUnread && !zenMode ? 'is-unread' : ''
 							} ${
 								isUnread && !zenMode
@@ -593,7 +600,7 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 									}}
 								/>
 							)}
-						</button>
+						</div>
 					)
 				}}
 			/>
