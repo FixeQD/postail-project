@@ -55,7 +55,6 @@ function App() {
 
 	useGlobalShortcuts({
 		onNewMessage: () => {
-			console.log('New message shortcut, state:', currentState)
 			if (currentState === 'dashboard' && activeAccount) {
 				window.dispatchEvent(new CustomEvent('compose:new'))
 			}
@@ -66,7 +65,7 @@ function App() {
 		},
 		onRefresh: () => {
 			if (currentState === 'dashboard' && activeAccount) {
-				console.log('Refresh shortcut triggered')
+				// There should be refresh logic :/
 			}
 		},
 		onGoToInbox: () => {
@@ -178,7 +177,6 @@ function App() {
 				return (
 					<SettingsScreen
 						onBack={() => setCurrentState('dashboard')}
-						// onSyncAccount={(id) => console.log('Syncing:', id)} // This prop was removed
 						canGoBack={currentState === 'settings'}
 						showSidebar={currentState === 'settings'}
 					/>
@@ -210,7 +208,9 @@ function App() {
 			<TitleBar
 				isDashboard={currentState === 'dashboard'}
 				onOpenSettings={() => setCurrentState('settings')}
-				onSearch={(q) => console.log('Search:', q)}
+				onSearch={() => {
+					/* handle search */
+				}}
 			/>
 			<main className='flex-1 overflow-y-auto'>
 				{animationsEnabled ? (

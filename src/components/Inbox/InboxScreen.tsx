@@ -25,31 +25,31 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 	const { loadDraft } = useDraftStore()
 
 	const handleNextMessage = useCallback(() => {
-		console.log('Next message (J)')
+		// handle next message
 	}, [])
 
 	const handlePrevMessage = useCallback(() => {
-		console.log('Previous message (K)')
+		// handle prev message
 	}, [])
 
 	const handleOpenMessage = useCallback(() => {
-		console.log('Open message (Enter)')
+		// handle open message
 	}, [])
 
 	const handleDeleteMessage = useCallback(() => {
-		console.log('Delete message (Del/#)')
+		// handle delete message
 	}, [])
 
 	const handleReply = useCallback(() => {
-		console.log('Reply (R)')
+		// handle reply
 	}, [])
 
 	const handleReplyAll = useCallback(() => {
-		console.log('Reply all (Shift+R)')
+		// handle reply all
 	}, [])
 
 	const handleForward = useCallback(() => {
-		console.log('Forward (F)')
+		// handle forward
 	}, [])
 
 	const handleNewMessage = useCallback(() => {
@@ -57,15 +57,15 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 	}, [])
 
 	const handleToggleRead = useCallback(() => {
-		console.log('Toggle read (U)')
+		// handle toggle read
 	}, [])
 
 	const handleMarkUnread = useCallback(() => {
-		console.log('Mark unread (Shift+U)')
+		// handle mark unread
 	}, [])
 
 	const handleToggleStar = useCallback(() => {
-		console.log('Toggle star (S)')
+		// handle toggle star
 	}, [])
 
 	const handleFocusSearch = useCallback(() => {
@@ -135,7 +135,9 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 						<MessageList
 							account={activeAccount}
 							mailbox={activeMailbox}
-							onMessageClick={(uid) => console.log('Message clicked:', uid)}
+							onMessageClick={() => {
+								/* handle message click */
+							}}
 						/>
 					)}
 				</div>

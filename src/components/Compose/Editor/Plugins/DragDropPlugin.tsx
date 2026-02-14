@@ -33,7 +33,6 @@ export default function DragDropPlugin(): React.ReactNode {
 	}, [])
 
 	useEffect(() => {
-		console.log('[DragDrop] Plugin mounted permanently, registering listeners')
 
 		const handleDragEnter = (e: DragEvent) => {
 			e.preventDefault()
@@ -82,7 +81,6 @@ export default function DragDropPlugin(): React.ReactNode {
 		}
 
 		const handleDrop = (e: DragEvent) => {
-			console.log('[DragDrop] Native Window Drop detected!')
 			e.preventDefault()
 			e.stopPropagation()
 
@@ -107,9 +105,6 @@ export default function DragDropPlugin(): React.ReactNode {
 				mode = 'inline'
 			}
 
-			console.log(
-				`[DragDrop] Processing. Mode: ${mode}, Files: ${files.length}, URIs: ${uris.length}`
-			)
 			handleFileProcessingRef.current?.(files, uris, mode)
 			setActiveZone(null)
 		}
@@ -120,7 +115,6 @@ export default function DragDropPlugin(): React.ReactNode {
 		window.addEventListener('drop', handleDrop, true)
 
 		return () => {
-			console.log('[DragDrop] Unmounting plugin, cleaning listeners')
 			window.removeEventListener('dragenter', handleDragEnter, true)
 			window.removeEventListener('dragover', handleDragOver, true)
 			window.removeEventListener('dragleave', handleDragLeave, true)

@@ -368,8 +368,6 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 				rawEml: Array.from(emlBytes),
 			})
 
-			console.log('Draft sent, outbox ID:', outboxId)
-
 			set({
 				currentDraft: null,
 				isComposing: false,

@@ -70,9 +70,7 @@ export function useAppInitialization() {
 			setCurrentState('argon2-setup')
 		} else {
 			try {
-				console.log(`Initializing ${method} security...`)
 				await invoke('initialize_security', { method })
-				console.log(`${method} security initialized successfully`)
 				await new Promise((resolve) => setTimeout(resolve, 100))
 				await persistTheme()
 				await loadSettings()
@@ -86,7 +84,6 @@ export function useAppInitialization() {
 
 	const handleRecoveryVerified = async () => {
 		try {
-			console.log('Recovery phrase verified, initializing Argon2...')
 			await invoke('initialize_security', {
 				method: 'argon2',
 				passphrase: tempPassphrase,
@@ -112,7 +109,6 @@ export function useAppInitialization() {
 						setCurrentState('argon2-unlock')
 					} else if (method === 'tpm' || method === 'keyring') {
 						const lastMethod = method as string
-						console.log(`Auto-unlocking with ${lastMethod}...`)
 						try {
 							await invoke('initialize_security', { method: lastMethod })
 							await loadSettings()
@@ -139,7 +135,6 @@ export function useAppInitialization() {
 		const unlisten = listen(
 			'oauth_callback',
 			async (event: Event<{ code: string; state: string }>) => {
-				console.log('OAuth callback received:', event.payload)
 				try {
 					await invoke('complete_oauth_flow', {
 						code: event.payload.code,
