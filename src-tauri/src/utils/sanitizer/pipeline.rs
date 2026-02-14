@@ -10,13 +10,22 @@ use kuchiki::parse_html;
 use kuchiki::traits::TendrilSink;
 
 /// Internal helper to run the sanitization pipeline
-fn run_sanitization_pipeline(html: &str, is_auto_fix: bool, track_issues: bool) -> String {
-    let resolved = resolve_css_variables(html);
-    let body_styles = extract_body_styles_from_css(&resolved);
-
+fn run_sanitization_pipeline(
+    html: &str,
+    is_auto_fix: bool,
+    track_issues: bool,
+) -> (String, HtmlDiff) {
+    // ── Phase 1: Pre-processing (DOM-based) ──────────────────────────────
     // Initial DOM parse
-    let document = parse_html().one(resolved);
+    let document = parse_html().one(html);
 
+    // Snapshot for diffing before we start changing things
+    let diff_tracker = DiffTracker::new(&document);
+
+    resolve_css_variables_dom(&document);
+    let body_styles = extract_body_styles_dom(&document);
+
+    // ── Phase 2: Reflow & Style Optimization (DOM-based) ──────────────────
     replace_body_with_div_dom(&document, body_styles);
     expand_pseudo_elements_dom(&document);
 
@@ -40,6 +49,7 @@ fn run_sanitization_pipeline(html: &str, is_auto_fix: bool, track_issues: bool) 
     convert_to_table_layout_dom(&document);
     scale_elements_for_email_dom(&document);
 
+    // ── Phase 3: Final Sanitization ───────────────────────────────────────
     strip_content_tags_dom(&document);
     mark_positioned_elements_dom(&document);
 
@@ -59,18 +69,21 @@ fn run_sanitization_pipeline(html: &str, is_auto_fix: bool, track_issues: bool) 
     let document_final = parse_html().one(sanitized);
     strip_dead_elements_dom(&document_final);
 
+    // Final diff calculation
+    let diff = diff_tracker.calculate_diff(&document_final);
+
     let final_serialized = serialize_clean(&document_final);
     let result = extract_body_content(&final_serialized);
 
-    cleanup_html_whitespace(&result)
+    (cleanup_html_whitespace(&result), diff)
 }
 
 pub fn auto_fix_email_html(html: &str) -> String {
-    run_sanitization_pipeline(html, true, false)
+    run_sanitization_pipeline(html, true, false).0
 }
 
 pub fn sanitize_email_html(html: &str) -> String {
-    run_sanitization_pipeline(html, false, false)
+    run_sanitization_pipeline(html, false, false).0
 }
 
 pub fn sanitize_email_html_with_details(html: &str) -> SanitizeResult {
@@ -78,7 +91,7 @@ pub fn sanitize_email_html_with_details(html: &str) -> SanitizeResult {
 
     let unsupported_tags = detect_unsupported_tags(html);
 
-    let cleaned = run_sanitization_pipeline(html, false, true);
+    let (cleaned, diff) = run_sanitization_pipeline(html, false, true);
 
     COLLECTED_ISSUES.with(|issues| {
         let mut issues = issues.borrow_mut();
@@ -118,5 +131,6 @@ pub fn sanitize_email_html_with_details(html: &str) -> SanitizeResult {
     SanitizeResult {
         html: cleaned,
         issues,
+        diff,
     }
 }

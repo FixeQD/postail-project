@@ -8,5 +8,5 @@ pub use crate::utils::sanitizer::config::{
 
 pub use crate::utils::sanitizer::dom::{
     detect_unsupported_tags, mark_positioned_elements_dom, strip_content_tags_dom,
-    strip_dead_elements_dom,
+    strip_dead_elements_dom, DiffTracker,
 };
