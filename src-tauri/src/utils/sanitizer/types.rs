@@ -41,10 +41,18 @@ fn default_count() -> usize {
     1
 }
 
+#[derive(Debug, Clone, serde::Serialize, Default)]
+pub struct HtmlDiff {
+    pub removed_tags: Vec<String>,
+    pub removed_attributes: Vec<(String, String)>,
+    pub modified_styles: Vec<(String, Vec<String>)>, // (Selector/ID, [removed_props])
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SanitizeResult {
     pub html: String,
     pub issues: Vec<SanitizeIssue>,
+    pub diff: HtmlDiff,
 }
 
 // Rules for pseudo-element expansion

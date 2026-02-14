@@ -5,7 +5,11 @@ use uuid::Uuid;
 use crate::db::{enqueue_message, list_outbox, OutboxItem};
 
 impl super::SmtpManager {
-    pub fn enqueue_message(&self, account_id: &str, raw_eml: &[u8]) -> Result<String, String> {
+    pub async fn enqueue_message(
+        &self,
+        account_id: &str,
+        raw_eml: &[u8],
+    ) -> Result<String, String> {
         tracing::info!(target: "postail", "[Outbox] Enqueueing message for account: {}, size: {} bytes", account_id, raw_eml.len());
 
         let data_dir = dirs::data_dir()
@@ -18,7 +22,7 @@ impl super::SmtpManager {
         })?;
         let eml_path = data_dir.join(format!("{}.eml", Uuid::new_v4()));
 
-        let security = self.security.lock().unwrap();
+        let security = self.security.lock().await;
         let encrypted_eml = security.encrypt(raw_eml).map_err(|e| {
             tracing::error!(target: "postail", "[Outbox] Failed to encrypt EML: {}", e);
             e.to_string()
@@ -31,7 +35,7 @@ impl super::SmtpManager {
         })?;
         tracing::info!(target: "postail", "[Outbox] EML file written successfully");
 
-        let conn_guard = self.conn.lock().unwrap();
+        let conn_guard = self.conn.lock().await;
         let conn = conn_guard
             .as_ref()
             .ok_or("Database not initialized".to_string())?;
@@ -48,16 +52,16 @@ impl super::SmtpManager {
         }
     }
 
-    pub fn list_outbox(&self, account_id: &str) -> Result<Vec<OutboxItem>, String> {
-        let conn_guard = self.conn.lock().unwrap();
+    pub async fn list_outbox(&self, account_id: &str) -> Result<Vec<OutboxItem>, String> {
+        let conn_guard = self.conn.lock().await;
         let conn = conn_guard
             .as_ref()
             .ok_or("Database not initialized".to_string())?;
         list_outbox(conn, account_id).map_err(|e| e.to_string())
     }
 
-    pub fn retry_sending(&self, outbox_id: &str) -> Result<(), String> {
-        let conn_guard = self.conn.lock().unwrap();
+    pub async fn retry_sending(&self, outbox_id: &str) -> Result<(), String> {
+        let conn_guard = self.conn.lock().await;
         let conn = conn_guard
             .as_ref()
             .ok_or("Database not initialized".to_string())?;
@@ -69,8 +73,8 @@ impl super::SmtpManager {
         Ok(())
     }
 
-    pub fn cancel_sending(&self, outbox_id: &str) -> Result<(), String> {
-        let conn_guard = self.conn.lock().unwrap();
+    pub async fn cancel_sending(&self, outbox_id: &str) -> Result<(), String> {
+        let conn_guard = self.conn.lock().await;
         let conn = conn_guard
             .as_ref()
             .ok_or("Database not initialized".to_string())?;

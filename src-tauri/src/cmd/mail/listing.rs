@@ -4,12 +4,12 @@ use crate::oauth;
 use tauri::command;
 
 #[command]
-pub fn fetch_mailboxes(account_id: String) -> Result<Vec<Mailbox>, String> {
-    let imap = IMAP_MANAGER.blocking_lock();
-    let mut mailboxes = imap.fetch_mailboxes_sync(&account_id)?;
+pub async fn fetch_mailboxes(account_id: String) -> Result<Vec<Mailbox>, String> {
+    let imap = IMAP_MANAGER.lock().await;
+    let mut mailboxes = imap.fetch_mailboxes_sync(&account_id).await?;
 
     let provider_kind = {
-        let conn_guard = DB_CONN.lock().unwrap();
+        let conn_guard = DB_CONN.lock().await;
         if let Some(conn) = conn_guard.as_ref() {
             let mut stmt = conn
                 .prepare("SELECT provider_type, imap_host FROM accounts WHERE id = ?")
@@ -104,21 +104,27 @@ pub async fn fetch_headers(
     anchor: Option<u64>,
     limit: u32,
 ) -> Result<Vec<MailHeader>, String> {
+    tracing::info!(target: "postail", "[API] fetch_headers called for {}@{} anchor={:?} limit={}", mailbox, account_id, anchor, limit);
     let anchor: Option<u32> = anchor
         .map(|a| a.try_into().map_err(|_| "Anchor too large".to_string()))
         .transpose()?;
     let imap = IMAP_MANAGER.lock().await.clone();
-    imap.fetch_headers_hybrid(&account_id, &mailbox, anchor, limit)
-        .await
+    let result = imap.fetch_headers_hybrid(&account_id, &mailbox, anchor, limit).await;
+    match &result {
+        Ok(headers) => tracing::info!(target: "postail", "[API] fetch_headers returned {} headers", headers.len()),
+        Err(e) => tracing::error!(target: "postail", "[API] fetch_headers error: {}", e),
+    }
+    result
 }
 
 #[command]
-pub fn fetch_message_full(
+pub async fn fetch_message_full(
     account_id: String,
     mailbox: String,
     uid: u64,
 ) -> Result<Option<MessageFull>, String> {
     let uid_u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
-    let imap = IMAP_MANAGER.blocking_lock();
+    let imap = IMAP_MANAGER.lock().await;
     imap.fetch_message_full_sync(&account_id, &mailbox, uid_u32)
+        .await
 }

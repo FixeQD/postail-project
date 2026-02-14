@@ -3,13 +3,13 @@ use crate::globals::{DB_CONN, IMAP_MANAGER};
 use tauri::command;
 
 #[command]
-pub fn search_messages(
+pub async fn search_messages(
     account_id: Option<String>,
     mailbox: Option<String>,
     query: String,
     limit: u32,
 ) -> Result<Vec<db::search::SearchResult>, String> {
-    let conn_guard = DB_CONN.lock().unwrap();
+    let conn_guard = DB_CONN.lock().await;
     let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
     db::search_messages(
         conn,
@@ -35,7 +35,7 @@ pub async fn mark_read(
     let uids = uids?;
 
     {
-        let conn_guard = DB_CONN.lock().unwrap();
+        let conn_guard = DB_CONN.lock().await;
         let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
         db::mark_read(conn, &account_id, &mailbox, &uids, read).map_err(|e| e.to_string())?;
 
@@ -65,7 +65,7 @@ pub async fn mark_read(
 
 async fn process_flag_queue(account_id: &str) -> Result<(), String> {
     let ops = {
-        let conn_guard = DB_CONN.lock().unwrap();
+        let conn_guard = DB_CONN.lock().await;
         let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
         db::get_pending_flag_operations(conn, account_id, 5).map_err(|e| e.to_string())?
     };
@@ -98,7 +98,7 @@ async fn process_flag_queue(account_id: &str) -> Result<(), String> {
             }
         };
 
-        let conn_guard = DB_CONN.lock().unwrap();
+        let conn_guard = DB_CONN.lock().await;
         let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
 
         match result {
@@ -137,7 +137,7 @@ pub async fn delete_messages(
     let uids = uids?;
 
     {
-        let conn_guard = DB_CONN.lock().unwrap();
+        let conn_guard = DB_CONN.lock().await;
         let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
 
         let trash_mailbox = db::get_mailbox_by_role(conn, &account_id, "trash")

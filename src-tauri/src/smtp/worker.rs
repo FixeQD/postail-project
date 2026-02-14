@@ -1,7 +1,6 @@
 use std::fs;
-use std::thread;
 use std::time::Duration;
-use tokio::runtime::Builder;
+use tokio::task;
 use tracing;
 
 use tauri::Emitter;
@@ -16,7 +15,7 @@ const WORKER_INTERVAL_SECS: u64 = 10;
 
 lazy_static::lazy_static! {
     static ref OUTBOX_WORKER_RUNNING: std::sync::Mutex<bool> = std::sync::Mutex::new(false);
-    static ref OUTBOX_WORKER_HANDLE: std::sync::Mutex<Option<thread::JoinHandle<()>>> = std::sync::Mutex::new(None);
+    static ref OUTBOX_WORKER_HANDLE: std::sync::Mutex<Option<tokio::task::JoinHandle<()>>> = std::sync::Mutex::new(None);
 }
 
 impl SmtpManager {
@@ -28,16 +27,9 @@ impl SmtpManager {
         *running = true;
 
         let manager = self.clone();
-        let handle = thread::Builder::new()
-            .name("outbox-worker".to_string())
-            .spawn(move || {
-                let rt = Builder::new_current_thread().enable_all().build().unwrap();
-
-                rt.block_on(async {
-                    manager.outbox_worker_loop().await;
-                });
-            })
-            .expect("Failed to spawn outbox worker thread");
+        let handle = task::spawn(async move {
+            manager.outbox_worker_loop().await;
+        });
 
         let mut outbox_handle = OUTBOX_WORKER_HANDLE.lock().unwrap();
         *outbox_handle = Some(handle);
@@ -55,9 +47,9 @@ impl SmtpManager {
         };
 
         if let Some(h) = handle {
-            tracing::info!(target: "postail", "[Outbox] Waiting for worker thread to join...");
-            let _ = h.join();
-            tracing::info!(target: "postail", "[Outbox] Worker thread joined");
+            tracing::info!(target: "postail", "[Outbox] Aborting worker task...");
+            h.abort();
+            tracing::info!(target: "postail", "[Outbox] Worker task aborted");
         }
     }
 
@@ -91,7 +83,7 @@ impl SmtpManager {
         let now = chrono::Utc::now().timestamp();
 
         let pending_items = {
-            let conn_guard = self.conn.lock().unwrap();
+            let conn_guard = self.conn.lock().await;
             if let Some(conn) = conn_guard.as_ref() {
                 let mut stmt = conn
                     .prepare("SELECT id, account_id, raw_eml_path FROM outbox WHERE status = 'PENDING' OR (status = 'RETRY' AND next_retry < ?)")
@@ -114,12 +106,14 @@ impl SmtpManager {
             {
                 Ok(()) => {
                     self.mark_outbox_sent(&outbox_id, &account_id)
+                        .await
                         .map_err(|e| e.to_string())?;
                     tracing::info!(target: "postail", "[Outbox] Successfully sent message {}", outbox_id);
                 }
                 Err(e) => {
                     tracing::error!(target: "postail", "[Outbox] Failed to send message {}: {}", outbox_id, e);
                     self.update_outbox_error(&outbox_id, &account_id, &e)
+                        .await
                         .map_err(|e| e.to_string())?;
                 }
             }
@@ -135,14 +129,14 @@ impl SmtpManager {
         outbox_id: &str,
     ) -> Result<(), String> {
         let eml_content = {
-            let security = self.security.lock().unwrap();
+            let security = self.security.lock().await;
             let encrypted = fs::read(eml_path).map_err(|e| e.to_string())?;
 
             security.decrypt(&encrypted).map_err(|e| e.to_string())?
         };
 
         {
-            let conn_guard = self.conn.lock().unwrap();
+            let conn_guard = self.conn.lock().await;
             let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
             update_outbox_status(conn, outbox_id, "PROCESSING", None).map_err(|e| e.to_string())?;
         }
@@ -154,8 +148,8 @@ impl SmtpManager {
         Ok(())
     }
 
-    fn mark_outbox_sent(&self, outbox_id: &str, account_id: &str) -> Result<(), String> {
-        let conn_guard = self.conn.lock().unwrap();
+    async fn mark_outbox_sent(&self, outbox_id: &str, account_id: &str) -> Result<(), String> {
+        let conn_guard = self.conn.lock().await;
         let conn = conn_guard
             .as_ref()
             .ok_or("Database not initialized".to_string())?;
@@ -169,7 +163,7 @@ impl SmtpManager {
         Ok(())
     }
 
-    fn update_outbox_error(
+    async fn update_outbox_error(
         &self,
         outbox_id: &str,
         account_id: &str,
@@ -177,7 +171,7 @@ impl SmtpManager {
     ) -> Result<(), String> {
         use crate::db::calculate_backoff;
 
-        let conn_guard = self.conn.lock().unwrap();
+        let conn_guard = self.conn.lock().await;
         let conn = conn_guard
             .as_ref()
             .ok_or("Database not initialized".to_string())?;
@@ -276,7 +270,7 @@ impl SmtpManager {
                         ));
 
                         let creds_path: String = {
-                            let conn_guard = self.conn.lock().unwrap();
+                            let conn_guard = self.conn.lock().await;
                             let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
                             let mut stmt = conn
                                 .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
@@ -286,7 +280,7 @@ impl SmtpManager {
                         }?;
 
                         let creds_json = creds.to_string();
-                        let security = self.security.lock().unwrap();
+                        let security = self.security.lock().await;
                         let encrypted = security
                             .encrypt(creds_json.as_bytes())
                             .map_err(|e| e.to_string())?;
@@ -311,7 +305,7 @@ impl SmtpManager {
         account_id: &str,
         details: Option<serde_json::Value>,
     ) {
-        let guard = self.app_handle.lock().unwrap();
+        let guard = self.app_handle.blocking_lock();
         if let Some(ref handle) = *guard {
             let payload = serde_json::json!({
                 "outboxId": outbox_id,

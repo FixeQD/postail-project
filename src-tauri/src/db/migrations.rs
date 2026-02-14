@@ -2,19 +2,14 @@ use crate::error::DBError;
 use rusqlite::{Connection, OptionalExtension};
 
 pub fn get_db_version(conn: &Connection) -> Result<u32, DBError> {
-    let table_exists: Result<Option<String>, _> = conn
+    let table_exists: bool = conn
         .query_row(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_versions'",
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_versions'",
             [],
-            |row| row.get::<_, String>(0),
+            |_| Ok(1),
         )
-        .optional();
-
-    let table_exists = matches!(table_exists, Ok(Some(_)));
-
-    if !table_exists {
-        return Ok(0);
-    }
+        .optional()?
+        .is_some();
 
     if !table_exists {
         return Ok(0);
@@ -131,10 +126,13 @@ fn migrate_to_v4(conn: &Connection) -> Result<(), DBError> {
 }
 
 fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool, DBError> {
-    let result: Result<String, rusqlite::Error> = conn.query_row(
-        &format!("SELECT {} FROM {} LIMIT 1", column, table),
-        [],
-        |row| row.get(0),
-    );
-    Ok(result.is_ok())
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({})", table))?;
+    let mut rows = stmt.query([])?;
+    while let Some(row) = rows.next()? {
+        let name: String = row.get(1)?;
+        if name == column {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }

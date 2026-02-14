@@ -15,9 +15,12 @@ const HTTP_TIMEOUT_SECS: Duration = Duration::from_secs(30);
 #[command]
 pub async fn add_account(input: AccountInput) -> Result<AccountMeta, String> {
     let account = {
-        let conn_guard = DB_CONN.lock().unwrap();
+        let (conn_guard, security) = {
+            let conn_guard = DB_CONN.lock().await;
+            let security = SECURITY.lock().await;
+            (conn_guard, security)
+        };
         let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-        let security = SECURITY.lock().unwrap();
         db_add_account(conn, input, &security).map_err(|e| e.to_string())?
     };
 
@@ -35,15 +38,15 @@ pub async fn add_account(input: AccountInput) -> Result<AccountMeta, String> {
 }
 
 #[command]
-pub fn list_accounts() -> Result<Vec<AccountMeta>, String> {
-    let conn_guard = DB_CONN.lock().unwrap();
+pub async fn list_accounts() -> Result<Vec<AccountMeta>, String> {
+    let conn_guard = DB_CONN.lock().await;
     let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
     db_list_accounts(conn).map_err(|e| e.to_string())
 }
 
 #[command]
-pub fn remove_account(id: String) -> Result<(), String> {
-    let conn_guard = DB_CONN.lock().unwrap();
+pub async fn remove_account(id: String) -> Result<(), String> {
+    let conn_guard = DB_CONN.lock().await;
     let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
     db_remove_account(conn, &id).map_err(|e| e.to_string())
 }
@@ -150,9 +153,12 @@ pub async fn complete_oauth_flow(code: String, state: String) -> Result<AccountM
     };
 
     let account = {
-        let conn_guard = DB_CONN.lock().unwrap();
+        let (conn_guard, security) = {
+            let conn_guard = DB_CONN.lock().await;
+            let security = SECURITY.lock().await;
+            (conn_guard, security)
+        };
         let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-        let security = SECURITY.lock().unwrap();
         db_add_account(conn, account_input, &security).map_err(|e| e.to_string())?
     };
 

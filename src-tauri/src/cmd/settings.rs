@@ -9,7 +9,9 @@ pub async fn get_default_data_dir() -> Result<String, String> {
 
 #[tauri::command]
 pub async fn get_all_settings() -> Result<HashMap<String, String>, String> {
-    let mut all = settings::get_all_settings().map_err(|e| e.to_string())?;
+    let mut all = settings::get_all_settings()
+        .await
+        .map_err(|e| e.to_string())?;
 
     let data_path = crate::utils::config::get_data_dir();
     all.insert(
@@ -22,12 +24,14 @@ pub async fn get_all_settings() -> Result<HashMap<String, String>, String> {
 
 #[tauri::command]
 pub async fn get_setting(key: String) -> Result<Option<String>, String> {
-    settings::get_setting(&key).map_err(|e| e.to_string())
+    settings::get_setting(&key).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn set_setting(key: String, value: String) -> Result<(), String> {
-    settings::set_setting(&key, &value).map_err(|e| e.to_string())
+    settings::set_setting(&key, &value)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

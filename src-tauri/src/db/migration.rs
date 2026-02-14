@@ -101,7 +101,7 @@ pub fn get_db_path() -> PathBuf {
     data_dir.join("postail.db")
 }
 
-pub fn run_encryption_migration_if_needed() -> Result<(), DBError> {
+pub async fn run_encryption_migration_if_needed() -> Result<(), DBError> {
     let db_path = get_db_path();
 
     if !db_path.exists() {
@@ -117,9 +117,14 @@ pub fn run_encryption_migration_if_needed() -> Result<(), DBError> {
 
     tracing::info!(target: "postail", "[DB] Database is not encrypted, starting migration...");
 
-    match DbEncryption::global().as_ref() {
+    let master_key = {
+        let security = crate::globals::SECURITY.lock().await;
+        security.get_master_key_raw()
+    };
+
+    match DbEncryption::from_master_key(&master_key) {
         Ok(encryption) => {
-            migrate_unencrypted_db(&db_path, encryption)?;
+            migrate_unencrypted_db(&db_path, &encryption)?;
             Ok(())
         }
         Err(e) => Err(DBError::Security(

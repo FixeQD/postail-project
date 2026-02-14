@@ -1,4 +1,4 @@
-use async_std::stream::StreamExt;
+use futures::StreamExt;
 
 use crate::db::{fetch_mailboxes as db_fetch_mailboxes, upsert_mailbox, Mailbox};
 
@@ -21,8 +21,8 @@ fn detect_mailbox_role_from_attributes(
 }
 
 impl crate::imap::ImapManager {
-    pub fn fetch_mailboxes_sync(&self, account_id: &str) -> Result<Vec<Mailbox>, String> {
-        let conn_guard = self.conn.lock().unwrap();
+    pub async fn fetch_mailboxes_sync(&self, account_id: &str) -> Result<Vec<Mailbox>, String> {
+        let conn_guard = self.conn.lock().await;
         let conn = conn_guard
             .as_ref()
             .ok_or("Database not initialized".to_string())?;
@@ -55,7 +55,7 @@ impl crate::imap::ImapManager {
                     last_synced_uid: None,
                 };
                 {
-                    let conn_guard = self.conn.lock().unwrap();
+                    let conn_guard = self.conn.lock().await;
                     let conn = conn_guard
                         .as_ref()
                         .ok_or("Database not initialized".to_string())?;

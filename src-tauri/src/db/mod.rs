@@ -164,8 +164,12 @@ pub enum SyncStatusEnum {
     Error(String),
 }
 
-pub fn init_db() -> Result<Connection, DBError> {
-    let key = crate::security::DbEncryption::get_hex_key();
+pub async fn init_db() -> Result<(), DBError> {
+    let key = {
+        let security = crate::globals::SECURITY.lock().await;
+        let master_key = security.get_master_key_raw();
+        crate::security::DbEncryption::get_hex_key(&master_key)
+    };
     if key.is_empty() {
         return Err(DBError::Security(
             crate::error::SecurityError::KeyDerivation(
@@ -173,28 +177,29 @@ pub fn init_db() -> Result<Connection, DBError> {
             ),
         ));
     }
-    init_db_with_key(&key)
+    let conn = init_db_with_key(&key)?;
+
+    // Save to global DB_CONN
+    let mut db_guard = crate::globals::DB_CONN.lock().await;
+    *db_guard = Some(conn);
+
+    Ok(())
 }
 
 fn apply_sqlcipher_key(conn: &Connection, hex_key: &str) -> Result<(), DBError> {
-    tracing::info!(target: "postail", "[DB] Setting PRAGMA key...");
+    let pragmas = [
+        format!("PRAGMA key = \"x'{hex_key}'\""),
+        "PRAGMA journal_mode = WAL".to_string(),
+        "PRAGMA synchronous = NORMAL".to_string(),
+        "PRAGMA cache_size = -64000".to_string(),
+        "PRAGMA mmap_size = 268435456".to_string(),
+    ];
 
-    let key_stmt = format!("PRAGMA key = \"x'{hex_key}'\"");
-    execute_pragma(conn, &key_stmt)?;
-    tracing::info!(target: "postail", "[DB] Key set, setting journal_mode...");
+    for pragma in pragmas {
+        execute_pragma(conn, &pragma)?;
+    }
 
-    execute_pragma(conn, "PRAGMA journal_mode = WAL")?;
-    tracing::info!(target: "postail", "[DB] Setting synchronous...");
-
-    execute_pragma(conn, "PRAGMA synchronous = NORMAL")?;
-    tracing::info!(target: "postail", "[DB] Setting cache_size...");
-
-    execute_pragma(conn, "PRAGMA cache_size = -64000")?;
-    tracing::info!(target: "postail", "[DB] Setting mmap_size...");
-
-    execute_pragma(conn, "PRAGMA mmap_size = 268435456")?;
-    tracing::info!(target: "postail", "[DB] All pragmas set successfully!");
-
+    tracing::info!(target: "postail", "[DB] All database pragmas applied");
     Ok(())
 }
 

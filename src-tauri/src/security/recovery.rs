@@ -170,8 +170,8 @@ impl RecoveryStore {
 
         let recovery_key = derive_recovery_key(phrase)?;
 
-        let decrypted = decrypt_with_key(&recovery_key, &data)
-            .map_err(|_| SecurityError::InvalidPassphrase)?;
+        let decrypted =
+            decrypt_with_key(&recovery_key, &data).map_err(|_| SecurityError::InvalidPassphrase)?;
 
         MasterKey::from_bytes(&decrypted)
     }

@@ -11,12 +11,10 @@ use crate::utils::sanitizer::types::{IssueSeverity, PositionInfo, SanitizeIssue}
 
 const EMAIL_MAX_WIDTH: f32 = 600.0;
 
-pub fn convert_to_table_layout(html: &str) -> String {
-    let document = kuchiki::parse_html().one(html);
-
-    let root = find_root_container(&document);
+pub fn convert_to_table_layout_dom(document: &NodeRef) {
+    let root = find_root_container(document);
     if root.is_none() {
-        return document.to_string();
+        return;
     }
     let root = root.unwrap();
     let target_root = {
@@ -95,7 +93,7 @@ pub fn convert_to_table_layout(html: &str) -> String {
         && non_positioned_elements.is_empty()
         && flexbox_containers.is_empty()
     {
-        return document.to_string();
+        return;
     }
 
     let mut has_top_elements = false;
@@ -322,7 +320,11 @@ pub fn convert_to_table_layout(html: &str) -> String {
         child.detach();
     }
     target_root.append(wrapper_table);
+}
 
+pub fn convert_to_table_layout(html: &str) -> String {
+    let document = kuchiki::parse_html().one(html);
+    convert_to_table_layout_dom(&document);
     document.to_string()
 }
 

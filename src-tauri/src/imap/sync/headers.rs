@@ -1,5 +1,5 @@
-use async_std::stream::StreamExt;
 use chrono::{TimeZone, Utc};
+use futures::StreamExt;
 
 use crate::db::{MailHeader, MessageBatchItem, DEFAULT_BATCH_SIZE};
 
@@ -17,14 +17,14 @@ fn flag_to_string(flag: &async_imap::types::Flag) -> String {
 }
 
 impl crate::imap::ImapManager {
-    pub fn fetch_headers_sync(
+    pub async fn fetch_headers_sync(
         &self,
         account_id: &str,
         mailbox: &str,
         anchor: Option<u32>,
         limit: u32,
     ) -> Result<Vec<MailHeader>, String> {
-        let conn_guard = self.conn.lock().unwrap();
+        let conn_guard = self.conn.lock().await;
         let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
         crate::db::fetch_headers(conn, account_id, mailbox, anchor, limit)
             .map_err(|e| e.to_string())
@@ -148,7 +148,7 @@ impl crate::imap::ImapManager {
                 headers.push(header);
 
                 if batch_items.len() >= DEFAULT_BATCH_SIZE {
-                    let mut conn_guard = self.conn.lock().unwrap();
+                    let mut conn_guard = self.conn.lock().await;
                     let conn = conn_guard.as_mut().ok_or("Database not initialized")?;
                     crate::db::batch_insert_messages(
                         conn,
@@ -168,7 +168,7 @@ impl crate::imap::ImapManager {
         }
 
         if !batch_items.is_empty() {
-            let mut conn_guard = self.conn.lock().unwrap();
+            let mut conn_guard = self.conn.lock().await;
             let conn = conn_guard.as_mut().ok_or("Database not initialized")?;
             crate::db::batch_insert_messages(
                 conn,
@@ -191,7 +191,7 @@ impl crate::imap::ImapManager {
         limit: u32,
     ) -> Result<Vec<MailHeader>, String> {
         let mut headers = {
-            let conn_guard = self.conn.lock().unwrap();
+            let conn_guard = self.conn.lock().await;
             let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
             crate::db::fetch_headers(conn, account_id, mailbox, anchor, limit)
                 .map_err(|e| e.to_string())?
@@ -372,7 +372,7 @@ impl crate::imap::ImapManager {
         drop(fetches); // Release borrow on session
 
         if !batch_items.is_empty() {
-            let mut conn_guard = self.conn.lock().unwrap();
+            let mut conn_guard = self.conn.lock().await;
             let conn = conn_guard.as_mut().ok_or("Database not initialized")?;
             crate::db::batch_insert_messages(
                 conn,

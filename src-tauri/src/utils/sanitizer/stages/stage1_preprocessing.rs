@@ -2,33 +2,56 @@ use std::collections::HashMap;
 
 use html5ever::QualName;
 use kuchiki::NodeRef;
+use kuchiki::traits::TendrilSink;
 use markup5ever::{namespace_url, ns};
 
-pub fn resolve_css_variables(html: &str) -> String {
-    let vars = parse_css_variables(html);
-    if vars.is_empty() {
-        return html.to_string();
+pub fn resolve_css_variables_dom(document: &NodeRef) {
+    let mut css_content = String::new();
+    let mut style_nodes = Vec::new();
+
+    // Collect all style blocks to find :root variables
+    for node in document.descendants() {
+        if let Some(element) = node.as_element() {
+            if element.name.local.to_string().to_lowercase() == "style" {
+                css_content.push_str(&node.text_contents());
+                style_nodes.push(node.clone());
+            }
+        }
     }
 
-    let style_re = regex::Regex::new(r"(?s)(<style[^>]*>)(.*?)(</style>)").unwrap();
-    let after_style = style_re
-        .replace_all(html, |caps: &regex::Captures| {
-            format!(
-                "{}{}{}",
-                &caps[1],
-                resolve_var_refs(&caps[2], &vars),
-                &caps[3]
-            )
-        })
-        .to_string();
+    let vars = parse_css_variables(&css_content);
+    if vars.is_empty() {
+        return;
+    }
 
-    let inline_style_re = regex::Regex::new(r#"style="([^"]*)"#).unwrap();
-    inline_style_re
-        .replace_all(&after_style, |caps: &regex::Captures| {
-            let resolved = resolve_var_refs(&caps[1], &vars);
-            format!(r#"style="{}""#, resolved)
-        })
-        .to_string()
+    // Resolve variables in <style> blocks
+    for style_node in style_nodes {
+        let css = style_node.text_contents();
+        let resolved = resolve_var_refs(&css, &vars);
+        for child in style_node.children() {
+            child.detach();
+        }
+        style_node.append(NodeRef::new_text(resolved));
+    }
+
+    // Resolve variables in style="" attributes
+    for node in document.descendants() {
+        if let Some(element) = node.as_element() {
+            let mut attrs = element.attributes.borrow_mut();
+            if let Some(style) = attrs.get("style").map(|s| s.to_string()) {
+                let resolved = resolve_var_refs(&style, &vars);
+                if resolved != style {
+                    attrs.insert("style", resolved);
+                }
+            }
+        }
+    }
+}
+
+pub fn resolve_css_variables(html: &str) -> String {
+    let document = kuchiki::parse_html().one(html);
+    resolve_css_variables_dom(&document);
+    document.to_string()
 }
 
 fn parse_css_variables(html: &str) -> HashMap<String, String> {
@@ -95,6 +118,18 @@ pub fn extract_body_styles_from_css(html: &str) -> String {
     } else {
         String::new()
     }
+}
+
+pub fn extract_body_styles_dom(document: &NodeRef) -> String {
+    let mut css_content = String::new();
+    for node in document.descendants() {
+        if let Some(element) = node.as_element() {
+            if element.name.local.to_string().to_lowercase() == "style" {
+                css_content.push_str(&node.text_contents());
+            }
+        }
+    }
+    extract_body_styles_from_css(&css_content)
 }
 
 pub fn replace_body_with_div_dom(document: &NodeRef, body_styles: String) {
