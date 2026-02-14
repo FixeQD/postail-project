@@ -1,6 +1,7 @@
 //! Stage 2: Element scaling
 
 use kuchiki::traits::*;
+use kuchiki::NodeRef;
 
 use crate::utils::sanitizer::css::parser::{parse_css_declarations, parse_css_value};
 
@@ -11,8 +12,7 @@ const LARGE_ELEMENT_THRESHOLD: f32 = 400.0;
 use crate::utils::sanitizer::config::COLLECTED_ISSUES;
 use crate::utils::sanitizer::types::{IssueSeverity, SanitizeIssue};
 
-pub fn scale_elements_for_email(html: &str) -> String {
-    let document = kuchiki::parse_html().one(html);
+pub fn scale_elements_for_email_dom(document: &NodeRef) {
     let mut is_first_div = true;
 
     for node in document.descendants() {
@@ -29,21 +29,25 @@ pub fn scale_elements_for_email(html: &str) -> String {
             if tag_name == "div" && is_first_div {
                 is_first_div = false;
                 let mut attrs = element.attributes.borrow_mut();
-                if let Some(style) = attrs.get("style").map(|s| s.to_string()) {
-                    let fixed_style = fix_viewport_units(&style, true);
+                if let Some(style) = attrs.get("style") {
+                    let fixed_style = fix_viewport_units(style, true);
                     attrs.insert("style", fixed_style);
                 }
                 continue;
             }
 
             let mut attrs = element.attributes.borrow_mut();
-            if let Some(style) = attrs.get("style").map(|s| s.to_string()) {
-                let scaled_style = scale_element_dimensions(&style);
+            if let Some(style) = attrs.get("style") {
+                let scaled_style = scale_element_dimensions(style);
                 attrs.insert("style", scaled_style);
             }
         }
     }
+}
 
+pub fn scale_elements_for_email(html: &str) -> String {
+    let document = kuchiki::parse_html().one(html);
+    scale_elements_for_email_dom(&document);
     document.to_string()
 }
 

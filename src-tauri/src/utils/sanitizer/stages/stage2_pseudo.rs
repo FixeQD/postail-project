@@ -2,6 +2,10 @@
 
 use crate::utils::sanitizer::css::parser::parse_css_declarations;
 use crate::utils::sanitizer::types::PseudoRule;
+use html5ever::QualName;
+use kuchiki::traits::*;
+use kuchiki::NodeRef;
+use markup5ever::{namespace_url, ns};
 use regex::Regex;
 use std::collections::HashSet;
 
@@ -82,19 +86,22 @@ fn find_matching_brace(css: &str, start: usize) -> Option<usize> {
     }
 }
 
-pub fn expand_pseudo_elements(html: &str) -> String {
-    let style_re = Regex::new(r"(?s)(<style[^>]*>)(.*?)(</style>)").unwrap();
+pub fn expand_pseudo_elements_dom(document: &NodeRef) {
     let mut all_rules = Vec::new();
-    let mut style_replacements = Vec::new();
+    let mut style_nodes = Vec::new();
 
-    // First pass: collect all style blocks and their rules
-    for style_caps in style_re.captures_iter(html) {
-        let style_open = &style_caps[1];
-        let style_body = &style_caps[2];
-        let style_close = &style_caps[3];
-        let style_full = style_caps.get(0).unwrap();
+    // First pass: collect all style nodes and their rules
+    for node in document.descendants() {
+        if let Some(element) = node.as_element() {
+            if element.name.local.to_string().to_lowercase() == "style" {
+                style_nodes.push(node.clone());
+            }
+        }
+    }
 
-        let (rules, cleaned_css) = parse_pseudo_rules(style_body);
+    for style_node in &style_nodes {
+        let css_body = style_node.text_contents();
+        let (rules, cleaned_css) = parse_pseudo_rules(&css_body);
 
         let mut new_css_rules = String::new();
         for rule in &rules {
@@ -106,172 +113,65 @@ pub fn expand_pseudo_elements(html: &str) -> String {
             }
         }
 
-        let new_style = format!(
-            "{}{}{}{}",
-            style_open, cleaned_css, new_css_rules, style_close
-        );
+        for child in style_node.children() {
+            child.detach();
+        }
+        style_node.append(NodeRef::new_text(format!("{}{}", cleaned_css, new_css_rules)));
 
-        style_replacements.push((style_full.start(), style_full.end(), new_style));
         all_rules.extend(rules);
     }
 
     if all_rules.is_empty() {
-        return html.to_string();
+        return;
     }
-
-    // Apply all style replacements in reverse order to preserve positions
-    let mut result = html.to_string();
-    for (start, end, new_style) in style_replacements.iter().rev() {
-        result.replace_range(*start..*end, new_style);
-    }
-
-    // Cache for compiled regexes to avoid repeated compilation
-    let mut regex_cache: std::collections::HashMap<String, Regex> =
-        std::collections::HashMap::new();
 
     // Merge duplicate pseudo rules for the same class+pseudo kind.
     let all_rules = merge_pseudo_rules(all_rules);
 
     for rule in &all_rules {
-        let open_tag_pattern = format!(
-            r#"(?s)(<[a-zA-Z][a-zA-Z0-9]*\s[^>]*class=")([^"]*\b{class}\b[^"]*)"#,
-            class = regex::escape(&rule.class)
-        );
-        let open_tag_re = regex_cache
-            .entry(open_tag_pattern.clone())
-            .or_insert_with(|| Regex::new(&open_tag_pattern).expect("invalid class-match regex"));
-
-        let span = if rule.content.is_empty() {
-            format!(r#"<span class="{}"></span>"#, rule.class_for_style)
+        let span_class = rule.class_for_style.clone();
+        let span_content = if rule.content.is_empty() {
+            String::new()
         } else {
-            let escaped_content = html_escape(&rule.content);
-            format!(
-                r#"<span class="{}">{}</span>"#,
-                rule.class_for_style, escaped_content
-            )
+            html_escape(&rule.content)
         };
 
-        if rule.is_before {
-            result = open_tag_re
-                .replace_all(&result, |caps: &regex::Captures| {
-                    // Verify class is a complete token, not part of a hyphenated name
-                    let class_value = &caps[2];
-                    if !class_value.split_whitespace().any(|t| t == rule.class) {
-                        return caps[0].to_string();
-                    }
-                    format!(
-                        "{}{}__PSEUDO_BEFORE_{}__",
-                        &caps[1], &caps[2], rule.class_for_style
-                    )
-                })
-                .to_string();
+        let span = NodeRef::new_element(
+            QualName::new(None, ns!(html), "span".into()),
+            vec![(
+                kuchiki::ExpandedName::new(ns!(), "class"),
+                kuchiki::Attribute {
+                    prefix: None,
+                    value: span_class.to_string(),
+                },
+            )],
+        );
+        if !span_content.is_empty() {
+            span.append(NodeRef::new_text(span_content));
+        }
 
-            let placeholder = format!("__PSEUDO_BEFORE_{}__", rule.class_for_style);
-            let mut pos = 0;
-            while let Some(ph_offset) = result[pos..].find(&placeholder) {
-                let ph_pos = pos + ph_offset;
-                let after_ph = ph_pos + placeholder.len();
-                if let Some(gt_offset) = result[after_ph..].find('>') {
-                    let insert_pos = after_ph + gt_offset + 1;
-                    result = format!(
-                        "{}{}{}{}",
-                        &result[..ph_pos],
-                        &result[after_ph..insert_pos],
-                        &span,
-                        &result[insert_pos..]
-                    );
-                    pos = ph_pos + span.len();
-                } else {
-                    pos = ph_pos + 1;
-                }
-            }
-        } else {
-            let open_full_pattern = format!(
-                r#"(?s)<([a-zA-Z][a-zA-Z0-9]*)\s[^>]*class="([^"]*\b{class}\b[^"]*)"[^>]*>"#,
-                class = regex::escape(&rule.class)
-            );
-            let open_full_re = regex_cache
-                .entry(open_full_pattern.clone())
-                .or_insert_with(|| {
-                    Regex::new(&open_full_pattern).expect("invalid full open tag regex")
-                });
-
-            let mut insertions = Vec::new();
-            for caps in open_full_re.captures_iter(&result) {
-                let class_value = &caps[2];
-                if !class_value.split_whitespace().any(|t| t == rule.class) {
-                    continue;
-                }
-                let tag_name = &caps[1];
-                let open_end = caps.get(0).unwrap().end();
-                let closing = format!("</{}>", tag_name);
-
-                // Nesting-aware scan: count opening/closing tags to find the matching outer closing tag
-                let mut depth = 1;
-                let mut pos = open_end;
-                let mut insert_pos = None;
-
-                let open_tag_re =
-                    Regex::new(&format!(r#"(?s)<{}(?:\s|>)"#, regex::escape(tag_name))).unwrap();
-
-                while pos < result.len() && insert_pos.is_none() {
-                    // Look for next opening tag of the same type
-                    if let Some(open_match) = open_tag_re.find_at(&result, pos) {
-                        let open_start = open_match.start();
-                        // Look for closing tag
-                        if let Some(close_offset) = result[pos..].find(&closing) {
-                            let close_start = pos + close_offset;
-                            if open_start < close_start {
-                                // Opening tag comes first - check if it's self-closing
-                                let tag_end = result[open_start..].find('>');
-                                if let Some(end) = tag_end {
-                                    let tag_content = &result[open_start..open_start + end + 1];
-                                    if tag_content.ends_with("/>") {
-                                        // Self-closing tag, skip it
-                                        pos = open_start + end + 1;
-                                    } else {
-                                        // Nested opening tag
-                                        depth += 1;
-                                        pos = open_start + end + 1;
-                                    }
-                                } else {
-                                    break;
-                                }
-                            } else {
-                                // Closing tag comes first
-                                depth -= 1;
-                                if depth == 0 {
-                                    insert_pos = Some(close_start);
-                                }
-                                pos = close_start + closing.len();
-                            }
+        for node in document.descendants() {
+            if let Some(element) = node.as_element() {
+                let attrs = element.attributes.borrow();
+                if let Some(class_attr) = attrs.get("class") {
+                    if class_attr.split_whitespace().any(|t| t == rule.class) {
+                        drop(attrs);
+                        if rule.is_before {
+                            node.prepend(span.clone());
                         } else {
-                            break;
+                            node.append(span.clone());
                         }
-                    } else {
-                        // No more opening tags, find the closing tag
-                        if let Some(close_offset) = result[pos..].find(&closing) {
-                            depth -= 1;
-                            if depth == 0 {
-                                insert_pos = Some(pos + close_offset);
-                            }
-                        }
-                        break;
                     }
                 }
-
-                if let Some(pos) = insert_pos {
-                    insertions.push((pos, span.clone()));
-                }
-            }
-            insertions.sort_by(|a, b| b.0.cmp(&a.0)); // reverse order
-            for (insert_pos, span) in insertions {
-                result = format!("{}{}{}", &result[..insert_pos], span, &result[insert_pos..]);
             }
         }
     }
+}
 
-    result
+pub fn expand_pseudo_elements(html: &str) -> String {
+    let document = kuchiki::parse_html().one(html);
+    expand_pseudo_elements_dom(&document);
+    document.to_string()
 }
 
 fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {

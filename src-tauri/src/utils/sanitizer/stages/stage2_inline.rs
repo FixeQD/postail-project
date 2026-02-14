@@ -1,23 +1,24 @@
 //! Stage 2: CSS Processing - Inline styles and animations
 
 use std::collections::HashMap;
-
 use regex::Regex;
-
+use kuchiki::traits::*;
+use kuchiki::NodeRef;
 pub use crate::utils::sanitizer::types::{FONT_FACE_REGEX, IMPORT_REGEX};
-
 use crate::utils::sanitizer::css::parser::parse_css_declarations;
 
 // ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
 
-pub fn inline_css_styles(html: &str) -> String {
+pub fn inline_css_styles_dom(document: &NodeRef) {
+    let html = document.to_string();
+
     // Step 1: Parse @keyframes final states from the <style> blocks
-    let keyframe_finals = parse_keyframe_final_states(html);
+    let keyframe_finals = parse_keyframe_final_states(&html);
 
     // Step 2: Apply final-state values to CSS rules in <style> blocks.
-    let patched = apply_final_states_to_css_rules(html, &keyframe_finals);
+    let patched = apply_final_states_to_css_rules(&html, &keyframe_finals);
 
     // Step 3: Remove @keyframes blocks (css_inline chokes on them / they're useless in email)
     let without_keyframes = remove_keyframes(&patched);
@@ -29,7 +30,22 @@ pub fn inline_css_styles(html: &str) -> String {
     let inlined = css_inline::inline(&without_clamp).unwrap_or_else(|_| without_clamp.clone());
 
     // Step 6: Final cleanup - strip any leftover animation props in inline styles
-    strip_animation_from_inline_styles(&inlined)
+    let final_html = strip_animation_from_inline_styles(&inlined);
+
+    // Parse back into the document
+    let new_doc = kuchiki::parse_html().one(final_html);
+    for child in document.children().collect::<Vec<_>>() {
+        child.detach();
+    }
+    for child in new_doc.children() {
+        document.append(child.clone());
+    }
+}
+
+pub fn inline_css_styles(html: &str) -> String {
+    let document = kuchiki::parse_html().one(html);
+    inline_css_styles_dom(&document);
+    document.to_string()
 }
 
 // ---------------------------------------------------------------------------
