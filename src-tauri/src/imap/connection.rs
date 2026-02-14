@@ -41,21 +41,22 @@ impl Authenticator for Xoauth2Authenticator {
 }
 
 impl super::ImapManager {
-    fn get_credentials(&self, account_id: &str) -> Result<String, ImapError> {
-        let conn_guard = self.conn.lock().unwrap();
-        let conn = conn_guard.as_ref().ok_or(ImapError::CredentialsFetch(
-            "Database not initialized".to_string(),
-        ))?;
-        let mut stmt = conn
-            .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
-            .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
-        let creds_path: String = stmt
-            .query_row([account_id], |row| row.get(0))
-            .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
-        drop(stmt);
-        drop(conn_guard);
+    async fn get_credentials(&self, account_id: &str) -> Result<String, ImapError> {
+        let creds_path: String = {
+            let conn_guard = self.conn.lock().await;
+            let conn = conn_guard.as_ref().ok_or(ImapError::CredentialsFetch(
+                "Database not initialized".to_string(),
+            ))?;
+            let mut stmt = conn
+                .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
+                .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
+            let path: String = stmt
+                .query_row([account_id], |row| row.get(0))
+                .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
+            path
+        };
 
-        let security = self.security.lock().unwrap();
+        let security = self.security.lock().await;
         let encrypted =
             std::fs::read(&creds_path).map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
         let decrypted = security
@@ -112,9 +113,9 @@ impl super::ImapManager {
                             Utc::now().timestamp() + new_tokens.expires_in as i64,
                         ));
 
-                        let security = self.security.lock().unwrap();
+                        let security = self.security.lock().await;
                         let creds_path: String = {
-                            let conn_guard = self.conn.lock().unwrap();
+                            let conn_guard = self.conn.lock().await;
                             let conn = conn_guard.as_ref().ok_or(ImapError::CredentialsFetch(
                                 "Database not initialized".to_string(),
                             ))?;
@@ -151,7 +152,7 @@ impl super::ImapManager {
         tracing::debug!(target: "postail", "[IMAP] connect_imap: starting for {}", account_id);
 
         let (host, port, _tls, auth_type, email) = {
-            let conn_guard = self.conn.lock().unwrap();
+            let conn_guard = self.conn.lock().await;
             let conn = conn_guard.as_ref().ok_or(ImapError::Connection(
                 "Database not initialized".to_string(),
             ))?;
@@ -172,7 +173,7 @@ impl super::ImapManager {
 
         tracing::debug!(target: "postail", "[IMAP] connect_imap: host={}, port={}, auth_type={}", host, port, auth_type);
 
-        let creds_json = self.get_credentials(account_id)?;
+        let creds_json = self.get_credentials(account_id).await?;
         tracing::debug!(target: "postail", "[IMAP] connect_imap: credentials retrieved");
 
         let mut creds: serde_json::Value =
@@ -211,9 +212,8 @@ impl super::ImapManager {
 
             tracing::debug!(target: "postail", "[IMAP] connect_imap: XOAUTH2 via authenticate for '{}' @ '{}'", email, host);
 
-            let authenticator =
-                Xoauth2Authenticator::new(email.clone(), access_token.to_string());
-            
+            let authenticator = Xoauth2Authenticator::new(email.clone(), access_token.to_string());
+
             match client.authenticate("XOAUTH2", authenticator).await {
                 Ok(session) => {
                     tracing::info!(target: "postail", "[IMAP] connect_imap: XOAUTH2 successful");
@@ -230,7 +230,10 @@ impl super::ImapManager {
                         }
                         Err((e2, _)) => {
                             tracing::error!(target: "postail", "[IMAP] connect_imap: Both OAUTH methods failed: {}, {}", e, e2);
-                            Err(ImapError::Login(format!("XOAUTH2: {}; OAUTHBEARER: {}", e, e2)))
+                            Err(ImapError::Login(format!(
+                                "XOAUTH2: {}; OAUTHBEARER: {}",
+                                e, e2
+                            )))
                         }
                     }
                 }

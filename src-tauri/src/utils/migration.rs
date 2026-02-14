@@ -20,7 +20,7 @@ pub async fn perform_migration(new_path: &str) -> Result<(), String> {
     {
         tracing::info!(target: "postail", "[Migration] Stopping IMAP syncs...");
         let imap = IMAP_MANAGER.lock().await;
-        let _ = imap.stop_all_syncs();
+        let _ = imap.stop_all_syncs().await;
     }
 
     // Cleanup sync statuses
@@ -32,7 +32,7 @@ pub async fn perform_migration(new_path: &str) -> Result<(), String> {
     // Stop SMTP outbox worker
     {
         tracing::info!(target: "postail", "[Migration] Stopping SMTP worker...");
-        let smtp = SMTP_MANAGER.lock().unwrap();
+        let smtp = SMTP_MANAGER.lock().await;
         smtp.stop_outbox_worker();
     }
 
@@ -43,7 +43,7 @@ pub async fn perform_migration(new_path: &str) -> Result<(), String> {
     // 2. Drop DB connection
     tracing::info!(target: "postail", "[Migration] Closing database connection...");
     {
-        let mut db_guard = DB_CONN.lock().unwrap();
+        let mut db_guard = DB_CONN.lock().await;
         *db_guard = None;
     }
 

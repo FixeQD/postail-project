@@ -55,7 +55,7 @@ pub async fn sync_single_mailbox(account_id: String, mailbox: String) -> Result<
     let account_email = {
         let imap = IMAP_MANAGER.lock().await;
         let conn_guard = imap.get_conn();
-        let conn_guard = conn_guard.lock().unwrap();
+        let conn_guard = conn_guard.lock().await;
         let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
         crate::db::accounts::get_account_email(conn, &account_id)
             .map_err(|e| e.to_string())?

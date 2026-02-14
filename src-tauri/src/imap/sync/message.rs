@@ -4,13 +4,13 @@ use mailparse::parse_mail;
 use crate::db;
 
 impl crate::imap::ImapManager {
-    pub fn fetch_message_full_sync(
+    pub async fn fetch_message_full_sync(
         &self,
         account_id: &str,
         mailbox: &str,
         uid: u32,
     ) -> Result<Option<crate::db::MessageFull>, String> {
-        let conn_guard = self.conn.lock().unwrap();
+        let conn_guard = self.conn.lock().await;
         let conn = conn_guard
             .as_ref()
             .ok_or("Database not initialized".to_string())?;
@@ -45,7 +45,7 @@ impl crate::imap::ImapManager {
                 let inline_images = vec![];
 
                 let message_full = {
-                    let conn_guard = self.conn.lock().unwrap();
+                    let conn_guard = self.conn.lock().await;
                     let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
                     db::fetch_message_full(conn, account_id, mailbox, uid)
                         .map_err(|e| e.to_string())?

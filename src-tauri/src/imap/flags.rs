@@ -140,7 +140,7 @@ impl ImapManager {
         drop(fetches);
         session.logout().await.map_err(AppError::from)?;
 
-        let conn_guard = DB_CONN.lock().unwrap();
+        let conn_guard = DB_CONN.lock().await;
         let conn = conn_guard
             .as_ref()
             .ok_or_else(|| AppError::from("Database not initialized"))?;
@@ -217,7 +217,10 @@ impl ImapManager {
         }
 
         let mut session = self.connect_imap(account_id).await?;
-        session.select(source_mailbox).await.map_err(AppError::from)?;
+        session
+            .select(source_mailbox)
+            .await
+            .map_err(AppError::from)?;
 
         let uid_set = format_uid_set(uids);
 
@@ -254,7 +257,8 @@ impl ImapManager {
                 }
 
                 {
-                    let mut expunge_stream = Box::pin(session.expunge().await.map_err(AppError::from)?);
+                    let mut expunge_stream =
+                        Box::pin(session.expunge().await.map_err(AppError::from)?);
                     while let Some(_) = expunge_stream.next().await {}
                 }
 

@@ -164,8 +164,12 @@ pub enum SyncStatusEnum {
     Error(String),
 }
 
-pub fn init_db() -> Result<Connection, DBError> {
-    let key = crate::security::DbEncryption::get_hex_key();
+pub async fn init_db() -> Result<(), DBError> {
+    let key = {
+        let security = crate::globals::SECURITY.lock().await;
+        let master_key = security.get_master_key_raw();
+        crate::security::DbEncryption::get_hex_key(&master_key)
+    };
     if key.is_empty() {
         return Err(DBError::Security(
             crate::error::SecurityError::KeyDerivation(
@@ -173,7 +177,13 @@ pub fn init_db() -> Result<Connection, DBError> {
             ),
         ));
     }
-    init_db_with_key(&key)
+    let conn = init_db_with_key(&key)?;
+
+    // Save to global DB_CONN
+    let mut db_guard = crate::globals::DB_CONN.lock().await;
+    *db_guard = Some(conn);
+
+    Ok(())
 }
 
 fn apply_sqlcipher_key(conn: &Connection, hex_key: &str) -> Result<(), DBError> {

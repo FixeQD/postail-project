@@ -56,7 +56,7 @@ impl DbEncryption {
         let salt_file = crate::utils::config::get_data_dir()
             .join("security")
             .join("db_salt");
-        
+
         // 1. Try Keyring first
         let entry = Entry::new(DB_ENC_SALT_SERVICE, DB_ENC_SALT_KEY)
             .map_err(|e| DbEncryptionError::Keyring(e.to_string()))?;
@@ -76,7 +76,7 @@ impl DbEncryption {
                 if let Ok(salt) = hex::decode(salt_hex.trim()) {
                     // Try to restore to keyring if it was missing
                     let _ = entry.set_password(&hex::encode(&salt));
-                    
+
                     return Ok(salt);
                 }
             }
@@ -95,7 +95,7 @@ impl DbEncryption {
         if let Some(parent) = salt_file.parent() {
             let _ = fs::create_dir_all(parent);
         }
-        
+
         if let Err(e) = fs::write(&salt_file, &salt_hex) {
             tracing::error!(target: "postail", "[Security] Failed to save salt to file: {}", e);
         }
@@ -140,46 +140,22 @@ impl Drop for DbEncryption {
     }
 }
 
-lazy_static::lazy_static! {
-    pub static ref DB_ENCRYPTION: Result<DbEncryption, DbEncryptionError> = {
-        DbEncryption::initialize()
-    };
-}
-
 impl DbEncryption {
-    pub fn fresh() -> Result<Self, DbEncryptionError> {
-        Self::initialize()
-    }
-
-    fn initialize() -> Result<Self, DbEncryptionError> {
-        use crate::globals::SECURITY;
-
-        let master_key = match SECURITY.lock() {
-            Ok(guard) => guard.get_master_key_raw(),
-            Err(_) => {
-                return Err(DbEncryptionError::Keyring(
-                    "Failed to acquire security lock during initialization".to_string(),
-                ));
-            }
-        };
-
+    pub fn from_master_key(master_key: &[u8]) -> Result<Self, DbEncryptionError> {
         if master_key.is_empty() {
             return Err(DbEncryptionError::Keyring(
                 "Master key not available during encryption initialization".to_string(),
             ));
         }
-
-        Self::derive_from_master_key(&master_key)
+        Self::derive_from_master_key(master_key)
     }
 
-    pub fn global() -> &'static Result<DbEncryption, DbEncryptionError> {
-        &DB_ENCRYPTION
-    }
-
-    pub fn get_hex_key() -> String {
-        Self::fresh().map(|e| e.hex_key()).unwrap_or_else(|e| {
-            tracing::error!(target: "postail", "[DB] Failed to get encryption key: {}", e);
-            String::new()
-        })
+    pub fn get_hex_key(master_key: &[u8]) -> String {
+        Self::from_master_key(master_key)
+            .map(|e| e.hex_key())
+            .unwrap_or_else(|e| {
+                tracing::error!(target: "postail", "[DB] Failed to get encryption key: {}", e);
+                String::new()
+            })
     }
 }

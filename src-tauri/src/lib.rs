@@ -30,8 +30,14 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             utils::oauth_server::start(handle.clone());
-            SMTP_MANAGER.lock().unwrap().set_app_handle(handle.clone());
-            set_sync_status_app_handle(handle.clone());
+
+            // Initialize managers in async context
+            let setup_handle = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                let smtp = SMTP_MANAGER.lock().await;
+                smtp.set_app_handle(setup_handle.clone()).await;
+                set_sync_status_app_handle(setup_handle);
+            });
 
             // Start auto-lock timer
             let timer_handle = handle.clone();

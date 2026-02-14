@@ -172,7 +172,7 @@ impl SecurityManager {
         let salt = b"postail-email-client-v1";
         let argon2 = Argon2::default();
         let passphrase_trimmed = passphrase.trim();
-        
+
         argon2
             .hash_password_into(passphrase_trimmed.as_bytes(), salt, &mut derived_key)
             .map_err(|e| {
@@ -194,7 +194,7 @@ impl SecurityManager {
         let salt = b"postail-email-client-v1";
         let argon2 = Argon2::default();
         let passphrase_trimmed = passphrase.trim();
-        
+
         argon2
             .hash_password_into(passphrase_trimmed.as_bytes(), salt, &mut derived_key)
             .map_err(|e| {

@@ -2,7 +2,8 @@ use crate::error::AppError;
 use crate::imap::sync_status::{update_sync_status, SYNC_STATUS_MANAGER};
 use crate::security::SecurityManager;
 use rusqlite::Connection;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub mod connection;
 pub mod flags;

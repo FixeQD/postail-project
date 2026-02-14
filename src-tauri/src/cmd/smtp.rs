@@ -4,27 +4,27 @@ use std::sync::Arc;
 use tauri::command;
 
 #[command]
-pub fn enqueue_message(account_id: String, raw_eml: Vec<u8>) -> Result<String, String> {
-    let smtp = SMTP_MANAGER.lock().unwrap();
-    smtp.enqueue_message(&account_id, &raw_eml)
+pub async fn enqueue_message(account_id: String, raw_eml: Vec<u8>) -> Result<String, String> {
+    let smtp = SMTP_MANAGER.lock().await;
+    smtp.enqueue_message(&account_id, &raw_eml).await
 }
 
 #[command]
-pub fn list_outbox(account_id: String) -> Result<Vec<OutboxItem>, String> {
-    let smtp = SMTP_MANAGER.lock().unwrap();
-    smtp.list_outbox(&account_id)
+pub async fn list_outbox(account_id: String) -> Result<Vec<OutboxItem>, String> {
+    let smtp = SMTP_MANAGER.lock().await;
+    smtp.list_outbox(&account_id).await
 }
 
 #[command]
-pub fn retry_sending(outbox_id: String) -> Result<(), String> {
-    let smtp = SMTP_MANAGER.lock().unwrap();
-    smtp.retry_sending(&outbox_id)
+pub async fn retry_sending(outbox_id: String) -> Result<(), String> {
+    let smtp = SMTP_MANAGER.lock().await;
+    smtp.retry_sending(&outbox_id).await
 }
 
 #[command]
-pub fn cancel_sending(outbox_id: String) -> Result<(), String> {
-    let smtp = SMTP_MANAGER.lock().unwrap();
-    smtp.cancel_sending(&outbox_id)
+pub async fn cancel_sending(outbox_id: String) -> Result<(), String> {
+    let smtp = SMTP_MANAGER.lock().await;
+    smtp.cancel_sending(&outbox_id).await
 }
 
 #[derive(serde::Serialize)]
@@ -39,7 +39,7 @@ pub async fn build_email_from_draft(draft_id: String) -> Result<BuildEmailResult
     let db_conn = Arc::clone(&DB_CONN);
 
     tokio::task::spawn_blocking(move || {
-        let conn_guard = db_conn.lock().unwrap();
+        let conn_guard = db_conn.blocking_lock();
         let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
 
         let draft = crate::db::load_draft(conn, &draft_id)

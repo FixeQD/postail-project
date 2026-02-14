@@ -27,25 +27,26 @@ impl Default for LockState {
 static LOCK_STATE: Lazy<Arc<Mutex<LockState>>> =
     Lazy::new(|| Arc::new(Mutex::new(LockState::default())));
 
-pub fn load_settings() {
-    let mut state = LOCK_STATE.lock().unwrap();
-
+pub async fn load_settings() {
     // Load timeout (default 0/disabled if not set)
-    if let Ok(Some(timeout_str)) = get_setting("lock_timeout_minutes") {
+    if let Ok(Some(timeout_str)) = get_setting("lock_timeout_minutes").await {
         if let Ok(minutes) = timeout_str.parse::<u64>() {
+            let mut state = LOCK_STATE.lock().unwrap();
             state.timeout = Duration::from_secs(minutes * 60);
         }
     }
 
     // Load PIN hash
-    if let Ok(Some(pin_hash)) = get_setting("lock_pin_hash") {
+    if let Ok(Some(pin_hash)) = get_setting("lock_pin_hash").await {
         if !pin_hash.is_empty() {
+            let mut state = LOCK_STATE.lock().unwrap();
             state.pin_hash = Some(pin_hash);
         }
     }
 
     // Load encryption password flag
-    if let Ok(Some(use_pass)) = get_setting("lock_use_encryption_password") {
+    if let Ok(Some(use_pass)) = get_setting("lock_use_encryption_password").await {
+        let mut state = LOCK_STATE.lock().unwrap();
         state.use_encryption_password = use_pass == "true";
     }
 }
@@ -109,29 +110,35 @@ pub fn should_lock() -> bool {
     state.last_activity.elapsed() >= state.timeout
 }
 
-pub fn set_timeout(minutes: u32) {
-    let mut state = LOCK_STATE.lock().unwrap();
-    state.timeout = Duration::from_secs(minutes as u64 * 60);
+pub async fn set_timeout(minutes: u32) {
+    {
+        let mut state = LOCK_STATE.lock().unwrap();
+        state.timeout = Duration::from_secs(minutes as u64 * 60);
+    }
     // Persist to database
-    let _ = set_setting("lock_timeout_minutes", &minutes.to_string());
+    let _ = set_setting("lock_timeout_minutes", &minutes.to_string()).await;
 }
 
-pub fn set_pin(pin: &str) {
-    let mut state = LOCK_STATE.lock().unwrap();
-    state.pin_hash = Some(pin.to_string());
-    state.use_encryption_password = false;
+pub async fn set_pin(pin: &str) {
+    {
+        let mut state = LOCK_STATE.lock().unwrap();
+        state.pin_hash = Some(pin.to_string());
+        state.use_encryption_password = false;
+    }
     // Persist to database
-    let _ = set_setting("lock_pin_hash", pin);
-    let _ = set_setting("lock_use_encryption_password", "false");
+    let _ = set_setting("lock_pin_hash", pin).await;
+    let _ = set_setting("lock_use_encryption_password", "false").await;
 }
 
-pub fn use_encryption_password() {
-    let mut state = LOCK_STATE.lock().unwrap();
-    state.use_encryption_password = true;
-    state.pin_hash = None;
+pub async fn use_encryption_password() {
+    {
+        let mut state = LOCK_STATE.lock().unwrap();
+        state.use_encryption_password = true;
+        state.pin_hash = None;
+    }
     // Persist to database
-    let _ = set_setting("lock_use_encryption_password", "true");
-    let _ = set_setting("lock_pin_hash", ""); // Clear PIN
+    let _ = set_setting("lock_use_encryption_password", "true").await;
+    let _ = set_setting("lock_pin_hash", "").await; // Clear PIN
 }
 
 pub fn get_timeout_minutes() -> u32 {

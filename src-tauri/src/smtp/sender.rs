@@ -24,19 +24,20 @@ struct SmtpSendConfig<'a> {
 }
 
 impl super::SmtpManager {
-    pub(crate) fn get_credentials(&self, account_id: &str) -> Result<String, String> {
-        let conn_guard = self.conn.lock().unwrap();
-        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-        let mut stmt = conn
-            .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
-            .map_err(|e| e.to_string())?;
-        let creds_path: String = stmt
-            .query_row([account_id], |row| row.get(0))
-            .map_err(|e| e.to_string())?;
-        drop(stmt);
-        drop(conn_guard);
+    pub(crate) async fn get_credentials(&self, account_id: &str) -> Result<String, String> {
+        let creds_path: String = {
+            let conn_guard = self.conn.lock().await;
+            let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+            let mut stmt = conn
+                .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
+                .map_err(|e| e.to_string())?;
+            let path: String = stmt
+                .query_row([account_id], |row| row.get(0))
+                .map_err(|e| e.to_string())?;
+            path
+        };
 
-        let security = self.security.lock().unwrap();
+        let security = self.security.lock().await;
         let encrypted = std::fs::read(&creds_path).map_err(|e| e.to_string())?;
         let decrypted = security.decrypt(&encrypted).map_err(|e| e.to_string())?;
         let creds_json = String::from_utf8(decrypted).map_err(|e| e.to_string())?;
@@ -50,7 +51,7 @@ impl super::SmtpManager {
     pub async fn send_email(&self, account_id: &str, eml_content: &[u8]) -> Result<(), String> {
         // Extract account data in a separate scope to ensure lock is dropped before await
         let (host, port, tls_enabled, auth_type, account_email) = {
-            let conn_guard = self.conn.lock().unwrap();
+            let conn_guard = self.conn.lock().await;
             let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
             let mut stmt = conn
                 .prepare("SELECT smtp_host, smtp_port, smtp_tls, auth_type, email FROM accounts WHERE id = ?")
@@ -78,7 +79,7 @@ impl super::SmtpManager {
             EncryptionType::StartTls
         };
 
-        let creds_json = self.get_credentials(account_id)?;
+        let creds_json = self.get_credentials(account_id).await?;
         let mut creds: serde_json::Value =
             serde_json::from_str(&creds_json).map_err(|e| e.to_string())?;
 

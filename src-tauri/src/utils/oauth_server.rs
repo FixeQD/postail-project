@@ -1,6 +1,6 @@
 use tauri::{AppHandle, Emitter};
-use tracing;
 use tiny_http::Response;
+use tracing;
 
 pub fn start(handle: AppHandle) {
     let port = portpicker::pick_unused_port().unwrap_or(8765);

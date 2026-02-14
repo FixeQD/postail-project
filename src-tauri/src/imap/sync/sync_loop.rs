@@ -1,9 +1,10 @@
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
-use tokio::time::{timeout, Duration};
+use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
+use tokio::time::{timeout, Duration};
 
 use tracing;
 
@@ -31,7 +32,7 @@ lazy_static::lazy_static! {
 impl crate::imap::ImapManager {
     pub async fn start_sync(&self, account_id: &str) -> Result<(), AppError> {
         let account_email = {
-            let conn_guard = self.conn.lock().unwrap();
+            let conn_guard = self.conn.lock().await;
             let conn = conn_guard
                 .as_ref()
                 .ok_or_else(|| AppError::from("Database not initialized"))?;
@@ -44,7 +45,7 @@ impl crate::imap::ImapManager {
 
         let stop_flag = Arc::new(AtomicBool::new(false));
         {
-            let mut flags = STOP_FLAGS.lock().unwrap();
+            let mut flags = STOP_FLAGS.lock().await;
             flags.insert(account_id.to_string(), Arc::clone(&stop_flag));
         }
 
@@ -64,37 +65,40 @@ impl crate::imap::ImapManager {
         Ok(())
     }
 
-    pub fn stop_all_syncs(&self) -> Result<(), AppError> {
+    pub async fn stop_all_syncs(&self) -> Result<(), AppError> {
         let accounts: Vec<String> = {
-            let flags = STOP_FLAGS.lock().unwrap();
+            let flags = STOP_FLAGS.lock().await;
             flags.keys().cloned().collect()
         };
 
         for account_id in accounts {
-            if let Err(e) = self.stop_sync(&account_id) {
+            if let Err(e) = self.stop_sync(&account_id).await {
                 tracing::error!(target: "postail", "[IMAP] Failed to stop sync for {}: {}", account_id, e);
             }
         }
         Ok(())
     }
 
-    pub fn stop_sync(&self, account_id: &str) -> Result<(), AppError> {
+    pub async fn stop_sync(&self, account_id: &str) -> Result<(), AppError> {
         let stop_flag = {
-            let flags = STOP_FLAGS.lock().unwrap();
-            flags.get(account_id).cloned().unwrap_or_else(|| Arc::new(AtomicBool::new(false)))
+            let flags = STOP_FLAGS.lock().await;
+            flags
+                .get(account_id)
+                .cloned()
+                .unwrap_or_else(|| Arc::new(AtomicBool::new(false)))
         };
 
         stop_flag.store(true, Ordering::SeqCst);
 
         // Interrupt any active IDLE
         {
-            let mut interrupts = IDLE_INTERRUPTS.lock().unwrap();
+            let mut interrupts = IDLE_INTERRUPTS.lock().await;
             if let Some(interrupt) = interrupts.remove(account_id) {
                 tracing::info!(target: "postail", "[IMAP] Interrupting IDLE for {}", account_id);
                 drop(interrupt);
             }
         }
-        
+
         tracing::info!(target: "postail", "[IMAP] Stop requested for {}", account_id);
         Ok(())
     }
@@ -110,7 +114,7 @@ impl crate::imap::ImapManager {
 
         // Register account for status tracking so frontend gets events
         let account_email = {
-            let conn_guard = self.conn.lock().unwrap();
+            let conn_guard = self.conn.lock().await;
             let conn = conn_guard
                 .as_ref()
                 .ok_or_else(|| AppError::from("Database not initialized"))?;
@@ -125,7 +129,7 @@ impl crate::imap::ImapManager {
 
         let stop_flag = Arc::new(AtomicBool::new(false));
         {
-            let mut flags = WATCH_STOP_FLAGS.lock().unwrap();
+            let mut flags = WATCH_STOP_FLAGS.lock().await;
             flags.insert(account_id.to_string(), stop_flag.clone());
         }
 
@@ -156,7 +160,7 @@ impl crate::imap::ImapManager {
     pub async fn stop_watch_mailbox(&self, account_id: &str) {
         // Signal stop
         let flag = {
-            let flags = WATCH_STOP_FLAGS.lock().unwrap();
+            let flags = WATCH_STOP_FLAGS.lock().await;
             flags.get(account_id).cloned()
         };
         if let Some(f) = flag {
@@ -165,7 +169,7 @@ impl crate::imap::ImapManager {
 
         // Interrupt IDLE so the thread wakes up
         {
-            let mut interrupts = IDLE_INTERRUPTS.lock().unwrap();
+            let mut interrupts = IDLE_INTERRUPTS.lock().await;
             if let Some(interrupt) = interrupts.remove(account_id) {
                 tracing::info!(target: "postail", "[IMAP] Interrupting watch IDLE for {}", account_id);
                 drop(interrupt);
@@ -174,7 +178,7 @@ impl crate::imap::ImapManager {
 
         // Cleanup flag
         {
-            let mut flags = WATCH_STOP_FLAGS.lock().unwrap();
+            let mut flags = WATCH_STOP_FLAGS.lock().await;
             flags.remove(account_id);
         }
 
@@ -292,7 +296,10 @@ impl crate::imap::ImapManager {
                 .await?;
         }
 
-        if let Err(e) = self.sync_flags_from_server(account_id, mailbox_name, None).await {
+        if let Err(e) = self
+            .sync_flags_from_server(account_id, mailbox_name, None)
+            .await
+        {
             tracing::warn!(target: "postail",
                 "[IMAP] Initial flag sync failed for {}@{}: {}",
                 mailbox_name, account_id, e
@@ -370,7 +377,7 @@ impl crate::imap::ImapManager {
 
             let (wait_future, interrupt) = idle.wait();
             {
-                let mut interrupts = IDLE_INTERRUPTS.lock().unwrap();
+                let mut interrupts = IDLE_INTERRUPTS.lock().await;
                 interrupts.insert(account_id.to_string(), interrupt);
             }
             match timeout(Duration::from_secs(RFC_IDLE_TIMEOUT_SECS), wait_future).await {
@@ -379,12 +386,12 @@ impl crate::imap::ImapManager {
                         mailbox: mailbox_name.to_string(),
                         error: e.to_string(),
                     })?;
-                    let mailbox = session.select(mailbox_name).await.map_err(|e: async_imap::error::Error| {
-                        ImapError::MailboxSyncError {
+                    let mailbox = session.select(mailbox_name).await.map_err(
+                        |e: async_imap::error::Error| ImapError::MailboxSyncError {
                             mailbox: mailbox_name.to_string(),
                             error: e.to_string(),
-                        }
-                    })?;
+                        },
+                    )?;
                     let new_highest_uid =
                         mailbox.uid_next.map(|u| u.saturating_sub(1)).unwrap_or(0);
                     if new_highest_uid > *last_uid {
@@ -406,7 +413,10 @@ impl crate::imap::ImapManager {
                             "[IMAP] IDLE wakeup but no new messages in {}@{}, syncing flags",
                             mailbox_name, account_id
                         );
-                        if let Err(e) = self.sync_flags_from_server(account_id, mailbox_name, None).await {
+                        if let Err(e) = self
+                            .sync_flags_from_server(account_id, mailbox_name, None)
+                            .await
+                        {
                             tracing::warn!(target: "postail",
                                 "[IMAP] Flag sync failed for {}@{}: {}",
                                 mailbox_name, account_id, e
@@ -510,7 +520,10 @@ impl crate::imap::ImapManager {
                             .emit_new_messages(account_id, mailbox_name, new_count)
                             .await;
                     } else {
-                        if let Err(e) = self.sync_flags_from_server(account_id, mailbox_name, None).await {
+                        if let Err(e) = self
+                            .sync_flags_from_server(account_id, mailbox_name, None)
+                            .await
+                        {
                             tracing::warn!(target: "postail",
                                 "[IMAP] Flag sync failed during poll for {}@{}: {}",
                                 mailbox_name, account_id, e
@@ -535,7 +548,7 @@ impl crate::imap::ImapManager {
         account_id: &str,
         mailbox_name: &str,
     ) -> Result<u32, AppError> {
-        let conn_guard = self.conn.lock().unwrap();
+        let conn_guard = self.conn.lock().await;
         let conn = conn_guard
             .as_ref()
             .ok_or(AppError::from("Database not initialized"))?;
@@ -590,7 +603,7 @@ impl crate::imap::ImapManager {
 
         update_sync_status(account_id, mailbox_name, total, total).await;
 
-        let conn_guard = self.conn.lock().unwrap();
+        let conn_guard = self.conn.lock().await;
         let conn = conn_guard
             .as_ref()
             .ok_or(AppError::from("Database not initialized"))?;

@@ -1,6 +1,7 @@
-use std::sync::{Arc, Mutex};
-use std::thread;
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::Mutex;
+use tokio::task;
 use tracing;
 
 use rusqlite::Connection;
@@ -26,8 +27,8 @@ pub fn start_maintenance_scheduler(db_conn: Arc<Mutex<Option<Connection>>>) {
         return;
     }
 
-    thread::spawn(move || {
-        let mut last_weekly_maintenance = std::time::Instant::now();
+    task::spawn(async move {
+        let mut last_weekly_maintenance = tokio::time::Instant::now();
         tracing::info!(target: "postail", "Maintenance scheduler started");
 
         loop {
@@ -36,7 +37,7 @@ pub fn start_maintenance_scheduler(db_conn: Arc<Mutex<Option<Connection>>>) {
                 if !MAINTENANCE_RUNNING.load(std::sync::atomic::Ordering::SeqCst) {
                     break;
                 }
-                thread::sleep(Duration::from_secs(1));
+                tokio::time::sleep(Duration::from_secs(1)).await;
             }
 
             if !MAINTENANCE_RUNNING.load(std::sync::atomic::Ordering::SeqCst) {
@@ -44,13 +45,12 @@ pub fn start_maintenance_scheduler(db_conn: Arc<Mutex<Option<Connection>>>) {
                 break;
             }
 
-            static LAST_CHECKPOINT: std::sync::Mutex<Option<std::time::Instant>> =
-                std::sync::Mutex::new(None);
+            static LAST_CHECKPOINT: Mutex<Option<tokio::time::Instant>> = Mutex::const_new(None);
 
             let should_checkpoint = {
-                let mut last = LAST_CHECKPOINT.lock().unwrap();
+                let mut last = LAST_CHECKPOINT.lock().await;
                 if last.is_none() || last.unwrap().elapsed() >= WAL_CHECKPOINT_INTERVAL {
-                    *last = Some(std::time::Instant::now());
+                    *last = Some(tokio::time::Instant::now());
                     true
                 } else {
                     false
@@ -60,7 +60,7 @@ pub fn start_maintenance_scheduler(db_conn: Arc<Mutex<Option<Connection>>>) {
             if should_checkpoint {
                 tracing::info!(target: "postail", "[Maintenance] Running WAL checkpoint...");
                 let result = {
-                    let conn_guard = db_conn.lock().unwrap();
+                    let conn_guard = db_conn.lock().await;
                     if let Some(conn) = conn_guard.as_ref() {
                         conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
                             let busy: i32 = row.get(0)?;
@@ -85,8 +85,8 @@ pub fn start_maintenance_scheduler(db_conn: Arc<Mutex<Option<Connection>>>) {
 
             if last_weekly_maintenance.elapsed() >= WEEKLY_VACUUM_INTERVAL {
                 let db_conn_clone = Arc::clone(&db_conn);
-                thread::spawn(move || {
-                    let conn_guard = db_conn_clone.lock().unwrap();
+                task::spawn(async move {
+                    let conn_guard = db_conn_clone.lock().await;
                     if let Some(conn) = conn_guard.as_ref() {
                         if let Err(e) = run_maintenance(conn) {
                             tracing::error!(target: "postail", "Weekly maintenance failed: {}", e);
@@ -94,7 +94,7 @@ pub fn start_maintenance_scheduler(db_conn: Arc<Mutex<Option<Connection>>>) {
                     }
                 });
 
-                last_weekly_maintenance = std::time::Instant::now();
+                last_weekly_maintenance = tokio::time::Instant::now();
             }
         }
     });

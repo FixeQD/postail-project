@@ -1,5 +1,6 @@
 use std::str::FromStr;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use rusqlite::Connection;
 use tauri::AppHandle;
@@ -49,8 +50,8 @@ impl SmtpManager {
         }
     }
 
-    pub fn set_app_handle(&self, handle: AppHandle) {
-        let mut guard = self.app_handle.lock().unwrap();
+    pub async fn set_app_handle(&self, handle: AppHandle) {
+        let mut guard = self.app_handle.lock().await;
         *guard = Some(handle);
     }
 }

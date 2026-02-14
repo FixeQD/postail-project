@@ -1,10 +1,10 @@
 use crate::globals::{DB_CONN, SECURITY, SMTP_MANAGER};
 use crate::security::manager::PassphraseSecurityBuilder;
+use crate::security::recovery::RecoveryStore;
 use crate::security::stores::keyring::KeyringStore;
 use crate::security::stores::tpm::get_tpm_store;
 use crate::security::stores::{SecretStore, StorageTier};
 use crate::security::{DbEncryption, SecurityManager};
-use crate::security::recovery::RecoveryStore;
 use crate::utils::config::{load_config, save_config, AppConfig};
 use serde::Serialize;
 use std::sync::Arc;
@@ -81,7 +81,7 @@ pub fn get_app_initialization_status() -> InitStatus {
     InitStatus { status, method }
 }
 
-pub fn initialize_security_and_database(
+pub async fn initialize_security_and_database(
     method: &str,
     passphrase: Option<String>,
     recovery_phrase: Option<String>,
@@ -116,7 +116,7 @@ pub fn initialize_security_and_database(
 
     let is_unlocking = security.is_initialized();
     {
-        let mut security_guard = SECURITY.lock().unwrap();
+        let mut security_guard = SECURITY.lock().await;
         *security_guard = security;
 
         if is_unlocking {
@@ -132,15 +132,17 @@ pub fn initialize_security_and_database(
     if let Some(phrase) = phrase_to_use {
         let storage_path = crate::utils::config::get_data_dir().join("security");
         let recovery_store = RecoveryStore::new(storage_path);
-        let security = SECURITY.lock().unwrap();
+        let security = SECURITY.lock().await;
         let master_key = security.export_master_key().map_err(|e| e.to_string())?;
-        recovery_store.create(&master_key, &phrase).map_err(|e| e.to_string())?;
+        recovery_store
+            .create(&master_key, &phrase)
+            .map_err(|e| e.to_string())?;
         crate::security::recovery::clear_pending_phrase(); // Clear checking phrase after use
         tracing::info!(target: "postail", "Recovery store created");
     }
 
     let encryption = {
-        let security = SECURITY.lock().unwrap();
+        let security = SECURITY.lock().await;
         let master_key_raw = security.get_master_key_raw();
         DbEncryption::derive_from_master_key(&master_key_raw).map_err(|e| e.to_string())?
     };
@@ -156,12 +158,12 @@ pub fn initialize_security_and_database(
     };
 
     {
-        let mut db_guard = DB_CONN.lock().unwrap();
+        let mut db_guard = DB_CONN.lock().await;
         *db_guard = Some(db);
     }
 
     crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
-    SMTP_MANAGER.lock().unwrap().start_outbox_worker();
+    SMTP_MANAGER.lock().await.start_outbox_worker();
 
     let existing_theme = load_config().and_then(|c| c.theme);
     save_config(&AppConfig {
@@ -170,7 +172,7 @@ pub fn initialize_security_and_database(
     })?;
 
     // Load lock settings from db
-    crate::security::load_lock_settings();
+    crate::security::load_lock_settings().await;
 
     Ok(())
 }
@@ -184,7 +186,7 @@ pub async fn initialize_security(
     if method == "argon2" && passphrase.is_none() {
         return Err("Passphrase required for Argon2".to_string());
     }
-    initialize_security_and_database(&method, passphrase, recovery_phrase)
+    initialize_security_and_database(&method, passphrase, recovery_phrase).await
 }
 
 #[command]
@@ -210,13 +212,13 @@ pub async fn unlock_with_recovery_phrase(phrase: String) -> Result<(), String> {
     let security = SecurityManager::with_store(Arc::new(holder), StorageTier::Passphrase);
 
     {
-        let mut security_guard = SECURITY.lock().unwrap();
+        let mut security_guard = SECURITY.lock().await;
         *security_guard = security;
         security_guard.unlock().map_err(|e| e.to_string())?;
     }
 
     let encryption = {
-        let security = SECURITY.lock().unwrap();
+        let security = SECURITY.lock().await;
         let master_key_raw = security.get_master_key_raw();
         DbEncryption::derive_from_master_key(&master_key_raw).map_err(|e| e.to_string())?
     };
@@ -232,25 +234,21 @@ pub async fn unlock_with_recovery_phrase(phrase: String) -> Result<(), String> {
     };
 
     {
-        let mut db_guard = DB_CONN.lock().unwrap();
+        let mut db_guard = DB_CONN.lock().await;
         *db_guard = Some(db);
     }
 
     crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
-    SMTP_MANAGER.lock().unwrap().start_outbox_worker();
-    crate::security::load_lock_settings();
+    SMTP_MANAGER.lock().await.start_outbox_worker();
+    crate::security::load_lock_settings().await;
 
     tracing::info!(target: "postail", "Unlocked via recovery phrase");
     Ok(())
 }
 
 #[command]
-pub fn verify_recovery_words(
-    indices: Vec<usize>,
-    words: Vec<String>,
-) -> Result<bool, String> {
-    crate::security::recovery::verify_pending_phrase(&indices, &words)
-        .map_err(|e| e.to_string())
+pub fn verify_recovery_words(indices: Vec<usize>, words: Vec<String>) -> Result<bool, String> {
+    crate::security::recovery::verify_pending_phrase(&indices, &words).map_err(|e| e.to_string())
 }
 
 use crate::security::lock::{
@@ -269,8 +267,8 @@ pub fn is_app_locked() -> bool {
 }
 
 #[command]
-pub fn unlock_app(password: String) -> Result<(), String> {
-    let security = SECURITY.lock().unwrap();
+pub async fn unlock_app(password: String) -> Result<(), String> {
+    let security = SECURITY.lock().await;
     let db_password = if security.is_initialized() {
         Some(hex::encode(security.get_master_key_raw()))
     } else {
@@ -280,8 +278,8 @@ pub fn unlock_app(password: String) -> Result<(), String> {
 }
 
 #[command]
-pub fn set_auto_lock_timeout(minutes: u32) {
-    set_timeout(minutes);
+pub async fn set_auto_lock_timeout(minutes: u32) {
+    set_timeout(minutes).await;
 }
 
 #[command]
@@ -290,13 +288,13 @@ pub fn get_auto_lock_timeout() -> u32 {
 }
 
 #[command]
-pub fn set_auto_lock_pin(pin: String) {
-    set_pin(&pin);
+pub async fn set_auto_lock_pin(pin: String) {
+    set_pin(&pin).await;
 }
 
 #[command]
-pub fn use_encryption_password_for_lock() {
-    use_encryption_password();
+pub async fn use_encryption_password_for_lock() {
+    use_encryption_password().await;
 }
 
 #[command]

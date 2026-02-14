@@ -10,7 +10,7 @@ impl ImapManager {
         server_uidvalidity: u32,
     ) -> Result<(), String> {
         let db_uidvalidity: Option<u32> = {
-            let conn_guard = self.conn.lock().unwrap();
+            let conn_guard = self.conn.lock().await;
             let conn = conn_guard
                 .as_ref()
                 .ok_or("Database not initialized".to_string())?;
@@ -41,7 +41,7 @@ impl ImapManager {
                     "[IMAP] No UIDVALIDITY stored for {}, creating mailbox entry",
                     mailbox_name
                 );
-                let conn_guard = self.conn.lock().unwrap();
+                let conn_guard = self.conn.lock().await;
                 let conn = conn_guard
                     .as_ref()
                     .ok_or("Database not initialized".to_string())?;
@@ -72,7 +72,7 @@ impl ImapManager {
     ) -> Result<(), String> {
         tracing::info!(target: "postail", "[IMAP] Performing full resync for {}", mailbox_name);
 
-        let mut conn_guard = self.conn.lock().unwrap();
+        let mut conn_guard = self.conn.lock().await;
         let conn = conn_guard
             .as_mut()
             .ok_or("Database not initialized".to_string())?;
@@ -100,7 +100,7 @@ impl ImapManager {
         account_id: &str,
         mailbox_name: &str,
     ) -> Result<Option<MailboxMetadata>, String> {
-        let conn_guard = self.conn.lock().unwrap();
+        let conn_guard = self.conn.lock().await;
         let conn = conn_guard
             .as_ref()
             .ok_or("Database not initialized".to_string())?;
@@ -131,7 +131,7 @@ impl ImapManager {
         mailbox_name: &str,
         modseq: i64,
     ) -> Result<(), String> {
-        let conn_guard = self.conn.lock().unwrap();
+        let conn_guard = self.conn.lock().await;
         let conn = conn_guard
             .as_ref()
             .ok_or("Database not initialized".to_string())?;
