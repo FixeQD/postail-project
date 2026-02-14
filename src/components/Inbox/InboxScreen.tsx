@@ -5,25 +5,22 @@ import { DraftsList } from './DraftsList'
 import { ComposeScreen } from '../Compose/ComposeScreen'
 import { useDraftStore } from '@/stores/draftStore'
 import { useInboxShortcuts } from '@/hooks/useInboxShortcuts'
-import type { AccountMeta } from '../../types/accounts'
 import type { ComposeDraft } from '../../types/compose'
 
+import { useAccountStore } from '@/stores/accountStore'
+
 interface InboxScreenProps {
-	accounts: AccountMeta[]
-	activeAccount: AccountMeta | null
-	setActiveAccount: (account: AccountMeta) => void
-	activeMailbox: string
-	setActiveMailbox: (mailbox: string) => void
 	onOpenSettings: () => void
 }
 
-export const InboxScreen = ({
-	accounts,
-	activeAccount,
-	setActiveAccount,
-	activeMailbox,
-	setActiveMailbox,
-}: InboxScreenProps) => {
+export const InboxScreen = ({}: InboxScreenProps) => {
+	const {
+		accounts,
+		activeAccount,
+		setActiveAccount,
+		activeMailbox,
+		setActiveMailbox,
+	} = useAccountStore()
 	const [isComposeOpen, setIsComposeOpen] = useState(false)
 	const { loadDraft } = useDraftStore()
 

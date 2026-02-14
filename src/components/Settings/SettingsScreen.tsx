@@ -20,26 +20,31 @@ import { SecuritySettings } from './Sections/SecuritySettings'
 import { AppearanceSettings } from './Sections/AppearanceSettings'
 import { NotificationsSettings } from './Sections/NotificationsSettings'
 import { ComposingSettings } from './Sections/ComposingSettings'
-import type { AccountMeta } from '@/types/accounts'
+import { invoke } from '@tauri-apps/api/core'
+import { useAccountStore } from '@/stores/accountStore'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 
 interface SettingsScreenProps {
-	accounts: AccountMeta[]
-	onRemoveAccount: (id: string) => void
-	onSyncAccount: (id: string) => void
 	onBack: () => void
 	canGoBack?: boolean
 	showSidebar?: boolean
 }
 
 export function SettingsScreen({
-	accounts,
-	onRemoveAccount,
-	onSyncAccount,
 	onBack,
 	canGoBack = true,
 	showSidebar = true,
 }: SettingsScreenProps) {
+	const { accounts, removeAccount: onRemoveAccount } = useAccountStore()
+
+	const onSyncAccount = async (id: string) => {
+		try {
+			await invoke('start_sync', { accountId: id })
+		} catch (error) {
+			console.error('Failed to sync account:', error)
+		}
+	}
+
 	const { t } = useSettingsTranslation()
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const animationsEnabled = useAnimationsEnabled()

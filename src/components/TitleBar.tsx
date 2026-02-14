@@ -4,14 +4,13 @@ import { platform } from '@tauri-apps/plugin-os'
 import { Search, Bell, Settings, Send } from 'lucide-react'
 import { motion } from 'framer-motion'
 import icon from '../assets/icon.png'
-import type { AccountMeta } from '../types/accounts'
 import { useTypedTranslation } from '../hooks/useTypedTranslation'
 import { useDraftStore } from '../stores/draftStore'
 import { useThemeStore } from '@/stores/themeStore'
+import { useAccountStore } from '@/stores/accountStore'
 
 interface TitleBarProps {
 	isDashboard?: boolean
-	activeAccount?: AccountMeta | null
 	onSearch?: (query: string) => void
 	onOpenSettings?: () => void
 	onOpenOutbox?: () => void
@@ -19,11 +18,11 @@ interface TitleBarProps {
 
 export function TitleBar({
 	isDashboard,
-	activeAccount,
 	onSearch,
 	onOpenSettings,
 	onOpenOutbox,
 }: TitleBarProps) {
+	const { activeAccount } = useAccountStore()
 	const { t } = useTypedTranslation()
 	const { isSending } = useDraftStore()
 	const accentColor = useThemeStore((s) => s.accentColor)

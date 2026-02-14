@@ -19,10 +19,10 @@ import { LockScreen } from './components/LockScreen'
 import { Toaster, toast } from './components/ui/custom/Toaster'
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
 import { useAutoLock } from './hooks/useAutoLock'
-import type { AccountMeta } from './types/accounts'
 import { useSettingsStore } from './stores/settingsStore'
 import { useThemeStore } from './stores/themeStore'
 import { useAnimationsEnabled } from './hooks/useMotion'
+import { useAccountStore } from '@/stores/accountStore'
 import icon from './assets/icon.png'
 import './i18n'
 import { useTranslation } from 'react-i18next'
@@ -55,9 +55,11 @@ function App() {
 	useEffect(() => {
 		document.documentElement.setAttribute('data-animations', animationsEnabled ? 'on' : 'off')
 	}, [animationsEnabled])
-	const [accounts, setAccounts] = useState<AccountMeta[]>([])
-	const [activeAccount, setActiveAccount] = useState<AccountMeta | null>(null)
-	const [activeMailbox, setActiveMailbox] = useState('INBOX')
+	const {
+		activeAccount,
+		fetchAccounts: fetchAccountsData,
+	} = useAccountStore()
+
 	const [outboxOpen, setOutboxOpen] = useState(false)
 	const [tempPassphrase, setTempPassphrase] = useState<string | null>(null)
 	const [showRecoveryVerify, setShowRecoveryVerify] = useState(false)
@@ -81,17 +83,15 @@ function App() {
 		},
 		onGoToInbox: () => {
 			if (currentState === 'dashboard') {
-				setActiveMailbox('INBOX')
+				useAccountStore.getState().setActiveMailbox('INBOX')
 			}
 		},
 		onGoToOutbox: () => {
-			if (currentState === 'dashboard') {
-				setOutboxOpen(true)
-			}
+			if (activeAccount) setOutboxOpen(true)
 		},
 		onGoToDrafts: () => {
 			if (currentState === 'dashboard') {
-				setActiveMailbox('Drafts')
+				useAccountStore.getState().setActiveMailbox('Drafts')
 			}
 		},
 		onGoToAccounts: () => {
@@ -106,12 +106,10 @@ function App() {
 	const fetchAccounts = useCallback(
 		async (options?: { forceShowAccountsOnEmpty?: boolean }) => {
 			try {
-				const fetchedAccounts = await invoke<AccountMeta[]>('list_accounts')
-				setAccounts(fetchedAccounts)
+				const fetched = await fetchAccountsData()
 
-				if (fetchedAccounts.length > 0) {
+				if (fetched.length > 0) {
 					setCurrentState('dashboard')
-					if (!activeAccount) setActiveAccount(fetchedAccounts[0])
 				} else {
 					if (
 						options?.forceShowAccountsOnEmpty ||
@@ -126,7 +124,7 @@ function App() {
 				console.error('Failed to fetch accounts:', error)
 			}
 		},
-		[currentState, activeAccount]
+		[currentState, fetchAccountsData]
 	)
 
 	const handleAccountAdded = useCallback(async () => {
@@ -175,11 +173,7 @@ function App() {
 		init()
 	}, [fetchAccounts, currentState])
 
-	useEffect(() => {
-		if (accounts.length > 0 && !activeAccount) {
-			setActiveAccount(accounts[0])
-		}
-	}, [accounts, activeAccount])
+	// Auto-set active account is handled in store
 
 	const handleGetStarted = () => {
 		setCurrentState('customize')
@@ -221,8 +215,6 @@ function App() {
 			setShowRecoveryVerify(false)
 			await new Promise((resolve) => setTimeout(resolve, 100))
 			await persistTheme()
-			await loadSettings()
-			await fetchAccounts({ forceShowAccountsOnEmpty: true })
 		} catch (error) {
 			console.error('Failed to initialize Argon2 security:', error)
 			// TODO: Show error?
@@ -239,25 +231,7 @@ function App() {
 		}
 	}
 
-	const handleRemoveAccount = async (id: string) => {
-		try {
-			await invoke('remove_account', { id })
-			setAccounts((prev) => prev.filter((a) => a.id !== id))
-			if (activeAccount?.id === id) {
-				setActiveAccount(null) // Efffect will pick next one or UI shows error
-			}
-		} catch (error) {
-			console.error('Failed to remove account:', error)
-		}
-	}
-
-	const handleSyncAccount = async (id: string) => {
-		try {
-			await invoke('start_sync', { accountId: id })
-		} catch (error) {
-			console.error('Failed to sync account:', error)
-		}
-	}
+	// Account actions are now handled directly in components via store
 
 	useEffect(() => {
 		const unlisten = listen(
@@ -353,10 +327,8 @@ function App() {
 			case 'settings':
 				return (
 					<SettingsScreen
-						accounts={accounts}
-						onRemoveAccount={handleRemoveAccount}
-						onSyncAccount={handleSyncAccount}
-						onBack={handleBack}
+						onBack={() => setCurrentState('dashboard')}
+						// onSyncAccount={(id) => console.log('Syncing:', id)} // This prop was removed
 						canGoBack={currentState === 'settings'}
 						showSidebar={currentState === 'settings'}
 					/>
@@ -365,11 +337,6 @@ function App() {
 				return (
 					<>
 						<InboxScreen
-							accounts={accounts}
-							activeAccount={activeAccount}
-							setActiveAccount={setActiveAccount}
-							activeMailbox={activeMailbox}
-							setActiveMailbox={setActiveMailbox}
 							onOpenSettings={() => setCurrentState('settings')}
 						/>
 						{outboxOpen && activeAccount && (
@@ -392,10 +359,8 @@ function App() {
 			style={{ backgroundColor: 'var(--app-bg, #020617)' }}>
 			<TitleBar
 				isDashboard={currentState === 'dashboard'}
-				activeAccount={activeAccount}
 				onOpenSettings={() => setCurrentState('settings')}
 				onSearch={(q) => console.log('Search:', q)}
-				onOpenOutbox={() => setOutboxOpen(true)}
 			/>
 			<main className='flex-1 overflow-y-auto'>
 				{animationsEnabled ? (
@@ -415,7 +380,7 @@ function App() {
 				)}
 			</main>
 			{currentState === 'dashboard' && (
-				<StatusBar onOpenOutbox={() => setOutboxOpen(true)} accounts={accounts} />
+				<StatusBar onOpenOutbox={() => setOutboxOpen(true)} />
 			)}
 			<Toaster />
 			<LockScreen
