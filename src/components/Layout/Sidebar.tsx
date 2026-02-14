@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useMemo, memo } from 'react'
 import { motion } from 'framer-motion'
 import {
 	Inbox,
@@ -29,6 +29,114 @@ interface SidebarProps {
 const MIN_WIDTH = 80
 const MAX_WIDTH = 320
 const DEFAULT_WIDTH = 260
+
+interface MailboxItemProps {
+	mailbox: Mailbox
+	isActive: boolean
+	isCollapsed: boolean
+	accentColor: string
+	animationsEnabled: boolean
+	onSelect: (name: string) => void
+}
+
+const MailboxItem = memo(
+	({
+		mailbox,
+		isActive,
+		isCollapsed,
+		accentColor,
+		animationsEnabled,
+		onSelect,
+	}: MailboxItemProps) => {
+		const getIcon = () => {
+			const cls = 'h-[18px] w-[18px]'
+			switch (mailbox.role) {
+				case 'inbox':
+					return <Inbox className={cls} />
+				case 'sent':
+					return <Send className={cls} />
+				case 'trash':
+					return <Trash2 className={cls} />
+				case 'archive':
+					return <Archive className={cls} />
+				case 'drafts':
+					return <File className={cls} />
+				case 'junk':
+					return <AlertTriangle className={cls} />
+				case 'flagged':
+					return <Star className={cls} />
+				case 'all':
+					return <Layers className={cls} />
+				default:
+					return <File className={cls} />
+			}
+		}
+
+		return (
+			<motion.button
+				type='button'
+				onClick={() => onSelect(mailbox.name)}
+				title={isCollapsed ? mailbox.display_name : undefined}
+				{...(animationsEnabled ? { whileTap: { scale: 0.97 } } : {})}
+				className={`relative flex w-full items-center rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
+					isActive ? '' : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+				} ${isCollapsed ? 'justify-center px-0' : ''}`}
+				style={isActive ? { color: accentColor } : undefined}>
+				{/* Active background */}
+				{isActive && (
+					<motion.div
+						{...(animationsEnabled
+							? {
+									layoutId: 'sidebar-active-bg',
+									transition: {
+										type: 'spring',
+										stiffness: 350,
+										damping: 30,
+									},
+								}
+							: {})}
+						className='absolute inset-0 rounded-xl ring-1'
+						style={{
+							backgroundColor: `rgba(var(--accent-rgb), 0.1)`,
+							boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.15)`,
+						}}
+					/>
+				)}
+
+				{/* Active left indicator */}
+				{isActive && (
+					<motion.div
+						{...(animationsEnabled
+							? {
+									initial: { scaleY: 0, opacity: 0 },
+									animate: { scaleY: 1, opacity: 1 },
+									exit: { scaleY: 0, opacity: 0 },
+									transition: {
+										type: 'spring',
+										stiffness: 400,
+										damping: 25,
+									},
+								}
+							: {})}
+						className='absolute top-1/2 left-0 h-5 w-[3px] origin-center -translate-y-1/2 rounded-r-full'
+						style={{ backgroundColor: accentColor }}
+					/>
+				)}
+
+				<div
+					className='relative shrink-0 transition-colors duration-200'
+					style={isActive ? { color: accentColor } : undefined}>
+					{getIcon()}
+				</div>
+				{!isCollapsed && (
+					<div className='relative ml-3.5 flex flex-1 items-center justify-between truncate'>
+						<span>{mailbox.display_name}</span>
+					</div>
+				)}
+			</motion.button>
+		)
+	}
+)
 
 export const Sidebar = ({
 	activeAccount,
@@ -93,37 +201,18 @@ export const Sidebar = ({
 		}
 	}, [isResizing])
 
-	const getIconForMailbox = (mailbox: Mailbox) => {
-		const cls = 'h-[18px] w-[18px]'
-		switch (mailbox.role) {
-			case 'inbox':
-				return <Inbox className={cls} />
-			case 'sent':
-				return <Send className={cls} />
-			case 'trash':
-				return <Trash2 className={cls} />
-			case 'archive':
-				return <Archive className={cls} />
-			case 'drafts':
-				return <File className={cls} />
-			case 'junk':
-				return <AlertTriangle className={cls} />
-			case 'flagged':
-				return <Star className={cls} />
-			case 'all':
-				return <Layers className={cls} />
-			default:
-				return <File className={cls} />
-		}
-	}
 
-	const sortedMailboxes = allMailboxes.sort((a, b) => {
-		if (a.name.toLowerCase() === 'inbox') return -1
-		if (b.name.toLowerCase() === 'inbox') return 1
-		if (a.role === 'drafts') return 1
-		if (b.role === 'drafts') return -1
-		return a.name.localeCompare(b.name)
-	})
+
+	const sortedMailboxes = useMemo(() => {
+		const sorted = [...allMailboxes].sort((a, b) => {
+			if (a.name.toLowerCase() === 'inbox') return -1
+			if (b.name.toLowerCase() === 'inbox') return 1
+			if (a.role === 'drafts') return 1
+			if (b.role === 'drafts') return -1
+			return a.name.localeCompare(b.name)
+		})
+		return sorted
+	}, [allMailboxes])
 
 	return (
 		<>
@@ -173,77 +262,17 @@ export const Sidebar = ({
 						</div>
 					) : (
 						<div className='stagger-children'>
-							{sortedMailboxes.map((mailbox) => {
-								const isActive = activeMailbox === mailbox.name
-								return (
-									<motion.button
-										type='button'
-										key={mailbox.name}
-										onClick={() => onMailboxSelect(mailbox.name)}
-										title={isCollapsed ? mailbox.display_name : undefined}
-										{...(animationsEnabled
-											? { whileTap: { scale: 0.97 } }
-											: {})}
-										className={`relative flex w-full items-center rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
-											isActive
-												? ''
-												: 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
-										} ${isCollapsed ? 'justify-center px-0' : ''}`}
-										style={isActive ? { color: accentColor } : undefined}>
-										{/* Active background */}
-										{isActive && (
-											<motion.div
-												{...(animationsEnabled
-													? {
-															layoutId: 'sidebar-active-bg',
-															transition: {
-																type: 'spring',
-																stiffness: 350,
-																damping: 30,
-															},
-														}
-													: {})}
-												className='absolute inset-0 rounded-xl ring-1'
-												style={{
-													backgroundColor: `rgba(var(--accent-rgb), 0.1)`,
-													boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.15)`,
-												}}
-											/>
-										)}
-
-										{/* Active left indicator */}
-										{isActive && (
-											<motion.div
-												{...(animationsEnabled
-													? {
-															initial: { scaleY: 0, opacity: 0 },
-															animate: { scaleY: 1, opacity: 1 },
-															exit: { scaleY: 0, opacity: 0 },
-															transition: {
-																type: 'spring',
-																stiffness: 400,
-																damping: 25,
-															},
-														}
-													: {})}
-												className='absolute top-1/2 left-0 h-5 w-[3px] origin-center -translate-y-1/2 rounded-r-full'
-												style={{ backgroundColor: accentColor }}
-											/>
-										)}
-
-										<div
-											className='relative shrink-0 transition-colors duration-200'
-											style={isActive ? { color: accentColor } : undefined}>
-											{getIconForMailbox(mailbox)}
-										</div>
-										{!isCollapsed && (
-											<div className='relative ml-3.5 flex flex-1 items-center justify-between truncate'>
-												<span>{mailbox.display_name}</span>
-											</div>
-										)}
-									</motion.button>
-								)
-							})}
+							{sortedMailboxes.map((mailbox) => (
+								<MailboxItem
+									key={mailbox.name}
+									mailbox={mailbox}
+									isActive={activeMailbox === mailbox.name}
+									isCollapsed={isCollapsed}
+									accentColor={accentColor}
+									animationsEnabled={animationsEnabled}
+									onSelect={onMailboxSelect}
+								/>
+							))}
 						</div>
 					)}
 				</div>

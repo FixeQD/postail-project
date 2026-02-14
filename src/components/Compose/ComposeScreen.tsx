@@ -5,22 +5,21 @@ import { EditorState, LexicalEditor } from 'lexical'
 import { HeadingNode, QuoteNode } from '@lexical/rich-text'
 import { ListNode, ListItemNode } from '@lexical/list'
 import { LinkNode } from '@lexical/link'
-import { X, Minimize2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from '../ui/custom/Toaster'
 
 import { useAnimationsEnabled } from '@/hooks/useMotion'
-import { Button } from '@/components/ui/button'
 import { useDraftStore } from '@/stores/draftStore'
 import { useComposeShortcuts } from '@/hooks/useComposeShortcuts'
 import { useDragging, useLinkTooltip } from './useCompose'
 import EditorContent from './Editor/EditorContent'
 import { lexicalToHtml } from './Editor/utils/conversion'
-import { AddressInput } from './Inputs/AddressInput'
-import { SubjectInput } from './Inputs/SubjectInput'
 import { ImageNode } from './Editor/Nodes/ImageNode'
 import { CompatibilityPanel } from './CompatibilityPanel'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
+import { ComposeHeader } from './ComposeHeader'
+import { ComposeInputs } from './ComposeInputs'
+import { ComposeFooter } from './ComposeFooter'
 
 interface ComposeScreenProps {
 	open: boolean
@@ -41,7 +40,6 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		compatibilityIssues,
 		isValidating,
 		showSendWarning,
-		setSubject,
 		updateCurrentDraft,
 		startComposing,
 		stopComposing,
@@ -84,8 +82,6 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	const isHydratingRef = useRef(false)
 	const [changeCount, setChangeCount] = useState(0)
 	const [autoFixKey, setAutoFixKey] = useState(0)
-	const [showCc, setShowCc] = useState(false)
-	const [showBcc, setShowBcc] = useState(false)
 	const [showDiscardDialog, setShowDiscardDialog] = useState(false)
 	const [isFixing, setIsFixing] = useState(false)
 	const [isFlying, setIsFlying] = useState(false)
@@ -156,13 +152,12 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		useDraftStore.getState().triggerInsertLink()
 	}, [])
 
-	const handleToggleCc = useCallback(() => {
-		setShowCc((prev) => !prev)
-	}, [])
+	// Keyboard shortcuts control state
+	const [showCc, setShowCc] = useState(false)
+	const [showBcc, setShowBcc] = useState(false)
 
-	const handleToggleBcc = useCallback(() => {
-		setShowBcc((prev) => !prev)
-	}, [])
+	const handleToggleCc = useCallback(() => setShowCc((prev) => !prev), [])
+	const handleToggleBcc = useCallback(() => setShowBcc((prev) => !prev), [])
 
 	const handleEditorMount = useCallback(() => {
 		if (isFixing) {
@@ -253,6 +248,25 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		if (currentDraft?.bcc && currentDraft.bcc.length > 0) setShowBcc(true)
 	}, [currentDraft])
 
+	const handleDiscard = useCallback(async () => {
+		if (currentDraft?.id) {
+			await useDraftStore.getState().deleteDraft(currentDraft.id)
+		}
+		stopComposing()
+		onOpenChange(false)
+		setShowDiscardDialog(false)
+	}, [currentDraft, stopComposing, onOpenChange])
+
+	const isValid = useMemo(() => {
+		const bodyContent = htmlRef.current
+		if (!currentDraft) return false
+		const hasRecipients = currentDraft.to && currentDraft.to.length > 0
+		const hasSubject = currentDraft.subject && currentDraft.subject.trim() !== ''
+		const hasBody =
+			bodyContent && bodyContent.trim() !== '' && bodyContent !== '<p><br></p>'
+		return !!(hasRecipients && hasSubject && hasBody)
+	}, [currentDraft, htmlRef.current])
+
 	const activePosition = isFlying && frozenLayout ? frozenLayout.position : position
 	const activeSize = isFlying && frozenLayout ? frozenLayout.size : size
 	const activeTarget = isFlying && frozenLayout ? frozenLayout.target : { x: 0, y: 0 }
@@ -300,99 +314,25 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 						cursor: isDragging ? 'grabbing' : 'auto',
 						pointerEvents: 'auto',
 					}}>
-					<div
-						className='flex w-full items-center justify-between rounded-t-xl bg-zinc-900 px-4 py-3 select-none'
+					<ComposeHeader
+						isDragging={isDragging}
 						onMouseDown={startDrag}
-						style={{ cursor: isDragging ? 'grabbing' : 'grab' }}>
-						<h2 className='text-sm font-medium text-zinc-300'>
-							{t('compose.newMessage')}
-						</h2>
-						<div className='flex items-center gap-1'>
-							<Button variant='ghost' size='icon' className='h-7 w-7 text-zinc-400'>
-								<Minimize2 className='h-4 w-4' />
-							</Button>
-							<Button
-								variant='ghost'
-								size='icon'
-								className='h-7 w-7 text-zinc-400 hover:text-zinc-100'
-								onClick={handleClose}>
-								<X className='h-4 w-4' />
-							</Button>
-						</div>
-					</div>
+						onClose={handleClose}
+					/>
 
-					<div className='flex flex-col px-4 pt-1'>
-						<AddressInput
-							label={t('compose.to')}
-							recipients={currentDraft?.to || []}
-							onAdd={(recipient) => addRecipient('to', recipient)}
-							onRemove={(email) => removeRecipient('to', email)}
-							placeholder={t('compose.recipients')}
-							rightElement={
-								<div className='mr-2 flex gap-2'>
-									{!showCc && (
-										<button
-											type='button'
-											onClick={() => setShowCc(true)}
-											className='text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-300'>
-											{t('compose.cc')}
-										</button>
-									)}
-									{!showBcc && (
-										<button
-											type='button'
-											onClick={() => setShowBcc(true)}
-											className='text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-300'>
-											{t('compose.bcc')}
-										</button>
-									)}
-								</div>
-							}
-						/>
-						{showCc && (
-							<AddressInput
-								label={t('compose.cc')}
-								recipients={currentDraft?.cc || []}
-								onAdd={(recipient) => addRecipient('cc', recipient)}
-								onRemove={(email) => removeRecipient('cc', email)}
-								rightElement={
-									<button
-										type='button'
-										onClick={() => {
-											setShowCc(false)
-											updateCurrentDraft({ cc: [] })
-										}}
-										className='mr-2 text-zinc-500 transition-colors hover:text-zinc-300'>
-										<X className='h-3.5 w-3.5' />
-									</button>
-								}
-							/>
-						)}
-						{showBcc && (
-							<AddressInput
-								label={t('compose.bcc')}
-								recipients={currentDraft?.bcc || []}
-								onAdd={(recipient) => addRecipient('bcc', recipient)}
-								onRemove={(email) => removeRecipient('bcc', email)}
-								rightElement={
-									<button
-										type='button'
-										onClick={() => {
-											setShowBcc(false)
-											updateCurrentDraft({ bcc: [] })
-										}}
-										className='mr-2 text-zinc-500 transition-colors hover:text-zinc-300'>
-										<X className='h-3.5 w-3.5' />
-									</button>
-								}
-							/>
-						)}
-						<SubjectInput
-							placeholder={t('compose.subject')}
-							value={currentDraft?.subject || ''}
-							onChange={setSubject}
-						/>
-					</div>
+					<ComposeInputs
+						to={currentDraft?.to || []}
+						cc={currentDraft?.cc || []}
+						bcc={currentDraft?.bcc || []}
+						subject={currentDraft?.subject || ''}
+						showCc={showCc}
+						showBcc={showBcc}
+						setShowCc={setShowCc}
+						setShowBcc={setShowBcc}
+						onUpdate={updateCurrentDraft}
+						onAddRecipient={addRecipient}
+						onRemoveRecipient={removeRecipient}
+					/>
 
 					<CompatibilityPanel
 						isOpen={compatibilityPanelOpen && editorMode === 'source'}
@@ -423,7 +363,6 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 
 					<LexicalComposer initialConfig={initialConfig}>
 						<EditorContent
-							onOpenChange={onOpenChange}
 							editorRef={editorRef}
 							htmlRef={htmlRef}
 							isHydratingRef={isHydratingRef}
@@ -434,7 +373,12 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 							autoFixKey={autoFixKey}
 							isFixing={isFixing}
 							onEditorMount={handleEditorMount}
+						/>
+
+						<ComposeFooter
 							onSend={handleSend}
+							onDiscard={() => setShowDiscardDialog(true)}
+							isValid={isValid}
 						/>
 					</LexicalComposer>
 
@@ -464,12 +408,12 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 					<ConfirmationDialog
 						open={showSendWarning}
 						onOpenChange={setShowSendWarning}
-						title={t('validation:sendWarning.title')}
-						description={t('validation:sendWarning.description', {
+						title={String(t('validation:sendWarning.title'))}
+						description={String(t('validation:sendWarning.description', {
 							count: compatibilityIssues.length,
-						})}
-						confirmLabel={t('validation:sendWarning.confirm')}
-						cancelLabel={t('validation:sendWarning.cancel')}
+						}))}
+						confirmLabel={String(t('validation:sendWarning.confirm'))}
+						cancelLabel={String(t('validation:sendWarning.cancel'))}
 						onConfirm={() => {
 							dismissValidationWarning()
 							handleSend()
@@ -480,14 +424,11 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 					<ConfirmationDialog
 						open={showDiscardDialog}
 						onOpenChange={setShowDiscardDialog}
-						title={t('compose.discard.title')}
-						description={t('compose.discard.description')}
-						confirmLabel={t('compose.discard.confirm')}
-						cancelLabel={t('compose.discard.cancel')}
-						onConfirm={() => {
-							onOpenChange(false)
-							stopComposing()
-						}}
+						title={String(t('compose.discard.title'))}
+						description={String(t('compose.discard.description'))}
+						confirmLabel={String(t('compose.discard.confirm'))}
+						cancelLabel={String(t('compose.discard.cancel'))}
+						onConfirm={handleDiscard}
 					/>
 				</motion.div>
 			)}

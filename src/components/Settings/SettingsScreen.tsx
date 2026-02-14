@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback, useMemo, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
 	Settings,
@@ -20,42 +20,121 @@ import { SecuritySettings } from './Sections/SecuritySettings'
 import { AppearanceSettings } from './Sections/AppearanceSettings'
 import { NotificationsSettings } from './Sections/NotificationsSettings'
 import { ComposingSettings } from './Sections/ComposingSettings'
-import type { AccountMeta } from '@/types/accounts'
+import { invoke } from '@tauri-apps/api/core'
+import { useAccountStore } from '@/stores/accountStore'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 
 interface SettingsScreenProps {
-	accounts: AccountMeta[]
-	onRemoveAccount: (id: string) => void
-	onSyncAccount: (id: string) => void
 	onBack: () => void
 	canGoBack?: boolean
 	showSidebar?: boolean
 }
 
+interface SettingsNavItemProps {
+	section: { id: string; label: string; icon: React.ElementType }
+	isActive: boolean
+	accentColor: string
+	animationsEnabled: boolean
+	onClick: () => void
+}
+
+const SettingsNavItem = memo(
+	({
+		section,
+		isActive,
+		accentColor,
+		animationsEnabled,
+		onClick,
+	}: SettingsNavItemProps) => {
+		return (
+			<motion.button
+				type='button'
+				onClick={onClick}
+				{...(animationsEnabled ? { whileTap: { scale: 0.97 } } : {})}
+				className={`relative flex w-full items-center gap-3 rounded-xl px-4 py-2.5 transition-colors duration-200 ${
+					isActive ? 'text-slate-100' : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+				}`}>
+				{/* Active background pill */}
+				{isActive && (
+					<motion.div
+						{...(animationsEnabled
+							? {
+									layoutId: 'settings-active-bg',
+									transition: {
+										type: 'spring',
+										stiffness: 350,
+										damping: 30,
+									},
+								}
+							: {})}
+						className='absolute inset-0 rounded-xl bg-white/[0.08] ring-1 ring-white/[0.08]'
+					/>
+				)}
+
+				{/* Active left accent */}
+				{isActive && (
+					<motion.div
+						{...(animationsEnabled
+							? {
+									initial: { scaleY: 0, opacity: 0 },
+									animate: { scaleY: 1, opacity: 1 },
+									exit: { scaleY: 0, opacity: 0 },
+									transition: {
+										type: 'spring',
+										stiffness: 400,
+										damping: 25,
+									},
+								}
+							: {})}
+						className='absolute top-1/2 left-0 h-5 w-[3px] origin-center -translate-y-1/2 rounded-r-full'
+						style={{ backgroundColor: accentColor }}
+					/>
+				)}
+
+				<section.icon
+					className='relative h-4 w-4 transition-colors duration-200'
+					style={isActive ? { color: accentColor } : undefined}
+				/>
+				<span className='relative text-sm font-semibold'>{section.label}</span>
+			</motion.button>
+		)
+	}
+)
+
 export function SettingsScreen({
-	accounts,
-	onRemoveAccount,
-	onSyncAccount,
 	onBack,
 	canGoBack = true,
 	showSidebar = true,
 }: SettingsScreenProps) {
+	const { accounts, removeAccount: onRemoveAccount } = useAccountStore()
+
+	const onSyncAccount = useCallback(async (id: string) => {
+		try {
+			await invoke('start_sync', { accountId: id })
+		} catch (error) {
+			console.error('Failed to sync account:', error)
+		}
+	}, [])
+
 	const { t } = useSettingsTranslation()
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const animationsEnabled = useAnimationsEnabled()
 	const [activeSection, setActiveSection] = useState('accounts')
 
-	const SETTINGS_SECTIONS = [
-		{ id: 'accounts', label: t('settings:sections.accounts'), icon: User },
-		{ id: 'general', label: t('settings:sections.general'), icon: Settings },
-		{ id: 'privacy', label: t('settings:sections.privacy'), icon: Shield },
-		{ id: 'security', label: t('settings:sections.security'), icon: Lock },
-		{ id: 'appearance', label: t('settings:sections.appearance'), icon: Palette },
-		{ id: 'notifications', label: t('settings:sections.notifications'), icon: Bell },
-		{ id: 'composing', label: t('settings:sections.composing'), icon: PenLine },
-	]
+	const SETTINGS_SECTIONS = useMemo(
+		() => [
+			{ id: 'accounts', label: t('settings:sections.accounts'), icon: User },
+			{ id: 'general', label: t('settings:sections.general'), icon: Settings },
+			{ id: 'privacy', label: t('settings:sections.privacy'), icon: Shield },
+			{ id: 'security', label: t('settings:sections.security'), icon: Lock },
+			{ id: 'appearance', label: t('settings:sections.appearance'), icon: Palette },
+			{ id: 'notifications', label: t('settings:sections.notifications'), icon: Bell },
+			{ id: 'composing', label: t('settings:sections.composing'), icon: PenLine },
+		],
+		[t]
+	)
 
-	const renderSection = () => {
+	const activeSectionComponent = useMemo(() => {
 		switch (activeSection) {
 			case 'accounts':
 				return (
@@ -84,7 +163,7 @@ export function SettingsScreen({
 					</div>
 				)
 		}
-	}
+	}, [activeSection, accounts, onRemoveAccount, onSyncAccount, t])
 
 	return (
 		<div className='flex h-full text-slate-100'>
@@ -112,66 +191,16 @@ export function SettingsScreen({
 					)}
 
 					<div className='flex-1 space-y-0.5'>
-						{SETTINGS_SECTIONS.map((section) => {
-							const isActive = activeSection === section.id
-							return (
-								<motion.button
-									key={section.id}
-									type='button'
-									onClick={() => setActiveSection(section.id)}
-									{...(animationsEnabled ? { whileTap: { scale: 0.97 } } : {})}
-									className={`relative flex w-full items-center gap-3 rounded-xl px-4 py-2.5 transition-colors duration-200 ${
-										isActive
-											? 'text-slate-100'
-											: 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
-									}`}>
-									{/* Active background pill */}
-									{isActive && (
-										<motion.div
-											{...(animationsEnabled
-												? {
-														layoutId: 'settings-active-bg',
-														transition: {
-															type: 'spring',
-															stiffness: 350,
-															damping: 30,
-														},
-													}
-												: {})}
-											className='absolute inset-0 rounded-xl bg-white/[0.08] ring-1 ring-white/[0.08]'
-										/>
-									)}
-
-									{/* Active left accent */}
-									{isActive && (
-										<motion.div
-											{...(animationsEnabled
-												? {
-														initial: { scaleY: 0, opacity: 0 },
-														animate: { scaleY: 1, opacity: 1 },
-														exit: { scaleY: 0, opacity: 0 },
-														transition: {
-															type: 'spring',
-															stiffness: 400,
-															damping: 25,
-														},
-													}
-												: {})}
-											className='absolute top-1/2 left-0 h-5 w-[3px] origin-center -translate-y-1/2 rounded-r-full'
-											style={{ backgroundColor: accentColor }}
-										/>
-									)}
-
-									<section.icon
-										className='relative h-4 w-4 transition-colors duration-200'
-										style={isActive ? { color: accentColor } : undefined}
-									/>
-									<span className='relative text-sm font-semibold'>
-										{section.label}
-									</span>
-								</motion.button>
-							)
-						})}
+						{SETTINGS_SECTIONS.map((section) => (
+							<SettingsNavItem
+								key={section.id}
+								section={section}
+								isActive={activeSection === section.id}
+								accentColor={accentColor}
+								animationsEnabled={animationsEnabled}
+								onClick={() => setActiveSection(section.id)}
+							/>
+						))}
 					</div>
 
 					<div className='border-t border-white/[0.06] pt-4'>
@@ -196,11 +225,11 @@ export function SettingsScreen({
 							exit={{ opacity: 0, y: -6 }}
 							transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
 							className='h-full overflow-y-auto'>
-							{renderSection()}
+							{activeSectionComponent}
 						</motion.div>
 					</AnimatePresence>
 				) : (
-					<div className='h-full overflow-y-auto'>{renderSection()}</div>
+					<div className='h-full overflow-y-auto'>{activeSectionComponent}</div>
 				)}
 			</div>
 		</div>

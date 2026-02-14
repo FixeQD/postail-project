@@ -79,10 +79,9 @@ export function AddAccountDialog({ children }: Omit<AddAccountDialogProps, 'onAc
 	const handleProviderClick = async (provider: 'gmail' | 'outlook') => {
 		setLoading(provider)
 		try {
-			const { url, port } = await invoke<{ url: string; port: number }>('start_oauth_flow', {
+			const { url } = await invoke<{ url: string; port: number }>('start_oauth_flow', {
 				provider,
 			})
-			console.log(`OAuth port: ${port}`)
 			await opener.openUrl(url)
 		} catch (error) {
 			console.error(`Failed to start ${provider} OAuth:`, error)

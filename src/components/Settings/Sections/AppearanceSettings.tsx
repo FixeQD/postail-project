@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Moon, Minimize2, UserCircle, Sparkles, Pipette, Check } from 'lucide-react'
-import { HexColorPicker } from 'react-colorful'
+import { ColorPicker } from '@/components/ui/custom/ColorPicker'
 import { ToggleSetting } from '@/components/ui/toggle-setting'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 import { useThemeStore, ACCENT_PRESETS, BACKGROUND_PRESETS } from '@/stores/themeStore'
@@ -288,7 +288,7 @@ export function AppearanceSettings() {
 		return (
 			<div className='mt-2 flex items-start gap-6 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4'>
 				<div className='color-picker-container'>
-					<HexColorPicker color={customColor} onChange={handleCustomColorChange} />
+					<ColorPicker color={customColor} onChange={handleCustomColorChange} />
 				</div>
 				<div className='flex flex-col gap-3'>
 					<label className='text-xs font-medium text-slate-400'>Hex</label>

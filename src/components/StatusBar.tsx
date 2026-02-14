@@ -23,14 +23,14 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { AccountMeta } from '@/types/accounts'
+import { useAccountStore } from '@/stores/accountStore'
 
 interface StatusBarProps {
 	onOpenOutbox: () => void
-	accounts: AccountMeta[]
 }
 
-export function StatusBar({ onOpenOutbox, accounts }: StatusBarProps) {
+export function StatusBar({ onOpenOutbox }: StatusBarProps) {
+	const { accounts } = useAccountStore()
 	const { t } = useTranslation()
 	const { items } = useOutboxStore()
 	const { statuses, getAllStatuses, cancelSync, retrySync } = useSyncStore()

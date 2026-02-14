@@ -218,16 +218,19 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 		}
 	}, [isResizing, handleResizeMove, handleResizeEnd])
 
-	const panelStyle: React.CSSProperties = {
-		width,
-		left: composeX - width,
-		top: composeY,
-		height: composeHeight,
-		transform: isOpen ? 'translateX(0)' : `translateX(-${width}px)`,
-		opacity: isOpen ? 1 : 0,
-		transition: 'transform 200ms ease-out, opacity 200ms ease-out',
-		pointerEvents: isOpen ? 'auto' : 'none',
-	}
+	const panelStyle = useMemo(
+		(): React.CSSProperties => ({
+			width,
+			left: composeX - width,
+			top: composeY,
+			height: composeHeight,
+			transform: isOpen ? 'translateX(0)' : `translateX(-${width}px)`,
+			opacity: isOpen ? 1 : 0,
+			transition: 'transform 200ms ease-out, opacity 200ms ease-out',
+			pointerEvents: isOpen ? 'auto' : 'none',
+		}),
+		[width, composeX, composeY, composeHeight, isOpen]
+	)
 
 	return (
 		<div

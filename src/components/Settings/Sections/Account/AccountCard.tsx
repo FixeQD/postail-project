@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
 	MoreVertical,
@@ -32,7 +32,21 @@ interface AccountCardProps {
 
 type SyncStatus = 'Idle' | 'Syncing' | { Error: string }
 
-export function AccountCard({ account, onRemove, onSync }: AccountCardProps) {
+const getProviderIcon = (type: string) => {
+	const lower = type.toLowerCase()
+	if (lower.includes('gmail')) return <Mail className='h-5 w-5 text-red-400' />
+	if (lower.includes('outlook')) return <Mail className='h-5 w-5 text-blue-400' />
+	return <Mail className='h-5 w-5 text-slate-400' />
+}
+
+const getProviderGlow = (type: string) => {
+	const lower = type.toLowerCase()
+	if (lower.includes('gmail')) return 'group-hover:ring-red-500/20'
+	if (lower.includes('outlook')) return 'group-hover:ring-blue-500/20'
+	return 'group-hover:ring-white/[0.12]'
+}
+
+export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps) => {
 	const animationsEnabled = useAnimationsEnabled()
 	const [status, setStatus] = useState<SyncStatus>('Idle')
 
@@ -51,25 +65,11 @@ export function AccountCard({ account, onRemove, onSync }: AccountCardProps) {
 		return () => clearInterval(interval)
 	}, [account.id])
 
-	const getProviderIcon = (type: string) => {
-		const lower = type.toLowerCase()
-		if (lower.includes('gmail')) return <Mail className='h-5 w-5 text-red-400' />
-		if (lower.includes('outlook')) return <Mail className='h-5 w-5 text-blue-400' />
-		return <Mail className='h-5 w-5 text-slate-400' />
-	}
+	const statusBadge = useMemo(() => {
+		const motionFade = animationsEnabled
+			? { initial: { opacity: 0, scale: 0.9 }, animate: { opacity: 1, scale: 1 } }
+			: {}
 
-	const getProviderGlow = (type: string) => {
-		const lower = type.toLowerCase()
-		if (lower.includes('gmail')) return 'group-hover:ring-red-500/20'
-		if (lower.includes('outlook')) return 'group-hover:ring-blue-500/20'
-		return 'group-hover:ring-white/[0.12]'
-	}
-
-	const motionFade = animationsEnabled
-		? { initial: { opacity: 0, scale: 0.9 }, animate: { opacity: 1, scale: 1 } }
-		: {}
-
-	const getStatusBadge = () => {
 		if (status === 'Syncing') {
 			return (
 				<motion.span
@@ -98,7 +98,7 @@ export function AccountCard({ account, onRemove, onSync }: AccountCardProps) {
 				Synced
 			</span>
 		)
-	}
+	}, [status, animationsEnabled])
 
 	return (
 		<motion.div
@@ -136,13 +136,12 @@ export function AccountCard({ account, onRemove, onSync }: AccountCardProps) {
 							<div className='mt-1.5 flex items-center gap-2'>
 								{animationsEnabled ? (
 									<AnimatePresence mode='wait'>
-										<motion.div
-											key={typeof status === 'string' ? status : 'error'}>
-											{getStatusBadge()}
+										<motion.div key={typeof status === 'string' ? status : 'error'}>
+											{statusBadge}
 										</motion.div>
 									</AnimatePresence>
 								) : (
-									<div>{getStatusBadge()}</div>
+									<div>{statusBadge}</div>
 								)}
 								<span className='text-[11px] text-slate-600'>
 									{account.auth_type}
@@ -201,4 +200,4 @@ export function AccountCard({ account, onRemove, onSync }: AccountCardProps) {
 			</Card>
 		</motion.div>
 	)
-}
+})

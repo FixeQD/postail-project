@@ -1,7 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
-import { listen, Event } from '@tauri-apps/api/event'
-import { invoke } from '@tauri-apps/api/core'
-import { getCurrentWindow } from '@tauri-apps/api/window'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TitleBar } from './components/TitleBar'
 import { WelcomeScreen } from './components/Welcome/WelcomeScreen'
@@ -16,36 +13,34 @@ import { InboxScreen } from './components/Inbox/InboxScreen'
 import { OutboxPanel } from './components/Outbox/OutboxPanel'
 import { StatusBar } from './components/StatusBar'
 import { LockScreen } from './components/LockScreen'
-import { Toaster, toast } from './components/ui/custom/Toaster'
+import { Toaster } from './components/ui/custom/Toaster'
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
 import { useAutoLock } from './hooks/useAutoLock'
-import type { AccountMeta } from './types/accounts'
 import { useSettingsStore } from './stores/settingsStore'
 import { useThemeStore } from './stores/themeStore'
 import { useAnimationsEnabled } from './hooks/useMotion'
+import { useAppInitialization } from './hooks/useAppInitialization'
+import { useAccountStore } from '@/stores/accountStore'
 import icon from './assets/icon.png'
 import './i18n'
-import { useTranslation } from 'react-i18next'
-
-type AppState =
-	| 'init'
-	| 'welcome'
-	| 'customize'
-	| 'security'
-	| 'accounts'
-	| 'argon2-setup'
-	| 'dashboard'
-	| 'argon2-unlock'
-	| 'settings'
-	| 'recovery-setup'
 
 function App() {
-	const { t } = useTranslation()
-	const [currentState, setCurrentState] = useState<AppState>('init')
 	const loadSettings = useSettingsStore((s) => s.loadSettings)
-	const { loadTheme, accentColor, persistTheme } = useThemeStore()
+	const { loadTheme, accentColor } = useThemeStore()
 	const animationsEnabled = useAnimationsEnabled()
 	const { isLocked, unlock, useEncryptionPassword } = useAutoLock()
+
+	const {
+		currentState,
+		setCurrentState,
+		handleUnlockSuccess,
+		handleSecurityChoice,
+		handleRecoveryVerified,
+		setTempPassphrase,
+		showRecoveryVerify,
+		setShowRecoveryVerify,
+		activeAccount,
+	} = useAppInitialization()
 
 	useEffect(() => {
 		loadSettings()
@@ -55,16 +50,11 @@ function App() {
 	useEffect(() => {
 		document.documentElement.setAttribute('data-animations', animationsEnabled ? 'on' : 'off')
 	}, [animationsEnabled])
-	const [accounts, setAccounts] = useState<AccountMeta[]>([])
-	const [activeAccount, setActiveAccount] = useState<AccountMeta | null>(null)
-	const [activeMailbox, setActiveMailbox] = useState('INBOX')
+
 	const [outboxOpen, setOutboxOpen] = useState(false)
-	const [tempPassphrase, setTempPassphrase] = useState<string | null>(null)
-	const [showRecoveryVerify, setShowRecoveryVerify] = useState(false)
 
 	useGlobalShortcuts({
 		onNewMessage: () => {
-			console.log('New message shortcut, state:', currentState)
 			if (currentState === 'dashboard' && activeAccount) {
 				window.dispatchEvent(new CustomEvent('compose:new'))
 			}
@@ -75,23 +65,20 @@ function App() {
 		},
 		onRefresh: () => {
 			if (currentState === 'dashboard' && activeAccount) {
-				console.log('Refresh shortcut triggered')
-				// TODO: Implement refresh/sync
+				// There should be refresh logic :/
 			}
 		},
 		onGoToInbox: () => {
 			if (currentState === 'dashboard') {
-				setActiveMailbox('INBOX')
+				useAccountStore.getState().setActiveMailbox('INBOX')
 			}
 		},
 		onGoToOutbox: () => {
-			if (currentState === 'dashboard') {
-				setOutboxOpen(true)
-			}
+			if (activeAccount) setOutboxOpen(true)
 		},
 		onGoToDrafts: () => {
 			if (currentState === 'dashboard') {
-				setActiveMailbox('Drafts')
+				useAccountStore.getState().setActiveMailbox('Drafts')
 			}
 		},
 		onGoToAccounts: () => {
@@ -103,130 +90,12 @@ function App() {
 		enabled: currentState === 'dashboard' || currentState === 'accounts',
 	})
 
-	const fetchAccounts = useCallback(
-		async (options?: { forceShowAccountsOnEmpty?: boolean }) => {
-			try {
-				const fetchedAccounts = await invoke<AccountMeta[]>('list_accounts')
-				setAccounts(fetchedAccounts)
-
-				if (fetchedAccounts.length > 0) {
-					setCurrentState('dashboard')
-					if (!activeAccount) setActiveAccount(fetchedAccounts[0])
-				} else {
-					if (
-						options?.forceShowAccountsOnEmpty ||
-						(currentState !== 'welcome' &&
-							currentState !== 'security' &&
-							currentState !== 'argon2-setup')
-					) {
-						setCurrentState('accounts')
-					}
-				}
-			} catch (error) {
-				console.error('Failed to fetch accounts:', error)
-			}
-		},
-		[currentState, activeAccount]
-	)
-
-	const handleAccountAdded = useCallback(async () => {
-		toast.success(t('app.accountAdded', 'Account added successfully'))
-		await fetchAccounts()
-	}, [fetchAccounts, t])
-
-	const handleUnlockSuccess = useCallback(async () => {
-		await loadSettings()
-		await fetchAccounts()
-	}, [fetchAccounts, loadSettings])
-
-	useEffect(() => {
-		const init = async () => {
-			if (currentState !== 'init') return
-			try {
-				const { status, method } = await invoke<{ status: string; method: string | null }>(
-					'get_app_initialization_status'
-				)
-				if (status === 'Locked') {
-					if (method === 'argon2') {
-						setCurrentState('argon2-unlock')
-					} else if (method === 'tpm' || method === 'keyring') {
-						const lastMethod = method as string
-						console.log(`Auto-unlocking with ${lastMethod}...`)
-						try {
-							await invoke('initialize_security', { method: lastMethod })
-							await loadSettings()
-							await fetchAccounts()
-						} catch (e) {
-							console.error(`Auto-unlock failed for ${lastMethod}`, e)
-							setCurrentState('security')
-						}
-					} else {
-						// Fallback if method unknown/missing but DB exists
-						setCurrentState('security')
-					}
-				} else {
-					setCurrentState('welcome')
-				}
-			} catch (e) {
-				console.error('Failed to get initialization status', e)
-				setCurrentState('welcome') // Fallback
-			}
-		}
-		init()
-	}, [fetchAccounts, currentState])
-
-	useEffect(() => {
-		if (accounts.length > 0 && !activeAccount) {
-			setActiveAccount(accounts[0])
-		}
-	}, [accounts, activeAccount])
-
 	const handleGetStarted = () => {
 		setCurrentState('customize')
 	}
 
 	const handleCustomizeDone = () => {
-		// Don't persist yet - DB isn't initialized. Theme is in memory + CSS vars.
-		// It will be persisted after security init completes.
 		setCurrentState('security')
-	}
-
-	const handleSecurityChoice = async (method: string) => {
-		if (method === 'argon2') {
-			setCurrentState('argon2-setup')
-		} else {
-			try {
-				console.log(`Initializing ${method} security...`)
-				await invoke('initialize_security', { method })
-				console.log(`${method} security initialized successfully, switching to accounts`)
-				await new Promise((resolve) => setTimeout(resolve, 100))
-				await persistTheme()
-				await loadSettings()
-				await fetchAccounts({ forceShowAccountsOnEmpty: true })
-			} catch (error) {
-				console.error(`Failed to initialize ${method} security:`, error)
-				// Reset to security screen to allow retry
-				setCurrentState('security')
-			}
-		}
-	}
-
-	const handleRecoveryVerified = async () => {
-		try {
-			console.log('Recovery phrase verified, initializing Argon2...')
-			await invoke('initialize_security', {
-				method: 'argon2',
-				passphrase: tempPassphrase,
-			})
-			setShowRecoveryVerify(false)
-			await new Promise((resolve) => setTimeout(resolve, 100))
-			await persistTheme()
-			await loadSettings()
-			await fetchAccounts({ forceShowAccountsOnEmpty: true })
-		} catch (error) {
-			console.error('Failed to initialize Argon2 security:', error)
-			// TODO: Show error?
-		}
 	}
 
 	const handleBack = () => {
@@ -238,52 +107,6 @@ function App() {
 			setCurrentState('dashboard')
 		}
 	}
-
-	const handleRemoveAccount = async (id: string) => {
-		try {
-			await invoke('remove_account', { id })
-			setAccounts((prev) => prev.filter((a) => a.id !== id))
-			if (activeAccount?.id === id) {
-				setActiveAccount(null) // Efffect will pick next one or UI shows error
-			}
-		} catch (error) {
-			console.error('Failed to remove account:', error)
-		}
-	}
-
-	const handleSyncAccount = async (id: string) => {
-		try {
-			await invoke('start_sync', { accountId: id })
-		} catch (error) {
-			console.error('Failed to sync account:', error)
-		}
-	}
-
-	useEffect(() => {
-		const unlisten = listen(
-			'oauth_callback',
-			async (event: Event<{ code: string; state: string }>) => {
-				console.log('OAuth callback received:', event.payload)
-				try {
-					await invoke('complete_oauth_flow', {
-						code: event.payload.code,
-						state: event.payload.state,
-					})
-
-					handleAccountAdded()
-
-					// Maximize window on success
-					await getCurrentWindow().maximize()
-				} catch (error) {
-					console.error('Failed to complete OAuth flow:', error)
-				}
-			}
-		)
-
-		return () => {
-			unlisten.then((fn) => fn())
-		}
-	}, [handleAccountAdded])
 
 	const renderCurrentScreen = () => {
 		switch (currentState) {
@@ -353,10 +176,7 @@ function App() {
 			case 'settings':
 				return (
 					<SettingsScreen
-						accounts={accounts}
-						onRemoveAccount={handleRemoveAccount}
-						onSyncAccount={handleSyncAccount}
-						onBack={handleBack}
+						onBack={() => setCurrentState('dashboard')}
 						canGoBack={currentState === 'settings'}
 						showSidebar={currentState === 'settings'}
 					/>
@@ -365,11 +185,6 @@ function App() {
 				return (
 					<>
 						<InboxScreen
-							accounts={accounts}
-							activeAccount={activeAccount}
-							setActiveAccount={setActiveAccount}
-							activeMailbox={activeMailbox}
-							setActiveMailbox={setActiveMailbox}
 							onOpenSettings={() => setCurrentState('settings')}
 						/>
 						{outboxOpen && activeAccount && (
@@ -392,10 +207,10 @@ function App() {
 			style={{ backgroundColor: 'var(--app-bg, #020617)' }}>
 			<TitleBar
 				isDashboard={currentState === 'dashboard'}
-				activeAccount={activeAccount}
 				onOpenSettings={() => setCurrentState('settings')}
-				onSearch={(q) => console.log('Search:', q)}
-				onOpenOutbox={() => setOutboxOpen(true)}
+				onSearch={() => {
+					/* handle search */
+				}}
 			/>
 			<main className='flex-1 overflow-y-auto'>
 				{animationsEnabled ? (
@@ -415,7 +230,7 @@ function App() {
 				)}
 			</main>
 			{currentState === 'dashboard' && (
-				<StatusBar onOpenOutbox={() => setOutboxOpen(true)} accounts={accounts} />
+				<StatusBar onOpenOutbox={() => setOutboxOpen(true)} />
 			)}
 			<Toaster />
 			<LockScreen
