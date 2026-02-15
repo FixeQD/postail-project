@@ -33,17 +33,17 @@ pub fn start(handle: AppHandle) {
                     if let Some(error) = query_pairs.get("error") {
                         tracing::error!(target: "postail", "OAuth error: {}", error);
                         has_error = true;
-                        error_description = query_pairs
+                        let desc = query_pairs
                             .get("error_description")
-                            .cloned()
-                            .unwrap_or_default();
+                            .map(|s| s.as_str())
+                            .unwrap_or("");
                         error_message = if error == "access_denied" {
                             "Access was denied by the provider.".to_string()
                         } else {
                             format!("Error: {}", error)
                         };
-                        if !error_description.is_empty() {
-                            error_message.push_str(&format!(" ({})", error_description));
+                        if !desc.is_empty() {
+                            error_message.push_str(&format!(" ({})", desc));
                         }
 
                         let _ = handle.emit(
