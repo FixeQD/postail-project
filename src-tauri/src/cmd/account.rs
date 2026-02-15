@@ -5,10 +5,11 @@ use crate::db::accounts::{
 use crate::db::{AccountInput, AccountMeta, Credentials, ImapConfig, OAuthCredentials, SmtpConfig};
 use crate::globals::{DB_CONN, IMAP_MANAGER, SECURITY};
 use crate::oauth;
+use crate::utils::oauth_server;
 use chrono::Utc;
 use serde::Serialize;
 use std::time::Duration;
-use tauri::command;
+use tauri::{command, AppHandle};
 
 const HTTP_TIMEOUT_SECS: Duration = Duration::from_secs(30);
 
@@ -58,7 +59,11 @@ pub struct OAuthFlowResponse {
 }
 
 #[command]
-pub async fn start_oauth_flow(provider: String) -> Result<OAuthFlowResponse, String> {
+pub async fn start_oauth_flow(
+    app: AppHandle,
+    provider: String,
+) -> Result<OAuthFlowResponse, String> {
+    oauth_server::start(app.clone());
     let provider_kind =
         oauth::ProviderKind::parse(&provider).ok_or_else(|| "Unknown provider".to_string())?;
     let provider = oauth::Provider::from_kind(provider_kind);

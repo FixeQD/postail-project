@@ -47,6 +47,7 @@ pub fn start(handle: AppHandle) {
                 };
 
                 let _ = request.respond(response);
+                break;
             } else {
                 let response = Response::from_string("Not Found").with_status_code(404);
                 let _ = request.respond(response);

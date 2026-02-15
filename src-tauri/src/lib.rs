@@ -30,7 +30,6 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let handle = app.handle().clone();
-            utils::oauth_server::start(handle.clone());
 
             // Initialize managers in async context
             let setup_handle = handle.clone();
