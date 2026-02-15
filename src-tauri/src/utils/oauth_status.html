@@ -20,6 +20,10 @@
 				--border: #1e2a35;
 			}
 
+			:root.error {
+				--accent: #ff3b3b;
+			}
+
 			body {
 				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 				background: var(--bg-primary);
@@ -260,18 +264,56 @@
 			<div class="logo">Postail</div>
 
 			<div class="checkmark-wrapper">
-				<svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 130">
+				<svg
+					class="checkmark success-mark"
+					xmlns="http://www.w3.org/2000/svg"
+					viewBox="0 0 130 130">
 					<circle class="checkmark-circle" fill="none" cx="65" cy="65" r="60" />
 					<path class="checkmark-check" fill="none" d="M40,70 L55,85 L90,50" />
 				</svg>
+				<svg
+					class="checkmark error-mark"
+					xmlns="http://www.w3.org/2000/svg"
+					viewBox="0 0 130 130"
+					style="display: none">
+					<circle class="checkmark-circle" fill="none" cx="65" cy="65" r="60" />
+					<path class="checkmark-check" fill="none" d="M45,45 L85,85 M85,45 L45,85" />
+				</svg>
 			</div>
 
-			<h1>Authentication successful</h1>
-			<p>You can now close this tab</p>
+			<h1 class="success-text">Authentication successful</h1>
+			<h1 class="error-text" style="display: none">Authentication failed</h1>
+			<p class="success-text">You can now close this tab</p>
+			<p class="error-text" style="display: none">
+				Authorization was denied or an error occurred
+			</p>
 
 			<div class="divider"></div>
 
-			<div class="status">oauth2.authorized</div>
+			<div class="status success-status">oauth2.authorized</div>
+			<div class="status error-status" style="display: none">oauth2.error</div>
 		</div>
+
+		<script>
+			const urlParams = new URLSearchParams(window.location.search)
+			const isError = urlParams.has('error')
+
+			if (isError) {
+				// Switch to error mode
+				document.documentElement.classList.add('error')
+
+				// Show error elements
+				document.querySelector('.error-mark').style.display = 'block'
+				document.querySelector('.error-text:nth-of-type(1)').style.display = 'block'
+				document.querySelector('.error-text:nth-of-type(2)').style.display = 'block'
+				document.querySelector('.error-status').style.display = 'inline-flex'
+
+				// Hide success elements
+				document.querySelector('.success-mark').style.display = 'none'
+				document.querySelector('.success-text:nth-of-type(1)').style.display = 'none'
+				document.querySelector('.success-text:nth-of-type(2)').style.display = 'none'
+				document.querySelector('.success-status').style.display = 'none'
+			}
+		</script>
 	</body>
 </html>

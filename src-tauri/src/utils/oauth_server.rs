@@ -2,6 +2,8 @@ use tauri::{AppHandle, Emitter};
 use tiny_http::Response;
 use tracing;
 
+use crate::oauth::flow::is_state_pending;
+
 pub fn start(handle: AppHandle) {
     let port = portpicker::pick_unused_port().unwrap_or(8765);
     crate::globals::set_oauth_port(port);
@@ -21,21 +23,54 @@ pub fn start(handle: AppHandle) {
         for request in server.incoming_requests() {
             if request.url().starts_with("/oauth/callback") {
                 let url_str = format!("http://localhost{}", request.url());
+                let mut has_error = false;
+
                 if let Ok(url) = url::Url::parse(&url_str) {
                     let query_pairs: std::collections::HashMap<_, _> =
                         url.query_pairs().into_owned().collect();
 
-                    if let (Some(code), Some(state)) =
+                    if let Some(error) = query_pairs.get("error") {
+                        tracing::error!(target: "postail", "OAuth error: {}", error);
+                        has_error = true;
+
+                        let _ = handle.emit(
+                            "oauth_error",
+                            serde_json::json!({
+                                "error": error.to_string(),
+                                "error_description": query_pairs.get("error_description").map(|s| s.to_string())
+                            }),
+                        );
+                    } else if let (Some(code), Some(state)) =
                         (query_pairs.get("code"), query_pairs.get("state"))
                     {
-                        let _ = handle.emit(
-                            "oauth_callback",
-                            serde_json::json!({ "code": code.to_string(), "state": state.to_string() }),
-                        );
+                        if !is_state_pending(state) {
+                            has_error = true;
+                            tracing::error!(target: "postail", "Invalid OAuth state: {}", state);
+                            let _ = handle
+                                .emit("oauth_error", serde_json::json!({"error": "invalid_state"}));
+                        } else {
+                            let _ = handle.emit(
+                                "oauth_callback",
+                                serde_json::json!({
+                                    "code": code.to_string(),
+                                    "state": state.to_string()
+                                }),
+                            );
+                        }
+                    } else {
+                        has_error = true;
+                        tracing::error!(target: "postail", "Missing code or state in OAuth callback");
                     }
                 }
 
-                let response_html = include_str!("oauth_success.html");
+                let mut response_html = include_str!("oauth_status.html").to_string();
+                if has_error {
+                    response_html = response_html.replace(
+                        "</head>",
+                        "<script>window.history.replaceState({}, '', '?error=true');</script></head>"
+                    );
+                }
+
                 let response = Response::from_string(response_html);
 
                 let response = match "Content-Type: text/html".parse::<tiny_http::Header>() {

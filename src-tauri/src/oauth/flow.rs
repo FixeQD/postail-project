@@ -13,6 +13,10 @@ use super::pkce::PkceData;
 use super::provider::ProviderKind;
 use super::tokens::OAuthTokens;
 
+pub fn is_state_pending(state: &str) -> bool {
+    PENDING_FLOWS.lock().unwrap().contains_key(state)
+}
+
 const HTTP_TIMEOUT_SECS: u64 = 30;
 
 fn create_http_client() -> Client {
