@@ -1,3 +1,4 @@
+use ammonia;
 use tauri::{AppHandle, Emitter};
 use tiny_http::Response;
 use tracing;
@@ -81,7 +82,8 @@ pub fn start(handle: AppHandle) {
 
                 let mut response_html = include_str!("oauth_status.html").to_string();
                 if has_error {
-                    response_html = response_html.replace("{{error_message}}", &error_message);
+                    response_html =
+                        response_html.replace("{{error_message}}", &ammonia::clean(&error_message));
                     response_html = response_html.replace(
                         "</head>",
                         "<script>window.history.replaceState({}, '', '?error=true');</script></head>",
