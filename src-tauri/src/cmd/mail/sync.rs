@@ -1,5 +1,6 @@
 use crate::db::SyncStatusEnum;
 use crate::globals::IMAP_MANAGER;
+use crate::imap::pool::CONNECTION_POOL;
 use crate::imap::sync_status::{
     mark_sync_complete, mark_sync_error, update_sync_status, SYNC_STATUS_MANAGER,
 };
@@ -93,22 +94,38 @@ pub async fn sync_single_mailbox(account_id: String, mailbox: String) -> Result<
     }
 }
 
-/// Start IDLE/poll watch for the currently open mailbox.
-/// Stops any previous watch for this account
+/// Start IDLE/poll watch for a mailbox.
 #[command]
 pub async fn watch_mailbox(account_id: String, mailbox: String) -> Result<(), String> {
     tracing::info!(target: "postail", "[UI] watch_mailbox called for {}@{}", mailbox, account_id);
-    let imap = IMAP_MANAGER.lock().await.clone();
-    imap.start_watch_mailbox(&account_id, &mailbox)
+    let mut pool = CONNECTION_POOL.lock().await;
+    pool.watch_mailbox(&account_id, &mailbox)
         .await
         .map_err(|e| e.to_string())
 }
 
-/// Stop the active IDLE/poll watch for an account
+/// Stop watching a specific mailbox
 #[command]
-pub async fn unwatch_mailbox(account_id: String) -> Result<(), String> {
-    tracing::info!(target: "postail", "[UI] unwatch_mailbox called for {}", account_id);
-    let imap = IMAP_MANAGER.lock().await.clone();
-    imap.stop_watch_mailbox(&account_id).await;
+pub async fn unwatch_mailbox(account_id: String, mailbox: String) -> Result<(), String> {
+    tracing::info!(target: "postail", "[UI] unwatch_mailbox called for {}@{}", mailbox, account_id);
+    let mut pool = CONNECTION_POOL.lock().await;
+    pool.unwatch_mailbox(&account_id, &mailbox).await;
+    Ok(())
+}
+
+/// Stop all watches for an account
+#[command]
+pub async fn unwatch_all_mailboxes(account_id: String) -> Result<(), String> {
+    tracing::info!(target: "postail", "[UI] unwatch_all_mailboxes called for {}", account_id);
+    let mut pool = CONNECTION_POOL.lock().await;
+    pool.unwatch_all_for_account(&account_id).await;
+    Ok(())
+}
+
+/// Record activity on a mailbox
+#[command]
+pub async fn record_mailbox_activity(account_id: String, mailbox: String) -> Result<(), String> {
+    let mut pool = CONNECTION_POOL.lock().await;
+    pool.record_activity(&account_id, &mailbox).await;
     Ok(())
 }

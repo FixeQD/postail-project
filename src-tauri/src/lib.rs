@@ -11,6 +11,7 @@ pub mod smtp;
 pub mod utils;
 
 use crate::globals::SMTP_MANAGER;
+use crate::imap::pool::init_pool;
 use crate::imap::sync_status::set_sync_status_app_handle;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -43,6 +44,11 @@ pub fn run() {
             let timer_handle = handle.clone();
             tauri::async_runtime::spawn(async move {
                 crate::security::start_lock_timer(timer_handle).await;
+            });
+
+            // Initialize IMAP connection pool
+            tauri::async_runtime::spawn(async move {
+                init_pool().await;
             });
 
             Ok(())
@@ -81,6 +87,8 @@ pub fn run() {
             cmd::mail::sync::sync_single_mailbox,
             cmd::mail::sync::watch_mailbox,
             cmd::mail::sync::unwatch_mailbox,
+            cmd::mail::sync::unwatch_all_mailboxes,
+            cmd::mail::sync::record_mailbox_activity,
             cmd::mail::actions::search_messages,
             cmd::mail::actions::mark_read,
             cmd::mail::actions::delete_messages,

@@ -8,6 +8,7 @@ use tokio::sync::Mutex;
 pub mod connection;
 pub mod flags;
 pub mod mailbox;
+pub mod pool;
 pub mod sync;
 pub mod sync_status;
 

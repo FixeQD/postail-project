@@ -109,9 +109,13 @@ pub async fn fetch_headers(
         .map(|a| a.try_into().map_err(|_| "Anchor too large".to_string()))
         .transpose()?;
     let imap = IMAP_MANAGER.lock().await.clone();
-    let result = imap.fetch_headers_hybrid(&account_id, &mailbox, anchor, limit).await;
+    let result = imap
+        .fetch_headers_hybrid(&account_id, &mailbox, anchor, limit)
+        .await;
     match &result {
-        Ok(headers) => tracing::info!(target: "postail", "[API] fetch_headers returned {} headers", headers.len()),
+        Ok(headers) => {
+            tracing::info!(target: "postail", "[API] fetch_headers returned {} headers", headers.len())
+        }
         Err(e) => tracing::error!(target: "postail", "[API] fetch_headers error: {}", e),
     }
     result
