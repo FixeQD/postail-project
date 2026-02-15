@@ -24,6 +24,7 @@ pub fn start(handle: AppHandle) {
             if request.url().starts_with("/oauth/callback") {
                 let url_str = format!("http://localhost{}", request.url());
                 let mut has_error = false;
+                let mut error_message = String::new();
 
                 if let Ok(url) = url::Url::parse(&url_str) {
                     let query_pairs: std::collections::HashMap<_, _> =
@@ -32,6 +33,18 @@ pub fn start(handle: AppHandle) {
                     if let Some(error) = query_pairs.get("error") {
                         tracing::error!(target: "postail", "OAuth error: {}", error);
                         has_error = true;
+                        error_description = query_pairs
+                            .get("error_description")
+                            .cloned()
+                            .unwrap_or_default();
+                        error_message = if error == "access_denied" {
+                            "Access was denied by the provider.".to_string()
+                        } else {
+                            format!("Error: {}", error)
+                        };
+                        if !error_description.is_empty() {
+                            error_message.push_str(&format!(" ({})", error_description));
+                        }
 
                         let _ = handle.emit(
                             "oauth_error",
@@ -46,6 +59,8 @@ pub fn start(handle: AppHandle) {
                         if !is_state_pending(state) {
                             has_error = true;
                             tracing::error!(target: "postail", "Invalid OAuth state: {}", state);
+                            error_message =
+                                "Invalid authentication request. Please try again.".to_string();
                             let _ = handle
                                 .emit("oauth_error", serde_json::json!({"error": "invalid_state"}));
                         } else {
@@ -60,14 +75,16 @@ pub fn start(handle: AppHandle) {
                     } else {
                         has_error = true;
                         tracing::error!(target: "postail", "Missing code or state in OAuth callback");
+                        error_message = "Missing required parameters in the request.".to_string();
                     }
                 }
 
                 let mut response_html = include_str!("oauth_status.html").to_string();
                 if has_error {
+                    response_html = response_html.replace("{{error_message}}", &error_message);
                     response_html = response_html.replace(
                         "</head>",
-                        "<script>window.history.replaceState({}, '', '?error=true');</script></head>"
+                        "<script>window.history.replaceState({}, '', '?error=true');</script></head>",
                     );
                 }
 
