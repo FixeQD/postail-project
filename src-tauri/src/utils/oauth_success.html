@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Postail - Authentication Successful</title>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+
+			:root {
+				--bg-primary: #0a0f14;
+				--bg-secondary: #141b24;
+				--accent: #00ff88;
+				--text-primary: #e8edf2;
+				--text-secondary: #7a8a9e;
+				--border: #1e2a35;
+			}
+
+			body {
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+				background: var(--bg-primary);
+				color: var(--text-primary);
+				min-height: 100vh;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				overflow: hidden;
+				position: relative;
+			}
+
+			/* Background grid */
+			body::before {
+				content: '';
+				position: absolute;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				background-image:
+					linear-gradient(var(--border) 1px, transparent 1px),
+					linear-gradient(90deg, var(--border) 1px, transparent 1px);
+				background-size: 60px 60px;
+				opacity: 0.4;
+				animation: gridScroll 20s linear infinite;
+			}
+
+			@keyframes gridScroll {
+				0% {
+					transform: translate(0, 0);
+				}
+				100% {
+					transform: translate(60px, 60px);
+				}
+			}
+
+			/* Glow orb */
+			body::after {
+				content: '';
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				width: 600px;
+				height: 600px;
+				background: radial-gradient(circle, rgba(0, 255, 136, 0.15) 0%, transparent 70%);
+				transform: translate(-50%, -50%);
+				animation: pulse 4s ease-in-out infinite;
+			}
+
+			@keyframes pulse {
+				0%,
+				100% {
+					opacity: 0.6;
+					transform: translate(-50%, -50%) scale(1);
+				}
+				50% {
+					opacity: 0.8;
+					transform: translate(-50%, -50%) scale(1.1);
+				}
+			}
+
+			.container {
+				position: relative;
+				z-index: 1;
+				text-align: center;
+				padding: 3rem;
+				max-width: 600px;
+				background: var(--bg-secondary);
+				border: 1px solid var(--border);
+				border-radius: 4px;
+				box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+				animation: slideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+			}
+
+			@keyframes slideIn {
+				from {
+					opacity: 0;
+					transform: translateY(20px);
+				}
+				to {
+					opacity: 1;
+					transform: translateY(0);
+				}
+			}
+
+			.logo {
+				font-family: 'Courier New', monospace;
+				font-size: 1.5rem;
+				font-weight: 700;
+				letter-spacing: 0.05em;
+				color: var(--accent);
+				margin-bottom: 3rem;
+				text-transform: uppercase;
+				opacity: 0;
+				animation: fadeIn 0.4s ease-out 0.2s forwards;
+			}
+
+			@keyframes fadeIn {
+				to {
+					opacity: 1;
+				}
+			}
+
+			.checkmark-wrapper {
+				width: 120px;
+				height: 120px;
+				margin: 0 auto 2rem;
+				position: relative;
+				opacity: 0;
+				animation: fadeIn 0.4s ease-out 0.4s forwards;
+			}
+
+			.checkmark {
+				width: 120px;
+				height: 120px;
+				border-radius: 50%;
+				display: block;
+				stroke-width: 3;
+				stroke: var(--accent);
+				stroke-miterlimit: 10;
+				box-shadow: 0 0 40px rgba(0, 255, 136, 0.3);
+				animation:
+					fill 0.4s ease-in-out 0.6s forwards,
+					scale 0.3s ease-in-out 0.9s both;
+			}
+
+			.checkmark-circle {
+				stroke-dasharray: 377;
+				stroke-dashoffset: 377;
+				stroke-width: 3;
+				stroke-miterlimit: 10;
+				stroke: var(--accent);
+				fill: none;
+				animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) 0.4s forwards;
+			}
+
+			.checkmark-check {
+				transform-origin: 50% 50%;
+				stroke-dasharray: 96;
+				stroke-dashoffset: 96;
+				animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 1s forwards;
+			}
+
+			@keyframes stroke {
+				100% {
+					stroke-dashoffset: 0;
+				}
+			}
+
+			@keyframes scale {
+				0%,
+				100% {
+					transform: scale(1);
+				}
+				50% {
+					transform: scale(1.1);
+				}
+			}
+
+			h1 {
+				font-size: 2.5rem;
+				font-weight: 600;
+				letter-spacing: -0.02em;
+				margin-bottom: 1rem;
+				color: var(--text-primary);
+				opacity: 0;
+				animation: fadeIn 0.4s ease-out 0.6s forwards;
+			}
+
+			p {
+				font-size: 1.1rem;
+				color: var(--text-secondary);
+				line-height: 1.6;
+				opacity: 0;
+				animation: fadeIn 0.4s ease-out 0.8s forwards;
+			}
+
+			.divider {
+				height: 1px;
+				background: linear-gradient(90deg, transparent, var(--border), transparent);
+				margin: 2rem 0;
+				opacity: 0;
+				animation: fadeIn 0.4s ease-out 1s forwards;
+			}
+
+			.status {
+				display: inline-flex;
+				align-items: center;
+				gap: 0.5rem;
+				padding: 0.5rem 1rem;
+				background: rgba(0, 255, 136, 0.1);
+				border: 1px solid rgba(0, 255, 136, 0.3);
+				border-radius: 2px;
+				font-family: 'Courier New', monospace;
+				font-size: 0.9rem;
+				color: var(--accent);
+				opacity: 0;
+				animation: fadeIn 0.4s ease-out 1.2s forwards;
+			}
+
+			.status::before {
+				content: '✓';
+				font-size: 1.2rem;
+			}
+
+			/* Scan line effect */
+			.scan-line {
+				position: absolute;
+				top: 0;
+				left: 0;
+				right: 0;
+				height: 2px;
+				background: linear-gradient(
+					90deg,
+					transparent 0%,
+					var(--accent) 50%,
+					transparent 100%
+				);
+				opacity: 0.3;
+				animation: scan 3s linear infinite;
+			}
+
+			@keyframes scan {
+				0% {
+					transform: translateY(-100vh);
+				}
+				100% {
+					transform: translateY(100vh);
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="scan-line"></div>
+
+		<div class="container">
+			<div class="logo">Postail</div>
+
+			<div class="checkmark-wrapper">
+				<svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 130">
+					<circle class="checkmark-circle" fill="none" cx="65" cy="65" r="60" />
+					<path class="checkmark-check" fill="none" d="M40,70 L55,85 L90,50" />
+				</svg>
+			</div>
+
+			<h1>Authentication successful</h1>
+			<p>You can now close this tab</p>
+
+			<div class="divider"></div>
+
+			<div class="status">oauth2.authorized</div>
+		</div>
+	</body>
+</html>

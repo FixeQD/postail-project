@@ -35,7 +35,7 @@ pub fn start(handle: AppHandle) {
                     }
                 }
 
-                let response_html = "<!DOCTYPE html><html><head><title>Postail</title><style>body{display:flex;justify-content:center;align-items:center;height:100vh;margin:0;font-family:sans-serif;background-color:#1a1a1a;color:white;}</style></head><body><div><h1>Authentication successful!</h1><p>You can now close this tab.</p></div></body></html>";
+                let response_html = include_str!("oauth_success.html");
                 let response = Response::from_string(response_html);
 
                 let response = match "Content-Type: text/html".parse::<tiny_http::Header>() {
