@@ -1,8 +1,9 @@
-import { ReactNode } from 'react'
+import { ReactNode, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import * as opener from '@tauri-apps/plugin-opener'
 import { useAccountsTranslation } from '../../../../hooks/useTypedTranslation'
 import { Plus, Settings, ArrowLeft, Loader2 } from 'lucide-react'
+import { ManualAccountForm } from './ManualAccountForm'
 
 // A generic card component for provider selection
 const ProviderCard = ({
@@ -52,9 +53,14 @@ const ProviderCard = ({
 	)
 }
 
-const GmailIcon = () => (
-	<div className='flex h-12 w-12 items-center justify-center rounded-lg bg-slate-900/50 ring-1 ring-slate-700/50 group-hover:ring-red-500/50'>
-		<svg className='h-6 w-6 text-red-400' viewBox='0 0 24 24' fill='currentColor'>
+const GmailIcon = ({ disabled }: { disabled?: boolean }) => (
+	<div
+		className={`flex h-12 w-12 items-center justify-center rounded-lg bg-slate-900/50 ring-1 ring-slate-700/50 ${disabled ? '' : 'group-hover:ring-red-500/50'}`}>
+		<svg
+			className={`h-6 w-6 ${disabled ? 'text-slate-400' : 'text-red-400'}`}
+			viewBox='0 0 24 24'
+			fill='currentColor'>
+			<title>Gmail</title>
 			<path d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z' />
 			<path d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z' />
 			<path d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z' />
@@ -63,9 +69,14 @@ const GmailIcon = () => (
 	</div>
 )
 
-const OutlookIcon = () => (
-	<div className='flex h-12 w-12 items-center justify-center rounded-lg bg-slate-900/50 ring-1 ring-slate-700/50 group-hover:ring-blue-500/50'>
-		<svg className='h-6 w-6 text-blue-400' viewBox='0 0 24 24' fill='currentColor'>
+const OutlookIcon = ({ disabled }: { disabled?: boolean }) => (
+	<div
+		className={`flex h-12 w-12 items-center justify-center rounded-lg bg-slate-900/50 ring-1 ring-slate-700/50 ${disabled ? '' : 'group-hover:ring-blue-500/50'}`}>
+		<svg
+			className={`h-6 w-6 ${disabled ? 'text-slate-400' : 'text-blue-400'}`}
+			viewBox='0 0 24 24'
+			fill='currentColor'>
+			<title>Outlook</title>
 			<path d='M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z' />
 		</svg>
 	</div>
@@ -79,6 +90,7 @@ const IMAPIcon = () => (
 
 export const AddAccountScreen = ({
 	onBack,
+	onAccountAdded,
 	loading,
 	setLoading,
 }: {
@@ -88,6 +100,7 @@ export const AddAccountScreen = ({
 	setLoading: (loading: string | null) => void
 }) => {
 	const { t } = useAccountsTranslation()
+	const [showManualForm, setShowManualForm] = useState(false)
 
 	const handleProviderClick = async (provider: 'gmail' | 'outlook') => {
 		setLoading(provider)
@@ -98,12 +111,20 @@ export const AddAccountScreen = ({
 			await opener.openUrl(url)
 		} catch (error) {
 			console.error(`Failed to start ${provider} OAuth:`, error)
-			setLoading(null) // Reset loading state on error
+			setLoading(null)
 		}
 	}
 
 	const handleIMAPClick = () => {
-		console.log('IMAP configuration not implemented yet')
+		setShowManualForm(true)
+	}
+
+	const handleManualSuccess = () => {
+		onAccountAdded()
+	}
+
+	const handleManualCancel = () => {
+		setShowManualForm(false)
 	}
 
 	return (
@@ -126,35 +147,42 @@ export const AddAccountScreen = ({
 
 			<div className='container mx-auto flex-1 px-4 py-8'>
 				<div className='mx-auto max-w-2xl'>
-					<div className='grid gap-4'>
-						<ProviderCard
-							title={t('settings:accounts.providers.gmail.title')}
-							description={t('settings:accounts.providers.gmail.description')}
-							icon={<GmailIcon />}
-							accentColor='red'
-							onClick={() => handleProviderClick('gmail')}
-							isLoading={loading === 'gmail'}
-							disabled={loading !== null}
+					{showManualForm ? (
+						<ManualAccountForm
+							onSuccess={handleManualSuccess}
+							onCancel={handleManualCancel}
 						/>
-						<ProviderCard
-							title={t('settings:accounts.providers.outlook.title')}
-							description={t('settings:accounts.providers.outlook.description')}
-							icon={<OutlookIcon />}
-							accentColor='blue'
-							onClick={() => handleProviderClick('outlook')}
-							isLoading={loading === 'outlook'}
-							disabled={loading !== null}
-						/>
-						<ProviderCard
-							title={t('settings:accounts.providers.imap.title')}
-							description={t('settings:accounts.providers.imap.description')}
-							icon={<IMAPIcon />}
-							accentColor='slate'
-							onClick={handleIMAPClick}
-							isLoading={false}
-							disabled={loading !== null}
-						/>
-					</div>
+					) : (
+						<div className='grid gap-4'>
+							<ProviderCard
+								title={t('settings:accounts.providers.gmail.title')}
+								description={t('settings:accounts.providers.gmail.description')}
+								icon={<GmailIcon disabled={true} />}
+								accentColor='red'
+								onClick={() => handleProviderClick('gmail')}
+								isLoading={loading === 'gmail'}
+								disabled={true}
+							/>
+							<ProviderCard
+								title={t('settings:accounts.providers.outlook.title')}
+								description={t('settings:accounts.providers.outlook.description')}
+								icon={<OutlookIcon disabled={true} />}
+								accentColor='blue'
+								onClick={() => handleProviderClick('outlook')}
+								isLoading={loading === 'outlook'}
+								disabled={true}
+							/>
+							<ProviderCard
+								title={t('settings:accounts.providers.imap.title')}
+								description={t('settings:accounts.providers.imap.description')}
+								icon={<IMAPIcon />}
+								accentColor='slate'
+								onClick={handleIMAPClick}
+								isLoading={false}
+								disabled={loading !== null}
+							/>
+						</div>
+					)}
 				</div>
 			</div>
 		</div>

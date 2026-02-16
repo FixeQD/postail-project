@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import * as opener from '@tauri-apps/plugin-opener'
 import { useAccountsTranslation } from '../../../../hooks/useTypedTranslation'
-import { Plus, Mail, Loader2, ArrowRight } from 'lucide-react'
+import { Plus, Mail, Loader2, ArrowRight, Settings } from 'lucide-react'
 import {
 	Dialog,
 	DialogContent,
@@ -13,9 +13,10 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { ManualAccountForm } from './ManualAccountForm'
 
 interface AddAccountDialogProps {
-	onAccountAdded: () => void
+	onAccountAdded?: () => void
 	children?: React.ReactNode
 }
 
@@ -37,6 +38,7 @@ const ProviderOption = ({
 	brandColor: string
 }) => (
 	<button
+		type='button'
 		onClick={onClick}
 		disabled={disabled}
 		className={cn(
@@ -71,10 +73,11 @@ const ProviderOption = ({
 	</button>
 )
 
-export function AddAccountDialog({ children }: Omit<AddAccountDialogProps, 'onAccountAdded'>) {
+export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogProps) {
 	const { t } = useAccountsTranslation()
 	const [loading, setLoading] = useState<string | null>(null)
 	const [open, setOpen] = useState(false)
+	const [showManualForm, setShowManualForm] = useState(false)
 
 	const handleProviderClick = async (provider: 'gmail' | 'outlook') => {
 		setLoading(provider)
@@ -89,8 +92,26 @@ export function AddAccountDialog({ children }: Omit<AddAccountDialogProps, 'onAc
 		}
 	}
 
+	const handleManualSuccess = () => {
+		setShowManualForm(false)
+		setOpen(false)
+		onAccountAdded?.()
+	}
+
+	const handleManualCancel = () => {
+		setShowManualForm(false)
+	}
+
+	const handleOpenChange = (newOpen: boolean) => {
+		setOpen(newOpen)
+		if (!newOpen) {
+			setShowManualForm(false)
+			setLoading(null)
+		}
+	}
+
 	return (
-		<Dialog open={open} onOpenChange={setOpen}>
+		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogTrigger asChild>
 				{children || (
 					<Button className='gap-2 bg-blue-600 text-white shadow-lg shadow-blue-500/20 hover:bg-blue-500'>
@@ -109,24 +130,39 @@ export function AddAccountDialog({ children }: Omit<AddAccountDialogProps, 'onAc
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className='grid gap-3 py-4'>
-					<ProviderOption
-						title={t('settings:accounts.providers.gmail.title')}
-						icon={Mail}
-						brandColor='from-red-500 to-orange-500 text-red-500'
-						onClick={() => handleProviderClick('gmail')}
-						isLoading={loading === 'gmail'}
-						disabled={loading !== null}
+				{showManualForm ? (
+					<ManualAccountForm
+						onSuccess={handleManualSuccess}
+						onCancel={handleManualCancel}
 					/>
-					<ProviderOption
-						title={t('settings:accounts.providers.outlook.title')}
-						icon={Mail}
-						brandColor='from-blue-500 to-cyan-500 text-blue-500'
-						onClick={() => handleProviderClick('outlook')}
-						isLoading={loading === 'outlook'}
-						disabled={loading !== null}
-					/>
-				</div>
+				) : (
+					<div className='grid gap-3 py-4'>
+						<ProviderOption
+							title={t('settings:accounts.providers.gmail.title')}
+							icon={Mail}
+							brandColor='from-red-500 to-orange-500'
+							onClick={() => handleProviderClick('gmail')}
+							isLoading={loading === 'gmail'}
+							disabled={loading !== null}
+						/>
+						<ProviderOption
+							title={t('settings:accounts.providers.outlook.title')}
+							icon={Mail}
+							brandColor='from-blue-500 to-cyan-500'
+							onClick={() => handleProviderClick('outlook')}
+							isLoading={loading === 'outlook'}
+							disabled={loading !== null}
+						/>
+						<ProviderOption
+							title={t('settings:accounts.providers.imap.title')}
+							icon={Settings}
+							brandColor='from-slate-500 to-slate-400'
+							onClick={() => setShowManualForm(true)}
+							isLoading={false}
+							disabled={loading !== null}
+						/>
+					</div>
+				)}
 			</DialogContent>
 		</Dialog>
 	)
