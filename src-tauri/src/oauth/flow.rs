@@ -32,18 +32,6 @@ pub struct Provider {
 }
 
 impl Provider {
-    pub fn gmail() -> Self {
-        Self {
-            kind: ProviderKind::Gmail,
-        }
-    }
-
-    pub fn outlook() -> Self {
-        Self {
-            kind: ProviderKind::Outlook,
-        }
-    }
-
     pub fn from_kind(kind: ProviderKind) -> Self {
         Self { kind }
     }

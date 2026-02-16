@@ -58,18 +58,17 @@ pub async fn fetch_mailboxes(account_id: String) -> Result<Vec<Mailbox>, String>
         });
     }
 
-    for mailbox in &mut mailboxes {
-        // Decode UTF-7 IMAP to display name
-        let decoded = utf7_imap::decode_utf7_imap(mailbox.name.clone());
-        mailbox.display_name = decoded.clone();
+	for mailbox in &mut mailboxes {
+		// Decode UTF-7 IMAP to display name
+		let decoded = utf7_imap::decode_utf7_imap(mailbox.name.clone());
+		mailbox.display_name = decoded.clone();
 
-        // Clean up provider-specific prefixes
-        if let Some(kind) = provider_kind {
-            if kind == oauth::ProviderKind::Gmail && mailbox.display_name.starts_with("[Gmail]/") {
-                mailbox.display_name = mailbox.display_name.replace("[Gmail]/", "");
-            }
-        }
-    }
+		// Clean up provider-specific prefixes
+		if let Some(kind) = provider_kind {
+			let info = oauth::ProviderInfo::get(kind);
+			mailbox.display_name = info.strip_display_name_prefix(&mailbox.display_name);
+		}
+	}
 
     mailboxes.sort_by(|a, b| {
         let role_score = |role: &str| match role {

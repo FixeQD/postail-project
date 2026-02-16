@@ -256,6 +256,7 @@ pub async fn add_custom_account(config: ManualServerConfig) -> Result<AccountMet
     let account_input = AccountInput {
         name: config.account_name.clone(),
         email: config.email.clone(),
+        provider_type: "custom".to_string(),
         auth_type: "password".to_string(),
         credentials: Credentials::Password(PasswordCredentials {
             username,
@@ -337,59 +338,37 @@ pub async fn complete_oauth_flow(code: String, state: String) -> Result<AccountM
         Err(e) => return Err(e.to_string()),
     };
 
-    let email = match provider.kind {
-        oauth::ProviderKind::Gmail => {
-            let client = reqwest::Client::builder()
-                .timeout(HTTP_TIMEOUT_SECS)
-                .build()
-                .map_err(|e| e.to_string())?;
-            let response = client
-                .get("https://www.googleapis.com/oauth2/v2/userinfo")
-                .bearer_auth(&tokens.access_token)
-                .send()
+    let provider_info = oauth::ProviderInfo::get(provider.kind);
+    let email = {
+        let client = reqwest::Client::builder()
+            .timeout(HTTP_TIMEOUT_SECS)
+            .build()
+            .map_err(|e| e.to_string())?;
+        let response = client
+            .get(provider_info.user_info_url())
+            .bearer_auth(&tokens.access_token)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+        if !response.status().is_success() {
+            let status = response.status().to_string();
+            let body = response
+                .text()
                 .await
-                .map_err(|e| e.to_string())?;
-            if !response.status().is_success() {
-                let status = response.status().to_string();
-                let body = response
-                    .text()
-                    .await
-                    .unwrap_or_else(|_| "Failed to read response body".to_string());
-                tracing::error!(target: "postail", "Failed to fetch Gmail user info. Status: {}, Body: {}", status, body);
-                return Err("Failed to fetch Gmail user info".to_string());
-            }
-            let user_info: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
-            user_info["email"]
-                .as_str()
-                .ok_or("No email in Gmail response")?
-                .to_string()
+                .unwrap_or_else(|_| "Failed to read response body".to_string());
+            tracing::error!(target: "postail", "Failed to fetch {} user info. Status: {}, Body: {}", provider.kind, status, body);
+            return Err(format!("Failed to fetch {} user info", provider.kind));
         }
-        oauth::ProviderKind::Outlook => {
-            let client = reqwest::Client::builder()
-                .timeout(HTTP_TIMEOUT_SECS)
-                .build()
-                .map_err(|e| e.to_string())?;
-            let response = client
-                .get("https://graph.microsoft.com/v1.0/me")
-                .bearer_auth(&tokens.access_token)
-                .send()
-                .await
-                .map_err(|e| e.to_string())?;
-            if !response.status().is_success() {
-                return Err("Failed to fetch Outlook user info".to_string());
-            }
-            let user_info: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
-            user_info["mail"]
-                .as_str()
-                .or_else(|| user_info["userPrincipalName"].as_str())
-                .ok_or("No email in Outlook response")?
-                .to_string()
-        }
+        let user_info: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
+        provider_info
+            .extract_email(&user_info)
+            .ok_or_else(|| format!("No email in {} response", provider.kind))?
     };
 
     let account_input = AccountInput {
         name: format!("{} Account", provider.kind.display_name()),
         email,
+        provider_type: provider.kind.as_str().to_string(),
         auth_type: "oauth2".to_string(),
         credentials: Credentials::OAuth(OAuthCredentials {
             access_token: tokens.access_token,

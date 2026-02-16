@@ -157,6 +157,7 @@ impl ManualServerConfig {
 pub struct AccountInput {
     pub name: String,
     pub email: String,
+    pub provider_type: String,
     pub auth_type: String,
     pub imap_config: ImapConfig,
     pub smtp_config: SmtpConfig,

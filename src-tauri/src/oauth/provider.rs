@@ -122,4 +122,28 @@ impl ProviderInfo {
             ProviderKind::Outlook => option_env!("OUTLOOK_CLIENT_SECRET").map(|s| s.to_string()),
         }
     }
+
+    pub fn user_info_url(&self) -> &'static str {
+        match self.kind {
+            ProviderKind::Gmail => "https://www.googleapis.com/oauth2/v2/userinfo",
+            ProviderKind::Outlook => "https://graph.microsoft.com/v1.0/me",
+        }
+    }
+
+    pub fn extract_email(&self, user_info: &serde_json::Value) -> Option<String> {
+        match self.kind {
+            ProviderKind::Gmail => user_info["email"].as_str().map(|s| s.to_string()),
+            ProviderKind::Outlook => user_info["mail"]
+                .as_str()
+                .or_else(|| user_info["userPrincipalName"].as_str())
+                .map(|s| s.to_string()),
+        }
+    }
+
+    pub fn strip_display_name_prefix(&self, name: &str) -> String {
+        match self.canonical_prefix {
+            Some(prefix) => name.strip_prefix(prefix).unwrap_or(name).to_string(),
+            None => name.to_string(),
+        }
+    }
 }
