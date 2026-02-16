@@ -61,6 +61,7 @@ pub fn run() {
             cmd::account::add_custom_account,
             cmd::account::list_accounts,
             cmd::account::remove_account,
+            cmd::account::get_available_providers,
             cmd::security::check_security_options,
             cmd::security::check_tpm_availability,
             cmd::security::initialize_security,

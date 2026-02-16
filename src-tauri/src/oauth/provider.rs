@@ -7,6 +7,10 @@ pub enum ProviderKind {
 }
 
 impl ProviderKind {
+    pub fn all() -> &'static [ProviderKind] {
+        &[ProviderKind::Gmail, ProviderKind::Outlook]
+    }
+
     pub fn as_str(&self) -> &'static str {
         match self {
             ProviderKind::Gmail => "gmail",

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import * as opener from '@tauri-apps/plugin-opener'
 import { useAccountsTranslation } from '../../../../hooks/useTypedTranslation'
@@ -78,6 +78,15 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 	const [loading, setLoading] = useState<string | null>(null)
 	const [open, setOpen] = useState(false)
 	const [showManualForm, setShowManualForm] = useState(false)
+	const [availableProviders, setAvailableProviders] = useState<string[]>([])
+
+	useEffect(() => {
+		if (open) {
+			invoke<{ providers: string[] }>('get_available_providers')
+				.then((res) => setAvailableProviders(res.providers))
+				.catch(console.error)
+		}
+	}, [open])
 
 	const handleProviderClick = async (provider: 'gmail' | 'outlook') => {
 		setLoading(provider)
@@ -140,18 +149,26 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 						<ProviderOption
 							title={t('settings:accounts.providers.gmail.title')}
 							icon={Mail}
-							brandColor='from-red-500 to-orange-500'
+							brandColor={
+								availableProviders.includes('gmail')
+									? 'from-red-500 to-orange-500'
+									: 'from-slate-500 to-slate-400'
+							}
 							onClick={() => handleProviderClick('gmail')}
 							isLoading={loading === 'gmail'}
-							disabled={loading !== null}
+							disabled={!availableProviders.includes('gmail') || loading !== null}
 						/>
 						<ProviderOption
 							title={t('settings:accounts.providers.outlook.title')}
 							icon={Mail}
-							brandColor='from-blue-500 to-cyan-500'
+							brandColor={
+								availableProviders.includes('outlook')
+									? 'from-blue-500 to-cyan-500'
+									: 'from-slate-500 to-slate-400'
+							}
 							onClick={() => handleProviderClick('outlook')}
 							isLoading={loading === 'outlook'}
-							disabled={loading !== null}
+							disabled={!availableProviders.includes('outlook') || loading !== null}
 						/>
 						<ProviderOption
 							title={t('settings:accounts.providers.imap.title')}

@@ -436,3 +436,24 @@ pub async fn complete_oauth_flow(code: String, state: String) -> Result<AccountM
 
     Ok(account)
 }
+
+#[derive(Serialize)]
+pub struct AvailableProviders {
+    pub providers: Vec<String>,
+}
+
+#[command]
+pub fn get_available_providers() -> AvailableProviders {
+    use crate::oauth::{ProviderInfo, ProviderKind};
+
+    let providers = ProviderKind::all()
+        .iter()
+        .filter_map(|kind| {
+            ProviderInfo::get(*kind)
+                .client_id()
+                .map(|_| kind.as_str().to_string())
+        })
+        .collect();
+
+    AvailableProviders { providers }
+}
