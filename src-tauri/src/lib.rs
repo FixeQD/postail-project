@@ -58,6 +58,7 @@ pub fn run() {
             cmd::account::start_oauth_flow,
             cmd::account::complete_oauth_flow,
             cmd::account::add_account,
+            cmd::account::add_custom_account,
             cmd::account::list_accounts,
             cmd::account::remove_account,
             cmd::security::check_security_options,
