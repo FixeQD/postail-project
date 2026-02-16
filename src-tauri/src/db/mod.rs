@@ -81,6 +81,79 @@ pub enum Credentials {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct ManualServerConfig {
+    pub account_name: String,
+    pub email: String,
+    pub use_separate_username: bool,
+    pub username: Option<String>,
+    pub password: String,
+    pub imap_host: String,
+    pub imap_port: u16,
+    pub imap_tls: bool,
+    pub smtp_host: String,
+    pub smtp_port: u16,
+    pub smtp_tls: bool,
+}
+
+impl Default for ManualServerConfig {
+    fn default() -> Self {
+        Self {
+            account_name: String::new(),
+            email: String::new(),
+            use_separate_username: false,
+            username: None,
+            password: String::new(),
+            imap_host: String::new(),
+            imap_port: 993,
+            imap_tls: true,
+            smtp_host: String::new(),
+            smtp_port: 587,
+            smtp_tls: true,
+        }
+    }
+}
+
+impl ManualServerConfig {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.account_name.trim().is_empty() {
+            return Err("Account name is required".to_string());
+        }
+        if self.email.trim().is_empty() {
+            return Err("Email is required".to_string());
+        }
+        if self.use_separate_username {
+            if self.username.as_ref().map(|u| u.trim().is_empty()).unwrap_or(true) {
+                return Err("Username is required when using separate username".to_string());
+            }
+        }
+        if self.password.is_empty() {
+            return Err("Password is required".to_string());
+        }
+        if self.imap_host.trim().is_empty() {
+            return Err("IMAP host is required".to_string());
+        }
+        if self.imap_port == 0 || self.imap_port > 65535 {
+            return Err("IMAP port must be between 1 and 65535".to_string());
+        }
+        if self.smtp_host.trim().is_empty() {
+            return Err("SMTP host is required".to_string());
+        }
+        if self.smtp_port == 0 || self.smtp_port > 65535 {
+            return Err("SMTP port must be between 1 and 65535".to_string());
+        }
+        Ok(())
+    }
+
+    pub fn get_username(&self) -> &str {
+        if self.use_separate_username {
+            self.username.as_deref().unwrap_or(&self.email)
+        } else {
+            &self.email
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AccountInput {
     pub name: String,
     pub email: String,
