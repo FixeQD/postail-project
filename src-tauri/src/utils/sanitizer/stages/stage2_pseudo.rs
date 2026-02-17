@@ -116,7 +116,10 @@ pub fn expand_pseudo_elements_dom(document: &NodeRef) {
         for child in style_node.children() {
             child.detach();
         }
-        style_node.append(NodeRef::new_text(format!("{}{}", cleaned_css, new_css_rules)));
+        style_node.append(NodeRef::new_text(format!(
+            "{}{}",
+            cleaned_css, new_css_rules
+        )));
 
         all_rules.extend(rules);
     }

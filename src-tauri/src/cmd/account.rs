@@ -2,7 +2,10 @@ use crate::db::accounts::{
     add_account as db_add_account, list_accounts as db_list_accounts,
     remove_account as db_remove_account,
 };
-use crate::db::{AccountInput, AccountMeta, Credentials, ImapConfig, ManualServerConfig, OAuthCredentials, PasswordCredentials, SmtpConfig};
+use crate::db::{
+    AccountInput, AccountMeta, Credentials, ImapConfig, ManualServerConfig, OAuthCredentials,
+    PasswordCredentials, SmtpConfig,
+};
 use crate::globals::{DB_CONN, IMAP_MANAGER, SECURITY};
 use crate::oauth;
 use crate::utils::oauth_server;
@@ -11,11 +14,11 @@ use async_smtp::authentication::{Credentials as SmtpCredentials, Mechanism};
 use async_smtp::extension::ClientId;
 use async_smtp::{SmtpClient, SmtpTransport};
 use chrono::Utc;
+use futures::TryStreamExt;
 use native_tls::TlsConnector as NativeTlsConnector;
 use serde::Serialize;
 use std::time::Duration;
 use tauri::{command, AppHandle};
-use futures::TryStreamExt;
 use tokio::io::BufStream;
 use tokio::net::TcpStream;
 use tokio_native_tls::TlsConnector;
@@ -72,7 +75,7 @@ async fn test_imap_connection(config: &ManualServerConfig) -> Result<(), Connect
 
     let tcp_stream = tokio::time::timeout(
         CONNECTION_TIMEOUT_SECS,
-        TcpStream::connect((config.imap_host.as_str(), config.imap_port))
+        TcpStream::connect((config.imap_host.as_str(), config.imap_port)),
     )
     .await
     .map_err(|_| ConnectionTestError::Imap("Connection timeout".to_string()))?
@@ -89,10 +92,9 @@ async fn test_imap_connection(config: &ManualServerConfig) -> Result<(), Connect
 
         let mut client = ImapClient::new(tls_stream.compat());
 
-        client
-            .read_response()
-            .await
-            .map_err(|e| ConnectionTestError::Imap(format!("Failed to read server greeting: {}", e)))?;
+        client.read_response().await.map_err(|e| {
+            ConnectionTestError::Imap(format!("Failed to read server greeting: {}", e))
+        })?;
 
         match client.login(username, password).await {
             Ok(mut session) => {
@@ -100,21 +102,24 @@ async fn test_imap_connection(config: &ManualServerConfig) -> Result<(), Connect
                     .list(None, Some("*"))
                     .await
                     .map_err(|e| ConnectionTestError::Imap(format!("LIST failed: {}", e)))?
-                    .try_collect().await
+                    .try_collect()
+                    .await
                     .map_err(|e| ConnectionTestError::Imap(format!("LIST stream failed: {}", e)))?;
                 let _ = session.logout().await;
                 tracing::info!(target: "postail", "[Test IMAP] Connection test successful");
                 Ok(())
             }
-            Err((e, _)) => Err(ConnectionTestError::Imap(format!("Authentication failed: {}", e))),
+            Err((e, _)) => Err(ConnectionTestError::Imap(format!(
+                "Authentication failed: {}",
+                e
+            ))),
         }
     } else {
         let mut client = ImapClient::new(tcp_stream.compat());
 
-        client
-            .read_response()
-            .await
-            .map_err(|e| ConnectionTestError::Imap(format!("Failed to read server greeting: {}", e)))?;
+        client.read_response().await.map_err(|e| {
+            ConnectionTestError::Imap(format!("Failed to read server greeting: {}", e))
+        })?;
 
         match client.login(username, password).await {
             Ok(mut session) => {
@@ -122,13 +127,17 @@ async fn test_imap_connection(config: &ManualServerConfig) -> Result<(), Connect
                     .list(None, Some("*"))
                     .await
                     .map_err(|e| ConnectionTestError::Imap(format!("LIST failed: {}", e)))?
-                    .try_collect().await
+                    .try_collect()
+                    .await
                     .map_err(|e| ConnectionTestError::Imap(format!("LIST stream failed: {}", e)))?;
                 let _ = session.logout().await;
                 tracing::info!(target: "postail", "[Test IMAP] Connection test successful (plain)");
                 Ok(())
             }
-            Err((e, _)) => Err(ConnectionTestError::Imap(format!("Authentication failed: {}", e))),
+            Err((e, _)) => Err(ConnectionTestError::Imap(format!(
+                "Authentication failed: {}",
+                e
+            ))),
         }
     }
 }
@@ -141,7 +150,7 @@ async fn test_smtp_connection(config: &ManualServerConfig) -> Result<(), Connect
 
     let tcp_stream = tokio::time::timeout(
         CONNECTION_TIMEOUT_SECS,
-        TcpStream::connect((config.smtp_host.as_str(), config.smtp_port))
+        TcpStream::connect((config.smtp_host.as_str(), config.smtp_port)),
     )
     .await
     .map_err(|_| ConnectionTestError::Smtp("Connection timeout".to_string()))?
@@ -197,9 +206,9 @@ async fn test_smtp_connection(config: &ManualServerConfig) -> Result<(), Connect
         let client = SmtpClient::new()
             .hello_name(ClientId::new("postail".to_string()))
             .without_greeting();
-        let mut transport = SmtpTransport::new(client, stream)
-            .await
-            .map_err(|e| ConnectionTestError::Smtp(format!("SMTP handshake after STARTTLS failed: {}", e)))?;
+        let mut transport = SmtpTransport::new(client, stream).await.map_err(|e| {
+            ConnectionTestError::Smtp(format!("SMTP handshake after STARTTLS failed: {}", e))
+        })?;
 
         transport
             .get_mut()

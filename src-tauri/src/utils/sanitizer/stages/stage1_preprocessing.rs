@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use html5ever::QualName;
-use kuchiki::NodeRef;
 use kuchiki::traits::TendrilSink;
+use kuchiki::NodeRef;
 use markup5ever::{namespace_url, ns};
 
 pub fn resolve_css_variables_dom(document: &NodeRef) {

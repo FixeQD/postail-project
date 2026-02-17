@@ -122,7 +122,12 @@ impl ManualServerConfig {
             return Err("Email is required".to_string());
         }
         if self.use_separate_username {
-            if self.username.as_ref().map(|u| u.trim().is_empty()).unwrap_or(true) {
+            if self
+                .username
+                .as_ref()
+                .map(|u| u.trim().is_empty())
+                .unwrap_or(true)
+            {
                 return Err("Username is required when using separate username".to_string());
             }
         }

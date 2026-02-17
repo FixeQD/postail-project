@@ -188,7 +188,8 @@ impl super::ImapManager {
                 .await
         } else {
             Err(ImapError::Connection(
-                "Non-TLS IMAP connections are not currently supported. Please enable TLS.".to_string(), // I'm f**kin done with this 😭
+                "Non-TLS IMAP connections are not currently supported. Please enable TLS."
+                    .to_string(), // I'm f**kin done with this 😭
             ))
         }
     }

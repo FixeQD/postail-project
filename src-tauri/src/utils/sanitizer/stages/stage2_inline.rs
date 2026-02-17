@@ -1,11 +1,11 @@
 //! Stage 2: CSS Processing - Inline styles and animations
 
-use std::collections::HashMap;
-use regex::Regex;
+use crate::utils::sanitizer::css::parser::parse_css_declarations;
+pub use crate::utils::sanitizer::types::{FONT_FACE_REGEX, IMPORT_REGEX};
 use kuchiki::traits::*;
 use kuchiki::NodeRef;
-pub use crate::utils::sanitizer::types::{FONT_FACE_REGEX, IMPORT_REGEX};
-use crate::utils::sanitizer::css::parser::parse_css_declarations;
+use regex::Regex;
+use std::collections::HashMap;
 
 // ---------------------------------------------------------------------------
 // Public entry point

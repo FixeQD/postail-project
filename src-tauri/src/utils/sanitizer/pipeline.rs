@@ -5,9 +5,9 @@
 use crate::utils::sanitizer::config::COLLECTED_ISSUES;
 use crate::utils::sanitizer::stages::*;
 use crate::utils::sanitizer::types::*;
-use kuchiki::NodeRef;
 use kuchiki::parse_html;
 use kuchiki::traits::TendrilSink;
+use kuchiki::NodeRef;
 
 /// Internal helper to run the sanitization pipeline
 fn run_sanitization_pipeline(
