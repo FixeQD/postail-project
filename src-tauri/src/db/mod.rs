@@ -141,6 +141,9 @@ impl ManualServerConfig {
         if self.smtp_port == 0 || self.smtp_port > 65535 {
             return Err("SMTP port must be between 1 and 65535".to_string());
         }
+        if !self.imap_tls {
+            return Err("Non-TLS IMAP connections are not currently su// I'm f**kin done with this 😭pported. Please enable TLS.".to_string());
+        }
         Ok(())
     }
 
