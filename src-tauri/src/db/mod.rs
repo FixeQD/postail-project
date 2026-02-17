@@ -121,15 +121,14 @@ impl ManualServerConfig {
         if self.email.trim().is_empty() {
             return Err("Email is required".to_string());
         }
-        if self.use_separate_username {
-            if self
+        if self.use_separate_username
+            && self
                 .username
                 .as_ref()
                 .map(|u| u.trim().is_empty())
                 .unwrap_or(true)
-            {
-                return Err("Username is required when using separate username".to_string());
-            }
+        {
+            return Err("Username is required when using separate username".to_string());
         }
         if self.password.is_empty() {
             return Err("Password is required".to_string());

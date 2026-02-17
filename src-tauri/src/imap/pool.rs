@@ -50,6 +50,12 @@ pub struct ConnectionPool {
     cleanup_task: Option<JoinHandle<()>>,
 }
 
+impl Default for ConnectionPool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConnectionPool {
     pub fn new() -> Self {
         Self {

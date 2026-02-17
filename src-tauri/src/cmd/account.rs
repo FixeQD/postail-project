@@ -245,7 +245,7 @@ async fn test_smtp_connection(config: &ManualServerConfig) -> Result<(), Connect
 
 #[command]
 pub async fn add_custom_account(config: ManualServerConfig) -> Result<AccountMeta, String> {
-    config.validate().map_err(|e| e)?;
+    config.validate()?;
 
     tracing::info!(target: "postail", "[add_custom_account] Testing connections for {}", config.email);
 

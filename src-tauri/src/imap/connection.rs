@@ -204,7 +204,7 @@ impl super::ImapManager {
         creds: &serde_json::Value,
     ) -> Result<ImapSession, ImapError> {
         tracing::debug!(target: "postail", "[IMAP] connect_imap_tls: connecting TCP to {}:{}", host, port);
-        let tcp_stream = TcpStream::connect((host.as_ref(), port))
+        let tcp_stream = TcpStream::connect((host, port))
             .await
             .map_err(|e: std::io::Error| ImapError::Connection(e.to_string()))?;
         tracing::debug!(target: "postail", "[IMAP] connect_imap_tls: TCP connected, starting TLS");
@@ -213,7 +213,7 @@ impl super::ImapManager {
             .map_err(|e: native_tls::Error| ImapError::Connection(e.to_string()))?;
         let tls_connector = TlsConnector::from(native_tls_connector);
         let tls_stream = tls_connector
-            .connect(&host, tcp_stream)
+            .connect(host, tcp_stream)
             .await
             .map_err(|e: native_tls::Error| ImapError::Connection(e.to_string()))?;
         tracing::debug!(target: "postail", "[IMAP] connect_imap_tls: TLS connected");
