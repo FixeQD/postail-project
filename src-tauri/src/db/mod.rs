@@ -132,13 +132,13 @@ impl ManualServerConfig {
         if self.imap_host.trim().is_empty() {
             return Err("IMAP host is required".to_string());
         }
-        if self.imap_port == 0 || self.imap_port > 65535 {
+        if self.imap_port == 0 {
             return Err("IMAP port must be between 1 and 65535".to_string());
         }
         if self.smtp_host.trim().is_empty() {
             return Err("SMTP host is required".to_string());
         }
-        if self.smtp_port == 0 || self.smtp_port > 65535 {
+        if self.smtp_port == 0 {
             return Err("SMTP port must be between 1 and 65535".to_string());
         }
         if !self.imap_tls {

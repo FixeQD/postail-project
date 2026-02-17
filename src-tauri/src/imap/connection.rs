@@ -290,9 +290,10 @@ impl super::ImapManager {
         }
     }
 
+    #[allow(dead_code)]
     async fn authenticate_imap_plain(
         &self,
-        mut client: Client<Compat<TcpStream>>,
+        client: Client<Compat<TcpStream>>,
         auth_type: &str,
         email: &str,
         creds: &serde_json::Value,

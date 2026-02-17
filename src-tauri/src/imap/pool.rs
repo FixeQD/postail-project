@@ -36,7 +36,6 @@ pub struct MailboxWatch {
 
 #[derive(Debug, Clone)]
 struct DedupEntry {
-    message_id: String,
     mailboxes: Vec<(String, String)>, // (account, mailbox) pairs
     timestamp: Instant,
 }
@@ -462,7 +461,6 @@ impl ConnectionPool {
             .dedup_tracker
             .entry(message_id)
             .or_insert_with(|| DedupEntry {
-                message_id: String::new(),
                 mailboxes: Vec::new(),
                 timestamp: Instant::now(),
             });
