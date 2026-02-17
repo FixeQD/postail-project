@@ -40,6 +40,7 @@ fn test_add_account_password() {
     let input = AccountInput {
         name: "Test Account".to_string(),
         email: "user@example.com".to_string(),
+        provider_type: "generic".to_string(),
         auth_type: "password".to_string(),
         imap_config: ImapConfig {
             host: "imap.example.com".to_string(),
@@ -73,6 +74,7 @@ fn test_add_account_oauth() {
     let input = AccountInput {
         name: "OAuth Account".to_string(),
         email: "oauth@example.com".to_string(),
+        provider_type: "gmail".to_string(),
         auth_type: "oauth2".to_string(),
         imap_config: ImapConfig {
             host: "imap.gmail.com".to_string(),
@@ -109,6 +111,7 @@ fn test_list_accounts() {
     let input1 = AccountInput {
         name: "Account 1".to_string(),
         email: "user1@example.com".to_string(),
+        provider_type: "generic".to_string(),
         auth_type: "password".to_string(),
         imap_config: ImapConfig {
             host: "imap1.com".to_string(),
@@ -130,6 +133,7 @@ fn test_list_accounts() {
     let input2 = AccountInput {
         name: "Account 2".to_string(),
         email: "user2@example.com".to_string(),
+        provider_type: "gmail".to_string(),
         auth_type: "oauth2".to_string(),
         imap_config: ImapConfig {
             host: "imap2.com".to_string(),
@@ -165,6 +169,7 @@ fn test_remove_account() {
     let input = AccountInput {
         name: "To Remove".to_string(),
         email: "user@example.com".to_string(),
+        provider_type: "generic".to_string(),
         auth_type: "password".to_string(),
         imap_config: ImapConfig {
             host: "imap.example.com".to_string(),
@@ -231,6 +236,7 @@ fn test_fts_search() {
         AccountInput {
             name: "Test Account FTS".to_string(),
             email: "test-fts@example.com".to_string(),
+            provider_type: "generic".to_string(),
             auth_type: "password".to_string(),
             imap_config: ImapConfig {
                 host: "imap.example.com".to_string(),
@@ -317,6 +323,7 @@ fn test_uidvalidity_mismatch() {
         AccountInput {
             name: "Test Account UID".to_string(),
             email: "test-uid@example.com".to_string(),
+            provider_type: "generic".to_string(),
             auth_type: "password".to_string(),
             imap_config: ImapConfig {
                 host: "imap.example.com".to_string(),
@@ -395,6 +402,7 @@ fn test_concurrent_access() {
             let input = AccountInput {
                 name: format!("Concurrent Account {}", i),
                 email: format!("user{}@example.com", i),
+                provider_type: "generic".to_string(),
                 auth_type: "password".to_string(),
                 imap_config: ImapConfig {
                     host: format!("imap{}.com", i),
@@ -556,6 +564,7 @@ fn test_performance_large_datasets() {
         AccountInput {
             name: "Perf Test Account".to_string(),
             email: "perf@example.com".to_string(),
+            provider_type: "generic".to_string(),
             auth_type: "password".to_string(),
             imap_config: ImapConfig {
                 host: "imap.example.com".to_string(),
