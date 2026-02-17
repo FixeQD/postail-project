@@ -94,7 +94,7 @@ impl ImapManager {
                 .map_err(AppError::from)?;
 
             // Consume the stream
-            while let Some(_) = store_stream.next().await {}
+            while (store_stream.next().await).is_some() {}
         }
 
         session.logout().await.map_err(AppError::from)?;
@@ -253,13 +253,13 @@ impl ImapManager {
                         .await
                         .map_err(AppError::from)?;
 
-                    while let Some(_) = store_stream.next().await {}
+                    while (store_stream.next().await).is_some() {}
                 }
 
                 {
                     let mut expunge_stream =
                         Box::pin(session.expunge().await.map_err(AppError::from)?);
-                    while let Some(_) = expunge_stream.next().await {}
+                    while (expunge_stream.next().await).is_some() {}
                 }
 
                 tracing::info!(target: "postail",

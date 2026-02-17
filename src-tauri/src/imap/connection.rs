@@ -14,6 +14,7 @@ use tokio_native_tls::{TlsConnector, TlsStream};
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 
 pub type ImapSession = Session<Compat<TlsStream<TcpStream>>>;
+pub type ImapSessionPlain = Session<Compat<TcpStream>>;
 
 struct Xoauth2Authenticator {
     email: String,
@@ -151,7 +152,7 @@ impl super::ImapManager {
     pub async fn connect_imap(&self, account_id: &str) -> Result<ImapSession, ImapError> {
         tracing::debug!(target: "postail", "[IMAP] connect_imap: starting for {}", account_id);
 
-        let (host, port, _tls, auth_type, email) = {
+        let (host, port, use_tls, auth_type, email) = {
             let conn_guard = self.conn.lock().await;
             let conn = conn_guard.as_ref().ok_or(ImapError::Connection(
                 "Database not initialized".to_string(),
@@ -171,7 +172,7 @@ impl super::ImapManager {
             .map_err(|e| ImapError::Connection(e.to_string()))?
         };
 
-        tracing::debug!(target: "postail", "[IMAP] connect_imap: host={}, port={}, auth_type={}", host, port, auth_type);
+        tracing::debug!(target: "postail", "[IMAP] connect_imap: host={}, port={}, auth_type={}, use_tls={}", host, port, auth_type, use_tls);
 
         let creds_json = self.get_credentials(account_id).await?;
         tracing::debug!(target: "postail", "[IMAP] connect_imap: credentials retrieved");
@@ -182,20 +183,40 @@ impl super::ImapManager {
         self.refresh_oauth_if_needed(account_id, &auth_type, &host, &mut creds)
             .await?;
 
-        tracing::debug!(target: "postail", "[IMAP] connect_imap: connecting TCP to {}:{}", host, port);
-        let tcp_stream = TcpStream::connect((host.as_str(), port))
+        if use_tls {
+            self.connect_imap_tls(account_id, &host, port, &auth_type, &email, &creds)
+                .await
+        } else {
+            Err(ImapError::Connection(
+                "Non-TLS IMAP connections are not currently supported. Please enable TLS."
+                    .to_string(), // I'm f**kin done with this 😭
+            ))
+        }
+    }
+
+    async fn connect_imap_tls(
+        &self,
+        _account_id: &str,
+        host: &str,
+        port: u16,
+        auth_type: &str,
+        email: &str,
+        creds: &serde_json::Value,
+    ) -> Result<ImapSession, ImapError> {
+        tracing::debug!(target: "postail", "[IMAP] connect_imap_tls: connecting TCP to {}:{}", host, port);
+        let tcp_stream = TcpStream::connect((host, port))
             .await
             .map_err(|e: std::io::Error| ImapError::Connection(e.to_string()))?;
-        tracing::debug!(target: "postail", "[IMAP] connect_imap: TCP connected, starting TLS");
+        tracing::debug!(target: "postail", "[IMAP] connect_imap_tls: TCP connected, starting TLS");
 
         let native_tls_connector = NativeTlsConnector::new()
             .map_err(|e: native_tls::Error| ImapError::Connection(e.to_string()))?;
         let tls_connector = TlsConnector::from(native_tls_connector);
         let tls_stream = tls_connector
-            .connect(&host, tcp_stream)
+            .connect(host, tcp_stream)
             .await
             .map_err(|e: native_tls::Error| ImapError::Connection(e.to_string()))?;
-        tracing::debug!(target: "postail", "[IMAP] connect_imap: TLS connected");
+        tracing::debug!(target: "postail", "[IMAP] connect_imap_tls: TLS connected");
 
         let mut client = Client::new(tls_stream.compat());
 
@@ -205,31 +226,43 @@ impl super::ImapManager {
             .await
             .map_err(|e| ImapError::Connection(e.to_string()))?;
 
+        self.authenticate_imap(client, auth_type, email, creds)
+            .await
+    }
+
+    async fn authenticate_imap(
+        &self,
+        client: Client<Compat<TlsStream<TcpStream>>>,
+        auth_type: &str,
+        email: &str,
+        creds: &serde_json::Value,
+    ) -> Result<ImapSession, ImapError> {
         if auth_type == "oauth2" {
             let access_token = creds["access_token"]
                 .as_str()
                 .ok_or_else(|| ImapError::Login("No access_token".to_string()))?;
 
-            tracing::debug!(target: "postail", "[IMAP] connect_imap: XOAUTH2 via authenticate for '{}' @ '{}'", email, host);
+            tracing::debug!(target: "postail", "[IMAP] authenticate_imap: XOAUTH2 via authenticate for '{}'", email);
 
-            let authenticator = Xoauth2Authenticator::new(email.clone(), access_token.to_string());
+            let authenticator =
+                Xoauth2Authenticator::new(email.to_string(), access_token.to_string());
 
             match client.authenticate("XOAUTH2", authenticator).await {
                 Ok(session) => {
-                    tracing::info!(target: "postail", "[IMAP] connect_imap: XOAUTH2 successful");
+                    tracing::info!(target: "postail", "[IMAP] authenticate_imap: XOAUTH2 successful");
                     Ok(session)
                 }
                 Err((e, client)) => {
-                    tracing::error!(target: "postail", "[IMAP] connect_imap: XOAUTH2 failed, trying OAUTHBEARER: {}", e);
+                    tracing::error!(target: "postail", "[IMAP] authenticate_imap: XOAUTH2 failed, trying OAUTHBEARER: {}", e);
                     let authenticator =
-                        Xoauth2Authenticator::new(email.clone(), access_token.to_string());
+                        Xoauth2Authenticator::new(email.to_string(), access_token.to_string());
                     match client.authenticate("OAUTHBEARER", authenticator).await {
                         Ok(session) => {
-                            tracing::info!(target: "postail", "[IMAP] connect_imap: OAUTHBEARER successful");
+                            tracing::info!(target: "postail", "[IMAP] authenticate_imap: OAUTHBEARER successful");
                             Ok(session)
                         }
                         Err((e2, _)) => {
-                            tracing::error!(target: "postail", "[IMAP] connect_imap: Both OAUTH methods failed: {}, {}", e, e2);
+                            tracing::error!(target: "postail", "[IMAP] authenticate_imap: Both OAUTH methods failed: {}, {}", e, e2);
                             Err(ImapError::Login(format!(
                                 "XOAUTH2: {}; OAUTHBEARER: {}",
                                 e, e2
@@ -247,11 +280,73 @@ impl super::ImapManager {
                 .ok_or_else(|| ImapError::Login("No password".to_string()))?;
             match client.login(username, password).await {
                 Ok(session) => {
-                    tracing::info!(target: "postail", "[IMAP] connect_imap: done");
+                    tracing::info!(target: "postail", "[IMAP] authenticate_imap: login successful");
                     Ok(session)
                 }
                 Err((e, _)) => {
-                    tracing::error!(target: "postail", "[IMAP] connect_imap: login failed: {}", e);
+                    tracing::error!(target: "postail", "[IMAP] authenticate_imap: login failed: {}", e);
+                    Err(ImapError::Login(e.to_string()))
+                }
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    async fn authenticate_imap_plain(
+        &self,
+        client: Client<Compat<TcpStream>>,
+        auth_type: &str,
+        email: &str,
+        creds: &serde_json::Value,
+    ) -> Result<ImapSessionPlain, ImapError> {
+        if auth_type == "oauth2" {
+            let access_token = creds["access_token"]
+                .as_str()
+                .ok_or_else(|| ImapError::Login("No access_token".to_string()))?;
+
+            tracing::debug!(target: "postail", "[IMAP] authenticate_imap_plain: XOAUTH2 via authenticate for '{}'", email);
+
+            let authenticator =
+                Xoauth2Authenticator::new(email.to_string(), access_token.to_string());
+
+            match client.authenticate("XOAUTH2", authenticator).await {
+                Ok(session) => {
+                    tracing::info!(target: "postail", "[IMAP] authenticate_imap_plain: XOAUTH2 successful");
+                    Ok(session)
+                }
+                Err((e, client)) => {
+                    tracing::error!(target: "postail", "[IMAP] authenticate_imap_plain: XOAUTH2 failed, trying OAUTHBEARER: {}", e);
+                    let authenticator =
+                        Xoauth2Authenticator::new(email.to_string(), access_token.to_string());
+                    match client.authenticate("OAUTHBEARER", authenticator).await {
+                        Ok(session) => {
+                            tracing::info!(target: "postail", "[IMAP] authenticate_imap_plain: OAUTHBEARER successful");
+                            Ok(session)
+                        }
+                        Err((e2, _)) => {
+                            tracing::error!(target: "postail", "[IMAP] authenticate_imap_plain: Both OAUTH methods failed: {}, {}", e, e2);
+                            Err(ImapError::Login(format!(
+                                "XOAUTH2: {}; OAUTHBEARER: {}",
+                                e, e2
+                            )))
+                        }
+                    }
+                }
+            }
+        } else {
+            let username = creds["username"]
+                .as_str()
+                .ok_or_else(|| ImapError::Login("No username".to_string()))?;
+            let password = creds["password"]
+                .as_str()
+                .ok_or_else(|| ImapError::Login("No password".to_string()))?;
+            match client.login(username, password).await {
+                Ok(session) => {
+                    tracing::info!(target: "postail", "[IMAP] authenticate_imap_plain: login successful");
+                    Ok(session)
+                }
+                Err((e, _)) => {
+                    tracing::error!(target: "postail", "[IMAP] authenticate_imap_plain: login failed: {}", e);
                     Err(ImapError::Login(e.to_string()))
                 }
             }

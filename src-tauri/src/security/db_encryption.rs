@@ -61,13 +61,10 @@ impl DbEncryption {
         let entry = Entry::new(DB_ENC_SALT_SERVICE, DB_ENC_SALT_KEY)
             .map_err(|e| DbEncryptionError::Keyring(e.to_string()))?;
 
-        match entry.get_password() {
-            Ok(salt_hex) => {
-                if let Ok(salt) = hex::decode(&salt_hex) {
-                    return Ok(salt);
-                }
+        if let Ok(salt_hex) = entry.get_password() {
+            if let Ok(salt) = hex::decode(&salt_hex) {
+                return Ok(salt);
             }
-            Err(_) => {}
         }
 
         // 2. Try File Fallback

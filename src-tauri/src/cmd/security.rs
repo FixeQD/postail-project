@@ -127,7 +127,7 @@ pub async fn initialize_security_and_database(
     }
 
     // create recovery store if phrase was provided (argon2 setup only)
-    let phrase_to_use = recovery_phrase.or_else(|| crate::security::recovery::get_pending_phrase());
+    let phrase_to_use = recovery_phrase.or_else(crate::security::recovery::get_pending_phrase);
 
     if let Some(phrase) = phrase_to_use {
         let storage_path = crate::utils::config::get_data_dir().join("security");

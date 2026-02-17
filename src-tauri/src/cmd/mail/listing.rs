@@ -65,9 +65,8 @@ pub async fn fetch_mailboxes(account_id: String) -> Result<Vec<Mailbox>, String>
 
         // Clean up provider-specific prefixes
         if let Some(kind) = provider_kind {
-            if kind == oauth::ProviderKind::Gmail && mailbox.display_name.starts_with("[Gmail]/") {
-                mailbox.display_name = mailbox.display_name.replace("[Gmail]/", "");
-            }
+            let info = oauth::ProviderInfo::get(kind);
+            mailbox.display_name = info.strip_display_name_prefix(&mailbox.display_name);
         }
     }
 

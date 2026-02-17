@@ -519,16 +519,14 @@ impl crate::imap::ImapManager {
                         SYNC_STATUS_MANAGER
                             .emit_new_messages(account_id, mailbox_name, new_count)
                             .await;
-                    } else {
-                        if let Err(e) = self
-                            .sync_flags_from_server(account_id, mailbox_name, None)
-                            .await
-                        {
-                            tracing::warn!(target: "postail",
-                                "[IMAP] Flag sync failed during poll for {}@{}: {}",
-                                mailbox_name, account_id, e
-                            );
-                        }
+                    } else if let Err(e) = self
+                        .sync_flags_from_server(account_id, mailbox_name, None)
+                        .await
+                    {
+                        tracing::warn!(target: "postail",
+                            "[IMAP] Flag sync failed during poll for {}@{}: {}",
+                            mailbox_name, account_id, e
+                        );
                     }
                 }
                 Err(e) => {

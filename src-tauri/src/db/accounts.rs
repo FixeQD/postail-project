@@ -22,10 +22,7 @@ pub fn add_account(
 ) -> Result<AccountMeta, DBError> {
     let id = Uuid::new_v4().to_string();
     let email = input.email.clone();
-    let provider_type = match input.auth_type.as_str() {
-        "oauth2" => "gmail".to_string(),
-        _ => "generic".to_string(),
-    };
+    let provider_type = input.provider_type.clone();
     let creds_json = serde_json::to_string(&input.credentials).unwrap();
     let encrypted = security
         .encrypt(creds_json.as_bytes())
