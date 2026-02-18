@@ -88,7 +88,7 @@ pub async fn initialize_security_and_database(
 ) -> Result<(), String> {
     tracing::info!(target: "postail", "Initializing security with method: {}", method);
 
-    let security = match method {
+    let mut security = match method {
         "tpm" => {
             if let Some(tpm_store) = get_tpm_store() {
                 SecurityManager::with_store(tpm_store.into(), StorageTier::Tpm)
@@ -115,15 +115,15 @@ pub async fn initialize_security_and_database(
     };
 
     let is_unlocking = security.is_initialized();
+    if is_unlocking {
+        security.unlock().map_err(|e| e.to_string())?;
+    } else {
+        security.initialize().map_err(|e| e.to_string())?;
+    }
+
     {
         let mut security_guard = SECURITY.lock().await;
         *security_guard = security;
-
-        if is_unlocking {
-            security_guard.unlock().map_err(|e| e.to_string())?;
-        } else {
-            security_guard.initialize().map_err(|e| e.to_string())?;
-        }
     }
 
     // create recovery store if phrase was provided (argon2 setup only)
@@ -134,6 +134,8 @@ pub async fn initialize_security_and_database(
         let recovery_store = RecoveryStore::new(storage_path);
         let security = SECURITY.lock().await;
         let master_key = security.export_master_key().map_err(|e| e.to_string())?;
+        // release lock before doing filesystem operations
+        drop(security);
         recovery_store
             .create(&master_key, &phrase)
             .map_err(|e| e.to_string())?;
@@ -141,11 +143,13 @@ pub async fn initialize_security_and_database(
         tracing::info!(target: "postail", "Recovery store created");
     }
 
-    let encryption = {
+    let master_key_raw = {
         let security = SECURITY.lock().await;
-        let master_key_raw = security.get_master_key_raw();
-        DbEncryption::derive_from_master_key(&master_key_raw).map_err(|e| e.to_string())?
+        let k = security.get_master_key_raw();
+        k
     };
+    let encryption =
+        DbEncryption::derive_from_master_key(&master_key_raw).map_err(|e| e.to_string())?;
     let hex_key = encryption.hex_key();
 
     let data_dir = crate::utils::config::get_data_dir();
