@@ -82,8 +82,7 @@ pub async fn complete_oauth_flow(
     provider_type: String,
 ) -> Result<(Provider, OAuthTokens), OAuthError> {
     // Parse provider from the provider_type string
-    let provider_kind = ProviderKind::parse(&provider_type)
-        .ok_or(OAuthError::InvalidState)?;
+    let provider_kind = ProviderKind::parse(&provider_type).ok_or(OAuthError::InvalidState)?;
     let provider = Provider::from_kind(provider_kind);
 
     let config = provider.config()?;
@@ -122,10 +121,12 @@ pub async fn refresh_access_token(
     provider: Provider,
     refresh_token: String,
 ) -> Result<OAuthTokens, OAuthError> {
-    let config = provider.config()?;
+    let info = super::ProviderInfo::get(provider.kind);
     let client = create_http_client();
 
-    let client_id = config.client_id().unwrap_or_default();
+    let client_id = info.client_id().ok_or(OAuthError::NotImplemented {
+        provider: info.name.to_string(),
+    })?;
 
     let mut params = vec![
         ("client_id", client_id.clone()),
@@ -133,11 +134,11 @@ pub async fn refresh_access_token(
         ("grant_type", "refresh_token".to_string()),
     ];
 
-    if let Some(client_secret) = config.client_secret() {
+    if let Some(client_secret) = info.client_secret() {
         params.push(("client_secret", client_secret));
     }
 
-    let response = client.post(&config.token_url).form(&params).send().await?;
+    let response = client.post(info.token_url).form(&params).send().await?;
 
     if !response.status().is_success() {
         let status = response.status().to_string();
