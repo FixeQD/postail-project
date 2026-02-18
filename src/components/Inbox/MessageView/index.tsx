@@ -10,6 +10,7 @@ import type { MessageFull } from '@/types/mail'
 import { MessageViewHeader } from './MessageViewHeader'
 import { MessageViewMeta } from './MessageViewMeta'
 import { MessageViewBody } from './MessageViewBody'
+import { MessageViewAttachments } from './MessageViewAttachments'
 import { toast } from '@/stores/toastStore'
 
 interface MessageViewProps {
@@ -194,6 +195,14 @@ export const MessageView = ({
 						plainContent={data.body_plain}
 						viewMode={viewMode}
 					/>
+					{data.header.has_attachments && data.attachments.length > 0 && (
+						<MessageViewAttachments
+							attachments={data.attachments}
+							accountId={accountId}
+							mailbox={mailbox}
+							uid={uid}
+						/>
+					)}
 				</div>
 			</div>
 		</div>
