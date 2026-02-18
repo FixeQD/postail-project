@@ -657,3 +657,37 @@ textarea:focus {
 	border: 3px solid #fff;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
+
+/* ─── Message View ─── */
+.message-view-container {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden;
+}
+
+.message-view-body {
+	flex: 1;
+	overflow-y: auto;
+	padding: 0;
+}
+
+/* Iframe for sanitized HTML content */
+.message-view-iframe {
+	width: 100%;
+	border: none;
+	display: block;
+	background: #0f172a;
+	border-radius: 8px;
+}
+
+/* Plain text view */
+.message-view-plain {
+	font-family: 'Courier New', monospace;
+	font-size: 13px;
+	line-height: 1.6;
+	white-space: pre-wrap;
+	word-break: break-word;
+	color: #cbd5e1;
+	padding: 20px;
+}
