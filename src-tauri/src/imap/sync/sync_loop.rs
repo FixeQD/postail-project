@@ -285,10 +285,10 @@ impl crate::imap::ImapManager {
         let last_uid = self.get_last_synced_uid(account_id, mailbox_name).await?;
 
         if highest_uid > last_uid {
-            let start = if highest_uid > last_uid + 50 {
-                highest_uid - 50
+            let start = if highest_uid > last_uid.saturating_add(50) {
+                highest_uid.saturating_sub(50)
             } else {
-                last_uid + 1
+                last_uid.saturating_add(1)
             };
 
             tracing::info!(target: "postail", "[IMAP] Catching up {}@{} (local: {}, remote: {}, fetch_start: {})", mailbox_name, account_id, last_uid, highest_uid, start);
@@ -327,7 +327,7 @@ impl crate::imap::ImapManager {
         let mut last_uid = self.get_last_synced_uid(account_id, mailbox_name).await?;
 
         if highest_uid > last_uid {
-            self.fetch_missing_messages(account_id, mailbox_name, last_uid + 1, highest_uid)
+            self.fetch_missing_messages(account_id, mailbox_name, last_uid.saturating_add(1), highest_uid)
                 .await?;
             last_uid = highest_uid;
             mark_sync_complete(account_id).await;
@@ -399,7 +399,7 @@ impl crate::imap::ImapManager {
                         self.fetch_missing_messages(
                             account_id,
                             mailbox_name,
-                            *last_uid + 1,
+                            last_uid.saturating_add(1),
                             new_highest_uid,
                         )
                         .await?;
@@ -510,7 +510,7 @@ impl crate::imap::ImapManager {
                         self.fetch_missing_messages(
                             account_id,
                             mailbox_name,
-                            *last_uid + 1,
+                            last_uid.saturating_add(1),
                             new_highest_uid,
                         )
                         .await?;
@@ -570,7 +570,7 @@ impl crate::imap::ImapManager {
             return Ok(());
         }
 
-        let total = end_uid - start_uid + 1;
+        let total = end_uid.saturating_sub(start_uid).saturating_add(1);
         let limit: u32 = 100;
         let mut anchor = start_uid;
         let mut latest_uid = start_uid;
@@ -592,7 +592,7 @@ impl crate::imap::ImapManager {
             }
 
             processed += headers.len() as u32;
-            anchor = latest_uid + 1;
+            anchor = latest_uid.saturating_add(1);
 
             if headers.len() < limit as usize {
                 break;
