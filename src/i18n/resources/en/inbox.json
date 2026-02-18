@@ -20,5 +20,35 @@
 		"date": {
 			"yesterday": "Yesterday"
 		}
+	},
+	"messageView": {
+		"back": "Back to list",
+		"loading": "Loading message...",
+		"error": "Failed to load message",
+		"errorRetry": "Try again",
+		"notFound": "Message not found",
+		"noSubject": "(No Subject)",
+		"deleted": "Message moved to trash",
+		"from": "From",
+		"to": "To",
+		"cc": "Cc",
+		"date": "Date",
+		"attachments": "Attachments",
+		"attachment_one": "{{count}} attachment",
+		"attachment_other": "{{count}} attachments",
+		"downloadAttachment": "Download",
+		"viewMode": {
+			"html": "HTML",
+			"plain": "Plain text"
+		},
+		"actions": {
+			"reply": "Reply",
+			"replyAll": "Reply All",
+			"forward": "Forward",
+			"delete": "Delete",
+			"markUnread": "Mark as unread",
+			"moveTo": "Move to...",
+			"print": "Print"
+		}
 	}
 }
