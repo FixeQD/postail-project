@@ -77,6 +77,9 @@ export const MessageView = ({
 	}
 
 	const handleDelete = async () => {
+		// Optimistic update
+		onBack()
+
 		try {
 			await invoke('delete_messages', {
 				accountId,
@@ -86,7 +89,6 @@ export const MessageView = ({
 			queryClient.invalidateQueries({
 				queryKey: ['messages', accountId, mailbox],
 			})
-			onBack()
 			toast.success(t('inbox:messageView.deleted'))
 		} catch (error) {
 			console.error('Failed to delete message:', error)
