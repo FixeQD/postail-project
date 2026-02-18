@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { AlertCircle, Mail } from 'lucide-react'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
-import { useThemeStore } from '@/stores/themeStore'
+
 import { useMessageViewStore } from '@/stores/messageViewStore'
 import type { MessageFull } from '@/types/mail'
 import { MessageViewHeader } from './MessageViewHeader'
@@ -12,8 +12,7 @@ import { MessageViewMeta } from './MessageViewMeta'
 import { MessageViewBody } from './MessageViewBody'
 import { MessageViewAttachments } from './MessageViewAttachments'
 import { toast } from '@/stores/toastStore'
-import { motion, type Variants } from 'framer-motion'
-import { useAnimationsEnabled } from '@/hooks/useMotion'
+import { MessageViewSkeleton } from './MessageViewSkeleton'
 
 interface MessageViewProps {
 	accountId: string
@@ -29,10 +28,8 @@ export const MessageView = ({
 	onBack,
 }: MessageViewProps) => {
 	const { t } = useTypedTranslation(['common', 'inbox'])
-	const accentColor = useThemeStore((s) => s.accentColor)
 	const queryClient = useQueryClient()
 	const { viewMode, toggleViewMode } = useMessageViewStore()
-	const animationsEnabled = useAnimationsEnabled()
 
 	const { data, isLoading, error, refetch } = useQuery<MessageFull | null>({
 		queryKey: ['message', accountId, mailbox, uid],
@@ -115,30 +112,10 @@ export const MessageView = ({
 		}
 	}
 
+
+
 	if (isLoading) {
-		return (
-			<div className='flex h-full items-center justify-center'>
-				<div className='flex flex-col items-center gap-3'>
-					<div className='relative h-10 w-10'>
-						<div
-							className='absolute inset-0 animate-spin rounded-full border-2 border-transparent'
-							style={{ borderTopColor: accentColor }}
-						/>
-						<div
-							className='absolute inset-1 animate-spin rounded-full border-2 border-transparent'
-							style={{
-								borderBottomColor: `rgba(var(--accent-rgb), 0.3)`,
-								animationDirection: 'reverse',
-								animationDuration: '1.5s',
-							}}
-						/>
-					</div>
-					<span className='text-sm text-slate-500'>
-						{t('inbox:messageView.loading')}
-					</span>
-				</div>
-			</div>
-		)
+		return <MessageViewSkeleton />
 	}
 
 	if (error) {
@@ -177,63 +154,31 @@ export const MessageView = ({
 		)
 	}
 
-	const container: Variants = {
-		hidden: { opacity: 0 },
-		show: {
-			opacity: 1,
-			transition: {
-				staggerChildren: 0.1, // Increased stagger for main sections
-				delayChildren: 0.05,
-			},
-		},
-	}
-
-	const item: Variants = {
-		hidden: { opacity: 0, y: 10 },
-		show: {
-			opacity: 1,
-			y: 0,
-			transition: { duration: 0.3, ease: 'easeOut' },
-		},
-	}
-
 	return (
-		<motion.div
-			className='message-view-container flex h-full flex-col bg-slate-900'
-			initial={animationsEnabled ? 'hidden' : 'show'}
-			animate='show'
-			variants={container}>
-			<motion.div variants={item}>
-				<MessageViewHeader
-					onBack={onBack}
-					onReply={handleReply}
-					onReplyAll={handleReplyAll}
-					onForward={handleForward}
-					onDelete={handleDelete}
-					onMarkUnread={handleMarkUnread}
-					viewMode={viewMode}
-					onToggleViewMode={toggleViewMode}
-				/>
-			</motion.div>
+		<div className='message-view-container flex h-full flex-col bg-slate-900'>
+			<MessageViewHeader
+				onBack={onBack}
+				onReply={handleReply}
+				onReplyAll={handleReplyAll}
+				onForward={handleForward}
+				onDelete={handleDelete}
+				onMarkUnread={handleMarkUnread}
+				viewMode={viewMode}
+				onToggleViewMode={toggleViewMode}
+			/>
 
 			<div className='message-view-body flex-1 overflow-y-auto px-6 py-4'>
-				<motion.div variants={item}>
-					<MessageViewMeta header={data.header} />
-				</motion.div>
+				<MessageViewMeta header={data.header} />
 
-				<motion.div variants={item} className='mt-6'>
-					<MessageViewBody
-						htmlContent={data.body_html_safe}
-						plainContent={data.body_plain}
-						viewMode={viewMode}
-					/>
-					{data.header.has_attachments && data.attachments.length > 0 && (
-						<motion.div variants={item}>
-							<MessageViewAttachments attachments={data.attachments} />
-						</motion.div>
-					)}
-				</motion.div>
+				<MessageViewBody
+					htmlContent={data.body_html_safe}
+					plainContent={data.body_plain}
+					viewMode={viewMode}
+				/>
+				{data.header.has_attachments && data.attachments.length > 0 && (
+					<MessageViewAttachments attachments={data.attachments} />
+				)}
 			</div>
-		</motion.div>
+		</div>
 	)
 }
