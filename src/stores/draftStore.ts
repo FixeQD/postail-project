@@ -257,8 +257,14 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 				cc: currentDraft.cc?.map((r) => r.email) || [],
 				bcc: currentDraft.bcc?.map((r) => r.email) || [],
 				attachments: currentDraft.attachments || [],
-				createdAt: Math.floor(Date.parse(currentDraft.createdAt) / 1000),
-				updatedAt: Math.floor(Date.parse(currentDraft.updatedAt) / 1000),
+				createdAt: (() => {
+					const v = Math.floor(Date.parse(currentDraft.createdAt) / 1000)
+					return Number.isFinite(v) ? v : Math.floor(Date.now() / 1000)
+				})(),
+				updatedAt: (() => {
+					const v = Math.floor(Date.parse(currentDraft.updatedAt) / 1000)
+					return Number.isFinite(v) ? v : Math.floor(Date.now() / 1000)
+				})(),
 			}
 
 			await invoke('save_draft', { draft: draftForRust })
