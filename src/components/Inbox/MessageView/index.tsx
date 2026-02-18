@@ -12,6 +12,8 @@ import { MessageViewMeta } from './MessageViewMeta'
 import { MessageViewBody } from './MessageViewBody'
 import { MessageViewAttachments } from './MessageViewAttachments'
 import { toast } from '@/stores/toastStore'
+import { motion, type Variants } from 'framer-motion'
+import { useAnimationsEnabled } from '@/hooks/useMotion'
 
 interface MessageViewProps {
 	accountId: string
@@ -30,6 +32,7 @@ export const MessageView = ({
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const queryClient = useQueryClient()
 	const { viewMode, toggleViewMode } = useMessageViewStore()
+	const animationsEnabled = useAnimationsEnabled()
 
 	const { data, isLoading, error, refetch } = useQuery<MessageFull | null>({
 		queryKey: ['message', accountId, mailbox, uid],
@@ -174,37 +177,63 @@ export const MessageView = ({
 		)
 	}
 
+	const container: Variants = {
+		hidden: { opacity: 0 },
+		show: {
+			opacity: 1,
+			transition: {
+				staggerChildren: 0.1, // Increased stagger for main sections
+				delayChildren: 0.05,
+			},
+		},
+	}
+
+	const item: Variants = {
+		hidden: { opacity: 0, y: 10 },
+		show: {
+			opacity: 1,
+			y: 0,
+			transition: { duration: 0.3, ease: 'easeOut' },
+		},
+	}
+
 	return (
-		<div className='message-view-container flex h-full flex-col bg-slate-900'>
-			<MessageViewHeader
-				onBack={onBack}
-				onReply={handleReply}
-				onReplyAll={handleReplyAll}
-				onForward={handleForward}
-				onDelete={handleDelete}
-				onMarkUnread={handleMarkUnread}
-				viewMode={viewMode}
-				onToggleViewMode={toggleViewMode}
-			/>
+		<motion.div
+			className='message-view-container flex h-full flex-col bg-slate-900'
+			initial={animationsEnabled ? 'hidden' : 'show'}
+			animate='show'
+			variants={container}>
+			<motion.div variants={item}>
+				<MessageViewHeader
+					onBack={onBack}
+					onReply={handleReply}
+					onReplyAll={handleReplyAll}
+					onForward={handleForward}
+					onDelete={handleDelete}
+					onMarkUnread={handleMarkUnread}
+					viewMode={viewMode}
+					onToggleViewMode={toggleViewMode}
+				/>
+			</motion.div>
 
 			<div className='message-view-body flex-1 overflow-y-auto px-6 py-4'>
-				<MessageViewMeta header={data.header} />
-				<div className='mt-6'>
+				<motion.div variants={item}>
+					<MessageViewMeta header={data.header} />
+				</motion.div>
+
+				<motion.div variants={item} className='mt-6'>
 					<MessageViewBody
 						htmlContent={data.body_html_safe}
 						plainContent={data.body_plain}
 						viewMode={viewMode}
 					/>
 					{data.header.has_attachments && data.attachments.length > 0 && (
-						<MessageViewAttachments
-							attachments={data.attachments}
-							accountId={accountId}
-							mailbox={mailbox}
-							uid={uid}
-						/>
+						<motion.div variants={item}>
+							<MessageViewAttachments attachments={data.attachments} />
+						</motion.div>
 					)}
-				</div>
+				</motion.div>
 			</div>
-		</div>
+		</motion.div>
 	)
 }
