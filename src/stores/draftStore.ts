@@ -261,9 +261,11 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 	},
 
 	loadDrafts: async (accountId: string, signal?: AbortSignal) => {
+		// Check for cancellation before starting the async operation
+		if (signal?.aborted) return accountId
 		try {
 			const draftsFromRust = await invoke<any[]>('list_drafts', { accountId })
-			// Check for cancellation before updating state
+			// Check for cancellation after the async operation completes
 			if (signal?.aborted) return accountId
 			const drafts: ComposeDraft[] = draftsFromRust.map((d) => ({
 				id: d.id,
