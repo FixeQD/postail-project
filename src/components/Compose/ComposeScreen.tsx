@@ -258,14 +258,13 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	}, [currentDraft, stopComposing, onOpenChange])
 
 	const isValid = useMemo(() => {
-		const bodyContent = htmlRef.current
 		if (!currentDraft) return false
 		const hasRecipients = currentDraft.to && currentDraft.to.length > 0
 		const hasSubject = currentDraft.subject && currentDraft.subject.trim() !== ''
-		const hasBody =
-			bodyContent && bodyContent.trim() !== '' && bodyContent !== '<p><br></p>'
+		const bodyContent = currentDraft.body
+		const hasBody = bodyContent && bodyContent.trim() !== '' && bodyContent !== '<p><br></p>'
 		return !!(hasRecipients && hasSubject && hasBody)
-	}, [currentDraft, htmlRef.current])
+	}, [currentDraft])
 
 	const activePosition = isFlying && frozenLayout ? frozenLayout.position : position
 	const activeSize = isFlying && frozenLayout ? frozenLayout.size : size
@@ -409,9 +408,11 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 						open={showSendWarning}
 						onOpenChange={setShowSendWarning}
 						title={String(t('validation:sendWarning.title'))}
-						description={String(t('validation:sendWarning.description', {
-							count: compatibilityIssues.length,
-						}))}
+						description={String(
+							t('validation:sendWarning.description', {
+								count: compatibilityIssues.length,
+							})
+						)}
 						confirmLabel={String(t('validation:sendWarning.confirm'))}
 						cancelLabel={String(t('validation:sendWarning.cancel'))}
 						onConfirm={() => {
