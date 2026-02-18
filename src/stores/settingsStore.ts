@@ -14,7 +14,7 @@ interface SettingsState {
 	isLoading: boolean
 
 	// Actions
-	setSetting: (key: keyof AppSettings, value: any) => Promise<void>
+	setSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => Promise<void>
 	loadSettings: () => Promise<void>
 }
 

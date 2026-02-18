@@ -22,6 +22,20 @@ const formatOptions: import('js-beautify').HTMLBeautifyOptions = {
 	extra_liners: [],
 }
 
+// Type for draft data coming from Rust backend
+interface DraftFromRust {
+	id: string
+	accountId: string
+	to: string[]
+	cc?: string[]
+	bcc?: string[]
+	subject?: string
+	body?: string
+	attachments?: EmailAttachment[]
+	createdAt: number
+	updatedAt: number
+}
+
 let validationTimer: ReturnType<typeof setTimeout> | null = null
 
 export const useDraftStore = create<DraftState>((set, get) => ({
@@ -264,7 +278,7 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		// Check for cancellation before starting the async operation
 		if (signal?.aborted) return accountId
 		try {
-			const draftsFromRust = await invoke<any[]>('list_drafts', { accountId })
+			const draftsFromRust = await invoke<DraftFromRust[]>('list_drafts', { accountId })
 			// Check for cancellation after the async operation completes
 			if (signal?.aborted) return accountId
 			const drafts: ComposeDraft[] = draftsFromRust.map((d) => ({
