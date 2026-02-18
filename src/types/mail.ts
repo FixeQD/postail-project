@@ -34,3 +34,14 @@ export interface MessageFull {
 	attachments: AttachmentMeta[]
 	inline_images: AttachmentMeta[]
 }
+
+export interface ParsedAddress {
+	name: string
+	email: string
+}
+
+export interface MessageViewSelection {
+	accountId: string
+	mailbox: string
+	uid: number
+}
