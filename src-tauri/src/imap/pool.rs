@@ -8,6 +8,9 @@ use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tracing;
 
+const MAX_DEDUP_ENTRIES: usize = 10000;
+const DEDUP_EVICTION_BATCH: usize = 2000; // Remove 20% when limit hit
+
 pub type WatchKey = (String, String);
 
 /// Watch mode for a mailbox
@@ -463,6 +466,11 @@ impl ConnectionPool {
             return;
         }
 
+        // Check if we need to evict old entries
+        if self.dedup_tracker.len() >= MAX_DEDUP_ENTRIES {
+            self.evict_oldest_entries();
+        }
+
         let entry = self
             .dedup_tracker
             .entry(message_id)
@@ -474,6 +482,30 @@ impl ConnectionPool {
         entry
             .mailboxes
             .push((account_id.to_string(), mailbox.to_string()));
+    }
+
+    /// Evict oldest entries when dedup_tracker reaches max size
+    fn evict_oldest_entries(&mut self) {
+        let mut entries: Vec<_> = self
+            .dedup_tracker
+            .iter()
+            .map(|(k, v)| (k.clone(), v.timestamp))
+            .collect();
+
+        // Sort by timestamp (oldest first)
+        entries.sort_by(|a, b| a.1.cmp(&b.1));
+
+        let to_remove = entries.len().min(DEDUP_EVICTION_BATCH);
+        for (key, _) in entries.into_iter().take(to_remove) {
+            self.dedup_tracker.remove(&key);
+        }
+
+        tracing::info!(
+            target: "postail",
+            "[Pool] Evicted {} old entries from dedup_tracker, remaining: {}",
+            to_remove,
+            self.dedup_tracker.len()
+        );
     }
 
     pub fn is_mailbox_virtual(&self, account_id: &str, mailbox: &str) -> bool {

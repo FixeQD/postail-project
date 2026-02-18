@@ -341,8 +341,8 @@ pub async fn start_oauth_flow(
 }
 
 #[command]
-pub async fn complete_oauth_flow(code: String, state: String) -> Result<AccountMeta, String> {
-    let (provider, tokens) = match oauth::complete_oauth_flow(code, state).await {
+pub async fn complete_oauth_flow(code: String, state: String, code_verifier: String, provider_type: String) -> Result<AccountMeta, String> {
+    let (provider, tokens) = match oauth::complete_oauth_flow(code, state, code_verifier, provider_type).await {
         Ok(result) => result,
         Err(e) => return Err(e.to_string()),
     };

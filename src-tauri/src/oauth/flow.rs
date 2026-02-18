@@ -13,8 +13,8 @@ use super::pkce::PkceData;
 use super::provider::ProviderKind;
 use super::tokens::OAuthTokens;
 
-pub fn is_state_pending(state: &str) -> bool {
-    PENDING_FLOWS.lock().unwrap().contains_key(state)
+pub fn validate_and_take_state(state: &str) -> Option<(Provider, PkceData)> {
+    PENDING_FLOWS.lock().unwrap().remove(state)
 }
 
 const HTTP_TIMEOUT_SECS: u64 = 30;
@@ -77,13 +77,13 @@ pub fn start_oauth_flow(provider: Provider) -> Result<(String, u16), OAuthError>
 
 pub async fn complete_oauth_flow(
     code: String,
-    state: String,
+    _state: String,
+    code_verifier: String,
+    provider_type: String,
 ) -> Result<(Provider, OAuthTokens), OAuthError> {
-    let (provider, pkce) = PENDING_FLOWS
-        .lock()
-        .unwrap()
-        .remove(&state)
-        .ok_or(OAuthError::InvalidState)?;
+    // Parse provider from the provider_type string
+    let provider_kind = ProviderKind::parse(&provider_type).ok_or(OAuthError::InvalidState)?;
+    let provider = Provider::from_kind(provider_kind);
 
     let config = provider.config()?;
     let client = create_http_client();
@@ -95,7 +95,7 @@ pub async fn complete_oauth_flow(
         ("code", code.clone()),
         ("grant_type", "authorization_code".to_string()),
         ("redirect_uri", config.redirect_uri.clone()),
-        ("code_verifier", pkce.code_verifier.clone()),
+        ("code_verifier", code_verifier),
     ];
 
     if let Some(client_secret) = config.client_secret() {
@@ -121,10 +121,12 @@ pub async fn refresh_access_token(
     provider: Provider,
     refresh_token: String,
 ) -> Result<OAuthTokens, OAuthError> {
-    let config = provider.config()?;
+    let info = super::ProviderInfo::get(provider.kind);
     let client = create_http_client();
 
-    let client_id = config.client_id().unwrap_or_default();
+    let client_id = info.client_id().ok_or(OAuthError::NotImplemented {
+        provider: info.name.to_string(),
+    })?;
 
     let mut params = vec![
         ("client_id", client_id.clone()),
@@ -132,11 +134,11 @@ pub async fn refresh_access_token(
         ("grant_type", "refresh_token".to_string()),
     ];
 
-    if let Some(client_secret) = config.client_secret() {
+    if let Some(client_secret) = info.client_secret() {
         params.push(("client_secret", client_secret));
     }
 
-    let response = client.post(&config.token_url).form(&params).send().await?;
+    let response = client.post(info.token_url).form(&params).send().await?;
 
     if !response.status().is_success() {
         let status = response.status().to_string();

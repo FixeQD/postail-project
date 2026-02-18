@@ -1,4 +1,5 @@
 use crate::error::AppError;
+use crate::imap::connection::ImapSession;
 use crate::imap::sync_status::{update_sync_status, SYNC_STATUS_MANAGER};
 use crate::security::SecurityManager;
 use rusqlite::Connection;
@@ -11,6 +12,34 @@ pub mod mailbox;
 pub mod pool;
 pub mod sync;
 pub mod sync_status;
+
+/// Guard that ensures IMAP session is properly logged out when dropped
+pub struct SessionGuard {
+    session: Option<ImapSession>,
+}
+
+impl SessionGuard {
+    pub fn new(session: ImapSession) -> Self {
+        Self {
+            session: Some(session),
+        }
+    }
+
+    pub fn get_mut(&mut self) -> &mut ImapSession {
+        self.session.as_mut().unwrap()
+    }
+}
+
+impl Drop for SessionGuard {
+    fn drop(&mut self) {
+        if let Some(mut session) = self.session.take() {
+            // Spawn a blocking task to logout since Drop is synchronous
+            tokio::spawn(async move {
+                let _ = session.logout().await;
+            });
+        }
+    }
+}
 
 pub struct ImapManager {
     conn: Arc<Mutex<Option<Connection>>>,
@@ -41,8 +70,13 @@ impl ImapManager {
 
         update_sync_status(account_id, mailbox_name, 0, 0).await;
 
-        let mut session = self.connect_imap(account_id).await?;
-        let selected = session.select(mailbox_name).await.map_err(AppError::from)?;
+        // Use SessionGuard to ensure logout is called even on early return
+        let mut session_guard = SessionGuard::new(self.connect_imap(account_id).await?);
+        let selected = session_guard
+            .get_mut()
+            .select(mailbox_name)
+            .await
+            .map_err(AppError::from)?;
 
         let uid_validity = selected.uid_validity.unwrap_or(0);
         let highest_uid = selected.uid_next.map(|u| u.saturating_sub(1)).unwrap_or(0);
@@ -68,7 +102,9 @@ impl ImapManager {
                 .await?;
         }
 
-        session.logout().await.map_err(AppError::from)?;
+        if let Some(mut session) = session_guard.session.take() {
+            session.logout().await.map_err(AppError::from)?;
+        }
         Ok(())
     }
 }

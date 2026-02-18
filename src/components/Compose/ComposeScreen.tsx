@@ -258,18 +258,31 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	}, [currentDraft, stopComposing, onOpenChange])
 
 	const isValid = useMemo(() => {
-		const bodyContent = htmlRef.current
 		if (!currentDraft) return false
 		const hasRecipients = currentDraft.to && currentDraft.to.length > 0
 		const hasSubject = currentDraft.subject && currentDraft.subject.trim() !== ''
-		const hasBody =
-			bodyContent && bodyContent.trim() !== '' && bodyContent !== '<p><br></p>'
+		const bodyContent = currentDraft.body
+		const hasBody = bodyContent && bodyContent.trim() !== '' && bodyContent !== '<p><br></p>'
 		return !!(hasRecipients && hasSubject && hasBody)
-	}, [currentDraft, htmlRef.current])
+	}, [currentDraft])
 
 	const activePosition = isFlying && frozenLayout ? frozenLayout.position : position
 	const activeSize = isFlying && frozenLayout ? frozenLayout.size : size
 	const activeTarget = isFlying && frozenLayout ? frozenLayout.target : { x: 0, y: 0 }
+
+	// Validate tooltip URL schemes to avoid rendering javascript: or other unsafe protocols. Only allow http:, https:, mailto:.
+	const isSafeUrl = (u: string) => {
+		try {
+			const parsed = new URL(u)
+			return (
+				parsed.protocol === 'http:' ||
+				parsed.protocol === 'https:' ||
+				parsed.protocol === 'mailto:'
+			)
+		} catch (e) {
+			return false
+		}
+	}
 
 	return (
 		<AnimatePresence>
@@ -382,7 +395,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 						/>
 					</LexicalComposer>
 
-					{tooltipData.visible && tooltipData.rect && (
+					{tooltipData.visible && tooltipData.rect && isSafeUrl(tooltipData.url) && (
 						<div
 							className='bg-popover text-popover-foreground fixed z-50 max-w-md truncate rounded-md px-3 py-1.5 text-xs'
 							style={{
@@ -409,9 +422,11 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 						open={showSendWarning}
 						onOpenChange={setShowSendWarning}
 						title={String(t('validation:sendWarning.title'))}
-						description={String(t('validation:sendWarning.description', {
-							count: compatibilityIssues.length,
-						}))}
+						description={String(
+							t('validation:sendWarning.description', {
+								count: compatibilityIssues.length,
+							})
+						)}
 						confirmLabel={String(t('validation:sendWarning.confirm'))}
 						cancelLabel={String(t('validation:sendWarning.cancel'))}
 						onConfirm={() => {

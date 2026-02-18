@@ -125,7 +125,27 @@ fn migrate_to_v4(conn: &Connection) -> Result<(), DBError> {
     Ok(())
 }
 
+// Whitelist of allowed table names to prevent SQL injection
+const ALLOWED_TABLES: &[&str] = &[
+    "messages",
+    "flag_sync_queue",
+    "mailboxes",
+    "accounts",
+    "attachments",
+    "contacts",
+    "drafts",
+    "message_bodies",
+    "messages",
+    "outbox",
+    "schema_versions",
+    "settings",
+];
+
 fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool, DBError> {
+    if !ALLOWED_TABLES.contains(&table) {
+        return Err(DBError::Migration(format!("Invalid table name: {}", table)));
+    }
+
     let mut stmt = conn.prepare(&format!("PRAGMA table_info({})", table))?;
     let mut rows = stmt.query([])?;
     while let Some(row) = rows.next()? {

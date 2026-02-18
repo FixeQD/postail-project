@@ -11,6 +11,9 @@
 		"title": "Security Error",
 		"description": "Failed to initialize security module"
 	},
+	"oauth": {
+		"failed": "Failed to connect account. Please try again."
+	},
 	"unknown": {
 		"title": "Unexpected Error",
 		"description": "An unknown error occurred. Please try again"

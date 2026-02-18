@@ -23,7 +23,7 @@ pub fn add_account(
     let id = Uuid::new_v4().to_string();
     let email = input.email.clone();
     let provider_type = input.provider_type.clone();
-    let creds_json = serde_json::to_string(&input.credentials).unwrap();
+    let creds_json = serde_json::to_string(&input.credentials).map_err(|e| DBError::Json(e))?;
     let encrypted = security
         .encrypt(creds_json.as_bytes())
         .map_err(DBError::Security)?;

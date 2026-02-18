@@ -22,6 +22,20 @@ const formatOptions: import('js-beautify').HTMLBeautifyOptions = {
 	extra_liners: [],
 }
 
+// Type for draft data coming from Rust backend
+interface DraftFromRust {
+	id: string
+	accountId: string
+	to: string[]
+	cc?: string[]
+	bcc?: string[]
+	subject?: string
+	body?: string
+	attachments?: EmailAttachment[]
+	createdAt: number
+	updatedAt: number
+}
+
 let validationTimer: ReturnType<typeof setTimeout> | null = null
 
 export const useDraftStore = create<DraftState>((set, get) => ({
@@ -243,8 +257,14 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 				cc: currentDraft.cc?.map((r) => r.email) || [],
 				bcc: currentDraft.bcc?.map((r) => r.email) || [],
 				attachments: currentDraft.attachments || [],
-				createdAt: Math.floor(Date.parse(currentDraft.createdAt) / 1000),
-				updatedAt: Math.floor(Date.parse(currentDraft.updatedAt) / 1000),
+				createdAt: (() => {
+					const v = Math.floor(Date.parse(currentDraft.createdAt) / 1000)
+					return Number.isFinite(v) ? v : Math.floor(Date.now() / 1000)
+				})(),
+				updatedAt: (() => {
+					const v = Math.floor(Date.parse(currentDraft.updatedAt) / 1000)
+					return Number.isFinite(v) ? v : Math.floor(Date.now() / 1000)
+				})(),
 			}
 
 			await invoke('save_draft', { draft: draftForRust })
@@ -261,23 +281,51 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 	},
 
 	loadDrafts: async (accountId: string, signal?: AbortSignal) => {
+		// Check for cancellation before starting the async operation
+		if (signal?.aborted) return accountId
 		try {
-			const draftsFromRust = await invoke<any[]>('list_drafts', { accountId })
-			// Check for cancellation before updating state
+			const draftsFromRust = await invoke<unknown[]>('list_drafts', { accountId })
+			// Check for cancellation after the async operation completes
 			if (signal?.aborted) return accountId
-			const drafts: ComposeDraft[] = draftsFromRust.map((d) => ({
-				id: d.id,
-				accountId: d.accountId,
-				to: d.to.map((email: string) => ({ email })),
-				cc: d.cc?.map((email: string) => ({ email })) || [],
-				bcc: d.bcc?.map((email: string) => ({ email })) || [],
-				subject: d.subject || '',
-				body: d.body || '',
-				bodyType: 'html',
-				attachments: d.attachments || [],
-				createdAt: new Date(d.createdAt * 1000).toISOString(),
-				updatedAt: new Date(d.updatedAt * 1000).toISOString(),
-			}))
+			const validDrafts: ComposeDraft[] = []
+
+			const isValidDraft = (x: any): x is DraftFromRust => {
+				if (!x) return false
+				if (typeof x.id !== 'string') return false
+				if (typeof x.accountId !== 'string') return false
+				if (!Array.isArray(x.to) || !x.to.every((e: any) => typeof e === 'string'))
+					return false
+				if (x.cc && !Array.isArray(x.cc)) return false
+				if (x.bcc && !Array.isArray(x.bcc)) return false
+				// createdAt/updatedAt should be numeric (seconds since epoch) or numeric-like
+				if (typeof x.createdAt !== 'number' || !Number.isFinite(x.createdAt)) return false
+				if (typeof x.updatedAt !== 'number' || !Number.isFinite(x.updatedAt)) return false
+				if (x.attachments && !Array.isArray(x.attachments)) return false
+				return true
+			}
+
+			for (const item of draftsFromRust) {
+				if (!isValidDraft(item)) {
+					console.warn('Skipping invalid draft from backend', item)
+					continue
+				}
+
+				validDrafts.push({
+					id: item.id,
+					accountId: item.accountId,
+					to: item.to.map((email: string) => ({ email })),
+					cc: item.cc?.map((email: string) => ({ email })) || [],
+					bcc: item.bcc?.map((email: string) => ({ email })) || [],
+					subject: item.subject || '',
+					body: item.body || '',
+					bodyType: 'html',
+					attachments: item.attachments || [],
+					createdAt: new Date(item.createdAt * 1000).toISOString(),
+					updatedAt: new Date(item.updatedAt * 1000).toISOString(),
+				})
+			}
+
+			const drafts: ComposeDraft[] = validDrafts
 			set({ drafts })
 			return accountId
 		} catch (error) {

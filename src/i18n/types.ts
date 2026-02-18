@@ -88,6 +88,9 @@ export interface ErrorTranslations {
 		title: string
 		description: string
 	}
+	oauth: {
+		failed: string
+	}
 	unknown: {
 		title: string
 		description: string
@@ -198,13 +201,47 @@ export interface SettingsTranslations {
 	}
 }
 
+export interface ValidationTranslations {
+	compatibilityPanel: {
+		title: string
+		toggleTooltip: string
+		issues: {
+			title: string
+			none: string
+			error_one: string
+			error_other: string
+			warning_one: string
+			warning_other: string
+			info_one: string
+			info_other: string
+		}
+		severity: {
+			error: string
+			warning: string
+			info: string
+		}
+		actions: {
+			autoFix: string
+			dismiss: string
+			checkAgain: string
+			close: string
+		}
+	}
+	sendWarning: {
+		title: string
+		description: string
+		confirm: string
+		cancel: string
+	}
+}
+
 export interface TranslationResources {
 	common: CommonTranslations
 	welcome: WelcomeTranslations
 	security: SecurityTranslations
 	errors: ErrorTranslations
 	inbox: InboxTranslations
-	validation: any
+	validation: ValidationTranslations
 	settings: SettingsTranslations
 }
 

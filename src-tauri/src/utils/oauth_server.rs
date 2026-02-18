@@ -3,7 +3,7 @@ use tauri::{AppHandle, Emitter};
 use tiny_http::Response;
 use tracing;
 
-use crate::oauth::flow::is_state_pending;
+use crate::oauth::flow::validate_and_take_state;
 
 pub fn start(handle: AppHandle) {
     let port = portpicker::pick_unused_port().unwrap_or(8765);
@@ -57,21 +57,30 @@ pub fn start(handle: AppHandle) {
                     } else if let (Some(code), Some(state)) =
                         (query_pairs.get("code"), query_pairs.get("state"))
                     {
-                        if !is_state_pending(state) {
-                            has_error = true;
-                            tracing::error!(target: "postail", "Invalid OAuth state: {}", state);
-                            error_message =
-                                "Invalid authentication request. Please try again.".to_string();
-                            let _ = handle
-                                .emit("oauth_error", serde_json::json!({"error": "invalid_state"}));
-                        } else {
-                            let _ = handle.emit(
-                                "oauth_callback",
-                                serde_json::json!({
-                                    "code": code.to_string(),
-                                    "state": state.to_string()
-                                }),
-                            );
+                        // Atomically validate and take state to prevent TOCTOU race condition
+                        match validate_and_take_state(state) {
+                            Some((provider, pkce)) => {
+                                let _ = handle.emit(
+                                    "oauth_callback",
+                                    serde_json::json!({
+                                        "code": code.to_string(),
+                                        "state": state.to_string(),
+                                        "code_verifier": pkce.code_verifier,
+                                        "provider_type": provider.kind.as_str()
+                                    }),
+                                );
+                            }
+                            None => {
+                                has_error = true;
+                                tracing::error!(target: "postail", "Invalid or expired OAuth state: {}", state);
+                                error_message =
+                                    "Invalid or expired authentication request. Please try again."
+                                        .to_string();
+                                let _ = handle.emit(
+                                    "oauth_error",
+                                    serde_json::json!({"error": "invalid_state"}),
+                                );
+                            }
                         }
                     } else {
                         has_error = true;

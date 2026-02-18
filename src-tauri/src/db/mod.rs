@@ -246,11 +246,12 @@ pub enum SyncStatusEnum {
 }
 
 pub async fn init_db() -> Result<(), DBError> {
-    let key = {
+    // Acquire SECURITY briefly to extract the master key, then drop the guard.
+    let master_key = {
         let security = crate::globals::SECURITY.lock().await;
-        let master_key = security.get_master_key_raw();
-        crate::security::DbEncryption::get_hex_key(&master_key)
+        security.get_master_key_raw()
     };
+    let key = crate::security::DbEncryption::get_hex_key(&master_key);
     if key.is_empty() {
         return Err(DBError::Security(
             crate::error::SecurityError::KeyDerivation(
