@@ -69,13 +69,21 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 
 	useEffect(() => {
 		let cleanupFn: (() => void) | undefined
+		let cancelled = false
 
 		const setup = async () => {
-			cleanupFn = await setupOutboxListeners()
+			const cleanup = await setupOutboxListeners()
+			if (!cancelled) {
+				cleanupFn = cleanup
+			} else {
+				// If component unmounted before setup completed, cleanup immediately
+				cleanup()
+			}
 		}
 		setup()
 
 		return () => {
+			cancelled = true
 			cleanupFn?.()
 		}
 	}, [])
