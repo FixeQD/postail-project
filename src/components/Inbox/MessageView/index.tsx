@@ -1,12 +1,16 @@
+
 import { useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { AlertCircle, Mail } from 'lucide-react'
-import { motion } from 'framer-motion'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { useThemeStore } from '@/stores/themeStore'
-import { useAnimationsEnabled } from '@/hooks/useMotion'
+import { useMessageViewStore } from '@/stores/messageViewStore'
 import type { MessageFull } from '@/types/mail'
+import { MessageViewHeader } from './MessageViewHeader'
+import { MessageViewMeta } from './MessageViewMeta'
+import { MessageViewBody } from './MessageViewBody'
+import { toast } from '@/stores/toastStore'
 
 interface MessageViewProps {
 	accountId: string
@@ -23,8 +27,8 @@ export const MessageView = ({
 }: MessageViewProps) => {
 	const { t } = useTypedTranslation(['common', 'inbox'])
 	const accentColor = useThemeStore((s) => s.accentColor)
-	const animationsEnabled = useAnimationsEnabled()
 	const queryClient = useQueryClient()
+	const { viewMode, toggleViewMode } = useMessageViewStore()
 
 	const { data, isLoading, error, refetch } = useQuery<MessageFull | null>({
 		queryKey: ['message', accountId, mailbox, uid],
@@ -55,6 +59,57 @@ export const MessageView = ({
 			})
 		}
 	}, [data, accountId, mailbox, uid, queryClient])
+
+	const handleReply = () => {
+		console.warn('Reply not implemented')
+		toast.info('Reply not implemented yet')
+	}
+
+	const handleReplyAll = () => {
+		console.warn('Reply All not implemented')
+		toast.info('Reply All not implemented yet')
+	}
+
+	const handleForward = () => {
+		console.warn('Forward not implemented')
+		toast.info('Forward not implemented yet')
+	}
+
+	const handleDelete = async () => {
+		try {
+			await invoke('delete_messages', {
+				accountId,
+				mailbox,
+				uids: [uid],
+			})
+			queryClient.invalidateQueries({
+				queryKey: ['messages', accountId, mailbox],
+			})
+			onBack()
+			toast.success(t('inbox:messageView.deleted'))
+		} catch (error) {
+			console.error('Failed to delete message:', error)
+			toast.error(t('inbox:messageView.deleteError'))
+		}
+	}
+
+	const handleMarkUnread = async () => {
+		try {
+			await invoke('mark_read', {
+				accountId,
+				mailbox,
+				uids: [uid],
+				read: false,
+			})
+			queryClient.invalidateQueries({
+				queryKey: ['messages', accountId, mailbox],
+			})
+			onBack()
+		} catch (error) {
+			console.error('Failed to mark as unread:', error)
+			toast.error(t('inbox:messageView.markUnreadError'))
+		}
+	}
 
 	if (isLoading) {
 		return (
@@ -118,26 +173,27 @@ export const MessageView = ({
 		)
 	}
 
-	// placeholder
 	return (
-		<div className='message-view-container'>
-			<div className='p-6'>
-				<button
-					onClick={onBack}
-					className='mb-4 text-sm text-slate-400 hover:text-slate-200'>
-					← {t('inbox:messageView.back')}
-				</button>
-				<h2 className='text-lg font-semibold text-slate-100'>
-					{data.header.subject || t('inbox:messageView.noSubject')}
-				</h2>
-				<p className='mt-1 text-sm text-slate-400'>
-					{data.header.from[0]}
-				</p>
-				<div className='mt-4 rounded-lg bg-white/[0.02] p-4 text-sm text-slate-300'>
-					{data.body_plain
-						? data.body_plain.slice(0, 500)
-						: 'No content'}
-					{data.body_plain && data.body_plain.length > 500 && '...'}
+		<div className='message-view-container flex h-full flex-col bg-slate-900'>
+			<MessageViewHeader
+				onBack={onBack}
+				onReply={handleReply}
+				onReplyAll={handleReplyAll}
+				onForward={handleForward}
+				onDelete={handleDelete}
+				onMarkUnread={handleMarkUnread}
+				viewMode={viewMode}
+				onToggleViewMode={toggleViewMode}
+			/>
+
+			<div className='message-view-body flex-1 overflow-y-auto px-6 py-4'>
+				<MessageViewMeta header={data.header} />
+				<div className='mt-6'>
+					<MessageViewBody
+						htmlContent={data.body_html_safe}
+						plainContent={data.body_plain}
+						viewMode={viewMode}
+					/>
 				</div>
 			</div>
 		</div>
