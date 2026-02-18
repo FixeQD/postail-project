@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '../Layout/Sidebar'
 import { MessageList } from './MessageList'
+import { MessageView } from './MessageView'
 import { DraftsList } from './DraftsList'
 import { ComposeScreen } from '../Compose/ComposeScreen'
 import { useDraftStore } from '@/stores/draftStore'
@@ -22,6 +23,10 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 		setActiveMailbox,
 	} = useAccountStore()
 	const [isComposeOpen, setIsComposeOpen] = useState(false)
+	const [selectedMessage, setSelectedMessage] = useState<{
+		uid: number
+		mailbox: string
+	} | null>(null)
 	const { loadDraft } = useDraftStore()
 
 	const handleNextMessage = useCallback(() => {
@@ -105,6 +110,11 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 		}
 	}, [accounts, activeAccount, setActiveAccount])
 
+	// reset selected message when mailbox changes
+	useEffect(() => {
+		setSelectedMessage(null)
+	}, [activeMailbox])
+
 	if (!activeAccount) {
 		return (
 			<div className='flex h-full items-center justify-center text-slate-400'>
@@ -123,7 +133,14 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 					onCompose={() => setIsComposeOpen(true)}
 				/>
 				<div className='flex flex-1 flex-col overflow-hidden'>
-					{activeMailbox === 'Drafts' ? (
+					{selectedMessage ? (
+						<MessageView
+							accountId={activeAccount.id}
+							mailbox={selectedMessage.mailbox}
+							uid={selectedMessage.uid}
+							onBack={() => setSelectedMessage(null)}
+						/>
+					) : activeMailbox === 'Drafts' ? (
 						<DraftsList
 							accountId={activeAccount.id}
 							onDraftClick={(draft: ComposeDraft) => {
@@ -135,9 +152,9 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 						<MessageList
 							account={activeAccount}
 							mailbox={activeMailbox}
-							onMessageClick={() => {
-								/* handle message click */
-							}}
+							onMessageClick={(uid: number) =>
+								setSelectedMessage({ uid, mailbox: activeMailbox })
+							}
 						/>
 					)}
 				</div>
