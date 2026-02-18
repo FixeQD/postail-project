@@ -134,11 +134,20 @@ export function useAppInitialization() {
 	useEffect(() => {
 		const unlisten = listen(
 			'oauth_callback',
-			async (event: Event<{ code: string; state: string }>) => {
+			async (
+				event: Event<{
+					code: string
+					state: string
+					code_verifier: string
+					provider_type: string
+				}>
+			) => {
 				try {
 					await invoke('complete_oauth_flow', {
 						code: event.payload.code,
 						state: event.payload.state,
+						codeVerifier: event.payload.code_verifier,
+						providerType: event.payload.provider_type,
 					})
 
 					handleAccountAdded()

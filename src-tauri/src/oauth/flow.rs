@@ -13,8 +13,8 @@ use super::pkce::PkceData;
 use super::provider::ProviderKind;
 use super::tokens::OAuthTokens;
 
-pub fn is_state_pending(state: &str) -> bool {
-    PENDING_FLOWS.lock().unwrap().contains_key(state)
+pub fn validate_and_take_state(state: &str) -> Option<(Provider, PkceData)> {
+    PENDING_FLOWS.lock().unwrap().remove(state)
 }
 
 const HTTP_TIMEOUT_SECS: u64 = 30;
@@ -77,13 +77,14 @@ pub fn start_oauth_flow(provider: Provider) -> Result<(String, u16), OAuthError>
 
 pub async fn complete_oauth_flow(
     code: String,
-    state: String,
+    _state: String,
+    code_verifier: String,
+    provider_type: String,
 ) -> Result<(Provider, OAuthTokens), OAuthError> {
-    let (provider, pkce) = PENDING_FLOWS
-        .lock()
-        .unwrap()
-        .remove(&state)
+    // Parse provider from the provider_type string
+    let provider_kind = ProviderKind::parse(&provider_type)
         .ok_or(OAuthError::InvalidState)?;
+    let provider = Provider::from_kind(provider_kind);
 
     let config = provider.config()?;
     let client = create_http_client();
@@ -95,7 +96,7 @@ pub async fn complete_oauth_flow(
         ("code", code.clone()),
         ("grant_type", "authorization_code".to_string()),
         ("redirect_uri", config.redirect_uri.clone()),
-        ("code_verifier", pkce.code_verifier.clone()),
+        ("code_verifier", code_verifier),
     ];
 
     if let Some(client_secret) = config.client_secret() {

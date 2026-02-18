@@ -48,6 +48,12 @@ impl ProviderKind {
             _ => None,
         }
     }
+
+    /// Extract provider kind from OAuth state string
+    /// State format: "{provider}:{random}"
+    pub fn from_state(state: &str) -> Option<Self> {
+        state.split(':').next().and_then(Self::parse)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
