@@ -2,6 +2,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use zeroize::Zeroize;
 
+use argon2::password_hash::{rand_core::OsRng, SaltString};
+
 use crate::error::{Result, SecurityError};
 use crate::security::crypto::{decrypt_with_key, encrypt_with_key, Crypto};
 use crate::security::master_key::MasterKey;
@@ -168,13 +170,16 @@ impl SecurityManager {
         use crate::security::master_key::MasterKey;
         use argon2::Argon2;
 
+        // Generate random salt for each encryption
+        let salt = SaltString::generate(&mut OsRng);
+        let salt_bytes = salt.as_str().as_bytes();
+
         let mut derived_key = [0u8; 32];
-        let salt = b"postail-email-client-v1";
         let argon2 = Argon2::default();
         let passphrase_trimmed = passphrase.trim();
 
         argon2
-            .hash_password_into(passphrase_trimmed.as_bytes(), salt, &mut derived_key)
+            .hash_password_into(passphrase_trimmed.as_bytes(), salt_bytes, &mut derived_key)
             .map_err(|e| {
                 tracing::error!(target: "postail", "[Security] Key derivation failed: {}", e);
                 SecurityError::KeyDerivation(e.to_string())
@@ -183,15 +188,34 @@ impl SecurityManager {
         let master_key = MasterKey::from_bytes(&derived_key)?;
         derived_key.zeroize();
 
-        encrypt_with_key(&master_key, plaintext)
+        let encrypted = encrypt_with_key(&master_key, plaintext)?;
+
+        // Format: salt_len(1) + salt + encrypted
+        let mut data = Vec::with_capacity(1 + salt_bytes.len() + encrypted.len());
+        data.push(salt_bytes.len() as u8);
+        data.extend_from_slice(salt_bytes);
+        data.extend_from_slice(&encrypted);
+
+        Ok(data)
     }
 
     pub fn decrypt_with_passphrase(&self, ciphertext: &[u8], passphrase: &str) -> Result<Vec<u8>> {
         use crate::security::master_key::MasterKey;
         use argon2::Argon2;
 
+        if ciphertext.is_empty() {
+            return Err(SecurityError::Decryption("empty ciphertext".into()));
+        }
+
+        let salt_len = ciphertext[0] as usize;
+        if ciphertext.len() < 1 + salt_len {
+            return Err(SecurityError::Decryption("corrupted ciphertext".into()));
+        }
+
+        let salt = &ciphertext[1..1 + salt_len];
+        let encrypted = &ciphertext[1 + salt_len..];
+
         let mut derived_key = [0u8; 32];
-        let salt = b"postail-email-client-v1";
         let argon2 = Argon2::default();
         let passphrase_trimmed = passphrase.trim();
 
@@ -205,7 +229,7 @@ impl SecurityManager {
         let master_key = MasterKey::from_bytes(&derived_key)?;
         derived_key.zeroize();
 
-        decrypt_with_key(&master_key, ciphertext)
+        decrypt_with_key(&master_key, encrypted)
     }
 }
 
