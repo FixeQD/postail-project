@@ -88,6 +88,9 @@ export interface ErrorTranslations {
 		title: string
 		description: string
 	}
+	oauth: {
+		failed: string
+	}
 	unknown: {
 		title: string
 		description: string
