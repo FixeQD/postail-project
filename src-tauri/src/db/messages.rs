@@ -88,46 +88,56 @@ pub fn fetch_headers(
     anchor: Option<u32>,
     limit: u32,
 ) -> Result<Vec<MailHeader>, DBError> {
-    let (query, params) = if let Some(anchor) = anchor {
-        (
+    let mut headers = Vec::new();
+
+    if let Some(anchor_val) = anchor {
+        let mut stmt = conn.prepare(
             "SELECT uid, message_id, internal_date, subject, from_addr, to_json, flags_json, snippet, has_attachments
-             FROM messages WHERE account_id = ? AND mailbox = ? AND uid > ? ORDER BY uid DESC LIMIT ?",
-            vec![account_id.to_string(), mailbox.to_string(), anchor.to_string(), limit.to_string()],
-        )
+             FROM messages WHERE account_id = ? AND mailbox = ? AND uid < ? ORDER BY uid DESC LIMIT ?",
+        )?;
+        let headers_iter = stmt.query_map(params![account_id, mailbox, anchor_val, limit], |row| {
+            map_row_to_header(row)
+        })?;
+        for header in headers_iter {
+            headers.push(header?);
+        }
     } else {
-        (
+        let mut stmt = conn.prepare(
             "SELECT uid, message_id, internal_date, subject, from_addr, to_json, flags_json, snippet, has_attachments
              FROM messages WHERE account_id = ? AND mailbox = ? ORDER BY uid DESC LIMIT ?",
-            vec![account_id.to_string(), mailbox.to_string(), limit.to_string()],
-        )
-    };
+        )?;
+        let headers_iter = stmt.query_map(params![account_id, mailbox, limit], |row| {
+            map_row_to_header(row)
+        })?;
+        for header in headers_iter {
+            headers.push(header?);
+        }
+    }
 
-    let mut stmt = conn.prepare(query)?;
-    let headers_iter = stmt.query_map(rusqlite::params_from_iter(params), |row| {
-        let to_json: Option<String> = row.get(5)?;
-        let to: Vec<String> = to_json
-            .map(|s| serde_json::from_str(&s).unwrap_or_default())
-            .unwrap_or_default();
-        let flags_json: Option<String> = row.get(6)?;
-        let flags: Vec<String> = flags_json
-            .map(|s| serde_json::from_str(&s).unwrap_or_default())
-            .unwrap_or_default();
-        Ok(MailHeader {
-            uid: row.get::<_, u32>(0)?,
-            message_id: row.get(1)?,
-            internal_date: safe_timestamp_from_utc(row.get::<_, i64>(2)?)
-                .ok_or_else(|| rusqlite::Error::InvalidColumnName("internal_date".into()))?,
-            subject: row.get(3)?,
-            from: vec![row.get::<_, Option<String>>(4)?.unwrap_or_default()],
-            to,
-            flags,
-            snippet: row.get(7)?,
-            has_attachments: row.get::<_, i64>(8)? != 0,
-        })
-    })?;
+    Ok(headers)
+}
 
-    let headers: Result<Vec<MailHeader>, _> = headers_iter.collect();
-    headers.map_err(DBError::Sqlite)
+fn map_row_to_header(row: &rusqlite::Row) -> rusqlite::Result<MailHeader> {
+    let to_json: Option<String> = row.get(5)?;
+    let to: Vec<String> = to_json
+        .map(|s| serde_json::from_str(&s).unwrap_or_default())
+        .unwrap_or_default();
+    let flags_json: Option<String> = row.get(6)?;
+    let flags: Vec<String> = flags_json
+        .map(|s| serde_json::from_str(&s).unwrap_or_default())
+        .unwrap_or_default();
+    Ok(MailHeader {
+        uid: row.get::<_, u32>(0)?,
+        message_id: row.get(1)?,
+        internal_date: safe_timestamp_from_utc(row.get::<_, i64>(2)?)
+            .ok_or_else(|| rusqlite::Error::InvalidColumnName("internal_date".into()))?,
+        subject: row.get(3)?,
+        from: vec![row.get::<_, Option<String>>(4)?.unwrap_or_default()],
+        to,
+        flags,
+        snippet: row.get(7)?,
+        has_attachments: row.get::<_, i64>(8)? != 0,
+    })
 }
 
 pub fn fetch_message_full(
