@@ -1,5 +1,5 @@
 
-import { useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { AlertCircle, Mail } from 'lucide-react'
@@ -36,6 +36,7 @@ export const MessageView = ({
 	const { t } = useTypedTranslation(['common', 'inbox'])
 	const queryClient = useQueryClient()
 	const { viewMode, toggleViewMode } = useMessageViewStore()
+	const [allowExternalResources, setAllowExternalResources] = useState(false)
 
 	const { data, isLoading, error, refetch } = useQuery<MessageFull | null>({
 		queryKey: ['message', accountId, mailbox, uid],
@@ -211,6 +212,8 @@ export const MessageView = ({
 				viewMode={viewMode}
 				onToggleViewMode={toggleViewMode}
 				hasHtml={!!data.body_html_safe?.trim()}
+				allowExternalResources={allowExternalResources}
+				onToggleExternalResources={() => setAllowExternalResources(!allowExternalResources)}
 			/>
 
 			<div ref={scrollContainerRef} className='message-view-body flex-1 overflow-y-auto px-6 py-4'>
@@ -225,6 +228,7 @@ export const MessageView = ({
 						htmlContent={data.body_html_safe}
 						plainContent={data.body_plain}
 						viewMode={viewMode}
+						allowExternalResources={allowExternalResources}
 					/>
 				</MessageViewErrorBoundary>
 				{data.header.has_attachments && data.attachments.length > 0 && (

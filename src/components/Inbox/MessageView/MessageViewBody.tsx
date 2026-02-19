@@ -17,12 +17,14 @@ interface MessageViewBodyProps {
 	htmlContent: string
 	plainContent: string
 	viewMode: 'html' | 'plain'
+	allowExternalResources?: boolean
 }
 
 export const MessageViewBody = ({
 	htmlContent,
 	plainContent,
 	viewMode,
+	allowExternalResources = false,
 }: MessageViewBodyProps) => {
 	const { t } = useTypedTranslation(['security', 'common'])
 	const accentColor = useThemeStore((s) => s.accentColor)
@@ -38,11 +40,30 @@ export const MessageViewBody = ({
 	useEffect(() => {
 		if (effectiveViewMode !== 'html') return
 
+		const csp = allowExternalResources
+			? `
+        default-src 'none';
+        script-src 'unsafe-inline';
+        style-src 'unsafe-inline';
+        img-src * data: cid:;
+        font-src * data:;
+        connect-src 'none';
+      `
+			: `
+        default-src 'none';
+        script-src 'unsafe-inline';
+        style-src 'unsafe-inline';
+        img-src data: cid:;
+        font-src data:;
+        connect-src 'none';
+      `
+
 		const html = `
       <!DOCTYPE html>
       <html>
         <head>
           <meta charset="utf-8">
+          <meta http-equiv="Content-Security-Policy" content="${csp}">
           <style>
             * {
               max-width: 100% !important;
@@ -125,7 +146,7 @@ export const MessageViewBody = ({
 		return () => {
 			URL.revokeObjectURL(url)
 		}
-	}, [htmlContent, effectiveViewMode, accentColor])
+	}, [htmlContent, effectiveViewMode, accentColor, allowExternalResources])
 
 	// Listen for messages from iframe (resize, links)
 	useEffect(() => {

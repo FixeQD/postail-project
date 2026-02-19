@@ -1,4 +1,4 @@
-import { ArrowLeft, Reply, ReplyAll, Forward, Trash2, MailOpen, Code, FileText } from 'lucide-react'
+import { ArrowLeft, Reply, ReplyAll, Forward, Trash2, MailOpen, Code, FileText, Globe } from 'lucide-react'
 import { motion, type Variants } from 'framer-motion'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
@@ -15,6 +15,8 @@ interface MessageViewHeaderProps {
 	onToggleViewMode: () => void
 	hasHtml?: boolean
 	isDeleting?: boolean
+	allowExternalResources?: boolean
+	onToggleExternalResources?: () => void
 }
 
 export const MessageViewHeader = ({
@@ -28,6 +30,8 @@ export const MessageViewHeader = ({
 	onToggleViewMode,
 	hasHtml = true,
 	isDeleting = false,
+	allowExternalResources = false,
+	onToggleExternalResources,
 }: MessageViewHeaderProps) => {
 	const { t } = useTypedTranslation(['common', 'inbox'])
 	const animationsEnabled = useAnimationsEnabled()
@@ -186,6 +190,13 @@ export const MessageViewHeader = ({
 						destructive
 						onClick={onDelete}
 						disabled={isDeleting}
+					/>
+				</motion.div>
+				<motion.div variants={item}>
+					<ActionBtn
+						icon={<Globe className={`h-4 w-4 ${allowExternalResources ? 'text-sky-400' : ''}`} />}
+						tooltip={allowExternalResources ? 'Disable external resources' : 'Enable external resources (images, etc)'}
+						onClick={onToggleExternalResources}
 					/>
 				</motion.div>
 				<motion.div variants={item}>
