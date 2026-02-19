@@ -34,6 +34,7 @@ export const MessageViewBody = ({
 	const [pendingUrl, setPendingUrl] = useState<string | null>(null)
 	const [iframeWidth, setIframeWidth] = useState<string>('100%')
 	const [iframeReady, setIframeReady] = useState(false)
+	const [emailBg, setEmailBg] = useState<string>('#ffffff')
 
 	// Fallback to plain text if no HTML content
 	const effectiveViewMode =
@@ -130,40 +131,34 @@ export const MessageViewBody = ({
             ${htmlContent}
           </div>
           <script>
-            const measure = () => {
-              // Temporarily remove constraints to measure natural width
-              document.body.style.width = 'max-content';
-              const naturalWidth = document.body.scrollWidth;
-              document.body.style.width = '';
+            let naturalWidth = 0;
 
-              return {
+            const sendHeight = () => {
+              window.parent.postMessage({
+                type: 'resize',
                 height: document.body.scrollHeight,
                 naturalWidth,
-              };
+              }, '*');
             };
 
-            const sendDimensions = () => {
-              const { height, naturalWidth } = measure();
-              window.parent.postMessage({ type: 'resize', height, naturalWidth }, '*');
+            // Observer only watches height - width measured once and locked
+            const ro = new ResizeObserver(() => sendHeight());
+
+            const init = () => {
+              // Disconnect before mutating so we don't trigger observer loop
+              ro.disconnect();
+              document.body.style.width = 'max-content';
+              naturalWidth = document.body.scrollWidth;
+              document.body.style.width = '';
+              ro.observe(document.body);
+              sendHeight();
             };
 
-            // Wait for full layout before measuring
             if (document.readyState === 'complete') {
-              sendDimensions();
+              init();
             } else {
-              window.addEventListener('load', sendDimensions);
+              window.addEventListener('load', init);
             }
-
-            // ResizeObserver only for height changes after initial render
-            let initialSent = false;
-            const ro = new ResizeObserver(() => {
-              if (!initialSent) {
-                initialSent = true;
-                return; // skip first fire, already sent above
-              }
-              sendDimensions();
-            });
-            ro.observe(document.body);
 
             // Link click handler
             document.addEventListener('click', function(e) {
@@ -180,6 +175,13 @@ export const MessageViewBody = ({
 
 		const blob = new Blob([html], { type: 'text/html' })
 		const url = URL.createObjectURL(blob)
+
+		// Extract email's own body bg to avoid color flash on container
+		const bodyBgMatch =
+			htmlContent.match(/body[^{]*\{[^}]*background-color:\s*(#[0-9a-fA-F]{3,8})/)?.[1] ??
+			htmlContent.match(/body[^>]*style="[^"]*background-color:\s*(#[0-9a-fA-F]{3,8})/)?.[1] ??
+			'#ffffff'
+		setEmailBg(bodyBgMatch)
 		setIframeReady(false)
 		setIframeWidth('100%')
 		setBlobUrl(url)
@@ -246,6 +248,7 @@ export const MessageViewBody = ({
 					className='overflow-hidden rounded-xl border border-white/[0.08] shadow-2xl'
 					style={{
 						width: iframeWidth,
+						backgroundColor: emailBg,
 						opacity: iframeReady ? 1 : 0,
 						transition: 'opacity 0.15s ease',
 					}}>
