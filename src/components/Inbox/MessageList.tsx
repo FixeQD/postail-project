@@ -289,7 +289,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 
 		return () => {
 			stopped = true
-			invoke('unwatch_mailbox', { accountId: account.id }).catch((e) =>
+			invoke('unwatch_mailbox', { accountId: account.id, mailbox }).catch((e) =>
 				console.error('Failed to stop mailbox watch:', e)
 			)
 		}
