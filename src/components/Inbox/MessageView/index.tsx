@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { AlertCircle, Mail } from 'lucide-react'
@@ -126,6 +126,14 @@ export const MessageView = ({
 		return () => window.removeEventListener('keydown', handleKeyDown)
 	}, [onBack])
 
+	const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+	useEffect(() => {
+		if (scrollContainerRef.current) {
+			scrollContainerRef.current.scrollTo({ top: 0, behavior: 'auto' })
+		}
+	}, [uid])
+
 	if (isLoading) {
 		return <MessageViewSkeleton />
 	}
@@ -180,7 +188,7 @@ export const MessageView = ({
 				hasHtml={!!data.body_html_safe?.trim()}
 			/>
 
-			<div className='message-view-body flex-1 overflow-y-auto px-6 py-4'>
+			<div ref={scrollContainerRef} className='message-view-body flex-1 overflow-y-auto px-6 py-4'>
 				<MessageViewMeta header={data.header} />
 
 				<MessageViewErrorBoundary
