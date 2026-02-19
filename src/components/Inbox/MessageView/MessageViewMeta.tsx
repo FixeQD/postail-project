@@ -59,47 +59,44 @@ export const MessageViewMeta = ({
 				{header.subject || '(No Subject)'}
 			</motion.h1>
 
-			<motion.div variants={container} className='flex flex-col gap-2 text-sm'>
-				{/* From */}
-				<motion.div variants={item} className='flex items-baseline gap-2'>
-					<span className='w-12 shrink-0 text-slate-400'>From:</span>
-					<div className='flex flex-wrap items-baseline gap-1.5'>
-						<span className='font-semibold text-slate-200'>
-							{from.name}
-						</span>
-						<span className='text-xs text-slate-500'>
-							&lt;{from.email}&gt;
-						</span>
-					</div>
-				</motion.div>
+			<div className='flex items-start gap-4'>
+				{/* Avatar Placeholder */}
+				<div className='mt-0.5 h-8 w-8 shrink-0 rounded-full bg-white/[0.03]' />
 
-				{/* Date */}
-				<motion.div variants={item} className='flex items-baseline gap-2'>
-					<span className='w-12 shrink-0 text-slate-400'>Date:</span>
-					<span className='text-slate-300'>{dateStr}</span>
-				</motion.div>
-
-				{/* To */}
-				<motion.div variants={item} className='flex items-baseline gap-2'>
-					<span className='w-12 shrink-0 text-slate-400'>To:</span>
-					<div className='flex flex-wrap gap-1'>
-						{to.map((recipient, i) => (
-							<span key={i} className='text-slate-300'>
-								{recipient.name || recipient.email}
-								{i < to.length - 1 && ','}
+				<motion.div variants={container} className='flex flex-1 flex-col gap-2 text-sm'>
+					{/* From */}
+					<motion.div variants={item} className='flex items-baseline gap-2'>
+						<span className='w-12 shrink-0 text-slate-400'>From:</span>
+						<div className='flex flex-wrap items-baseline gap-1.5'>
+							<span className='font-semibold text-slate-200'>
+								{from.name}
 							</span>
-						))}
-					</div>
-				</motion.div>
+							<span className='text-xs text-slate-500'>
+								&lt;{from.email}&gt;
+							</span>
+						</div>
+					</motion.div>
 
-				{/* CC Placeholder - render conditionally if we had CC data */}
-				{/* {cc.length > 0 && (
-          <div className="flex items-baseline gap-2">
-            <span className="w-12 shrink-0 text-slate-400">Cc:</span>
-             ...
-          </div>
-        )} */}
-			</motion.div>
+					{/* Date */}
+					<motion.div variants={item} className='flex items-baseline gap-2'>
+						<span className='w-12 shrink-0 text-slate-400'>Date:</span>
+						<span className='text-slate-300'>{dateStr}</span>
+					</motion.div>
+
+					{/* To */}
+					<motion.div variants={item} className='flex items-baseline gap-2'>
+						<span className='w-12 shrink-0 text-slate-400'>To:</span>
+						<div className='flex flex-wrap gap-1'>
+							{to.map((recipient, i) => (
+								<span key={i} className='text-slate-300'>
+									{recipient.name || recipient.email}
+									{i < to.length - 1 && ','}
+								</span>
+							))}
+						</div>
+					</motion.div>
+				</motion.div>
+			</div>
 		</motion.div>
 	)
 }
