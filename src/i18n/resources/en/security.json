@@ -55,5 +55,11 @@
 			"title": "Secure Storage",
 			"description": "Your passphrase is used to derive encryption keys with Argon2id. Data is encrypted with AES-GCM."
 		}
+	},
+	"externalLink": {
+		"title": "External Link",
+		"description": "You are about to open a link in your external browser. Make sure it's a trusted source.",
+		"open": "Open link",
+		"cancel": "Cancel"
 	}
 }

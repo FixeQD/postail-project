@@ -1,6 +1,17 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useThemeStore } from '@/stores/themeStore'
+import { useTypedTranslation } from '@/hooks/useTypedTranslation'
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { openUrl } from '@tauri-apps/plugin-opener'
 
 interface MessageViewBodyProps {
 	htmlContent: string
@@ -13,9 +24,12 @@ export const MessageViewBody = ({
 	plainContent,
 	viewMode,
 }: MessageViewBodyProps) => {
+	const { t } = useTypedTranslation(['security', 'common'])
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const iframeRef = useRef<HTMLIFrameElement>(null)
 	const [blobUrl, setBlobUrl] = useState<string>('')
+	const [warningOpen, setWarningOpen] = useState(false)
+	const [pendingUrl, setPendingUrl] = useState<string | null>(null)
 
 	// Fallback to plain text if no HTML content
 	const effectiveViewMode =
@@ -122,17 +136,24 @@ export const MessageViewBody = ({
 				iframeRef.current.style.height = `${e.data.height}px`
 			}
 
-			// Open link
+			// Open link warning
 			if (e.data?.type === 'open-link' && e.data.url) {
-				import('@tauri-apps/plugin-opener').then(({ openUrl }) => {
-					openUrl(e.data.url)
-				})
+				setPendingUrl(e.data.url)
+				setWarningOpen(true)
 			}
 		}
 
 		window.addEventListener('message', handler)
 		return () => window.removeEventListener('message', handler)
 	}, [])
+
+	const handleConfirmOpenLink = () => {
+		if (pendingUrl) {
+			openUrl(pendingUrl)
+		}
+		setWarningOpen(false)
+		setPendingUrl(null)
+	}
 
 	if (effectiveViewMode === 'plain') {
 		return (
@@ -143,16 +164,48 @@ export const MessageViewBody = ({
 	}
 
 	return (
-		<div className='max-w-full overflow-x-auto'>
-			<iframe
-				ref={iframeRef}
-				title='Message Content'
-				src={blobUrl}
-				// sandbox must include allow-scripts for the resize/link logic inside blob
-				sandbox='allow-scripts allow-popups allow-popups-to-escape-sandbox'
-				className='message-view-iframe w-full border-none'
-				style={{ minHeight: '200px' }}
-			/>
-		</div>
+		<>
+			<div className='max-w-full overflow-x-auto'>
+				<iframe
+					ref={iframeRef}
+					title='Message Content'
+					src={blobUrl}
+					// sandbox must include allow-scripts for the resize/link logic inside blob
+					sandbox='allow-scripts allow-popups allow-popups-to-escape-sandbox'
+					className='message-view-iframe w-full border-none'
+					style={{ minHeight: '200px' }}
+				/>
+			</div>
+
+			<Dialog open={warningOpen} onOpenChange={setWarningOpen}>
+				<DialogContent className='sm:max-w-[425px]'>
+					<DialogHeader>
+						<DialogTitle>{t('security:externalLink.title')}</DialogTitle>
+						<DialogDescription>
+							{t('security:externalLink.description')}
+						</DialogDescription>
+					</DialogHeader>
+					<div className='bg-slate-950/50 flex flex-col gap-1.5 rounded-lg border border-white/[0.06] p-3'>
+						<p className='text-[10px] font-bold tracking-wider text-slate-500 uppercase'>
+							Target URL
+						</p>
+						<p className='break-all text-xs font-mono text-slate-300'>
+							{pendingUrl}
+						</p>
+					</div>
+					<DialogFooter>
+						<Button variant='ghost' onClick={() => setWarningOpen(false)}>
+							{t('security:externalLink.cancel')}
+						</Button>
+						<Button
+							variant='default'
+							onClick={handleConfirmOpenLink}
+							className='bg-sky-500 font-semibold text-white hover:bg-sky-600 dark:bg-sky-600 dark:hover:bg-sky-700'>
+							{t('security:externalLink.open')}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		</>
 	)
 }
