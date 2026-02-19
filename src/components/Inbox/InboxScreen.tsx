@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Sidebar } from '../Layout/Sidebar'
 import { MessageList } from './MessageList'
 import { MessageView } from './MessageView'
@@ -27,19 +28,62 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 		uid: number
 		mailbox: string
 	} | null>(null)
+	const [focusedUid, setFocusedUid] = useState<number | null>(null)
 	const { loadDraft } = useDraftStore()
+	const queryClient = useQueryClient()
+
+	const getMessagesList = useCallback(() => {
+		if (!activeAccount || !activeMailbox) return []
+		const data = queryClient.getQueryData<{ pages: any[][] }>([
+			'messages',
+			activeAccount.id,
+			activeMailbox,
+		])
+		return data?.pages.flatMap((page) => page) || []
+	}, [activeAccount, activeMailbox, queryClient])
+
+	const navigateMessage = useCallback(
+		(direction: 'next' | 'prev') => {
+			const messages = getMessagesList()
+			if (messages.length === 0) return
+
+			const currentUid = selectedMessage?.uid ?? focusedUid
+			const currentIndex = currentUid ? messages.findIndex((m: any) => m.uid === currentUid) : -1
+
+			let newIndex = -1
+			if (direction === 'next') {
+				newIndex = currentIndex + 1
+				if (newIndex >= messages.length) return
+			} else {
+				newIndex = currentIndex === -1 ? 0 : currentIndex - 1
+				if (newIndex < 0) return
+			}
+
+			const newMessage = messages[newIndex]
+			if (!newMessage) return
+
+			if (selectedMessage) {
+				setSelectedMessage({ uid: newMessage.uid, mailbox: activeMailbox! })
+			} else {
+				setFocusedUid(newMessage.uid)
+			}
+		},
+		[getMessagesList, selectedMessage, focusedUid, activeMailbox]
+	)
 
 	const handleNextMessage = useCallback(() => {
-		// handle next message
-	}, [])
+		navigateMessage('next')
+	}, [navigateMessage])
 
 	const handlePrevMessage = useCallback(() => {
-		// handle prev message
-	}, [])
+		navigateMessage('prev')
+	}, [navigateMessage])
 
 	const handleOpenMessage = useCallback(() => {
-		// handle open message
-	}, [])
+		if (focusedUid && !selectedMessage) {
+			setSelectedMessage({ uid: focusedUid, mailbox: activeMailbox! })
+		}
+	}, [focusedUid, selectedMessage, activeMailbox])
 
 	const handleDeleteMessage = useCallback(() => {
 		// handle delete message
@@ -139,6 +183,8 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 							mailbox={selectedMessage.mailbox}
 							uid={selectedMessage.uid}
 							onBack={() => setSelectedMessage(null)}
+							onNext={handleNextMessage}
+							onPrev={handlePrevMessage}
 						/>
 					) : activeMailbox === 'Drafts' ? (
 						<DraftsList
@@ -152,9 +198,11 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 						<MessageList
 							account={activeAccount}
 							mailbox={activeMailbox}
-							onMessageClick={(uid: number) =>
+							focusedUid={focusedUid}
+							onMessageClick={(uid: number) => {
 								setSelectedMessage({ uid, mailbox: activeMailbox })
-							}
+								setFocusedUid(uid)
+							}}
 						/>
 					)}
 				</div>

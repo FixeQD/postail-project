@@ -21,6 +21,8 @@ interface MessageViewProps {
 	mailbox: string
 	uid: number
 	onBack: () => void
+	onNext?: () => void
+	onPrev?: () => void
 }
 
 export const MessageView = ({
@@ -28,6 +30,8 @@ export const MessageView = ({
 	mailbox,
 	uid,
 	onBack,
+	onNext,
+	onPrev,
 }: MessageViewProps) => {
 	const { t } = useTypedTranslation(['common', 'inbox'])
 	const queryClient = useQueryClient()
@@ -129,8 +133,8 @@ export const MessageView = ({
 
 	// Connect Gmail-style shortcuts
 	useInboxShortcuts({
-		onNextMessage: () => {}, // TODO: Parent should handle this
-		onPrevMessage: () => {}, // TODO: Parent should handle this
+		onNextMessage: onNext || (() => {}),
+		onPrevMessage: onPrev || (() => {}),
 		onOpenMessage: () => {}, 
 		onDeleteMessage: handleDelete,
 		onReply: handleReply,
