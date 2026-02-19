@@ -57,6 +57,7 @@ export const MessageViewBody = ({
               font-size: 14px;
               line-height: 1.6;
               word-break: break-word;
+              color-scheme: dark;
             }
             a {
               color: ${accentColor};
