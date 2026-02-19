@@ -54,44 +54,55 @@ impl crate::imap::ImapManager {
                 drop(fetch);
                 drop(fetches);
                 
-                tracing::info!(target: "postail", "[IMAP] fetch_message_full: locking connection to save body for uid={}", uid);
                 let conn_guard = self.conn.lock().await;
                 let conn = conn_guard.as_ref().ok_or_else(|| {
-                    tracing::error!(target: "postail", "[IMAP] fetch_message_full: Database not initialized when saving uid={}", uid);
                     "Database not initialized".to_string()
                 })?;
                 
-                let id: i64 = conn.query_row(
-                    "SELECT id FROM messages WHERE account_id = ? AND mailbox = ? AND uid = ?",
-                    params![account_id, mailbox, uid],
-                    |row| row.get(0)
-                ).map_err(|e| {
-                    tracing::error!(target: "postail", "[IMAP] fetch_message_full: Failed to find id for uid={}: {}", uid, e);
-                    e.to_string()
-                })?;
-                
-                tracing::info!(target: "postail", "[IMAP] fetch_message_full: found message id={} for uid={}", id, uid);
+                // Fetch the header from the 'messages' table (read-only)
+                let header = {
+                    let mut stmt = conn.prepare(
+                        "SELECT message_id, internal_date, subject, from_addr, to_json, flags_json, snippet, has_attachments 
+                         FROM messages WHERE account_id = ? AND mailbox = ? AND uid = ?"
+                    ).map_err(|e| e.to_string())?;
+                    
+                    stmt.query_row(params![account_id, mailbox, uid], |row| {
+                        let to_json: Option<String> = row.get(4)?;
+                        let to: Vec<String> = to_json
+                            .map(|s| serde_json::from_str(&s).unwrap_or_default())
+                            .unwrap_or_default();
+                        let flags_json: Option<String> = row.get(5)?;
+                        let flags: Vec<String> = flags_json
+                            .map(|s| serde_json::from_str(&s).unwrap_or_default())
+                            .unwrap_or_default();
 
-                // Save to DB (cache)
-                crate::db::message_bodies::save_message_body_with_fallback(conn, id, &body_owned)
-                    .map_err(|e| {
-                        tracing::error!(target: "postail", "[IMAP] fetch_message_full: save_message_body failed for uid={}: {}", uid, e);
-                        e.to_string()
-                    })?;
-                
-                tracing::info!(target: "postail", "[IMAP] fetch_message_full: saved body to DB for uid={}, refetching full struct", uid);
+                        Ok(db::MailHeader {
+                            uid,
+                            message_id: row.get(0)?,
+                            internal_date: db::messages::safe_timestamp_from_utc(row.get::<_, i64>(1)?)
+                                .ok_or_else(|| rusqlite::Error::InvalidColumnName("internal_date".into()))?,
+                            subject: row.get(2)?,
+                            from: vec![row.get::<_, Option<String>>(3)?.unwrap_or_default()],
+                            to,
+                            flags,
+                            snippet: row.get(6)?,
+                            has_attachments: row.get::<_, i64>(7)? != 0,
+                        })
+                    }).map_err(|e| e.to_string())?
+                };
 
-                // Return fully populated struct from DB
-                db::fetch_message_full(conn, account_id, mailbox, uid)
-                    .map_err(|e| {
-                        tracing::error!(target: "postail", "[IMAP] fetch_message_full: db::fetch_message_full failed after save for uid={}: {}", uid, e);
-                        e.to_string()
-                    })?
-                    .ok_or_else(|| {
-                        tracing::error!(target: "postail", "[IMAP] fetch_message_full: db::fetch_message_full returned None after save for uid={}", uid);
-                        "Message not found after sync".to_string()
-                    })
-                    .map(Some)
+                // Parse the body in-memory
+                let (html, plain, _) = db::message_bodies::parse_mail_with_fallback(&body_owned);
+                
+                tracing::info!(target: "postail", "[IMAP] fetch_message_full: returning direct MessageFull for uid={} (no cache, no sanitizer)", uid);
+
+                Ok(Some(db::MessageFull {
+                    header,
+                    body_html_safe: html.unwrap_or_else(|| plain.clone().unwrap_or_default()),
+                    body_plain: plain.unwrap_or_default(),
+                    attachments: vec![],
+                    inline_images: vec![],
+                }))
             } else {
                 tracing::warn!(target: "postail", "[IMAP] fetch_message_full: No fetch results for uid={}", uid);
                 Ok(None)
