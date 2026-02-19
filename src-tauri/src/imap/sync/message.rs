@@ -1,5 +1,5 @@
 use futures::StreamExt;
-use mailparse::parse_mail;
+use rusqlite::params;
 
 use crate::db;
 
@@ -31,43 +31,39 @@ impl crate::imap::ImapManager {
 
         let fetch_result = {
             let mut fetches = session
-                .fetch(format!("{}", uid), "(BODY[])")
+                .uid_fetch(format!("{}", uid), "(BODY[])")
                 .await
                 .map_err(|e| e.to_string())?;
+            
             if let Some(fetch) = fetches.next().await {
                 let fetch = fetch.map_err(|e| e.to_string())?;
-                let body = fetch.body().ok_or("No body")?;
-                let parsed = parse_mail(body).map_err(|e| e.to_string())?;
-                let body_html_safe =
-                    ammonia::clean(&parsed.get_body().unwrap_or_default()).to_string();
-                let body_plain = parsed.get_body().unwrap_or_default();
-                let attachments = vec![];
-                let inline_images = vec![];
-
-                let message_full = {
-                    let conn_guard = self.conn.lock().await;
-                    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-                    db::fetch_message_full(conn, account_id, mailbox, uid)
-                        .map_err(|e| e.to_string())?
-                };
-
-                if let Some(message) = message_full {
-                    Ok(Some(crate::db::MessageFull {
-                        header: message.header,
-                        body_html_safe,
-                        body_plain,
-                        attachments,
-                        inline_images,
-                    }))
-                } else {
-                    Err("Message not found in database".to_string())
-                }
+                let body_raw = fetch.body().ok_or("No body")?;
+                
+                // Get message_table_id
+                let conn_guard = self.conn.lock().await;
+                let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+                
+                let id: i64 = conn.query_row(
+                    "SELECT id FROM messages WHERE account_id = ? AND mailbox = ? AND uid = ?",
+                    params![account_id, mailbox, uid],
+                    |row| row.get(0)
+                ).map_err(|e| e.to_string())?;
+                
+                // Save to DB (cache)
+                crate::db::message_bodies::save_message_body_with_fallback(conn, id, body_raw)
+                    .map_err(|e| e.to_string())?;
+                
+                // Return fully populated struct from DB
+                db::fetch_message_full(conn, account_id, mailbox, uid)
+                    .map_err(|e| e.to_string())?
+                    .ok_or("Message not found after sync".to_string())
+                    .map(Some)
             } else {
                 Ok(None)
             }
         };
 
-        session.logout().await.map_err(|e| e.to_string())?;
+        let _ = session.logout().await;
         fetch_result
     }
 }

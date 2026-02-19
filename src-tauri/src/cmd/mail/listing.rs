@@ -127,7 +127,27 @@ pub async fn fetch_message_full(
     uid: u64,
 ) -> Result<Option<MessageFull>, String> {
     let uid_u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
-    let imap = IMAP_MANAGER.lock().await;
-    imap.fetch_message_full_sync(&account_id, &mailbox, uid_u32)
-        .await
+    
+    // Release the lock before doing heavy work
+    let imap = {
+        let guard = IMAP_MANAGER.lock().await;
+        guard.clone()
+    };
+
+    // Try DB first
+    if let Ok(Some(msg)) = imap.fetch_message_full_sync(&account_id, &mailbox, uid_u32).await {
+        if !msg.body_html_safe.is_empty() || !msg.body_plain.is_empty() {
+            tracing::info!(target: "postail", "[API] fetch_message_full: cache hit for uid={}", uid_u32);
+            return Ok(Some(msg));
+        }
+    }
+
+    tracing::info!(target: "postail", "[API] fetch_message_full: cache miss, fetching from IMAP for uid={}", uid_u32);
+    let result = imap.fetch_message_full(&account_id, &mailbox, uid_u32).await;
+    
+    if let Ok(None) = &result {
+        tracing::warn!(target: "postail", "[API] fetch_message_full: IMAP returned None for uid={}", uid_u32);
+    }
+    
+    result
 }

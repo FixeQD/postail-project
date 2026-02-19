@@ -137,42 +137,72 @@ pub fn fetch_message_full(
     uid: u32,
 ) -> Result<Option<MessageFull>, DBError> {
     let mut stmt = conn.prepare(
-        "SELECT message_id, internal_date, subject, from_addr, to_json, flags_json, snippet, has_attachments FROM messages
-         WHERE account_id = ? AND mailbox = ? AND uid = ?",
+        "SELECT m.id, m.message_id, m.internal_date, m.subject, m.from_addr, m.to_json, m.flags_json, m.snippet, m.has_attachments,
+                b.body_html_safe, b.body_plain
+         FROM messages m
+         LEFT JOIN message_bodies b ON m.id = b.message_id
+         WHERE m.account_id = ? AND m.mailbox = ? AND m.uid = ?",
     )?;
-    let header = stmt
+    let result = stmt
         .query_row(params![account_id, mailbox, uid], |row| {
-            let to_json: Option<String> = row.get(4)?;
+            let message_table_id: i64 = row.get(0)?;
+            let to_json: Option<String> = row.get(5)?;
             let to: Vec<String> = to_json
                 .map(|s| serde_json::from_str(&s).unwrap_or_default())
                 .unwrap_or_default();
-            let flags_json: Option<String> = row.get(5)?;
+            let flags_json: Option<String> = row.get(6)?;
             let flags: Vec<String> = flags_json
                 .map(|s| serde_json::from_str(&s).unwrap_or_default())
                 .unwrap_or_default();
-            Ok(MailHeader {
+
+            let header = MailHeader {
                 uid,
-                message_id: row.get(0)?,
-                internal_date: safe_timestamp_from_utc(row.get::<_, i64>(1)?)
+                message_id: row.get(1)?,
+                internal_date: safe_timestamp_from_utc(row.get::<_, i64>(2)?)
                     .ok_or_else(|| rusqlite::Error::InvalidColumnName("internal_date".into()))?,
-                subject: row.get(2)?,
-                from: vec![row.get::<_, Option<String>>(3)?.unwrap_or_default()],
+                subject: row.get(3)?,
+                from: vec![row.get::<_, Option<String>>(4)?.unwrap_or_default()],
                 to,
                 flags,
-                snippet: row.get(6)?,
-                has_attachments: row.get::<_, i64>(7)? != 0,
-            })
+                snippet: row.get(7)?,
+                has_attachments: row.get::<_, i64>(8)? != 0,
+            };
+
+            Ok((
+                message_table_id,
+                MessageFull {
+                    header,
+                    body_html_safe: row.get::<_, Option<String>>(9)?.unwrap_or_default(),
+                    body_plain: row.get::<_, Option<String>>(10)?.unwrap_or_default(),
+                    attachments: vec![],
+                    inline_images: vec![],
+                },
+            ))
         })
         .optional()?;
 
-    if let Some(header) = header {
-        Ok(Some(MessageFull {
-            header,
-            body_html_safe: String::new(),
-            body_plain: String::new(),
-            attachments: vec![],
-            inline_images: vec![],
-        }))
+    if let Some((message_table_id, mut message)) = result {
+        // Fetch attachments
+        let mut stmt = conn.prepare(
+            "SELECT part_id, filename, mime_type, size FROM attachments WHERE message_table_id = ?",
+        )?;
+        let attachments_iter = stmt.query_map(params![message_table_id], |row| {
+            Ok(super::AttachmentMeta {
+                part_id: row.get(0)?,
+                filename: row.get(1)?,
+                mime_type: row.get(2)?,
+                size: row.get::<_, i64>(3)? as u64,
+            })
+        })?;
+
+        for attachment in attachments_iter {
+            if let Ok(attr) = attachment {
+                // For now just put everything in attachments
+                message.attachments.push(attr);
+            }
+        }
+
+        Ok(Some(message))
     } else {
         Ok(None)
     }
