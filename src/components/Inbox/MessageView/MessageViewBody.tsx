@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from 'react'
 import { useThemeStore } from '@/stores/themeStore'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
@@ -29,9 +28,12 @@ export const MessageViewBody = ({
 	const { t } = useTypedTranslation(['security', 'common'])
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const iframeRef = useRef<HTMLIFrameElement>(null)
+	const containerRef = useRef<HTMLDivElement>(null)
 	const [blobUrl, setBlobUrl] = useState<string>('')
 	const [warningOpen, setWarningOpen] = useState(false)
 	const [pendingUrl, setPendingUrl] = useState<string | null>(null)
+	const [iframeWidth, setIframeWidth] = useState<string>('100%')
+	const [iframeReady, setIframeReady] = useState(false)
 
 	// Fallback to plain text if no HTML content
 	const effectiveViewMode =
@@ -39,6 +41,16 @@ export const MessageViewBody = ({
 
 	useEffect(() => {
 		if (effectiveViewMode !== 'html') return
+
+		// Detect if email supports dark mode
+		const hasDarkModeSupport =
+			htmlContent.includes('prefers-color-scheme: dark') ||
+			htmlContent.includes('data-ogsc') ||
+			htmlContent.includes('data-ogsb')
+
+		const iframeColorScheme = hasDarkModeSupport ? 'dark light' : 'light'
+		const iframeBg = hasDarkModeSupport ? 'transparent' : '#ffffff'
+		const iframeTextColor = hasDarkModeSupport ? 'inherit' : '#1a1a1a'
 
 		const csp = allowExternalResources
 			? `
@@ -66,19 +78,18 @@ export const MessageViewBody = ({
           <meta http-equiv="Content-Security-Policy" content="${csp}">
           <style>
             * {
-              max-width: 100% !important;
               box-sizing: border-box;
             }
             body {
               margin: 0;
-              padding: 16px;
+              padding: 24px;
               font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-              color: #e2e8f0;
-              background: transparent;
+              color: ${iframeTextColor};
+              background: ${iframeBg};
               font-size: 14px;
               line-height: 1.6;
               word-break: break-word;
-              color-scheme: dark;
+              color-scheme: ${iframeColorScheme};
             }
             a {
               color: ${accentColor};
@@ -98,7 +109,6 @@ export const MessageViewBody = ({
               overflow-x: auto;
               max-width: 100%;
             }
-            /* Custom scrollbar for iframe content */
             ::-webkit-scrollbar {
               width: 8px;
               height: 8px;
@@ -107,24 +117,53 @@ export const MessageViewBody = ({
               background: transparent;
             }
             ::-webkit-scrollbar-thumb {
-              background: rgba(255, 255, 255, 0.1);
+              background: rgba(0, 0, 0, 0.1);
               border-radius: 4px;
             }
             ::-webkit-scrollbar-thumb:hover {
-              background: rgba(255, 255, 255, 0.2);
+              background: rgba(0, 0, 0, 0.2);
             }
           </style>
         </head>
         <body>
-          ${htmlContent}
+          <div class="email-wrapper">
+            ${htmlContent}
+          </div>
           <script>
-            // Resize observer to communicate height to parent
-            const resizeObserver = new ResizeObserver(() => {
-              window.parent.postMessage({ type: 'resize', height: document.body.scrollHeight }, '*')
+            const measure = () => {
+              // Temporarily remove constraints to measure natural width
+              document.body.style.width = 'max-content';
+              const naturalWidth = document.body.scrollWidth;
+              document.body.style.width = '';
+
+              return {
+                height: document.body.scrollHeight,
+                naturalWidth,
+              };
+            };
+
+            const sendDimensions = () => {
+              const { height, naturalWidth } = measure();
+              window.parent.postMessage({ type: 'resize', height, naturalWidth }, '*');
+            };
+
+            // Wait for full layout before measuring
+            if (document.readyState === 'complete') {
+              sendDimensions();
+            } else {
+              window.addEventListener('load', sendDimensions);
+            }
+
+            // ResizeObserver only for height changes after initial render
+            let initialSent = false;
+            const ro = new ResizeObserver(() => {
+              if (!initialSent) {
+                initialSent = true;
+                return; // skip first fire, already sent above
+              }
+              sendDimensions();
             });
-            resizeObserver.observe(document.body);
-            // Initial height
-            window.parent.postMessage({ type: 'resize', height: document.body.scrollHeight }, '*');
+            ro.observe(document.body);
 
             // Link click handler
             document.addEventListener('click', function(e) {
@@ -141,6 +180,8 @@ export const MessageViewBody = ({
 
 		const blob = new Blob([html], { type: 'text/html' })
 		const url = URL.createObjectURL(blob)
+		setIframeReady(false)
+		setIframeWidth('100%')
 		setBlobUrl(url)
 
 		return () => {
@@ -156,6 +197,15 @@ export const MessageViewBody = ({
 			// Resize
 			if (e.data?.type === 'resize' && typeof e.data.height === 'number') {
 				iframeRef.current.style.height = `${e.data.height}px`
+
+				if (typeof e.data.naturalWidth === 'number' && containerRef.current) {
+					const containerWidth =
+						containerRef.current.getBoundingClientRect().width
+					const targetWidth = Math.min(e.data.naturalWidth, containerWidth)
+					setIframeWidth(`${targetWidth}px`)
+				}
+
+				setIframeReady(true)
 			}
 
 			// Open link warning
@@ -179,24 +229,36 @@ export const MessageViewBody = ({
 
 	if (effectiveViewMode === 'plain') {
 		return (
-			<pre className='message-view-plain whitespace-pre-wrap break-words p-4 font-mono text-sm text-slate-300'>
-				{plainContent || '(No content)'}
-			</pre>
+			<div className='flex flex-col items-center px-6 py-4'>
+				<pre className='message-view-plain max-w-full whitespace-pre-wrap break-words rounded-xl border border-white/[0.08] bg-slate-950/50 p-6 font-mono text-sm text-slate-300 shadow-xl'>
+					{plainContent || '(No content)'}
+				</pre>
+			</div>
 		)
 	}
 
 	return (
 		<>
-			<div className='max-w-full overflow-x-auto'>
-				<iframe
-					ref={iframeRef}
-					title='Message Content'
-					src={blobUrl}
-					// sandbox must include allow-scripts for the resize/link logic inside blob
-					sandbox='allow-scripts allow-popups allow-popups-to-escape-sandbox'
-					className='message-view-iframe w-full border-none'
-					style={{ minHeight: '200px' }}
-				/>
+			<div
+				ref={containerRef}
+				className='flex flex-col items-center overflow-x-auto px-6 py-4'>
+				<div
+					className='overflow-hidden rounded-xl border border-white/[0.08] shadow-2xl'
+					style={{
+						width: iframeWidth,
+						opacity: iframeReady ? 1 : 0,
+						transition: 'opacity 0.15s ease',
+					}}>
+					<iframe
+						key={blobUrl}
+						ref={iframeRef}
+						title='Message Content'
+						src={blobUrl}
+						sandbox='allow-scripts allow-popups allow-popups-to-escape-sandbox'
+						className='message-view-iframe block w-full border-none'
+						style={{ minHeight: iframeReady ? undefined : '0px' }}
+					/>
+				</div>
 			</div>
 
 			<Dialog open={warningOpen} onOpenChange={setWarningOpen}>
