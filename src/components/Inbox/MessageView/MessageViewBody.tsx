@@ -30,6 +30,10 @@ export const MessageViewBody = ({
         <head>
           <meta charset="utf-8">
           <style>
+            * {
+              max-width: 100% !important;
+              box-sizing: border-box;
+            }
             body {
               margin: 0;
               padding: 16px;
@@ -48,8 +52,15 @@ export const MessageViewBody = ({
               text-decoration: underline;
             }
             img {
+              max-width: 100% !important;
+              height: auto !important;
+            }
+            table {
+              max-width: 100% !important;
+            }
+            pre {
+              overflow-x: auto;
               max-width: 100%;
-              height: auto;
             }
             /* Custom scrollbar for iframe content */
             ::-webkit-scrollbar {
@@ -132,14 +143,16 @@ export const MessageViewBody = ({
 	}
 
 	return (
-		<iframe
-			ref={iframeRef}
-			title='Message Content'
-			src={blobUrl}
-			// sandbox must include allow-scripts for the resize/link logic inside blob
-			sandbox='allow-scripts allow-popups allow-popups-to-escape-sandbox'
-			className='message-view-iframe w-full border-none'
-			style={{ minHeight: '300px' }}
-		/>
+		<div className='max-w-full overflow-x-auto'>
+			<iframe
+				ref={iframeRef}
+				title='Message Content'
+				src={blobUrl}
+				// sandbox must include allow-scripts for the resize/link logic inside blob
+				sandbox='allow-scripts allow-popups allow-popups-to-escape-sandbox'
+				className='message-view-iframe w-full border-none'
+				style={{ minHeight: '200px' }}
+			/>
+		</div>
 	)
 }
