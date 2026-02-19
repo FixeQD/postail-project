@@ -101,10 +101,22 @@ export const MessageViewBody = ({
             }
             img {
               max-width: 100% !important;
+            }
+            /* Only reset height when width is explicitly set, to prevent stretch */
+            img[width] {
               height: auto !important;
             }
-            table {
+            /* Override hardcoded width/height attributes on tables and td */
+            table, td, th {
               max-width: 100% !important;
+            }
+            /* Force tables with inline width to shrink */
+            table[width], td[width] {
+              width: auto !important;
+            }
+            /* But full-width tables should stay full-width */
+            table[width="100%"], td[width="100%"] {
+              width: 100% !important;
             }
             pre {
               overflow-x: auto;
