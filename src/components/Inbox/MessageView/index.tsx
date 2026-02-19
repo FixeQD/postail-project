@@ -176,6 +176,7 @@ export const MessageView = ({
 				onMarkUnread={handleMarkUnread}
 				viewMode={viewMode}
 				onToggleViewMode={toggleViewMode}
+				hasHtml={!!data.body_html_safe?.trim()}
 			/>
 
 			<div className='message-view-body flex-1 overflow-y-auto px-6 py-4'>
