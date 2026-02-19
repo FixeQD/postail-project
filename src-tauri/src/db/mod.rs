@@ -271,10 +271,12 @@ pub async fn init_db() -> Result<(), DBError> {
 fn apply_sqlcipher_key(conn: &Connection, hex_key: &str) -> Result<(), DBError> {
     let pragmas = [
         format!("PRAGMA key = \"x'{hex_key}'\""),
+        "PRAGMA cipher_page_size = 4096".to_string(),
+        "PRAGMA kdf_iter = 256000".to_string(),
         "PRAGMA journal_mode = WAL".to_string(),
         "PRAGMA synchronous = NORMAL".to_string(),
         "PRAGMA cache_size = -64000".to_string(),
-        "PRAGMA mmap_size = 268435456".to_string(),
+        "PRAGMA mmap_size = 0".to_string(),
     ];
 
     for pragma in pragmas {

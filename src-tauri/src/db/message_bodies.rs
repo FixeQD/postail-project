@@ -124,15 +124,10 @@ pub fn save_message_body_with_fallback(
     )?;
 
     conn.execute(
-        "INSERT OR REPLACE INTO message_bodies (message_id, body_html_safe, body_plain, raw_content, parse_error)
-         VALUES (?, ?, ?, ?, ?)",
-        params![
-            message_table_id,
-            body_html,
-            body_plain,
-            raw_eml,
-            error_preview.as_deref().unwrap_or("")
-        ],
+        "INSERT OR REPLACE INTO message_bodies 
+         (message_id, body_html_safe, body_plain, parse_error)
+         VALUES (?, ?, ?, ?)",
+        params![message_table_id, body_html, body_plain, error_preview.as_deref().unwrap_or("")],
     )?;
 
     Ok(())
