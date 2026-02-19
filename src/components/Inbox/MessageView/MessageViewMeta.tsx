@@ -1,3 +1,4 @@
+import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { parseAddresses } from '@/lib/parseAddress'
 import type { MailHeader } from '@/types/mail'
 import { motion, type Variants } from 'framer-motion'
@@ -12,6 +13,7 @@ export const MessageViewMeta = ({
 	header,
 	showDetails = true, // Defaulting to true for now since toggle logic isn't fully there yet
 }: MessageViewMetaProps) => {
+	const animationsEnabled = useAnimationsEnabled()
 
 	const from = parseAddresses(header.from)[0]
 	const to = parseAddresses(header.to)
@@ -33,69 +35,74 @@ export const MessageViewMeta = ({
 			opacity: 1,
 			transition: {
 				staggerChildren: 0.05,
-				delayChildren: 0.1,
+				delayChildren: 0.05,
 			},
 		},
 	}
 
 	const item: Variants = {
-		hidden: { opacity: 0, x: -10 },
+		hidden: { opacity: 0, y: 8 },
 		show: { 
 			opacity: 1, 
-			x: 0, 
-			transition: { duration: 0.3, ease: 'easeOut' } 
+			y: 0, 
+			transition: { duration: 0.2, ease: 'easeOut' } 
 		},
 	}
 
 	return (
 		<motion.div 
-			className='flex flex-col gap-4 border-b border-white/[0.06] pb-6'
-			initial={showDetails ? 'show' : 'hidden'}
+			className='border-b border-white/[0.06] pb-6'
+			initial={animationsEnabled ? (showDetails ? 'show' : 'hidden') : 'show'}
 			animate='show'
 			variants={container}
 		>
-			{/* Subject */}
-			<motion.h1 variants={item} className='text-lg font-semibold leading-relaxed text-white'>
-				{header.subject || '(No Subject)'}
-			</motion.h1>
-
-			<div className='flex items-start gap-4'>
+			<div className='flex items-start gap-4 pl-2'>
 				{/* Avatar Placeholder */}
-				<div className='mt-0.5 h-8 w-8 shrink-0 rounded-full bg-white/[0.03]' />
+				<motion.div 
+					variants={item}
+					className='mt-1.5 h-8 w-8 shrink-0 rounded-full bg-white/[0.03]' 
+				/>
 
-				<motion.div variants={container} className='flex flex-1 flex-col gap-2 text-sm'>
-					{/* From */}
-					<motion.div variants={item} className='flex items-baseline gap-2'>
-						<span className='w-12 shrink-0 text-slate-400'>From:</span>
-						<div className='flex flex-wrap items-baseline gap-1.5'>
-							<span className='font-semibold text-slate-200'>
-								{from.name}
-							</span>
-							<span className='text-xs text-slate-500'>
-								&lt;{from.email}&gt;
-							</span>
-						</div>
-					</motion.div>
+				<div className='flex flex-1 flex-col gap-4'>
+					{/* Subject */}
+					<motion.h1 variants={item} className='text-lg font-semibold leading-tight text-white'>
+						{header.subject || '(No Subject)'}
+					</motion.h1>
 
-					{/* Date */}
-					<motion.div variants={item} className='flex items-baseline gap-2'>
-						<span className='w-12 shrink-0 text-slate-400'>Date:</span>
-						<span className='text-slate-300'>{dateStr}</span>
-					</motion.div>
-
-					{/* To */}
-					<motion.div variants={item} className='flex items-baseline gap-2'>
-						<span className='w-12 shrink-0 text-slate-400'>To:</span>
-						<div className='flex flex-wrap gap-1'>
-							{to.map((recipient, i) => (
-								<span key={i} className='text-slate-300'>
-									{recipient.name || recipient.email}
-									{i < to.length - 1 && ','}
+					<motion.div variants={container} className='flex flex-col gap-1.5 text-sm'>
+						{/* From */}
+						<motion.div variants={item} className='flex items-baseline gap-3'>
+							<span className='w-10 shrink-0 text-right font-medium text-slate-500'>From</span>
+							<div className='flex flex-wrap items-baseline gap-1.5'>
+								<span className='font-semibold text-slate-200'>
+									{from.name}
 								</span>
-							))}
-						</div>
+								<span className='text-xs text-slate-500'>
+									&lt;{from.email}&gt;
+								</span>
+							</div>
+						</motion.div>
+
+						{/* Date */}
+						<motion.div variants={item} className='flex items-baseline gap-3'>
+							<span className='w-10 shrink-0 text-right font-medium text-slate-500'>Date</span>
+							<span className='text-slate-300'>{dateStr}</span>
+						</motion.div>
+
+						{/* To */}
+						<motion.div variants={item} className='flex items-baseline gap-3'>
+							<span className='w-10 shrink-0 text-right font-medium text-slate-500'>To</span>
+							<div className='flex flex-wrap gap-1'>
+								{to.map((recipient, i) => (
+									<span key={i} className='text-slate-300'>
+										{recipient.name || recipient.email}
+										{i < to.length - 1 && ','}
+									</span>
+								))}
+							</div>
+						</motion.div>
 					</motion.div>
-				</motion.div>
+				</div>
 			</div>
 		</motion.div>
 	)
