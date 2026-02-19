@@ -12,6 +12,7 @@ import { MessageViewMeta } from './MessageViewMeta'
 import { MessageViewBody } from './MessageViewBody'
 import { MessageViewAttachments } from './MessageViewAttachments'
 import { MessageViewErrorBoundary } from './MessageViewErrorBoundary'
+import { useInboxShortcuts } from '@/hooks/useInboxShortcuts'
 import { toast } from '@/stores/toastStore'
 import { MessageViewSkeleton } from './MessageViewSkeleton'
 
@@ -125,6 +126,26 @@ export const MessageView = ({
 		window.addEventListener('keydown', handleKeyDown)
 		return () => window.removeEventListener('keydown', handleKeyDown)
 	}, [onBack])
+
+	// Connect Gmail-style shortcuts
+	useInboxShortcuts({
+		onNextMessage: () => {}, // TODO: Parent should handle this
+		onPrevMessage: () => {}, // TODO: Parent should handle this
+		onOpenMessage: () => {}, 
+		onDeleteMessage: handleDelete,
+		onReply: handleReply,
+		onReplyAll: handleReplyAll,
+		onForward: handleForward,
+		onNewMessage: () => {}, // Sidebar/InboxScreen handles this
+		onToggleRead: () => {}, 
+		onMarkUnread: handleMarkUnread,
+		onToggleStar: () => {},
+		onFocusSearch: () => {
+			const searchInput = document.querySelector('[data-search-input]') as HTMLElement
+			searchInput?.focus()
+		},
+		enabled: true,
+	})
 
 	const scrollContainerRef = useRef<HTMLDivElement>(null)
 
