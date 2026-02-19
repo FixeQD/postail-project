@@ -11,6 +11,7 @@ import { MessageViewHeader } from './MessageViewHeader'
 import { MessageViewMeta } from './MessageViewMeta'
 import { MessageViewBody } from './MessageViewBody'
 import { MessageViewAttachments } from './MessageViewAttachments'
+import { MessageViewErrorBoundary } from './MessageViewErrorBoundary'
 import { toast } from '@/stores/toastStore'
 import { MessageViewSkeleton } from './MessageViewSkeleton'
 
@@ -182,11 +183,17 @@ export const MessageView = ({
 			<div className='message-view-body flex-1 overflow-y-auto px-6 py-4'>
 				<MessageViewMeta header={data.header} />
 
-				<MessageViewBody
-					htmlContent={data.body_html_safe}
-					plainContent={data.body_plain}
-					viewMode={viewMode}
-				/>
+				<MessageViewErrorBoundary
+					onFallback={() => toggleViewMode()}
+					title={t('inbox:messageView.renderError.title')}
+					description={t('inbox:messageView.renderError.description')}
+					fallbackText={t('inbox:messageView.renderError.fallback')}>
+					<MessageViewBody
+						htmlContent={data.body_html_safe}
+						plainContent={data.body_plain}
+						viewMode={viewMode}
+					/>
+				</MessageViewErrorBoundary>
 				{data.header.has_attachments && data.attachments.length > 0 && (
 					<MessageViewAttachments attachments={data.attachments} />
 				)}
