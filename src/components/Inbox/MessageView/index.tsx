@@ -229,10 +229,16 @@ export const MessageView = ({
 						plainContent={data.body_plain}
 						viewMode={viewMode}
 						allowExternalResources={allowExternalResources}
+						inline_images={data.inline_images}
 					/>
 				</MessageViewErrorBoundary>
-				{data.header.has_attachments && data.attachments.length > 0 && (
-					<MessageViewAttachments attachments={data.attachments} />
+				{data.attachments.length > 0 && (
+					<MessageViewAttachments 
+						attachments={data.attachments} 
+						accountId={accountId}
+						mailbox={mailbox}
+						uid={uid}
+					/>
 				)}
 			</div>
 		</div>

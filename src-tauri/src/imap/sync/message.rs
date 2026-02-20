@@ -92,7 +92,12 @@ impl crate::imap::ImapManager {
                 };
 
                 // Parse the body in-memory
-                let (html, plain, _) = db::message_bodies::parse_mail_with_fallback(&body_owned);
+                let (html, plain, attachments, inline_images, _) = db::message_bodies::parse_mail_with_fallback(&body_owned);
+                
+                let mut header = header;
+                if !attachments.is_empty() || !inline_images.is_empty() {
+                    header.has_attachments = true;
+                }
                 
                 tracing::info!(target: "postail", "[IMAP] fetch_message_full: returning direct MessageFull for uid={} (no cache, no sanitizer)", uid);
 
@@ -100,8 +105,8 @@ impl crate::imap::ImapManager {
                     header,
                     body_html_safe: html.unwrap_or_else(|| plain.clone().unwrap_or_default()),
                     body_plain: plain.unwrap_or_default(),
-                    attachments: vec![],
-                    inline_images: vec![],
+                    attachments,
+                    inline_images,
                 }))
             } else {
                 tracing::warn!(target: "postail", "[IMAP] fetch_message_full: No fetch results for uid={}", uid);

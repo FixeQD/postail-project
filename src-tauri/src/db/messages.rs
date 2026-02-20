@@ -194,21 +194,26 @@ pub fn fetch_message_full(
     if let Some((message_table_id, mut message)) = result {
         // Fetch attachments
         let mut stmt = conn.prepare(
-            "SELECT part_id, filename, mime_type, size FROM attachments WHERE message_table_id = ?",
+            "SELECT part_id, filename, mime_type, size, cid, cached_path FROM attachments WHERE message_table_id = ?",
         )?;
         let attachments_iter = stmt.query_map(params![message_table_id], |row| {
-            Ok(super::AttachmentMeta {
+            Ok(crate::db::AttachmentMeta {
                 part_id: row.get(0)?,
                 filename: row.get(1)?,
                 mime_type: row.get(2)?,
                 size: row.get::<_, i64>(3)? as u64,
+                cid: row.get(4)?,
+                cached_path: row.get(5)?,
             })
         })?;
 
         for attachment in attachments_iter {
             if let Ok(attr) = attachment {
-                // For now just put everything in attachments
-                message.attachments.push(attr);
+                if attr.cid.is_some() {
+                    message.inline_images.push(attr);
+                } else {
+                    message.attachments.push(attr);
+                }
             }
         }
 

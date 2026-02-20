@@ -217,6 +217,8 @@ pub struct AttachmentMeta {
     pub filename: Option<String>,
     pub mime_type: String,
     pub size: u64,
+    pub cid: Option<String>,
+    pub cached_path: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

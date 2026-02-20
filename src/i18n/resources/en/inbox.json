@@ -35,9 +35,14 @@
 		"to": "To",
 		"cc": "Cc",
 		"date": "Date",
-		"attachments": "Attachments",
-		"attachment_one": "{{count}} attachment",
-		"attachment_other": "{{count}} attachments",
+		"attachments": {
+			"label": "Attachments",
+			"one": "attachment",
+			"other": "attachments",
+			"downloadSuccess": "File saved successfully",
+			"downloadError": "Failed to save file",
+			"errorNotFound": "Attachment content not found in cache"
+		},
 		"downloadAttachment": "Download",
 		"viewMode": {
 			"html": "HTML",

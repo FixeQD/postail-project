@@ -12,11 +12,15 @@ import {
 import { Button } from '@/components/ui/button'
 import { openUrl } from '@tauri-apps/plugin-opener'
 
+import { convertFileSrc } from '@tauri-apps/api/core'
+import { AttachmentMeta } from '@/types/mail'
+
 interface MessageViewBodyProps {
 	htmlContent: string
 	plainContent: string
 	viewMode: 'html' | 'plain'
 	allowExternalResources?: boolean
+	inline_images?: AttachmentMeta[]
 }
 
 export const MessageViewBody = ({
@@ -24,6 +28,7 @@ export const MessageViewBody = ({
 	plainContent,
 	viewMode,
 	allowExternalResources = false,
+	inline_images = [],
 }: MessageViewBodyProps) => {
 	const { t } = useTypedTranslation(['security', 'common'])
 	const accentColor = useThemeStore((s) => s.accentColor)
@@ -70,6 +75,22 @@ export const MessageViewBody = ({
         font-src data:;
         connect-src 'none';
       `
+
+
+		// Replace CID references with local file paths
+		let processedHtml = htmlContent
+		if (inline_images && inline_images.length > 0) {
+			for (const img of inline_images) {
+				if (img.cid && img.cached_path) {
+					const rawCid = img.cid.replace(/[<>]/g, '')
+					const localUrl = convertFileSrc(img.cached_path)
+
+					// Case-insensitive replace for cid:cidname
+					const cidRegex = new RegExp(`cid:${rawCid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi')
+					processedHtml = processedHtml.replace(cidRegex, localUrl)
+				}
+			}
+		}
 
 		const html = `
       <!DOCTYPE html>
@@ -140,7 +161,7 @@ export const MessageViewBody = ({
         </head>
         <body>
           <div class="email-wrapper">
-            ${htmlContent}
+            ${processedHtml}
           </div>
           <script>
             let naturalWidth = 0;
@@ -201,7 +222,7 @@ export const MessageViewBody = ({
 		return () => {
 			URL.revokeObjectURL(url)
 		}
-	}, [htmlContent, effectiveViewMode, accentColor, allowExternalResources])
+	}, [htmlContent, effectiveViewMode, accentColor, allowExternalResources, inline_images])
 
 	// Listen for messages from iframe (resize, links)
 	useEffect(() => {

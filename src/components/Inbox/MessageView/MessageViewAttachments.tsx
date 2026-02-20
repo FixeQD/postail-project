@@ -10,15 +10,46 @@ import { formatFileSize } from '@/lib/formatFileSize'
 import type { AttachmentMeta } from '@/types/mail'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { motion, type Variants } from 'framer-motion'
+import { invoke } from '@tauri-apps/api/core'
+import { toast } from '@/stores/toastStore'
+import { useState } from 'react'
 
 interface MessageViewAttachmentsProps {
 	attachments: AttachmentMeta[]
+	accountId: string
+	mailbox: string
+	uid: number
 }
 
 export const MessageViewAttachments = ({
 	attachments,
+	accountId,
+	mailbox,
+	uid,
 }: MessageViewAttachmentsProps) => {
 	const { t } = useTypedTranslation(['inbox'])
+	const [downloading, setDownloading] = useState<string | null>(null)
+
+	const handleDownload = async (att: AttachmentMeta) => {
+		try {
+			setDownloading(att.part_id)
+			const saved = await invoke<boolean>('save_attachment', {
+				accountId,
+				mailbox,
+				uid,
+				partId: att.part_id,
+				filename: att.filename || 'unnamed',
+			})
+			if (saved) {
+				toast.success(t('inbox:messageView.attachments.downloadSuccess'))
+			}
+		} catch (error) {
+			console.error('Download failed:', error)
+			toast.error(t('inbox:messageView.attachments.downloadError'))
+		} finally {
+			setDownloading(null)
+		}
+	}
 
 	if (!attachments || attachments.length === 0) {
 		return null
@@ -97,9 +128,16 @@ export const MessageViewAttachments = ({
 						</div>
 
 						<button
-							onClick={() => console.log('Download not implemented yet')}
-							className='flex size-8 shrink-0 items-center justify-center rounded-md text-slate-400 opacity-0 transition-all hover:bg-white/[0.08] hover:text-slate-200 group-hover:opacity-100 focus:opacity-100'>
-							<DownloadIcon className='size-4' />
+							onClick={() => handleDownload(att)}
+							disabled={downloading === att.part_id}
+							className={`flex size-8 shrink-0 items-center justify-center rounded-md text-slate-400 transition-all hover:bg-white/[0.08] hover:text-slate-200 focus:opacity-100 disabled:cursor-not-allowed disabled:opacity-50 ${
+								downloading === att.part_id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+							}`}>
+							{downloading === att.part_id ? (
+								<div className='size-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent' />
+							) : (
+								<DownloadIcon className='size-4' />
+							)}
 						</button>
 					</motion.div>
 				))}

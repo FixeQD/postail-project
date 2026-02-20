@@ -126,6 +126,7 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
             ("filename", "TEXT"),
             ("mime_type", "TEXT NOT NULL"),
             ("size", "INTEGER NOT NULL"),
+            ("cid", "TEXT"),
             ("cached_path", "TEXT"),
             (
                 "FOREIGN KEY(message_table_id) REFERENCES messages(id) ON DELETE CASCADE",

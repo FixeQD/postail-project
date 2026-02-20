@@ -151,3 +151,75 @@ pub async fn fetch_message_full(
     
     result
 }
+#[command]
+pub async fn save_attachment(
+    app: tauri::AppHandle,
+    account_id: String,
+    mailbox: String,
+    uid: u64,
+    part_id: String,
+    filename: String,
+) -> Result<bool, String> {
+    use tauri_plugin_dialog::DialogExt;
+    use std::fs;
+    use mailparse::parse_mail;
+    use futures::StreamExt;
+
+    let uid_u32: u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
+
+    // 1. Fetch message from IMAP
+    let imap = crate::globals::IMAP_MANAGER.lock().await.clone();
+    let mut session = imap.connect_imap(&account_id).await?;
+    session.select(&mailbox).await.map_err(|e| e.to_string())?;
+
+    let mut fetches = session
+        .uid_fetch(format!("{}", uid_u32), "(BODY[])")
+        .await
+        .map_err(|e| e.to_string())?;
+    
+    let fetch = fetches.next().await.ok_or("Message not found")?.map_err(|e| e.to_string())?;
+    let body = fetch.body().ok_or("No body in fetch result")?.to_vec();
+    drop(fetch);
+    drop(fetches);
+    let _ = session.logout().await;
+
+    // 2. Parse and find part
+    let parsed = parse_mail(&body).map_err(|e| e.to_string())?;
+    
+    fn find_part_bytes<'a>(part: &'a mailparse::ParsedMail<'a>, target_id: &str, current_id: &mut usize) -> Option<Vec<u8>> {
+        let my_id = current_id.to_string();
+        *current_id += 1;
+
+        if my_id == target_id {
+            return Some(part.get_body_raw().unwrap_or_default());
+        }
+
+        for sub in &part.subparts {
+            if let Some(bytes) = find_part_bytes(sub, target_id, current_id) {
+                return Some(bytes);
+            }
+        }
+        None
+    }
+
+    let bytes = find_part_bytes(&parsed, &part_id, &mut 0).ok_or("Attachment part not found")?;
+
+    // 3. Save dialog
+    let save_path = app.dialog()
+        .file()
+        .set_file_name(&filename)
+        .blocking_save_file();
+
+    match save_path {
+        Some(target) => {
+            let target_path = match target {
+                tauri_plugin_dialog::FilePath::Path(p) => p,
+                tauri_plugin_dialog::FilePath::Url(u) => u.to_file_path().map_err(|_| "Invalid URL target".to_string())?,
+                _ => return Err("Unsupported file path type".to_string()),
+            };
+            fs::write(target_path, bytes).map_err(|e| e.to_string())?;
+            Ok(true)
+        }
+        None => Ok(false), // User cancelled
+    }
+}
