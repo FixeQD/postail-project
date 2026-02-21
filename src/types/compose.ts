@@ -77,7 +77,8 @@ export interface DraftState {
 	addAttachment: (attachment: EmailAttachment) => void
 	removeAttachment: (attachmentId: string) => void
 	startComposing: (accountId: string, draft?: Partial<ComposeDraft>) => void
-	startReply: (accountId: string, originalMessage: { header: { from: string[]; subject?: string; internal_date: string }; body_html_safe?: string; body_plain?: string }) => void
+	startReply: (accountId: string, originalMessage: { header: { from: string[]; to: string[]; cc: string[]; subject?: string; internal_date: string }; body_html_safe?: string; body_plain?: string }) => void
+	startReplyAll: (accountId: string, originalMessage: { header: { from: string[]; to: string[]; cc: string[]; subject?: string; internal_date: string }; body_html_safe?: string; body_plain?: string }) => void
 	stopComposing: () => void
 	markDirty: () => void
 	markClean: () => void

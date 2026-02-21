@@ -1,8 +1,9 @@
 import { create } from 'zustand'
 import { invoke } from '@tauri-apps/api/core'
 import { html_beautify } from 'js-beautify'
-import { parseAddress } from '@/lib/parseAddress'
+import { parseAddress, parseAddresses } from '@/lib/parseAddress'
 import i18n from '@/i18n'
+import { useAccountStore } from '@/stores/accountStore'
 import type {
 	ComposeDraft,
 	EmailAddress,
@@ -39,6 +40,49 @@ interface DraftFromRust {
 }
 
 let validationTimer: ReturnType<typeof setTimeout> | null = null
+
+const prepareReplyBase = (originalMessage: {
+	header: { from: string[]; subject?: string; internal_date: string }
+	body_html_safe?: string
+	body_plain?: string
+}) => {
+	const fromRaw = originalMessage.header.from[0] || ''
+	const fromParsed = parseAddress(fromRaw)
+	const originalSubject = originalMessage.header.subject || ''
+	const subject = originalSubject.toLowerCase().startsWith('re:')
+		? originalSubject
+		: `Re: ${originalSubject}`
+
+	const date = new Date(originalMessage.header.internal_date)
+	const dateStr = date.toLocaleString(i18n.t('app.languageCode'), {
+		month: 'short',
+		day: 'numeric',
+		year: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+	})
+
+	const hasHtml = !!originalMessage.body_html_safe?.trim()
+	const rawBody = hasHtml
+		? originalMessage.body_html_safe!.trim()
+		: originalMessage.body_plain?.trim() || ''
+
+	const quotedBody = hasHtml
+		? rawBody
+		: rawBody
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/\n/g, '<br>')
+
+	return {
+		fromParsed,
+		originalSubject,
+		subject,
+		dateStr,
+		quotedBody,
+	}
+}
 
 export const useDraftStore = create<DraftState>((set, get) => ({
 	// Initial state
@@ -190,31 +234,9 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		})
 	},
 
-	startReply: (accountId: string, originalMessage: { header: { from: string[]; subject?: string; internal_date: string }; body_html_safe?: string; body_plain?: string }) => {
-		const fromRaw = originalMessage.header.from[0] || ''
-		const fromParsed = parseAddress(fromRaw)
-		const originalSubject = originalMessage.header.subject || ''
-		const subject = originalSubject.toLowerCase().startsWith('re:') ? originalSubject : `Re: ${originalSubject}`
-
-		const date = new Date(originalMessage.header.internal_date)
-		const dateStr = date.toLocaleString(i18n.t('app.languageCode'), {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit',
-		})
-
-		const hasHtml = !!originalMessage.body_html_safe?.trim()
-		const rawBody = hasHtml ? originalMessage.body_html_safe!.trim() : originalMessage.body_plain?.trim() || ''
-
-		const quotedBody = hasHtml
-			? rawBody
-			: rawBody
-					.replace(/&/g, '&amp;')
-					.replace(/</g, '&lt;')
-					.replace(/>/g, '&gt;')
-					.replace(/\n/g, '<br>')
+	startReply: (accountId, originalMessage) => {
+		const { fromParsed, originalSubject, subject, dateStr, quotedBody } =
+			prepareReplyBase(originalMessage)
 
 		const replyDraft: ComposeDraft = {
 			id: crypto.randomUUID(),
@@ -224,6 +246,64 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 			bcc: [],
 			subject,
 			body: '', // Start with empty body
+			bodyType: 'html',
+			attachments: [],
+			replyContext: {
+				subject: originalSubject,
+				fromName: fromParsed.name,
+				fromEmail: fromParsed.email || '',
+				date: dateStr,
+				body: quotedBody,
+			},
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
+		}
+
+		set({
+			currentDraft: replyDraft,
+			isComposing: true,
+			isDirty: false,
+		})
+	},
+
+	startReplyAll: (accountId, originalMessage) => {
+		const userEmail = useAccountStore.getState().activeAccount?.email
+		const { fromParsed, originalSubject, subject, dateStr, quotedBody } =
+			prepareReplyBase(originalMessage)
+
+		// To: always contains the sender
+		const toRecipients: EmailAddress[] = fromParsed.email
+			? [{ email: fromParsed.email, name: fromParsed.name }]
+			: []
+
+		// To & CC from original message
+		const originalTo = parseAddresses(originalMessage.header.to)
+		const originalCc = parseAddresses(originalMessage.header.cc)
+
+		const ccRecipients: EmailAddress[] = []
+
+		// Add original 'to' recipients to 'cc' of reply
+		originalTo.forEach((recp) => {
+			if (recp.email === fromParsed.email || recp.email === userEmail) return
+			if (!ccRecipients.some((r) => r.email === recp.email))
+				ccRecipients.push(recp)
+		})
+
+		// Add original 'cc' recipients
+		originalCc.forEach((recp) => {
+			if (recp.email === fromParsed.email || recp.email === userEmail) return
+			if (!ccRecipients.some((r) => r.email === recp.email))
+				ccRecipients.push(recp)
+		})
+
+		const replyDraft: ComposeDraft = {
+			id: crypto.randomUUID(),
+			accountId,
+			to: toRecipients,
+			cc: ccRecipients,
+			bcc: [],
+			subject,
+			body: '',
 			bodyType: 'html',
 			attachments: [],
 			replyContext: {

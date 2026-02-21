@@ -81,8 +81,14 @@ export const MessageView = ({
 	}
 
 	const handleReplyAll = () => {
-		console.warn('Reply All not implemented')
-		toast.info('Reply All not implemented yet')
+		if (!data) return
+		const { startReplyAll, isComposing } = useDraftStore.getState()
+		if (isComposing) {
+			toast.info('Please finish or discard current draft first')
+			return
+		}
+		startReplyAll(accountId, data)
+		window.dispatchEvent(new CustomEvent('compose:reply'))
 	}
 
 	const handleForward = () => {
