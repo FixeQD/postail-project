@@ -20,6 +20,7 @@ pub struct MessageBatchItem {
     pub internal_date: DateTime<Utc>,
     pub from: Option<String>,
     pub to: Vec<String>,
+    pub cc: Vec<String>,
     pub subject: Option<String>,
     pub snippet: Option<String>,
     pub flags: Vec<String>,
@@ -43,10 +44,11 @@ pub fn batch_insert_messages(
     for (idx, item) in items.iter().enumerate() {
         let flags_json = serde_json::to_string(&item.flags).unwrap_or_default();
         let to_json = serde_json::to_string(&item.to).unwrap_or_default();
+        let cc_json = serde_json::to_string(&item.cc).unwrap_or_default();
 
         tx.execute(
-            "INSERT OR IGNORE INTO messages (account_id, mailbox, uid, message_id, internal_date, from_addr, to_json, subject, snippet, flags_json, cached_structure_json)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT OR IGNORE INTO messages (account_id, mailbox, uid, message_id, internal_date, from_addr, to_json, cc_json, subject, snippet, flags_json, cached_structure_json)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             params![
                 account_id,
                 mailbox,
@@ -55,6 +57,7 @@ pub fn batch_insert_messages(
                 item.internal_date.timestamp(),
                 item.from.as_deref(),
                 to_json,
+                cc_json,
                 item.subject.as_deref(),
                 item.snippet.as_deref(),
                 flags_json,
@@ -92,7 +95,7 @@ pub fn fetch_headers(
 
     if let Some(anchor_val) = anchor {
         let mut stmt = conn.prepare(
-            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, flags_json, snippet, has_attachments
+            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments
              FROM messages WHERE account_id = ? AND mailbox = ? AND uid < ? ORDER BY uid DESC LIMIT ?",
         )?;
         let headers_iter = stmt.query_map(params![account_id, mailbox, anchor_val, limit], |row| {
@@ -103,7 +106,7 @@ pub fn fetch_headers(
         }
     } else {
         let mut stmt = conn.prepare(
-            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, flags_json, snippet, has_attachments
+            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments
              FROM messages WHERE account_id = ? AND mailbox = ? ORDER BY uid DESC LIMIT ?",
         )?;
         let headers_iter = stmt.query_map(params![account_id, mailbox, limit], |row| {
@@ -122,7 +125,11 @@ fn map_row_to_header(row: &rusqlite::Row) -> rusqlite::Result<MailHeader> {
     let to: Vec<String> = to_json
         .map(|s| serde_json::from_str(&s).unwrap_or_default())
         .unwrap_or_default();
-    let flags_json: Option<String> = row.get(6)?;
+    let cc_json: Option<String> = row.get(6)?;
+    let cc: Vec<String> = cc_json
+        .map(|s| serde_json::from_str(&s).unwrap_or_default())
+        .unwrap_or_default();
+    let flags_json: Option<String> = row.get(7)?;
     let flags: Vec<String> = flags_json
         .map(|s| serde_json::from_str(&s).unwrap_or_default())
         .unwrap_or_default();
@@ -134,9 +141,10 @@ fn map_row_to_header(row: &rusqlite::Row) -> rusqlite::Result<MailHeader> {
         subject: row.get(3)?,
         from: vec![row.get::<_, Option<String>>(4)?.unwrap_or_default()],
         to,
+        cc,
         flags,
-        snippet: row.get(7)?,
-        has_attachments: row.get::<_, i64>(8)? != 0,
+        snippet: row.get(8)?,
+        has_attachments: row.get::<_, i64>(9)? != 0,
     })
 }
 
@@ -147,7 +155,7 @@ pub fn fetch_message_full(
     uid: u32,
 ) -> Result<Option<MessageFull>, DBError> {
     let mut stmt = conn.prepare(
-        "SELECT m.id, m.message_id, m.internal_date, m.subject, m.from_addr, m.to_json, m.flags_json, m.snippet, m.has_attachments,
+        "SELECT m.id, m.message_id, m.internal_date, m.subject, m.from_addr, m.to_json, m.cc_json, m.flags_json, m.snippet, m.has_attachments,
                 b.body_html_safe, b.body_plain
          FROM messages m
          LEFT JOIN message_bodies b ON m.id = b.message_id
@@ -160,7 +168,11 @@ pub fn fetch_message_full(
             let to: Vec<String> = to_json
                 .map(|s| serde_json::from_str(&s).unwrap_or_default())
                 .unwrap_or_default();
-            let flags_json: Option<String> = row.get(6)?;
+            let cc_json: Option<String> = row.get(6)?;
+            let cc: Vec<String> = cc_json
+                .map(|s| serde_json::from_str(&s).unwrap_or_default())
+                .unwrap_or_default();
+            let flags_json: Option<String> = row.get(7)?;
             let flags: Vec<String> = flags_json
                 .map(|s| serde_json::from_str(&s).unwrap_or_default())
                 .unwrap_or_default();
@@ -173,9 +185,10 @@ pub fn fetch_message_full(
                 subject: row.get(3)?,
                 from: vec![row.get::<_, Option<String>>(4)?.unwrap_or_default()],
                 to,
+                cc,
                 flags,
-                snippet: row.get(7)?,
-                has_attachments: row.get::<_, i64>(8)? != 0,
+                snippet: row.get(8)?,
+                has_attachments: row.get::<_, i64>(9)? != 0,
             };
 
             Ok((
@@ -229,6 +242,7 @@ pub struct MessageUpsertData {
     pub internal_date: DateTime<Utc>,
     pub from: Option<String>,
     pub to_json: Option<String>,
+    pub cc_json: Option<String>,
     pub subject: Option<String>,
     pub snippet: Option<String>,
     pub flags_json: Option<String>,
@@ -242,8 +256,8 @@ pub fn upsert_message(
     data: &MessageUpsertData,
 ) -> Result<i64, DBError> {
     conn.execute(
-        "INSERT OR REPLACE INTO messages (account_id, mailbox, uid, message_id, internal_date, from_addr, to_json, subject, snippet, flags_json, cached_structure_json)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT OR REPLACE INTO messages (account_id, mailbox, uid, message_id, internal_date, from_addr, to_json, cc_json, subject, snippet, flags_json, cached_structure_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         params![
             account_id,
             mailbox,
@@ -252,6 +266,7 @@ pub fn upsert_message(
             data.internal_date.timestamp(),
             data.from.as_deref(),
             data.to_json.as_deref(),
+            data.cc_json.as_deref(),
             data.subject.as_deref(),
             data.snippet.as_deref(),
             data.flags_json.as_deref(),

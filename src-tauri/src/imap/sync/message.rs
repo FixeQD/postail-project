@@ -62,7 +62,7 @@ impl crate::imap::ImapManager {
                 // Fetch the header from the 'messages' table (read-only)
                 let header = {
                     let mut stmt = conn.prepare(
-                        "SELECT message_id, internal_date, subject, from_addr, to_json, flags_json, snippet, has_attachments 
+                        "SELECT message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments 
                          FROM messages WHERE account_id = ? AND mailbox = ? AND uid = ?"
                     ).map_err(|e| e.to_string())?;
                     
@@ -71,7 +71,11 @@ impl crate::imap::ImapManager {
                         let to: Vec<String> = to_json
                             .map(|s| serde_json::from_str(&s).unwrap_or_default())
                             .unwrap_or_default();
-                        let flags_json: Option<String> = row.get(5)?;
+                        let cc_json: Option<String> = row.get(5)?;
+                        let cc: Vec<String> = cc_json
+                            .map(|s| serde_json::from_str(&s).unwrap_or_default())
+                            .unwrap_or_default();
+                        let flags_json: Option<String> = row.get(6)?;
                         let flags: Vec<String> = flags_json
                             .map(|s| serde_json::from_str(&s).unwrap_or_default())
                             .unwrap_or_default();
@@ -84,9 +88,10 @@ impl crate::imap::ImapManager {
                             subject: row.get(2)?,
                             from: vec![row.get::<_, Option<String>>(3)?.unwrap_or_default()],
                             to,
+                            cc,
                             flags,
-                            snippet: row.get(6)?,
-                            has_attachments: row.get::<_, i64>(7)? != 0,
+                            snippet: row.get(7)?,
+                            has_attachments: row.get::<_, i64>(8)? != 0,
                         })
                     }).map_err(|e| e.to_string())?
                 };

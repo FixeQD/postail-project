@@ -56,6 +56,10 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         migrate_to_v4(conn)?;
         set_db_version(conn, 4)?;
     }
+    if current_version < 5 {
+        migrate_to_v5(conn)?;
+        set_db_version(conn, 5)?;
+    }
 
     Ok(())
 }
@@ -120,6 +124,14 @@ fn migrate_to_v4(conn: &Connection) -> Result<(), DBError> {
             "ALTER TABLE flag_sync_queue ADD COLUMN target_mailbox TEXT",
             [],
         )?;
+    }
+
+    Ok(())
+}
+
+fn migrate_to_v5(conn: &Connection) -> Result<(), DBError> {
+    if !column_exists(conn, "messages", "cc_json")? {
+        conn.execute("ALTER TABLE messages ADD COLUMN cc_json TEXT", [])?;
     }
 
     Ok(())

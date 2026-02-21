@@ -206,6 +206,7 @@ pub struct MailHeader {
     pub subject: Option<String>,
     pub from: Vec<String>,
     pub to: Vec<String>,
+    pub cc: Vec<String>,
     pub flags: Vec<String>,
     pub snippet: Option<String>,
     pub has_attachments: bool,

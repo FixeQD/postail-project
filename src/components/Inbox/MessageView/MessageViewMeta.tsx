@@ -2,6 +2,7 @@ import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { parseAddresses } from '@/lib/parseAddress'
 import type { MailHeader } from '@/types/mail'
 import { motion, type Variants } from 'framer-motion'
+import i18n from '@/i18n'
 
 
 interface MessageViewMetaProps {
@@ -17,10 +18,10 @@ export const MessageViewMeta = ({
 
 	const from = parseAddresses(header.from)[0]
 	const to = parseAddresses(header.to)
-	// MailHeader doesn't have cc yet, placeholder
+	const cc = header.cc ? parseAddresses(header.cc) : []
 
 	// To format: "Feb 18, 2026 at 18:32"
-	const dateStr = new Date(header.internal_date).toLocaleString('en-US', {
+	const dateStr = new Date(header.internal_date).toLocaleString(i18n.t('app.languageCode'), {
 		month: 'short',
 		day: 'numeric',
 		year: 'numeric',
@@ -101,6 +102,21 @@ export const MessageViewMeta = ({
 								))}
 							</div>
 						</motion.div>
+
+						{/* Cc */}
+						{cc.length > 0 && (
+							<motion.div variants={item} className='flex items-baseline gap-3'>
+								<span className='w-10 shrink-0 text-right font-medium text-slate-500'>Cc</span>
+								<div className='flex flex-wrap gap-1'>
+									{cc.map((recipient, i) => (
+										<span key={i} className='text-slate-300'>
+											{recipient.name || recipient.email}
+											{i < cc.length - 1 && ','}
+										</span>
+									))}
+								</div>
+							</motion.div>
+						)}
 					</motion.div>
 				</div>
 			</div>

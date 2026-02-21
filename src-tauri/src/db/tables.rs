@@ -54,6 +54,7 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
             ("internal_date", "INTEGER NOT NULL"),
             ("from_addr", "TEXT"),
             ("to_json", "TEXT"),
+            ("cc_json", "TEXT"),
             ("subject", "TEXT"),
             ("snippet", "TEXT"),
             ("flags_json", "TEXT"),

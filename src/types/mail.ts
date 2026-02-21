@@ -15,6 +15,7 @@ export interface MailHeader {
 	subject?: string
 	from: string[]
 	to: string[]
+	cc: string[]
 	flags: string[]
 	snippet?: string
 	has_attachments: boolean
