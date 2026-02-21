@@ -102,8 +102,11 @@ impl crate::imap::ImapManager {
                 };
 
                 // Parse the body in-memory
-                let (html, plain, attachments, inline_images, _) =
-                    db::message_bodies::parse_mail_with_fallback(&body_owned);
+                let parts = db::message_bodies::parse_mail_with_fallback(&body_owned);
+                let attachments = parts.attachments;
+                let inline_images = parts.inline_images;
+                let html = parts.html_content;
+                let plain = parts.plain_content;
 
                 let mut header = header;
                 if !attachments.is_empty() || !inline_images.is_empty() {

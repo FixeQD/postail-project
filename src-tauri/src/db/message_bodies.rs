@@ -7,6 +7,13 @@ use std::fs;
 use std::panic;
 
 type MessageBodyFull = (Option<String>, String, Option<Vec<u8>>, Option<String>);
+pub struct ParsedMailParts {
+    pub html_content: Option<String>,
+    pub plain_content: Option<String>,
+    pub attachments: Vec<crate::db::AttachmentMeta>,
+    pub inline_images: Vec<crate::db::AttachmentMeta>,
+    pub error_preview: Option<String>,
+}
 
 pub fn create_message_bodies_table(conn: &Connection) -> SqlResult<()> {
     conn.execute(
@@ -30,15 +37,7 @@ pub fn create_message_bodies_table(conn: &Connection) -> SqlResult<()> {
     Ok(())
 }
 
-pub fn parse_mail_with_fallback(
-    raw_eml: &[u8],
-) -> (
-    Option<String>,
-    Option<String>,
-    Vec<crate::db::AttachmentMeta>,
-    Vec<crate::db::AttachmentMeta>,
-    Option<String>,
-) {
+pub fn parse_mail_with_fallback(raw_eml: &[u8]) -> ParsedMailParts {
     let parse_result = panic::catch_unwind(|| parse_mail(raw_eml));
 
     match parse_result {
@@ -141,18 +140,24 @@ pub fn parse_mail_with_fallback(
                 &mut part_counter,
             );
 
-            (
+            ParsedMailParts {
                 html_content,
                 plain_content,
                 attachments,
                 inline_images,
-                None,
-            )
+                error_preview: None,
+            }
         }
         Ok(Err(_)) | Err(_) => {
             let raw_str = String::from_utf8_lossy(raw_eml);
             let preview = raw_str.chars().take(500).collect::<String>();
-            (None, None, vec![], vec![], Some(preview))
+            ParsedMailParts {
+                html_content: None,
+                plain_content: None,
+                attachments: vec![],
+                inline_images: vec![],
+                error_preview: Some(preview),
+            }
         }
     }
 }
@@ -187,12 +192,18 @@ pub fn save_message_body_with_fallback(
     message_table_id: i64,
     raw_eml: &[u8],
 ) -> Result<(), DBError> {
-    let (html, plain, attachments, inline_images, error_preview) =
-        parse_mail_with_fallback(raw_eml);
+    let parts = parse_mail_with_fallback(raw_eml);
+    let ParsedMailParts {
+        html_content,
+        plain_content,
+        attachments,
+        inline_images,
+        error_preview,
+    } = parts;
 
-    let html_cleaned = html.as_deref().map(ammonia::clean);
+    let html_cleaned = html_content.as_deref().map(ammonia::clean);
     let body_html = html_cleaned.as_deref().unwrap_or("");
-    let body_plain = plain.as_deref().unwrap_or("");
+    let body_plain = plain_content.as_deref().unwrap_or("");
     let snippet = error_preview
         .clone()
         .or_else(|| Some(body_text_for_snippet(body_plain)))
@@ -216,7 +227,7 @@ pub fn save_message_body_with_fallback(
     )?;
 
     // Save attachments and inline images
-    let all_attachments = attachments.into_iter().chain(inline_images.into_iter());
+    let all_attachments = attachments.into_iter().chain(inline_images);
 
     let mut some_attachments = false;
     for att in all_attachments {

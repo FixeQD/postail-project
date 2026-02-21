@@ -221,13 +221,11 @@ pub fn fetch_message_full(
             })
         })?;
 
-        for attachment in attachments_iter {
-            if let Ok(attr) = attachment {
-                if attr.cid.is_some() {
-                    message.inline_images.push(attr);
-                } else {
-                    message.attachments.push(attr);
-                }
+        for attr in attachments_iter.flatten() {
+            if attr.cid.is_some() {
+                message.inline_images.push(attr);
+            } else {
+                message.attachments.push(attr);
             }
         }
 

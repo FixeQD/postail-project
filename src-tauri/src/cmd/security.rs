@@ -145,8 +145,8 @@ pub async fn initialize_security_and_database(
 
     let master_key_raw = {
         let security = SECURITY.lock().await;
-        let k = security.get_master_key_raw();
-        k
+
+        security.get_master_key_raw()
     };
     let encryption =
         DbEncryption::derive_from_master_key(&master_key_raw).map_err(|e| e.to_string())?;
