@@ -215,7 +215,6 @@ pub async fn save_attachment(
             let target_path = match target {
                 tauri_plugin_dialog::FilePath::Path(p) => p,
                 tauri_plugin_dialog::FilePath::Url(u) => u.to_file_path().map_err(|_| "Invalid URL target".to_string())?,
-                _ => return Err("Unsupported file path type".to_string()),
             };
             fs::write(target_path, bytes).map_err(|e| e.to_string())?;
             Ok(true)
