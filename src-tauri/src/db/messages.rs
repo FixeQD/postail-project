@@ -98,9 +98,10 @@ pub fn fetch_headers(
             "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments
              FROM messages WHERE account_id = ? AND mailbox = ? AND uid < ? ORDER BY uid DESC LIMIT ?",
         )?;
-        let headers_iter = stmt.query_map(params![account_id, mailbox, anchor_val, limit], |row| {
-            map_row_to_header(row)
-        })?;
+        let headers_iter = stmt
+            .query_map(params![account_id, mailbox, anchor_val, limit], |row| {
+                map_row_to_header(row)
+            })?;
         for header in headers_iter {
             headers.push(header?);
         }

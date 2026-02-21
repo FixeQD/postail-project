@@ -327,8 +327,13 @@ impl crate::imap::ImapManager {
         let mut last_uid = self.get_last_synced_uid(account_id, mailbox_name).await?;
 
         if highest_uid > last_uid {
-            self.fetch_missing_messages(account_id, mailbox_name, last_uid.saturating_add(1), highest_uid)
-                .await?;
+            self.fetch_missing_messages(
+                account_id,
+                mailbox_name,
+                last_uid.saturating_add(1),
+                highest_uid,
+            )
+            .await?;
             last_uid = highest_uid;
             mark_sync_complete(account_id).await;
         }

@@ -38,7 +38,7 @@ impl crate::imap::ImapManager {
                     tracing::error!(target: "postail", "[IMAP] fetch_message_full: uid_fetch failed: {}", e);
                     e.to_string()
                 })?;
-            
+
             if let Some(fetch) = fetches.next().await {
                 let fetch = fetch.map_err(|e| {
                     tracing::error!(target: "postail", "[IMAP] fetch_message_full: fetch.next() failed: {}", e);
@@ -53,19 +53,19 @@ impl crate::imap::ImapManager {
 
                 drop(fetch);
                 drop(fetches);
-                
+
                 let conn_guard = self.conn.lock().await;
-                let conn = conn_guard.as_ref().ok_or_else(|| {
-                    "Database not initialized".to_string()
-                })?;
-                
+                let conn = conn_guard
+                    .as_ref()
+                    .ok_or_else(|| "Database not initialized".to_string())?;
+
                 // Fetch the header from the 'messages' table (read-only)
                 let header = {
                     let mut stmt = conn.prepare(
                         "SELECT message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments 
                          FROM messages WHERE account_id = ? AND mailbox = ? AND uid = ?"
                     ).map_err(|e| e.to_string())?;
-                    
+
                     stmt.query_row(params![account_id, mailbox, uid], |row| {
                         let to_json: Option<String> = row.get(4)?;
                         let to: Vec<String> = to_json
@@ -83,8 +83,12 @@ impl crate::imap::ImapManager {
                         Ok(db::MailHeader {
                             uid,
                             message_id: row.get(0)?,
-                            internal_date: db::messages::safe_timestamp_from_utc(row.get::<_, i64>(1)?)
-                                .ok_or_else(|| rusqlite::Error::InvalidColumnName("internal_date".into()))?,
+                            internal_date: db::messages::safe_timestamp_from_utc(
+                                row.get::<_, i64>(1)?,
+                            )
+                            .ok_or_else(|| {
+                                rusqlite::Error::InvalidColumnName("internal_date".into())
+                            })?,
                             subject: row.get(2)?,
                             from: vec![row.get::<_, Option<String>>(3)?.unwrap_or_default()],
                             to,
@@ -93,17 +97,19 @@ impl crate::imap::ImapManager {
                             snippet: row.get(7)?,
                             has_attachments: row.get::<_, i64>(8)? != 0,
                         })
-                    }).map_err(|e| e.to_string())?
+                    })
+                    .map_err(|e| e.to_string())?
                 };
 
                 // Parse the body in-memory
-                let (html, plain, attachments, inline_images, _) = db::message_bodies::parse_mail_with_fallback(&body_owned);
-                
+                let (html, plain, attachments, inline_images, _) =
+                    db::message_bodies::parse_mail_with_fallback(&body_owned);
+
                 let mut header = header;
                 if !attachments.is_empty() || !inline_images.is_empty() {
                     header.has_attachments = true;
                 }
-                
+
                 tracing::info!(target: "postail", "[IMAP] fetch_message_full: returning direct MessageFull for uid={} (no cache, no sanitizer)", uid);
 
                 Ok(Some(db::MessageFull {

@@ -3,8 +3,8 @@ use ammonia;
 use mailparse::MailHeaderMap;
 use mailparse::{parse_mail, ParsedMail};
 use rusqlite::{params, Connection, OptionalExtension, Result as SqlResult};
-use std::panic;
 use std::fs;
+use std::panic;
 
 type MessageBodyFull = (Option<String>, String, Option<Vec<u8>>, Option<String>);
 
@@ -32,7 +32,13 @@ pub fn create_message_bodies_table(conn: &Connection) -> SqlResult<()> {
 
 pub fn parse_mail_with_fallback(
     raw_eml: &[u8],
-) -> (Option<String>, Option<String>, Vec<crate::db::AttachmentMeta>, Vec<crate::db::AttachmentMeta>, Option<String>) {
+) -> (
+    Option<String>,
+    Option<String>,
+    Vec<crate::db::AttachmentMeta>,
+    Vec<crate::db::AttachmentMeta>,
+    Option<String>,
+) {
     let parse_result = panic::catch_unwind(|| parse_mail(raw_eml));
 
     match parse_result {
@@ -57,7 +63,9 @@ pub fn parse_mail_with_fallback(
 
                 // Check if it's an attachment
                 let disp = part.get_content_disposition();
-                let filename = disp.params.get("filename")
+                let filename = disp
+                    .params
+                    .get("filename")
                     .cloned()
                     .or_else(|| part.ctype.params.get("name").cloned());
 
@@ -65,7 +73,11 @@ pub fn parse_mail_with_fallback(
                 let is_inline = disp.disposition == mailparse::DispositionType::Inline;
 
                 // Treat as attachment if explicitly marked or if it has a filename and isn't plain text
-                if !mime_type.starts_with("multipart/") && (is_attachment || (filename.is_some() && !mime_type.starts_with("text/")) || (is_inline && !mime_type.starts_with("text/"))) {
+                if !mime_type.starts_with("multipart/")
+                    && (is_attachment
+                        || (filename.is_some() && !mime_type.starts_with("text/"))
+                        || (is_inline && !mime_type.starts_with("text/")))
+                {
                     let bytes = part.get_body_raw().unwrap_or_default();
                     if filename.is_none() && bytes.is_empty() {
                         // Skip it
@@ -120,9 +132,22 @@ pub fn parse_mail_with_fallback(
                 }
             }
 
-            extract_parts(&mail, &mut html_content, &mut plain_content, &mut attachments, &mut inline_images, &mut part_counter);
+            extract_parts(
+                &mail,
+                &mut html_content,
+                &mut plain_content,
+                &mut attachments,
+                &mut inline_images,
+                &mut part_counter,
+            );
 
-            (html_content, plain_content, attachments, inline_images, None)
+            (
+                html_content,
+                plain_content,
+                attachments,
+                inline_images,
+                None,
+            )
         }
         Ok(Err(_)) | Err(_) => {
             let raw_str = String::from_utf8_lossy(raw_eml);
@@ -162,7 +187,8 @@ pub fn save_message_body_with_fallback(
     message_table_id: i64,
     raw_eml: &[u8],
 ) -> Result<(), DBError> {
-    let (html, plain, attachments, inline_images, error_preview) = parse_mail_with_fallback(raw_eml);
+    let (html, plain, attachments, inline_images, error_preview) =
+        parse_mail_with_fallback(raw_eml);
 
     let html_cleaned = html.as_deref().map(ammonia::clean);
     let body_html = html_cleaned.as_deref().unwrap_or("");
@@ -181,12 +207,17 @@ pub fn save_message_body_with_fallback(
         "INSERT OR REPLACE INTO message_bodies 
          (message_id, body_html_safe, body_plain, parse_error)
          VALUES (?, ?, ?, ?)",
-        params![message_table_id, body_html, body_plain, error_preview.as_deref().unwrap_or("")],
+        params![
+            message_table_id,
+            body_html,
+            body_plain,
+            error_preview.as_deref().unwrap_or("")
+        ],
     )?;
 
     // Save attachments and inline images
     let all_attachments = attachments.into_iter().chain(inline_images.into_iter());
-    
+
     let mut some_attachments = false;
     for att in all_attachments {
         some_attachments = true;

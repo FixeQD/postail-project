@@ -141,7 +141,8 @@ impl SmtpManager {
             update_outbox_status(conn, outbox_id, "PROCESSING", None).map_err(|e| e.to_string())?;
         }
 
-        self.emit_outbox_event("outbox:message:processing", outbox_id, account_id, None).await;
+        self.emit_outbox_event("outbox:message:processing", outbox_id, account_id, None)
+            .await;
 
         self.send_email(account_id, &eml_content).await?;
 
@@ -159,7 +160,8 @@ impl SmtpManager {
         )
         .map_err(|e| e.to_string())?;
 
-        self.emit_outbox_event("outbox:message:sent", outbox_id, account_id, None).await;
+        self.emit_outbox_event("outbox:message:sent", outbox_id, account_id, None)
+            .await;
         Ok(())
     }
 
@@ -203,7 +205,8 @@ impl SmtpManager {
                 outbox_id,
                 account_id,
                 Some(details),
-            ).await;
+            )
+            .await;
         } else {
             let next_retry = calculate_backoff(new_attempts);
             conn.execute(
@@ -217,7 +220,8 @@ impl SmtpManager {
                 "attempts": new_attempts,
                 "nextRetry": next_retry,
             });
-            self.emit_outbox_event("outbox:message:retry", outbox_id, account_id, Some(details)).await;
+            self.emit_outbox_event("outbox:message:retry", outbox_id, account_id, Some(details))
+                .await;
         }
 
         Ok(())

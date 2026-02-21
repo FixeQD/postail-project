@@ -272,7 +272,9 @@ fn test_fts_search() {
             subject: Some("Test subject with keyword".to_string()),
             snippet: Some("Body text with searchable content".to_string()),
             flags_json: Some(r#"["\Seen", "\Flagged"]"#.to_string()),
-            cc_json: Some(r#"["cc1@example.com", "cc2@example.com", "cc3@example.com"]"#.to_string()),
+            cc_json: Some(
+                r#"["cc1@example.com", "cc2@example.com", "cc3@example.com"]"#.to_string(),
+            ),
             structure_json: Some("structure".to_string()),
         },
     )

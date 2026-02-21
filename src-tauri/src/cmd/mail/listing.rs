@@ -127,7 +127,7 @@ pub async fn fetch_message_full(
     uid: u64,
 ) -> Result<Option<MessageFull>, String> {
     let uid_u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
-    
+
     // Release the lock before doing heavy work
     let imap = {
         let guard = IMAP_MANAGER.lock().await;
@@ -135,7 +135,10 @@ pub async fn fetch_message_full(
     };
 
     // Try DB first
-    if let Ok(Some(msg)) = imap.fetch_message_full_sync(&account_id, &mailbox, uid_u32).await {
+    if let Ok(Some(msg)) = imap
+        .fetch_message_full_sync(&account_id, &mailbox, uid_u32)
+        .await
+    {
         if !msg.body_html_safe.is_empty() || !msg.body_plain.is_empty() {
             tracing::info!(target: "postail", "[API] fetch_message_full: cache hit for uid={}", uid_u32);
             return Ok(Some(msg));
@@ -143,12 +146,14 @@ pub async fn fetch_message_full(
     }
 
     tracing::info!(target: "postail", "[API] fetch_message_full: cache miss, fetching from IMAP for uid={}", uid_u32);
-    let result = imap.fetch_message_full(&account_id, &mailbox, uid_u32).await;
-    
+    let result = imap
+        .fetch_message_full(&account_id, &mailbox, uid_u32)
+        .await;
+
     if let Ok(None) = &result {
         tracing::warn!(target: "postail", "[API] fetch_message_full: IMAP returned None for uid={}", uid_u32);
     }
-    
+
     result
 }
 #[command]
@@ -160,10 +165,10 @@ pub async fn save_attachment(
     part_id: String,
     filename: String,
 ) -> Result<bool, String> {
-    use tauri_plugin_dialog::DialogExt;
-    use std::fs;
-    use mailparse::parse_mail;
     use futures::StreamExt;
+    use mailparse::parse_mail;
+    use std::fs;
+    use tauri_plugin_dialog::DialogExt;
 
     let uid_u32: u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
 
@@ -176,8 +181,12 @@ pub async fn save_attachment(
         .uid_fetch(format!("{}", uid_u32), "(BODY[])")
         .await
         .map_err(|e| e.to_string())?;
-    
-    let fetch = fetches.next().await.ok_or("Message not found")?.map_err(|e| e.to_string())?;
+
+    let fetch = fetches
+        .next()
+        .await
+        .ok_or("Message not found")?
+        .map_err(|e| e.to_string())?;
     let body = fetch.body().ok_or("No body in fetch result")?.to_vec();
     drop(fetch);
     drop(fetches);
@@ -185,8 +194,12 @@ pub async fn save_attachment(
 
     // 2. Parse and find part
     let parsed = parse_mail(&body).map_err(|e| e.to_string())?;
-    
-    fn find_part_bytes<'a>(part: &'a mailparse::ParsedMail<'a>, target_id: &str, current_id: &mut usize) -> Option<Vec<u8>> {
+
+    fn find_part_bytes<'a>(
+        part: &'a mailparse::ParsedMail<'a>,
+        target_id: &str,
+        current_id: &mut usize,
+    ) -> Option<Vec<u8>> {
         let my_id = current_id.to_string();
         *current_id += 1;
 
@@ -205,7 +218,8 @@ pub async fn save_attachment(
     let bytes = find_part_bytes(&parsed, &part_id, &mut 0).ok_or("Attachment part not found")?;
 
     // 3. Save dialog
-    let save_path = app.dialog()
+    let save_path = app
+        .dialog()
         .file()
         .set_file_name(&filename)
         .blocking_save_file();
@@ -214,7 +228,9 @@ pub async fn save_attachment(
         Some(target) => {
             let target_path = match target {
                 tauri_plugin_dialog::FilePath::Path(p) => p,
-                tauri_plugin_dialog::FilePath::Url(u) => u.to_file_path().map_err(|_| "Invalid URL target".to_string())?,
+                tauri_plugin_dialog::FilePath::Url(u) => u
+                    .to_file_path()
+                    .map_err(|_| "Invalid URL target".to_string())?,
             };
             fs::write(target_path, bytes).map_err(|e| e.to_string())?;
             Ok(true)
