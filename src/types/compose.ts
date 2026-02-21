@@ -24,8 +24,13 @@ export interface ComposeDraft {
 	body: string
 	bodyType: 'plain' | 'html'
 	attachments: EmailAttachment[]
-	isReplyTo?: string
-	isForwardOf?: string
+	replyContext?: {
+		subject: string
+		fromName: string
+		fromEmail: string
+		date: string
+		body: string
+	}
 	createdAt: string
 	updatedAt: string
 }
@@ -72,6 +77,7 @@ export interface DraftState {
 	addAttachment: (attachment: EmailAttachment) => void
 	removeAttachment: (attachmentId: string) => void
 	startComposing: (accountId: string, draft?: Partial<ComposeDraft>) => void
+	startReply: (accountId: string, originalMessage: { header: { from: string[]; subject?: string; internal_date: string }; body_html_safe?: string; body_plain?: string }) => void
 	stopComposing: () => void
 	markDirty: () => void
 	markClean: () => void

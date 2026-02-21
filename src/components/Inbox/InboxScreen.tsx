@@ -148,6 +148,15 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 		return () => window.removeEventListener('compose:new', handleNewMessage)
 	}, [])
 
+	// Listen for reply events
+	useEffect(() => {
+		const handleReply = () => {
+			setIsComposeOpen(true)
+		}
+		window.addEventListener('compose:reply', handleReply)
+		return () => window.removeEventListener('compose:reply', handleReply)
+	}, [])
+
 	useEffect(() => {
 		if (!activeAccount && accounts.length > 0) {
 			setActiveAccount(accounts[0])

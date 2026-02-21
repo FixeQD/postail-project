@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { invoke } from '@tauri-apps/api/core'
 import { html_beautify } from 'js-beautify'
+import { parseAddress } from '@/lib/parseAddress'
+import i18n from '@/i18n'
 import type {
 	ComposeDraft,
 	EmailAddress,
@@ -183,6 +185,60 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 
 		set({
 			currentDraft: newDraft,
+			isComposing: true,
+			isDirty: false,
+		})
+	},
+
+	startReply: (accountId: string, originalMessage: { header: { from: string[]; subject?: string; internal_date: string }; body_html_safe?: string; body_plain?: string }) => {
+		const fromRaw = originalMessage.header.from[0] || ''
+		const fromParsed = parseAddress(fromRaw)
+		const originalSubject = originalMessage.header.subject || ''
+		const subject = originalSubject.toLowerCase().startsWith('re:') ? originalSubject : `Re: ${originalSubject}`
+
+		const date = new Date(originalMessage.header.internal_date)
+		const dateStr = date.toLocaleString(i18n.t('app.languageCode'), {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit',
+		})
+
+		const hasHtml = !!originalMessage.body_html_safe?.trim()
+		const rawBody = hasHtml ? originalMessage.body_html_safe!.trim() : originalMessage.body_plain?.trim() || ''
+
+		const quotedBody = hasHtml
+			? rawBody
+			: rawBody
+					.replace(/&/g, '&amp;')
+					.replace(/</g, '&lt;')
+					.replace(/>/g, '&gt;')
+					.replace(/\n/g, '<br>')
+
+		const replyDraft: ComposeDraft = {
+			id: crypto.randomUUID(),
+			accountId,
+			to: fromParsed.email ? [{ email: fromParsed.email, name: fromParsed.name }] : [],
+			cc: [],
+			bcc: [],
+			subject,
+			body: '', // Start with empty body
+			bodyType: 'html',
+			attachments: [],
+			replyContext: {
+				subject: originalSubject,
+				fromName: fromParsed.name,
+				fromEmail: fromParsed.email || '',
+				date: dateStr,
+				body: quotedBody,
+			},
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
+		}
+
+		set({
+			currentDraft: replyDraft,
 			isComposing: true,
 			isDirty: false,
 		})
@@ -402,7 +458,25 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		set({ isSending: true })
 
 		try {
-			await get().saveDraft(html)
+			// Append reply context if exists
+			let finalBody = html || currentDraft.body
+			if (currentDraft.replyContext) {
+				const { date, fromName, fromEmail, body: quotedBody } = currentDraft.replyContext
+				const quoteHtml = `
+<br>
+<div class="gmail_quote gmail_quote_container">
+	<div dir="ltr" class="gmail_attr">${date} ${fromName} &lt;<a href="mailto:${fromEmail}">${fromEmail}</a>&gt; napisał(a):<br></div>
+	<details style="margin-top: 4px;">
+		<summary style="cursor:pointer; color:#888; font-size:12px; margin:4px 0; border:1px solid #eee; padding:2px 8px; display:inline-block; border-radius:4px; list-style:none;">...</summary>
+		<blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+			${quotedBody}
+		</blockquote>
+	</details>
+</div>`
+				finalBody += quoteHtml
+			}
+
+			await get().saveDraft(finalBody)
 
 			const result = await invoke<{ eml_bytes: number[]; html_with_cids: string }>(
 				'build_email_from_draft',

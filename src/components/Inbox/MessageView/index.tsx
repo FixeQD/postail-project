@@ -6,6 +6,7 @@ import { AlertCircle, Mail } from 'lucide-react'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 
 import { useMessageViewStore } from '@/stores/messageViewStore'
+import { useDraftStore } from '@/stores/draftStore'
 import type { MessageFull } from '@/types/mail'
 import { MessageViewHeader } from './MessageViewHeader'
 import { MessageViewMeta } from './MessageViewMeta'
@@ -69,8 +70,14 @@ export const MessageView = ({
 	}, [data, accountId, mailbox, uid, queryClient])
 
 	const handleReply = () => {
-		console.warn('Reply not implemented')
-		toast.info('Reply not implemented yet')
+		if (!data) return
+		const { startReply, isComposing } = useDraftStore.getState()
+		if (isComposing) {
+			toast.info('Please finish or discard current draft first')
+			return
+		}
+		startReply(accountId, data)
+		window.dispatchEvent(new CustomEvent('compose:reply'))
 	}
 
 	const handleReplyAll = () => {
@@ -132,24 +139,26 @@ export const MessageView = ({
 		return () => window.removeEventListener('keydown', handleKeyDown)
 	}, [onBack])
 
+	const isComposing = useDraftStore((s) => s.isComposing)
+
 	// Connect Gmail-style shortcuts
 	useInboxShortcuts({
 		onNextMessage: onNext || (() => {}),
 		onPrevMessage: onPrev || (() => {}),
-		onOpenMessage: () => {}, 
+		onOpenMessage: () => {},
 		onDeleteMessage: handleDelete,
 		onReply: handleReply,
 		onReplyAll: handleReplyAll,
 		onForward: handleForward,
 		onNewMessage: () => {}, // Sidebar/InboxScreen handles this
-		onToggleRead: () => {}, 
+		onToggleRead: () => {},
 		onMarkUnread: handleMarkUnread,
 		onToggleStar: () => {},
 		onFocusSearch: () => {
 			const searchInput = document.querySelector('[data-search-input]') as HTMLElement
 			searchInput?.focus()
 		},
-		enabled: true,
+		enabled: !isComposing,
 	})
 
 	const scrollContainerRef = useRef<HTMLDivElement>(null)
