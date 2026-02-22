@@ -1,4 +1,4 @@
-import { ArrowLeft, Reply, ReplyAll, Forward, Trash2, MailOpen, Globe } from 'lucide-react'
+import { ArrowLeft, Reply, ReplyAll, Forward, Trash2, MailOpen } from 'lucide-react'
 import { motion, type Variants } from 'framer-motion'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
@@ -13,8 +13,6 @@ interface MessageViewHeaderProps {
 	onMarkUnread: () => void
 	hasHtml?: boolean
 	isDeleting?: boolean
-	allowExternalResources?: boolean
-	onToggleExternalResources?: () => void
 }
 
 export const MessageViewHeader = ({
@@ -25,8 +23,6 @@ export const MessageViewHeader = ({
 	onDelete,
 	onMarkUnread,
 	isDeleting = false,
-	allowExternalResources = false,
-	onToggleExternalResources,
 }: MessageViewHeaderProps) => {
 	const { t } = useTypedTranslation(['common', 'inbox'])
 	const animationsEnabled = useAnimationsEnabled()
@@ -121,21 +117,11 @@ export const MessageViewHeader = ({
 				<motion.div variants={item} className='h-4 w-px bg-white/[0.07]' />
 
 				{/* Secondary actions */}
-				<motion.div variants={item} className='flex items-center gap-0.5'>
+				<motion.div variants={item}>
 					<ActionBtn
 						icon={<MailOpen className='h-4 w-4' />}
 						tooltip={t('inbox:messageView.actions.markUnread')}
 						onClick={onMarkUnread}
-					/>
-					<ActionBtn
-						icon={<Globe className='h-4 w-4' />}
-						tooltip={
-							allowExternalResources
-								? 'Block external images'
-								: 'Load external images'
-						}
-						onClick={onToggleExternalResources}
-						active={allowExternalResources}
 					/>
 				</motion.div>
 

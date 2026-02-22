@@ -21,6 +21,7 @@ interface MessageViewBodyProps {
 	viewMode: 'html' | 'plain'
 	allowExternalResources?: boolean
 	inline_images?: AttachmentMeta[]
+	onCspBlocked?: () => void
 }
 
 export const MessageViewBody = ({
@@ -29,6 +30,7 @@ export const MessageViewBody = ({
 	viewMode,
 	allowExternalResources = false,
 	inline_images = [],
+	onCspBlocked,
 }: MessageViewBodyProps) => {
 	const { t } = useTypedTranslation(['security', 'common'])
 	const accentColor = useThemeStore((s) => s.accentColor)
@@ -202,6 +204,13 @@ export const MessageViewBody = ({
                 window.parent.postMessage({ type: 'open-link', url: a.href }, '*');
               }
             });
+
+            // CSP violation - notify parent that external resource was blocked
+            document.addEventListener('securitypolicyviolation', function(e) {
+              if (e.blockedURI && e.blockedURI !== 'inline' && e.blockedURI !== 'eval') {
+                window.parent.postMessage({ type: 'csp-blocked' }, '*');
+              }
+            });
           </script>
         </body>
       </html>
@@ -243,6 +252,10 @@ export const MessageViewBody = ({
 				}
 
 				setIframeReady(true)
+			}
+
+			if (e.data?.type === 'csp-blocked') {
+				onCspBlocked?.()
 			}
 
 			// Open link warning

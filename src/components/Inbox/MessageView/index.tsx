@@ -38,6 +38,7 @@ export const MessageView = ({
 	const { viewMode, toggleViewMode, setTitleMeta, setLoading } = useMessageViewStore()
 	// viewMode passed to MessageViewBody below
 	const [allowExternalResources, setAllowExternalResources] = useState(false)
+	const [cspBlocked, setCspBlocked] = useState(false)
 
 	const { data, isLoading, error, refetch } = useQuery<MessageFull | null>({
 		queryKey: ['message', accountId, mailbox, uid],
@@ -179,6 +180,8 @@ export const MessageView = ({
 			scrollContainerRef.current.scrollTo({ top: 0, behavior: 'auto' })
 		}
 		setLoading(true)
+		setCspBlocked(false)
+		setAllowExternalResources(false)
 	}, [uid, setLoading])
 
 	// Keep TitleBar in sync with current message subject + navigation
@@ -243,12 +246,28 @@ export const MessageView = ({
 				onForward={handleForward}
 				onDelete={handleDelete}
 				onMarkUnread={handleMarkUnread}
-				allowExternalResources={allowExternalResources}
-				onToggleExternalResources={() => setAllowExternalResources(!allowExternalResources)}
 			/>
 
 			<div ref={scrollContainerRef} className='message-view-body flex-1 overflow-y-auto'>
 				<MessageViewMeta header={data.header} />
+
+				{/* CSP-triggered banner - appears only when browser actually blocked something */}
+				{cspBlocked && !allowExternalResources && (
+					<div className='mx-5 mb-2 flex items-center justify-between gap-2 rounded-lg bg-zinc-900/50 px-3 py-2 ring-1 ring-white/[0.04]'>
+						<div className='flex items-center gap-2'>
+							<div className='h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]' />
+							<span className='text-[11px] font-medium tracking-tight text-zinc-500 uppercase'>
+								Remote content blocked
+							</span>
+						</div>
+						<button
+							type='button'
+							onClick={() => setAllowExternalResources(true)}
+							className='text-[11px] font-medium text-zinc-300 transition-colors hover:text-white'>
+							Allow
+						</button>
+					</div>
+				)}
 
 				<div className='border-t border-white/[0.04]'>
 					<MessageViewErrorBoundary
@@ -262,6 +281,7 @@ export const MessageView = ({
 							viewMode={viewMode}
 							allowExternalResources={allowExternalResources}
 							inline_images={data.inline_images}
+							onCspBlocked={() => setCspBlocked(true)}
 						/>
 					</MessageViewErrorBoundary>
 					{data.attachments.length > 0 && (
