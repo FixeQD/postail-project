@@ -2,6 +2,15 @@ import { useState, useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { AlertCircle, Mail } from 'lucide-react'
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 
 import { useMessageViewStore } from '@/stores/messageViewStore'
@@ -39,6 +48,7 @@ export const MessageView = ({
 	// viewMode passed to MessageViewBody below
 	const [allowExternalResources, setAllowExternalResources] = useState(false)
 	const [cspBlocked, setCspBlocked] = useState(false)
+	const [noReplyAction, setNoReplyAction] = useState<'reply' | 'replyAll' | null>(null)
 
 	const { data, isLoading, error, refetch } = useQuery<MessageFull | null>({
 		queryKey: ['message', accountId, mailbox, uid],
@@ -70,7 +80,9 @@ export const MessageView = ({
 		}
 	}, [data, accountId, mailbox, uid, queryClient])
 
-	const handleReply = () => {
+	const isNoReply = (email: string) => /^no-reply@/i.test(email) || /^noreply@/i.test(email)
+
+	const doReply = () => {
 		if (!data) return
 		const { startReply, isComposing } = useDraftStore.getState()
 		if (isComposing) {
@@ -81,7 +93,7 @@ export const MessageView = ({
 		window.dispatchEvent(new CustomEvent('compose:reply'))
 	}
 
-	const handleReplyAll = () => {
+	const doReplyAll = () => {
 		if (!data) return
 		const { startReplyAll, isComposing } = useDraftStore.getState()
 		if (isComposing) {
@@ -90,6 +102,26 @@ export const MessageView = ({
 		}
 		startReplyAll(accountId, data)
 		window.dispatchEvent(new CustomEvent('compose:reply'))
+	}
+
+	const handleReply = () => {
+		if (!data) return
+		const fromEmail = data.header.from?.[0] || ''
+		if (isNoReply(fromEmail)) {
+			setNoReplyAction('reply')
+			return
+		}
+		doReply()
+	}
+
+	const handleReplyAll = () => {
+		if (!data) return
+		const fromEmail = data.header.from?.[0] || ''
+		if (isNoReply(fromEmail)) {
+			setNoReplyAction('replyAll')
+			return
+		}
+		doReplyAll()
 	}
 
 	const handleForward = () => {
@@ -294,6 +326,33 @@ export const MessageView = ({
 					)}
 				</div>
 			</div>
+			{/* No-reply warning dialog */}
+			<Dialog
+				open={noReplyAction !== null}
+				onOpenChange={(o) => !o && setNoReplyAction(null)}>
+				<DialogContent className='sm:max-w-sm'>
+					<DialogHeader>
+						<DialogTitle>{t('inbox:messageView.noReply.title')}</DialogTitle>
+						<DialogDescription>
+							{t('inbox:messageView.noReply.description')}
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter className='gap-2'>
+						<Button variant='ghost' onClick={() => setNoReplyAction(null)}>
+							{t('inbox:messageView.noReply.cancel')}
+						</Button>
+						<Button
+							variant='default'
+							onClick={() => {
+								if (noReplyAction === 'reply') doReply()
+								else doReplyAll()
+								setNoReplyAction(null)
+							}}>
+							{t('inbox:messageView.noReply.confirm')}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	)
 }
