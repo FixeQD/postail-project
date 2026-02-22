@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
@@ -92,8 +91,14 @@ export const MessageView = ({
 	}
 
 	const handleForward = () => {
-		console.warn('Forward not implemented')
-		toast.info('Forward not implemented yet')
+		if (!data) return
+		const { startForward, isComposing } = useDraftStore.getState()
+		if (isComposing) {
+			toast.info('Please finish or discard current draft first')
+			return
+		}
+		startForward(accountId, data)
+		window.dispatchEvent(new CustomEvent('compose:forward'))
 	}
 
 	const handleDelete = async () => {
@@ -133,7 +138,6 @@ export const MessageView = ({
 			toast.error(t('inbox:messageView.markUnreadError'))
 		}
 	}
-
 
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -186,9 +190,7 @@ export const MessageView = ({
 					<div className='flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10 ring-1 ring-red-500/20'>
 						<AlertCircle className='h-5 w-5' />
 					</div>
-					<p className='text-sm font-medium'>
-						{t('inbox:messageView.error')}
-					</p>
+					<p className='text-sm font-medium'>{t('inbox:messageView.error')}</p>
 					<button
 						onClick={() => refetch()}
 						className='rounded-lg px-4 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/[0.08] transition-colors hover:bg-white/[0.04]'>
@@ -231,7 +233,9 @@ export const MessageView = ({
 				onToggleExternalResources={() => setAllowExternalResources(!allowExternalResources)}
 			/>
 
-			<div ref={scrollContainerRef} className='message-view-body flex-1 overflow-y-auto px-6 py-4'>
+			<div
+				ref={scrollContainerRef}
+				className='message-view-body flex-1 overflow-y-auto px-6 py-4'>
 				<MessageViewMeta header={data.header} />
 
 				<MessageViewErrorBoundary
@@ -248,8 +252,8 @@ export const MessageView = ({
 					/>
 				</MessageViewErrorBoundary>
 				{data.attachments.length > 0 && (
-					<MessageViewAttachments 
-						attachments={data.attachments} 
+					<MessageViewAttachments
+						attachments={data.attachments}
 						accountId={accountId}
 						mailbox={mailbox}
 						uid={uid}

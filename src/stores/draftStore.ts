@@ -285,15 +285,13 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		// Add original 'to' recipients to 'cc' of reply
 		originalTo.forEach((recp) => {
 			if (recp.email === fromParsed.email || recp.email === userEmail) return
-			if (!ccRecipients.some((r) => r.email === recp.email))
-				ccRecipients.push(recp)
+			if (!ccRecipients.some((r) => r.email === recp.email)) ccRecipients.push(recp)
 		})
 
 		// Add original 'cc' recipients
 		originalCc.forEach((recp) => {
 			if (recp.email === fromParsed.email || recp.email === userEmail) return
-			if (!ccRecipients.some((r) => r.email === recp.email))
-				ccRecipients.push(recp)
+			if (!ccRecipients.some((r) => r.email === recp.email)) ccRecipients.push(recp)
 		})
 
 		const replyDraft: ComposeDraft = {
@@ -319,6 +317,70 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 
 		set({
 			currentDraft: replyDraft,
+			isComposing: true,
+			isDirty: false,
+		})
+	},
+
+	startForward: (accountId, originalMessage) => {
+		const fromRaw = originalMessage.header.from[0] || ''
+		const fromParsed = parseAddress(fromRaw)
+		const originalSubject = originalMessage.header.subject || ''
+		const subject = originalSubject.toLowerCase().startsWith('fwd:')
+			? originalSubject
+			: `Fwd: ${originalSubject}`
+
+		const date = new Date(originalMessage.header.internal_date)
+		const dateStr = date.toLocaleString(i18n.t('app.languageCode'), {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit',
+		})
+
+		const toRecipients = parseAddresses(originalMessage.header.to)
+		const toStr = toRecipients
+			.map((r) => (r.name ? `${r.name} <${r.email}>` : r.email))
+			.join(', ')
+
+		const hasHtml = !!originalMessage.body_html_safe?.trim()
+		const rawBody = hasHtml
+			? originalMessage.body_html_safe!.trim()
+			: originalMessage.body_plain?.trim() || ''
+
+		const quotedBody = hasHtml
+			? rawBody
+			: rawBody
+					.replace(/&/g, '&amp;')
+					.replace(/</g, '&lt;')
+					.replace(/>/g, '&gt;')
+					.replace(/\n/g, '<br>')
+
+		const forwardDraft: ComposeDraft = {
+			id: crypto.randomUUID(),
+			accountId,
+			to: [],
+			cc: [],
+			bcc: [],
+			subject,
+			body: '',
+			bodyType: 'html',
+			attachments: [],
+			forwardContext: {
+				subject: originalSubject,
+				fromName: fromParsed.name,
+				fromEmail: fromParsed.email || '',
+				date: dateStr,
+				to: toStr,
+				body: quotedBody,
+			},
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
+		}
+
+		set({
+			currentDraft: forwardDraft,
 			isComposing: true,
 			isDirty: false,
 		})
@@ -554,6 +616,32 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 	</details>
 </div>`
 				finalBody += quoteHtml
+			}
+
+			if (currentDraft.forwardContext) {
+				const {
+					subject,
+					fromName,
+					fromEmail,
+					date,
+					to,
+					body: quotedBody,
+				} = currentDraft.forwardContext
+				const forwardHtml = `
+<br>
+<div class="gmail_quote gmail_quote_container">
+	<div dir="ltr" class="gmail_attr" style="color:#555; font-size:12px; margin-bottom:4px;">
+		---------- Forwarded message ---------<br>
+		<b>From:</b> ${fromName} &lt;<a href="mailto:${fromEmail}">${fromEmail}</a>&gt;<br>
+		<b>Date:</b> ${date}<br>
+		<b>Subject:</b> ${subject}<br>
+		<b>To:</b> ${to}
+	</div>
+	<blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+		${quotedBody}
+	</blockquote>
+</div>`
+				finalBody += forwardHtml
 			}
 
 			await get().saveDraft(finalBody)

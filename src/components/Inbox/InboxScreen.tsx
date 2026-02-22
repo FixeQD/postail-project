@@ -16,13 +16,8 @@ interface InboxScreenProps {
 }
 
 export const InboxScreen = ({}: InboxScreenProps) => {
-	const {
-		accounts,
-		activeAccount,
-		setActiveAccount,
-		activeMailbox,
-		setActiveMailbox,
-	} = useAccountStore()
+	const { accounts, activeAccount, setActiveAccount, activeMailbox, setActiveMailbox } =
+		useAccountStore()
 	const [isComposeOpen, setIsComposeOpen] = useState(false)
 	const [selectedMessage, setSelectedMessage] = useState<{
 		uid: number
@@ -48,7 +43,9 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 			if (messages.length === 0) return
 
 			const currentUid = selectedMessage?.uid ?? focusedUid
-			const currentIndex = currentUid ? messages.findIndex((m: any) => m.uid === currentUid) : -1
+			const currentIndex = currentUid
+				? messages.findIndex((m: any) => m.uid === currentUid)
+				: -1
 
 			let newIndex = -1
 			if (direction === 'next') {
@@ -155,6 +152,15 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 		}
 		window.addEventListener('compose:reply', handleReply)
 		return () => window.removeEventListener('compose:reply', handleReply)
+	}, [])
+
+	// Listen for forward events
+	useEffect(() => {
+		const handleForwardEvent = () => {
+			setIsComposeOpen(true)
+		}
+		window.addEventListener('compose:forward', handleForwardEvent)
+		return () => window.removeEventListener('compose:forward', handleForwardEvent)
 	}, [])
 
 	useEffect(() => {

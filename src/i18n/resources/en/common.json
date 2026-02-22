@@ -25,6 +25,7 @@
 	},
 	"compose": {
 		"replyingTo": "Replying to",
+		"forwardingFrom": "Forwarding",
 		"newMessage": "New message",
 		"recipients": "Recipients",
 		"subject": "Subject",
