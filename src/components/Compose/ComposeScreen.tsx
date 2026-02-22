@@ -62,20 +62,6 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	const { position, size, isDragging, isResizing, startDrag, handleResizeMouseDown } =
 		useDragging()
 
-	// Disable all interactions during drag/resize
-	useEffect(() => {
-		if (isDragging || isResizing) {
-			document.body.style.pointerEvents = 'none'
-			document.body.style.userSelect = 'none'
-		} else {
-			document.body.style.pointerEvents = ''
-			document.body.style.userSelect = ''
-		}
-		return () => {
-			document.body.style.pointerEvents = ''
-			document.body.style.userSelect = ''
-		}
-	}, [isDragging, isResizing])
 	const tooltipData = useLinkTooltip(editorRef)
 
 	const htmlRef = useRef('')
@@ -318,7 +304,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 								transition: { type: 'spring', duration: 0.4, bounce: 0.3 },
 							}
 						: {})}
-					className={`fixed z-50 flex flex-col rounded-t-xl bg-zinc-950 text-zinc-100 shadow-2xl ring-1 ring-zinc-800 ${isDragging ? 'shadow-blue-900/20' : ''}`}
+					className={`compose-drag-root fixed z-50 flex flex-col rounded-t-xl bg-zinc-950 text-zinc-100 shadow-2xl ring-1 ring-zinc-800 ${isDragging ? 'shadow-blue-900/20' : ''}`}
 					style={{
 						left: `${activePosition.x}px`,
 						top: `${activePosition.y}px`,
@@ -327,6 +313,10 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 						cursor: isDragging ? 'grabbing' : 'auto',
 						pointerEvents: 'auto',
 					}}>
+					{/* Drag/resize interaction shield */}
+					{(isDragging || isResizing) && (
+						<div className='absolute inset-0 z-[9999] cursor-grabbing' />
+					)}
 					<ComposeHeader
 						isDragging={isDragging}
 						onMouseDown={startDrag}

@@ -691,3 +691,16 @@ textarea:focus {
 	color: #cbd5e1;
 	padding: 20px;
 }
+
+/* Suppress all hover states app-wide during compose drag/resize */
+body.is-dragging *,
+body.is-dragging *::before,
+body.is-dragging *::after {
+	pointer-events: none !important;
+}
+
+/* Compose window and its shield overlay keep pointer events */
+body.is-dragging .compose-drag-root,
+body.is-dragging .compose-drag-root * {
+	pointer-events: auto !important;
+}
