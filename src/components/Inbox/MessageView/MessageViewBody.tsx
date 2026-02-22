@@ -42,8 +42,7 @@ export const MessageViewBody = ({
 	const [emailBg, setEmailBg] = useState<string>('#ffffff')
 
 	// Fallback to plain text if no HTML content
-	const effectiveViewMode =
-		!htmlContent || !htmlContent.trim() ? 'plain' : viewMode
+	const effectiveViewMode = !htmlContent || !htmlContent.trim() ? 'plain' : viewMode
 
 	useEffect(() => {
 		if (effectiveViewMode !== 'html') return
@@ -76,7 +75,6 @@ export const MessageViewBody = ({
         connect-src 'none';
       `
 
-
 		// Replace CID references with local file paths
 		let processedHtml = htmlContent
 		if (inline_images && inline_images.length > 0) {
@@ -86,7 +84,10 @@ export const MessageViewBody = ({
 					const localUrl = convertFileSrc(img.cached_path)
 
 					// Case-insensitive replace for cid:cidname
-					const cidRegex = new RegExp(`cid:${rawCid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi')
+					const cidRegex = new RegExp(
+						`cid:${rawCid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
+						'gi'
+					)
 					processedHtml = processedHtml.replace(cidRegex, localUrl)
 				}
 			}
@@ -212,7 +213,9 @@ export const MessageViewBody = ({
 		// Extract email's own body bg to avoid color flash on container
 		const bodyBgMatch =
 			htmlContent.match(/body[^{]*\{[^}]*background-color:\s*(#[0-9a-fA-F]{3,8})/)?.[1] ??
-			htmlContent.match(/body[^>]*style="[^"]*background-color:\s*(#[0-9a-fA-F]{3,8})/)?.[1] ??
+			htmlContent.match(
+				/body[^>]*style="[^"]*background-color:\s*(#[0-9a-fA-F]{3,8})/
+			)?.[1] ??
 			'#ffffff'
 		setEmailBg(bodyBgMatch)
 		setIframeReady(false)
@@ -234,8 +237,7 @@ export const MessageViewBody = ({
 				iframeRef.current.style.height = `${e.data.height}px`
 
 				if (typeof e.data.naturalWidth === 'number' && containerRef.current) {
-					const containerWidth =
-						containerRef.current.getBoundingClientRect().width
+					const containerWidth = containerRef.current.getBoundingClientRect().width
 					const targetWidth = Math.min(e.data.naturalWidth, containerWidth)
 					setIframeWidth(`${targetWidth}px`)
 				}
@@ -264,8 +266,8 @@ export const MessageViewBody = ({
 
 	if (effectiveViewMode === 'plain') {
 		return (
-			<div className='flex flex-col items-center px-6 py-4'>
-				<pre className='message-view-plain max-w-full whitespace-pre-wrap break-words rounded-xl border border-white/[0.08] bg-slate-950/50 p-6 font-mono text-sm text-slate-300 shadow-xl'>
+			<div className='px-5 py-5'>
+				<pre className='message-view-plain w-full rounded-xl border border-white/[0.06] bg-slate-950/60 p-5 font-mono text-[13px] leading-relaxed break-words whitespace-pre-wrap text-slate-300'>
 					{plainContent || '(No content)'}
 				</pre>
 			</div>
@@ -274,16 +276,14 @@ export const MessageViewBody = ({
 
 	return (
 		<>
-			<div
-				ref={containerRef}
-				className='flex flex-col items-center overflow-x-auto px-6 py-4'>
+			<div ref={containerRef} className='overflow-x-auto px-5 py-5'>
 				<div
-					className='overflow-hidden rounded-xl border border-white/[0.08] shadow-2xl'
+					className='overflow-hidden rounded-xl border border-white/[0.06]'
 					style={{
 						width: iframeWidth,
 						backgroundColor: emailBg,
 						opacity: iframeReady ? 1 : 0,
-						transition: 'opacity 0.15s ease',
+						transition: 'opacity 0.2s ease',
 					}}>
 					<iframe
 						key={blobUrl}
@@ -305,13 +305,11 @@ export const MessageViewBody = ({
 							{t('security:externalLink.description')}
 						</DialogDescription>
 					</DialogHeader>
-					<div className='bg-slate-950/50 flex flex-col gap-1.5 rounded-lg border border-white/[0.06] p-3'>
+					<div className='flex flex-col gap-1.5 rounded-lg border border-white/[0.06] bg-slate-950/50 p-3'>
 						<p className='text-[10px] font-bold tracking-wider text-slate-500 uppercase'>
 							Target URL
 						</p>
-						<p className='break-all text-xs font-mono text-slate-300'>
-							{pendingUrl}
-						</p>
+						<p className='font-mono text-xs break-all text-slate-300'>{pendingUrl}</p>
 					</div>
 					<DialogFooter>
 						<Button variant='ghost' onClick={() => setWarningOpen(false)}>

@@ -7,6 +7,7 @@ import { DraftsList } from './DraftsList'
 import { ComposeScreen } from '../Compose/ComposeScreen'
 import { useDraftStore } from '@/stores/draftStore'
 import { useInboxShortcuts } from '@/hooks/useInboxShortcuts'
+import { useMessageViewStore } from '@/stores/messageViewStore'
 import type { ComposeDraft } from '../../types/compose'
 
 import { useAccountStore } from '@/stores/accountStore'
@@ -25,6 +26,8 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 	} | null>(null)
 	const [focusedUid, setFocusedUid] = useState<number | null>(null)
 	const { loadDraft } = useDraftStore()
+	const { openMessage: openMessageInStore, closeMessage: closeMessageInStore } =
+		useMessageViewStore()
 	const queryClient = useQueryClient()
 
 	const getMessagesList = useCallback(() => {
@@ -61,12 +64,27 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 
 			if (selectedMessage) {
 				setSelectedMessage({ uid: newMessage.uid, mailbox: activeMailbox! })
+				openMessageInStore(activeAccount!.id, activeMailbox!, newMessage.uid)
 			} else {
 				setFocusedUid(newMessage.uid)
 			}
 		},
 		[getMessagesList, selectedMessage, focusedUid, activeMailbox]
 	)
+
+	const canGoNext = useCallback(() => {
+		const messages = getMessagesList()
+		if (!messages.length) return false
+		const idx = messages.findIndex((m: any) => m.uid === selectedMessage?.uid)
+		return idx !== -1 && idx < messages.length - 1
+	}, [getMessagesList, selectedMessage])
+
+	const canGoPrev = useCallback(() => {
+		const messages = getMessagesList()
+		if (!messages.length) return false
+		const idx = messages.findIndex((m: any) => m.uid === selectedMessage?.uid)
+		return idx > 0
+	}, [getMessagesList, selectedMessage])
 
 	const handleNextMessage = useCallback(() => {
 		navigateMessage('next')
@@ -79,6 +97,7 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 	const handleOpenMessage = useCallback(() => {
 		if (focusedUid && !selectedMessage) {
 			setSelectedMessage({ uid: focusedUid, mailbox: activeMailbox! })
+			openMessageInStore(activeAccount!.id, activeMailbox!, focusedUid)
 		}
 	}, [focusedUid, selectedMessage, activeMailbox])
 
@@ -172,6 +191,7 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 	// reset selected message when mailbox changes
 	useEffect(() => {
 		setSelectedMessage(null)
+		closeMessageInStore()
 	}, [activeMailbox])
 
 	if (!activeAccount) {
@@ -197,9 +217,12 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 							accountId={activeAccount.id}
 							mailbox={selectedMessage.mailbox}
 							uid={selectedMessage.uid}
-							onBack={() => setSelectedMessage(null)}
-							onNext={handleNextMessage}
-							onPrev={handlePrevMessage}
+							onBack={() => {
+								setSelectedMessage(null)
+								closeMessageInStore()
+							}}
+							onNext={canGoNext() ? handleNextMessage : undefined}
+							onPrev={canGoPrev() ? handlePrevMessage : undefined}
 						/>
 					) : activeMailbox === 'Drafts' ? (
 						<DraftsList
@@ -216,6 +239,7 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 							focusedUid={focusedUid}
 							onMessageClick={(uid: number) => {
 								setSelectedMessage({ uid, mailbox: activeMailbox })
+								openMessageInStore(activeAccount!.id, activeMailbox!, uid)
 								setFocusedUid(uid)
 							}}
 						/>

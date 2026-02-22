@@ -35,7 +35,8 @@ export const MessageView = ({
 }: MessageViewProps) => {
 	const { t } = useTypedTranslation(['common', 'inbox'])
 	const queryClient = useQueryClient()
-	const { viewMode, toggleViewMode } = useMessageViewStore()
+	const { viewMode, toggleViewMode, setTitleMeta, setLoading } = useMessageViewStore()
+	// viewMode passed to MessageViewBody below
 	const [allowExternalResources, setAllowExternalResources] = useState(false)
 
 	const { data, isLoading, error, refetch } = useQuery<MessageFull | null>({
@@ -177,7 +178,23 @@ export const MessageView = ({
 		if (scrollContainerRef.current) {
 			scrollContainerRef.current.scrollTo({ top: 0, behavior: 'auto' })
 		}
-	}, [uid])
+		setLoading(true)
+	}, [uid, setLoading])
+
+	// Keep TitleBar in sync with current message subject + navigation
+	useEffect(() => {
+		if (!data) return
+		setLoading(false)
+		setTitleMeta({
+			subject: data.header.subject || '',
+			onNext: onNext,
+			onPrev: onPrev,
+		})
+		return () => {
+			setTitleMeta(null)
+			setLoading(false)
+		}
+	}, [data, onNext, onPrev, setTitleMeta, setLoading])
 
 	if (isLoading) {
 		return <MessageViewSkeleton />
@@ -226,39 +243,36 @@ export const MessageView = ({
 				onForward={handleForward}
 				onDelete={handleDelete}
 				onMarkUnread={handleMarkUnread}
-				viewMode={viewMode}
-				onToggleViewMode={toggleViewMode}
-				hasHtml={!!data.body_html_safe?.trim()}
 				allowExternalResources={allowExternalResources}
 				onToggleExternalResources={() => setAllowExternalResources(!allowExternalResources)}
 			/>
 
-			<div
-				ref={scrollContainerRef}
-				className='message-view-body flex-1 overflow-y-auto px-6 py-4'>
+			<div ref={scrollContainerRef} className='message-view-body flex-1 overflow-y-auto'>
 				<MessageViewMeta header={data.header} />
 
-				<MessageViewErrorBoundary
-					onFallback={() => toggleViewMode()}
-					title={t('inbox:messageView.renderError.title')}
-					description={t('inbox:messageView.renderError.description')}
-					fallbackText={t('inbox:messageView.renderError.fallback')}>
-					<MessageViewBody
-						htmlContent={data.body_html_safe}
-						plainContent={data.body_plain}
-						viewMode={viewMode}
-						allowExternalResources={allowExternalResources}
-						inline_images={data.inline_images}
-					/>
-				</MessageViewErrorBoundary>
-				{data.attachments.length > 0 && (
-					<MessageViewAttachments
-						attachments={data.attachments}
-						accountId={accountId}
-						mailbox={mailbox}
-						uid={uid}
-					/>
-				)}
+				<div className='border-t border-white/[0.04]'>
+					<MessageViewErrorBoundary
+						onFallback={() => toggleViewMode()}
+						title={t('inbox:messageView.renderError.title')}
+						description={t('inbox:messageView.renderError.description')}
+						fallbackText={t('inbox:messageView.renderError.fallback')}>
+						<MessageViewBody
+							htmlContent={data.body_html_safe}
+							plainContent={data.body_plain}
+							viewMode={viewMode}
+							allowExternalResources={allowExternalResources}
+							inline_images={data.inline_images}
+						/>
+					</MessageViewErrorBoundary>
+					{data.attachments.length > 0 && (
+						<MessageViewAttachments
+							attachments={data.attachments}
+							accountId={accountId}
+							mailbox={mailbox}
+							uid={uid}
+						/>
+					)}
+				</div>
 			</div>
 		</div>
 	)
