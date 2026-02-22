@@ -61,6 +61,10 @@
 			"title": "Failed to render message content",
 			"description": "There was an error while trying to display the HTML version of this message.",
 			"fallback": "View as plain text"
+		},
+		"cspBlocked": {
+			"label": "Remote content blocked",
+			"allow": "Allow"
 		}
 	}
 }

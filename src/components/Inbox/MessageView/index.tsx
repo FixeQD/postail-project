@@ -257,14 +257,14 @@ export const MessageView = ({
 						<div className='flex items-center gap-2'>
 							<div className='h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]' />
 							<span className='text-[11px] font-medium tracking-tight text-zinc-500 uppercase'>
-								Remote content blocked
+								{t('inbox:messageView.cspBlocked.label')}
 							</span>
 						</div>
 						<button
 							type='button'
 							onClick={() => setAllowExternalResources(true)}
 							className='text-[11px] font-medium text-zinc-300 transition-colors hover:text-white'>
-							Allow
+							{t('inbox:messageView.cspBlocked.allow')}
 						</button>
 					</div>
 				)}
