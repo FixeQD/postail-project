@@ -78,7 +78,7 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 			<div className='flex flex-1 items-center justify-center px-4'>
 				{isViewingMessage ? (
 					<motion.div
-						className='flex items-center gap-1'
+						className='flex w-full max-w-2xl items-center gap-1'
 						initial={{ opacity: 0, y: -4 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ duration: 0.18, ease: 'easeOut' }}
