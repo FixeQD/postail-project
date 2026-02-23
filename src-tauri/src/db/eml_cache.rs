@@ -63,7 +63,8 @@ pub fn save_eml(
     ensure_parent(&path)?;
 
     let encrypted = encrypt(security, raw_eml)?;
-    fs::write(&path, encrypted).map_err(DBError::Io)?;
+    fs::write(&path, encrypted)
+        .map_err(|e| DBError::EmlCache(format!("Failed to write EML file: {}", e)))?;
 
     tracing::info!(
         target: "postail",
@@ -85,7 +86,8 @@ pub fn load_eml(
     if !path.exists() {
         return Ok(None);
     }
-    let encrypted = fs::read(&path).map_err(DBError::Io)?;
+    let encrypted = fs::read(&path)
+        .map_err(|e| DBError::EmlCache(format!("Failed to read EML file: {}", e)))?;
     Ok(Some(decrypt(security, &encrypted)?))
 }
 
@@ -93,7 +95,8 @@ pub fn load_eml(
 pub fn delete_eml(account_id: &str, mailbox: &str, uid: u32) -> Result<(), DBError> {
     let path = eml_cache_path(account_id, mailbox, uid);
     if path.exists() {
-        fs::remove_file(&path).map_err(DBError::Io)?;
+        fs::remove_file(&path)
+            .map_err(|e| DBError::EmlCache(format!("Failed to delete EML file: {}", e)))?;
     }
     Ok(())
 }
@@ -117,15 +120,12 @@ pub fn save_body(
     let path = body_cache_path(account_id, mailbox, uid);
     ensure_parent(&path)?;
 
-    let json = serde_json::to_vec(body).map_err(|e| {
-        DBError::Io(std::io::Error::other(format!(
-            "body serialization failed: {}",
-            e
-        )))
-    })?;
+    let json = serde_json::to_vec(body)
+        .map_err(|e| DBError::BodyCache(format!("Body serialization failed: {}", e)))?;
 
     let encrypted = encrypt(security, &json)?;
-    fs::write(&path, encrypted).map_err(DBError::Io)?;
+    fs::write(&path, encrypted)
+        .map_err(|e| DBError::BodyCache(format!("Failed to write body file: {}", e)))?;
 
     tracing::info!(
         target: "postail",
@@ -148,15 +148,12 @@ pub fn load_body(
         return Ok(None);
     }
 
-    let encrypted = fs::read(&path).map_err(DBError::Io)?;
+    let encrypted = fs::read(&path)
+        .map_err(|e| DBError::BodyCache(format!("Failed to read body file: {}", e)))?;
     let json = decrypt(security, &encrypted)?;
 
-    let body: CachedBody = serde_json::from_slice(&json).map_err(|e| {
-        DBError::Io(std::io::Error::other(format!(
-            "body deserialization failed: {}",
-            e
-        )))
-    })?;
+    let body: CachedBody = serde_json::from_slice(&json)
+        .map_err(|e| DBError::BodyCache(format!("Body deserialization failed: {}", e)))?;
 
     Ok(Some(body))
 }
@@ -165,7 +162,8 @@ pub fn load_body(
 pub fn delete_body(account_id: &str, mailbox: &str, uid: u32) -> Result<(), DBError> {
     let path = body_cache_path(account_id, mailbox, uid);
     if path.exists() {
-        fs::remove_file(&path).map_err(DBError::Io)?;
+        fs::remove_file(&path)
+            .map_err(|e| DBError::BodyCache(format!("Failed to delete body file: {}", e)))?;
     }
     Ok(())
 }
@@ -176,7 +174,9 @@ pub fn delete_body(account_id: &str, mailbox: &str, uid: u32) -> Result<(), DBEr
 pub fn delete_account_eml_cache(account_id: &str) -> Result<(), DBError> {
     let dir = get_eml_cache_dir().join(sanitize_path_component(account_id));
     if dir.exists() {
-        fs::remove_dir_all(&dir).map_err(DBError::Io)?;
+        fs::remove_dir_all(&dir).map_err(|e| {
+            DBError::Cache(format!("Failed to delete account cache directory: {}", e))
+        })?;
     }
     Ok(())
 }
@@ -185,7 +185,8 @@ pub fn delete_account_eml_cache(account_id: &str) -> Result<(), DBError> {
 
 fn ensure_parent(path: &Path) -> Result<(), DBError> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(DBError::Io)?;
+        fs::create_dir_all(parent)
+            .map_err(|e| DBError::Cache(format!("Failed to create parent directory: {}", e)))?;
     }
     Ok(())
 }
@@ -193,11 +194,11 @@ fn ensure_parent(path: &Path) -> Result<(), DBError> {
 fn encrypt(security: &SecurityManager, data: &[u8]) -> Result<Vec<u8>, DBError> {
     security
         .encrypt(data)
-        .map_err(|e| DBError::Io(std::io::Error::other(format!("encryption failed: {}", e))))
+        .map_err(|e| DBError::Cache(format!("Encryption failed: {}", e)))
 }
 
 fn decrypt(security: &SecurityManager, data: &[u8]) -> Result<Vec<u8>, DBError> {
     security
         .decrypt(data)
-        .map_err(|e| DBError::Io(std::io::Error::other(format!("decryption failed: {}", e))))
+        .map_err(|e| DBError::Cache(format!("Decryption failed: {}", e)))
 }

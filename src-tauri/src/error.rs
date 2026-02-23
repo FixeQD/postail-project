@@ -85,6 +85,15 @@ pub enum DBError {
 
     #[error("Migration error: {0}")]
     Migration(String),
+
+    #[error("Cache error: {0}")]
+    Cache(String),
+
+    #[error("EML cache error: {0}")]
+    EmlCache(String),
+
+    #[error("Body cache error: {0}")]
+    BodyCache(String),
 }
 
 pub type Result<T> = std::result::Result<T, SecurityError>;
@@ -248,6 +257,9 @@ impl From<DBError> for AppError {
             DBError::Io(e) => AppError::IoError(e.to_string()),
             DBError::Security(e) => AppError::GmailUserInfoFailed(format!("Security error: {}", e)),
             DBError::Json(e) => AppError::DatabaseError(format!("JSON error: {}", e)),
+            DBError::Cache(e) => AppError::IoError(format!("Cache error: {}", e)),
+            DBError::EmlCache(e) => AppError::IoError(format!("EML cache error: {}", e)),
+            DBError::BodyCache(e) => AppError::IoError(format!("Body cache error: {}", e)),
         }
     }
 }
