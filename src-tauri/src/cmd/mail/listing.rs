@@ -128,40 +128,32 @@ pub async fn fetch_message_full(
 ) -> Result<Option<MessageFull>, String> {
     let uid_u32: u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
 
-    // Step 1: check if body is already cached in message_bodies
-    let cached = {
+    // Step 1: check if encrypted EML file exists on disk (fast, no DB query needed)
+    if crate::db::has_cached_eml(&account_id, &mailbox, uid_u32) {
+        tracing::info!(
+            target: "postail",
+            "[API] fetch_message_full EML cache HIT uid={} mailbox={}",
+            uid_u32,
+            mailbox
+        );
         let conn_guard = crate::globals::DB_CONN.lock().await;
         if let Some(conn) = conn_guard.as_ref() {
-            match crate::db::get_message_table_id(conn, &account_id, &mailbox, uid_u32) {
-                Ok(Some(table_id)) => match crate::db::has_cached_body(conn, table_id) {
-                    Ok(true) => {
-                        tracing::info!(
-                            target: "postail",
-                            "[API] fetch_message_full cache HIT uid={} mailbox={}",
-                            uid_u32,
-                            mailbox
-                        );
-                        // Cache hit — load full message from DB
-                        crate::db::fetch_message_full(conn, &account_id, &mailbox, uid_u32)
-                            .map_err(|e| e.to_string())?
-                    }
-                    _ => None,
-                },
-                _ => None,
+            let msg = crate::db::fetch_message_full(conn, &account_id, &mailbox, uid_u32)
+                .map_err(|e| e.to_string())?;
+            // If DB has parsed body, return it directly
+            if let Some(m) = &msg {
+                if !m.body_html_safe.is_empty() || !m.body_plain.is_empty() {
+                    return Ok(msg);
+                }
             }
-        } else {
-            return Err("Database not initialized".to_string());
         }
-    };
-
-    if cached.is_some() {
-        return Ok(cached);
+        // EML file exists but body not yet parsed in DB — let fetch_and_cache_message re-parse
     }
 
-    // Step 2: cache miss — fetch from IMAP, parse, save, return
+    // Step 2: fetch from IMAP (or re-parse from existing EML file), cache, return
     tracing::info!(
         target: "postail",
-        "[API] fetch_message_full cache MISS uid={} mailbox={} — fetching from IMAP",
+        "[API] fetch_message_full fetching uid={} mailbox={}",
         uid_u32,
         mailbox
     );

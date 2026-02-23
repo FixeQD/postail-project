@@ -131,13 +131,13 @@ fn migrate_to_v4(conn: &Connection) -> Result<(), DBError> {
 }
 
 fn migrate_to_v5(conn: &Connection) -> Result<(), DBError> {
-    // Ensure message_bodies table exists for existing installs
+    // Ensure message_bodies table exists for existing installs.
+    // Raw EML is stored as encrypted files on disk (eml_cache), NOT as BLOB in DB.
     conn.execute(
         "CREATE TABLE IF NOT EXISTS message_bodies (
             message_id INTEGER PRIMARY KEY,
             body_html_safe TEXT,
             body_plain TEXT NOT NULL DEFAULT '',
-            raw_content BLOB,
             parse_error TEXT,
             FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE
         )",

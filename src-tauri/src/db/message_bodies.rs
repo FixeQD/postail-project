@@ -138,44 +138,6 @@ pub fn save_message_body_with_fallback(
     Ok(())
 }
 
-pub fn save_message_body_with_raw(
-    conn: &Connection,
-    message_table_id: i64,
-    body_html: Option<&str>,
-    body_plain: Option<&str>,
-    raw_eml: &[u8],
-    parse_error: Option<&str>,
-) -> Result<(), DBError> {
-    let body_html_safe = body_html.map(ammonia::clean);
-    let body_html_ref = body_html_safe.as_deref().unwrap_or("");
-    let body_plain_ref = body_plain.unwrap_or("");
-
-    let snippet = if let Some(err) = parse_error {
-        err.chars().take(200).collect::<String>()
-    } else {
-        body_text_for_snippet(body_plain_ref)
-    };
-
-    conn.execute(
-        "UPDATE messages SET snippet = ? WHERE id = ?",
-        params![snippet, message_table_id],
-    )?;
-
-    conn.execute(
-        "INSERT OR REPLACE INTO message_bodies (message_id, body_html_safe, body_plain, raw_content, parse_error)
-         VALUES (?, ?, ?, ?, ?)",
-        params![
-            message_table_id,
-            body_html_ref,
-            body_plain_ref,
-            raw_eml,
-            parse_error.unwrap_or(""),
-        ],
-    )?;
-
-    Ok(())
-}
-
 fn body_text_for_snippet(text: &str) -> String {
     text.lines()
         .take(5)

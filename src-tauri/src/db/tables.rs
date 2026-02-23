@@ -162,7 +162,6 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
             ("message_id", "INTEGER PRIMARY KEY"),
             ("body_html_safe", "TEXT"),
             ("body_plain", "TEXT NOT NULL DEFAULT ''"),
-            ("raw_content", "BLOB"),
             ("parse_error", "TEXT"),
             (
                 "FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE",
