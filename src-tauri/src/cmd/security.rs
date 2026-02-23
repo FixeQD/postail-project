@@ -145,12 +145,24 @@ pub async fn initialize_security_and_database(
 
     let master_key_raw = {
         let security = SECURITY.lock().await;
-        let k = security.get_master_key_raw();
-        k
+
+        security.get_master_key_raw()
     };
     let encryption =
         DbEncryption::derive_from_master_key(&master_key_raw).map_err(|e| e.to_string())?;
     let hex_key = encryption.hex_key();
+
+    // Guard: if DB is already initialized, skip re-opening.
+    {
+        let already_init = DB_CONN.lock().await.is_some();
+        if already_init {
+            tracing::warn!(
+                target: "postail",
+                "initialize_security_and_database called but DB_CONN already initialized — skipping re-init to prevent corruption"
+            );
+            return Ok(());
+        }
+    }
 
     let data_dir = crate::utils::config::get_data_dir();
     let db_path = data_dir.join("postail.db");

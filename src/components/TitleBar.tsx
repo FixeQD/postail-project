@@ -8,6 +8,8 @@ import { useTypedTranslation } from '../hooks/useTypedTranslation'
 import { useDraftStore } from '../stores/draftStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAccountStore } from '@/stores/accountStore'
+import { useMessageViewStore } from '@/stores/messageViewStore'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface TitleBarProps {
 	isDashboard?: boolean
@@ -16,12 +18,7 @@ interface TitleBarProps {
 	onOpenOutbox?: () => void
 }
 
-export function TitleBar({
-	isDashboard,
-	onSearch,
-	onOpenSettings,
-	onOpenOutbox,
-}: TitleBarProps) {
+export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }: TitleBarProps) {
 	const { activeAccount } = useAccountStore()
 	const { t } = useTypedTranslation()
 	const { isSending } = useDraftStore()
@@ -29,6 +26,10 @@ export function TitleBar({
 	const [isMobile, setIsMobile] = useState<boolean | null>(null)
 	const [searchQuery, setSearchQuery] = useState('')
 	const [searchFocused, setSearchFocused] = useState(false)
+	const titleMeta = useMessageViewStore((s) => s.titleMeta)
+	const selectedMessage = useMessageViewStore((s) => s.selectedMessage)
+	const isLoading = useMessageViewStore((s) => s.isLoading)
+	const isViewingMessage = selectedMessage !== null
 
 	useEffect(() => {
 		try {
@@ -73,9 +74,54 @@ export function TitleBar({
 				</span>
 			</div>
 
-			{/* Middle: Search Bar (Dashboard Only) */}
-			<div className='flex flex-1 justify-center px-4'>
-				{isDashboard && (
+			{/* Middle: Subject when reading a message, Search otherwise */}
+			<div className='flex flex-1 items-center justify-center px-4'>
+				{isViewingMessage ? (
+					<motion.div
+						className='flex w-full max-w-2xl items-center gap-1'
+						initial={{ opacity: 0, y: -4 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ duration: 0.18, ease: 'easeOut' }}
+						onMouseDown={(e) => e.stopPropagation()}>
+						<motion.button
+							type='button'
+							onClick={(e) => {
+								e.stopPropagation()
+								titleMeta?.onPrev?.()
+							}}
+							disabled={isLoading || !titleMeta?.onPrev}
+							whileTap={{ scale: 0.88 }}
+							className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.07] hover:text-slate-200 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent'>
+							<ChevronLeft className='h-4 w-4' />
+						</motion.button>
+						{isLoading ? (
+							<div
+								className='h-4 w-48 rounded'
+								style={{
+									backgroundImage:
+										'linear-gradient(90deg, rgba(var(--accent-rgb), 0.05) 25%, rgba(var(--accent-rgb), 0.12) 50%, rgba(var(--accent-rgb), 0.05) 75%)',
+									backgroundSize: '200% 100%',
+									animation: 'shimmer 1.5s ease-in-out infinite',
+								}}
+							/>
+						) : (
+							<p className='min-w-0 flex-1 truncate text-center text-sm font-medium text-slate-200'>
+								{titleMeta?.subject}
+							</p>
+						)}
+						<motion.button
+							type='button'
+							onClick={(e) => {
+								e.stopPropagation()
+								titleMeta?.onNext?.()
+							}}
+							disabled={isLoading || !titleMeta?.onNext}
+							whileTap={{ scale: 0.88 }}
+							className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.07] hover:text-slate-200 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent'>
+							<ChevronRight className='h-4 w-4' />
+						</motion.button>
+					</motion.div>
+				) : isDashboard ? (
 					<motion.div
 						className='relative w-full max-w-2xl'
 						animate={{ scale: searchFocused ? 1.01 : 1 }}
@@ -112,7 +158,6 @@ export function TitleBar({
 									: undefined
 							}
 						/>
-						{/* Focus glow underneath */}
 						<motion.div
 							className='pointer-events-none absolute inset-x-4 -bottom-1 h-4 rounded-full blur-md'
 							style={{ backgroundColor: `rgba(var(--accent-rgb), 0.1)` }}
@@ -121,7 +166,7 @@ export function TitleBar({
 							transition={{ duration: 0.2 }}
 						/>
 					</motion.div>
-				)}
+				) : null}
 			</div>
 
 			<div className='flex w-64 shrink-0 items-center justify-end gap-2 px-2'>

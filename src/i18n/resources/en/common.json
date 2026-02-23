@@ -1,7 +1,8 @@
 {
 	"app": {
 		"name": "Postail",
-		"tagline": "Secure email client for the modern era"
+		"tagline": "Secure email client for the modern era",
+		"languageCode": "en-US"
 	},
 	"actions": {
 		"start": "Get Started",
@@ -23,6 +24,8 @@
 		"recommended": "Recommended"
 	},
 	"compose": {
+		"replyingTo": "Replying to",
+		"forwardingFrom": "Forwarding",
 		"newMessage": "New message",
 		"recipients": "Recipients",
 		"subject": "Subject",

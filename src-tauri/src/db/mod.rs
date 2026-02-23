@@ -3,6 +3,7 @@ pub mod attachments;
 pub mod backup;
 pub mod contacts;
 pub mod drafts;
+pub mod eml_cache;
 pub mod flag_queue;
 pub mod imap;
 pub mod mailbox;
@@ -27,13 +28,14 @@ pub use crate::db::accounts::*;
 pub use crate::db::backup::{export_backup, import_backup, run_maintenance};
 pub use crate::db::contacts::*;
 pub use crate::db::drafts::*;
+pub use crate::db::eml_cache::*;
 pub use crate::db::flag_queue::*;
 pub use crate::db::imap::*;
 pub use crate::db::mailbox::{fetch_mailboxes, get_mailbox_by_role, upsert_mailbox};
-pub use crate::db::message_bodies::*;
+pub use crate::db::message_bodies::parse_mail_with_fallback;
 pub use crate::db::messages::{
-    batch_insert_messages, fetch_headers, fetch_message_full, mark_read, move_to_trash,
-    upsert_message, MessageBatchItem, MessageUpsertData, DEFAULT_BATCH_SIZE,
+    batch_insert_messages, fetch_headers, fetch_message_full, get_message_table_id, mark_read,
+    move_to_trash, upsert_message, MessageBatchItem, MessageUpsertData, DEFAULT_BATCH_SIZE,
 };
 pub use crate::db::migration::run_encryption_migration_if_needed;
 pub use crate::db::migrations::{get_db_version, run_migrations};
@@ -206,6 +208,7 @@ pub struct MailHeader {
     pub subject: Option<String>,
     pub from: Vec<String>,
     pub to: Vec<String>,
+    pub cc: Vec<String>,
     pub flags: Vec<String>,
     pub snippet: Option<String>,
     pub has_attachments: bool,
@@ -217,6 +220,10 @@ pub struct AttachmentMeta {
     pub filename: Option<String>,
     pub mime_type: String,
     pub size: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cached_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cid: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -274,7 +281,6 @@ fn apply_sqlcipher_key(conn: &Connection, hex_key: &str) -> Result<(), DBError> 
         "PRAGMA journal_mode = WAL".to_string(),
         "PRAGMA synchronous = NORMAL".to_string(),
         "PRAGMA cache_size = -64000".to_string(),
-        "PRAGMA mmap_size = 268435456".to_string(),
     ];
 
     for pragma in pragmas {

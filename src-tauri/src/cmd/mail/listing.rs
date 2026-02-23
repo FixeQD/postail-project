@@ -1,4 +1,4 @@
-use crate::db::{MailHeader, Mailbox, MessageFull};
+use crate::db::{AttachmentMeta, MailHeader, Mailbox, MessageFull};
 use crate::globals::{DB_CONN, IMAP_MANAGER};
 use crate::oauth;
 use tauri::command;
@@ -126,8 +126,117 @@ pub async fn fetch_message_full(
     mailbox: String,
     uid: u64,
 ) -> Result<Option<MessageFull>, String> {
-    let uid_u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
-    let imap = IMAP_MANAGER.lock().await;
-    imap.fetch_message_full_sync(&account_id, &mailbox, uid_u32)
-        .await
+    let uid_u32: u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
+
+    tracing::info!(
+        target: "postail",
+        "[API] fetch_message_full START uid={} mailbox={}",
+        uid_u32, mailbox
+    );
+
+    // Step 1: check if parsed body file exists on disk (never touches SQLite)
+    let body_on_disk = crate::db::eml_cache::has_cached_body_file(&account_id, &mailbox, uid_u32);
+    tracing::info!(
+        target: "postail",
+        "[API] fetch_message_full body_on_disk={} uid={} mailbox={}",
+        body_on_disk, uid_u32, mailbox
+    );
+
+    if body_on_disk {
+        // Load header from DB (tiny read, no large blobs)
+        let conn_guard = crate::globals::DB_CONN.lock().await;
+        if let Some(conn) = conn_guard.as_ref() {
+            let mut msg = crate::db::fetch_message_full(conn, &account_id, &mailbox, uid_u32)
+                .map_err(|e| e.to_string())?;
+
+            if let Some(ref mut m) = msg {
+                // Inject body from encrypted file — zero DB reads for body content
+                let security = crate::globals::SECURITY.lock().await;
+                match crate::db::eml_cache::load_body(&security, &account_id, &mailbox, uid_u32) {
+                    Ok(Some(body)) => {
+                        tracing::info!(
+                            target: "postail",
+                            "[API] fetch_message_full file cache HIT uid={} html_len={} plain_len={}",
+                            uid_u32, body.body_html.len(), body.body_plain.len()
+                        );
+                        m.body_html_safe = body.body_html;
+                        m.body_plain = body.body_plain;
+                    }
+                    Ok(None) => {
+                        tracing::warn!(target: "postail",
+                            "[API] fetch_message_full body file missing despite has_cached_body_file=true uid={}", uid_u32);
+                    }
+                    Err(e) => {
+                        tracing::error!(target: "postail",
+                            "[API] fetch_message_full body file load error uid={} error={}", uid_u32, e);
+                    }
+                }
+                return Ok(msg);
+            }
+        }
+    }
+
+    // Step 2: fetch from IMAP (or re-parse from existing EML file), cache, return
+    tracing::info!(
+        target: "postail",
+        "[API] fetch_message_full => fetch_and_cache_message uid={} mailbox={}",
+        uid_u32, mailbox
+    );
+    let imap = IMAP_MANAGER.lock().await.clone();
+    let result = imap
+        .fetch_and_cache_message(&account_id, &mailbox, uid_u32)
+        .await;
+
+    tracing::info!(
+        target: "postail",
+        "[API] fetch_message_full fetch_and_cache_message result: ok={} uid={} mailbox={}",
+        result.is_ok(),
+        uid_u32, mailbox
+    );
+    if let Err(ref e) = result {
+        tracing::error!(
+            target: "postail",
+            "[API] fetch_message_full FAILED uid={} mailbox={} error={}",
+            uid_u32, mailbox, e
+        );
+    }
+
+    result
+}
+
+#[command]
+pub async fn save_attachment(
+    account_id: String,
+    mailbox: String,
+    uid: u64,
+    part_id: String,
+) -> Result<AttachmentMeta, String> {
+    use crate::globals::DB_CONN;
+
+    let uid_u32: u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
+
+    let conn_guard = DB_CONN.lock().await;
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+
+    let row = conn
+        .query_row(
+            "SELECT a.part_id, a.filename, a.mime_type, a.size, a.cached_path, a.cid
+             FROM attachments a
+             JOIN messages m ON m.id = a.message_table_id
+             WHERE m.account_id = ? AND m.mailbox = ? AND m.uid = ? AND a.part_id = ?",
+            rusqlite::params![account_id, mailbox, uid_u32, part_id],
+            |row| {
+                Ok(AttachmentMeta {
+                    part_id: row.get(0)?,
+                    filename: row.get(1)?,
+                    mime_type: row.get(2)?,
+                    size: row.get::<_, i64>(3)? as u64,
+                    cached_path: row.get(4)?,
+                    cid: row.get(5)?,
+                })
+            },
+        )
+        .map_err(|e| e.to_string())?;
+
+    Ok(row)
 }

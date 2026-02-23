@@ -52,7 +52,7 @@ impl crate::imap::ImapManager {
             let mut fetches = session
                 .uid_fetch(
                     uid_set,
-                    "(UID INTERNALDATE FLAGS ENVELOPE BODY.PEEK[HEADER.FIELDS (SUBJECT FROM TO)])",
+                    "(UID INTERNALDATE FLAGS ENVELOPE BODY.PEEK[HEADER.FIELDS (SUBJECT FROM TO CC)])",
                 )
                 .await
                 .map_err(|e| e.to_string())?;
@@ -106,6 +106,28 @@ impl crate::imap::ImapManager {
                             .collect()
                     })
                     .unwrap_or_default();
+                let cc: Vec<String> = envelope
+                    .cc
+                    .as_ref()
+                    .map(|addrs| {
+                        addrs
+                            .iter()
+                            .map(|a| {
+                                let mailbox = a
+                                    .mailbox
+                                    .as_ref()
+                                    .map(|b| String::from_utf8_lossy(b))
+                                    .unwrap_or_default();
+                                let host = a
+                                    .host
+                                    .as_ref()
+                                    .map(|b| String::from_utf8_lossy(b))
+                                    .unwrap_or_default();
+                                format!("{}@{}", mailbox, host)
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 let flags = fetch
                     .flags()
                     .map(|flag| flag_to_string(&flag))
@@ -128,6 +150,7 @@ impl crate::imap::ImapManager {
                     subject,
                     from,
                     to: to.clone(),
+                    cc: cc.clone(),
                     flags,
                     snippet,
                     has_attachments: false,
@@ -139,6 +162,7 @@ impl crate::imap::ImapManager {
                     internal_date: header.internal_date,
                     from: header.from.first().cloned(),
                     to,
+                    cc,
                     subject: header.subject.clone(),
                     snippet: header.snippet.clone(),
                     flags: header.flags.clone(),
@@ -222,6 +246,8 @@ impl crate::imap::ImapManager {
             }
         }
 
+        headers.sort_by(|a, b| b.uid.cmp(&a.uid));
+        headers.truncate(limit as usize);
         Ok(headers)
     }
 
@@ -238,33 +264,43 @@ impl crate::imap::ImapManager {
         let total = selected.exists;
 
         if total == 0 {
+            let _ = session.logout().await;
             return Ok(Vec::new());
         }
 
         let range = if let Some(uid) = anchor_uid {
-            // Find Sequence Number for this UID
-            let mut fetches = session
-                .uid_fetch(uid.to_string(), "UID")
-                .await
-                .map_err(|e| e.to_string())?;
-            if let Some(fetch) = fetches.next().await {
-                let fetch = fetch.map_err(|e| e.to_string())?;
-                let seq = fetch.message; // Message Sequence Number
+            let range_result: Result<Option<String>, String> = {
+                let mut fetches = session
+                    .uid_fetch(uid.to_string(), "UID")
+                    .await
+                    .map_err(|e| e.to_string())?;
+                if let Some(fetch) = fetches.next().await {
+                    let fetch = fetch.map_err(|e| e.to_string())?;
+                    let seq = fetch.message;
 
-                if seq <= 1 {
-                    return Ok(Vec::new()); // No older messages
+                    if seq <= 1 {
+                        Ok(None)
+                    } else {
+                        let end = seq - 1;
+                        let start = end.saturating_sub(limit - 1).max(1);
+                        Ok(Some(format!("{}:{}", start, end)))
+                    }
+                } else {
+                    tracing::warn!(target: "postail", "[IMAP] Anchor UID {} not found on server", uid);
+                    Ok(None)
                 }
+            };
 
-                let end = seq - 1;
-                let start = end.saturating_sub(limit).max(1);
-                format!("{}:{}", start, end)
-            } else {
-                tracing::warn!(target: "postail", "[IMAP] Anchor UID {} not found on server", uid);
-                return Ok(Vec::new());
+            match range_result? {
+                Some(r) => r,
+                None => {
+                    let _ = session.logout().await;
+                    return Ok(Vec::new());
+                }
             }
         } else {
             let end = total;
-            let start = total.saturating_sub(limit).max(1);
+            let start = total.saturating_sub(limit - 1).max(1);
             format!("{}:{}", start, end)
         };
 
@@ -274,7 +310,7 @@ impl crate::imap::ImapManager {
         let mut fetches = session
             .fetch(
                 range,
-                "(UID INTERNALDATE FLAGS ENVELOPE BODY.PEEK[HEADER.FIELDS (SUBJECT FROM TO)])",
+                "(UID INTERNALDATE FLAGS ENVELOPE BODY.PEEK[HEADER.FIELDS (SUBJECT FROM TO CC)])",
             )
             .await
             .map_err(|e| e.to_string())?;
@@ -329,6 +365,28 @@ impl crate::imap::ImapManager {
                         .collect()
                 })
                 .unwrap_or_default();
+            let cc: Vec<String> = envelope
+                .cc
+                .as_ref()
+                .map(|addrs| {
+                    addrs
+                        .iter()
+                        .map(|a| {
+                            let mailbox = a
+                                .mailbox
+                                .as_ref()
+                                .map(|b| String::from_utf8_lossy(b))
+                                .unwrap_or_default();
+                            let host = a
+                                .host
+                                .as_ref()
+                                .map(|b| String::from_utf8_lossy(b))
+                                .unwrap_or_default();
+                            format!("{}@{}", mailbox, host)
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
             let flags = fetch
                 .flags()
                 .map(|flag| format!("{:?}", flag))
@@ -349,6 +407,7 @@ impl crate::imap::ImapManager {
                 subject: subject.clone(),
                 from: from.clone(),
                 to: to.clone(),
+                cc: cc.clone(),
                 flags: flags.clone(),
                 snippet: None,
                 has_attachments: false,
@@ -360,6 +419,7 @@ impl crate::imap::ImapManager {
                 internal_date: header.internal_date,
                 from: header.from.first().cloned(),
                 to,
+                cc,
                 subject: header.subject.clone(),
                 snippet: header.snippet.clone(),
                 flags: header.flags.clone(),

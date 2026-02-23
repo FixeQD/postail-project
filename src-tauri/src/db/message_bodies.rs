@@ -20,7 +20,7 @@ pub fn create_message_bodies_table(conn: &Connection) -> SqlResult<()> {
     )?;
 
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_message_bodies_message_id 
+        "CREATE INDEX IF NOT EXISTS idx_message_bodies_message_id
          ON message_bodies(message_id)",
         [],
     )?;

@@ -39,9 +39,35 @@ export function ComposeInputs({
 	const handleToggleBcc = useCallback(() => setShowBcc(!showBcc), [showBcc, setShowBcc])
 
 	const { setSubject } = useDraftStore()
+	const replyContext = useDraftStore((s) => s.currentDraft?.replyContext)
+	const replySubject = useDraftStore((s) => s.currentDraft?.replyContext?.subject)
+	const forwardContext = useDraftStore((s) => s.currentDraft?.forwardContext)
+	const forwardSubject = useDraftStore((s) => s.currentDraft?.forwardContext?.subject)
 
 	return (
 		<div className='flex flex-col px-4 pt-1'>
+			{replyContext && (
+				<div className='mb-2 flex items-center gap-2 rounded-lg bg-zinc-900/50 px-3 py-2 ring-1 ring-white/[0.04]'>
+					<div className='h-1.5 w-1.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.5)]' />
+					<span className='text-[11px] font-medium tracking-tight text-zinc-500 uppercase'>
+						{t('compose.replyingTo')}
+					</span>
+					<span className='truncate text-xs font-medium text-zinc-300'>
+						{replySubject}
+					</span>
+				</div>
+			)}
+			{forwardContext && (
+				<div className='mb-2 flex items-center gap-2 rounded-lg bg-zinc-900/50 px-3 py-2 ring-1 ring-white/[0.04]'>
+					<div className='h-1.5 w-1.5 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]' />
+					<span className='text-[11px] font-medium tracking-tight text-zinc-500 uppercase'>
+						{t('compose.forwardingFrom')}
+					</span>
+					<span className='truncate text-xs font-medium text-zinc-300'>
+						{forwardSubject}
+					</span>
+				</div>
+			)}
 			<AddressInput
 				label={t('compose.to')}
 				recipients={to}

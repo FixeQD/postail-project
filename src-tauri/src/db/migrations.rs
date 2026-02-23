@@ -57,6 +57,11 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         set_db_version(conn, 4)?;
     }
 
+    if current_version < 5 {
+        migrate_to_v5(conn)?;
+        set_db_version(conn, 5)?;
+    }
+
     Ok(())
 }
 
@@ -120,6 +125,40 @@ fn migrate_to_v4(conn: &Connection) -> Result<(), DBError> {
             "ALTER TABLE flag_sync_queue ADD COLUMN target_mailbox TEXT",
             [],
         )?;
+    }
+
+    Ok(())
+}
+
+fn migrate_to_v5(conn: &Connection) -> Result<(), DBError> {
+    // Ensure message_bodies table exists for existing installs.
+    // Raw EML is stored as encrypted files on disk (eml_cache), NOT as BLOB in DB.
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS message_bodies (
+            message_id INTEGER PRIMARY KEY,
+            body_html_safe TEXT,
+            body_plain TEXT NOT NULL DEFAULT '',
+            parse_error TEXT,
+            FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_message_bodies_message_id ON message_bodies(message_id)",
+        [],
+    )?;
+
+    // Add is_inline and cid columns to attachments for inline image support
+    if !column_exists(conn, "attachments", "is_inline")? {
+        conn.execute(
+            "ALTER TABLE attachments ADD COLUMN is_inline INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
+
+    if !column_exists(conn, "attachments", "cid")? {
+        conn.execute("ALTER TABLE attachments ADD COLUMN cid TEXT", [])?;
     }
 
     Ok(())

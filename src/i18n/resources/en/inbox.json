@@ -20,5 +20,57 @@
 		"date": {
 			"yesterday": "Yesterday"
 		}
+	},
+	"messageView": {
+		"back": "Back to list",
+		"loading": "Loading message...",
+		"error": "Failed to load message",
+		"errorRetry": "Try again",
+		"notFound": "Message not found",
+		"noSubject": "(No Subject)",
+		"deleted": "Message moved to trash",
+		"deleteError": "Failed to delete message",
+		"markUnreadError": "Failed to mark as unread",
+		"from": "From",
+		"to": "To",
+		"cc": "Cc",
+		"date": "Date",
+		"attachments": {
+			"label": "Attachments",
+			"one": "attachment",
+			"other": "attachments",
+			"downloadSuccess": "File saved successfully",
+			"downloadError": "Failed to save file",
+			"errorNotFound": "Attachment content not found in cache"
+		},
+		"downloadAttachment": "Download",
+		"viewMode": {
+			"html": "HTML",
+			"plain": "Plain text"
+		},
+		"actions": {
+			"reply": "Reply",
+			"replyAll": "Reply All",
+			"forward": "Forward",
+			"delete": "Delete",
+			"markUnread": "Mark as unread",
+			"moveTo": "Move to...",
+			"print": "Print"
+		},
+		"renderError": {
+			"title": "Failed to render message content",
+			"description": "There was an error while trying to display the HTML version of this message.",
+			"fallback": "View as plain text"
+		},
+		"cspBlocked": {
+			"label": "Remote content blocked",
+			"allow": "Allow"
+		},
+		"noReply": {
+			"title": "This address doesn't accept replies",
+			"description": "This message was sent from a no-reply address. Your reply will most likely never be read.",
+			"cancel": "Cancel",
+			"confirm": "Reply anyway"
+		}
 	}
 }

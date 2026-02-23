@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Sidebar } from '../Layout/Sidebar'
 import { MessageList } from './MessageList'
+import { MessageView } from './MessageView'
 import { DraftsList } from './DraftsList'
 import { ComposeScreen } from '../Compose/ComposeScreen'
 import { useDraftStore } from '@/stores/draftStore'
 import { useInboxShortcuts } from '@/hooks/useInboxShortcuts'
+import { useMessageViewStore } from '@/stores/messageViewStore'
 import type { ComposeDraft } from '../../types/compose'
 
 import { useAccountStore } from '@/stores/accountStore'
@@ -14,27 +17,89 @@ interface InboxScreenProps {
 }
 
 export const InboxScreen = ({}: InboxScreenProps) => {
-	const {
-		accounts,
-		activeAccount,
-		setActiveAccount,
-		activeMailbox,
-		setActiveMailbox,
-	} = useAccountStore()
+	const { accounts, activeAccount, setActiveAccount, activeMailbox, setActiveMailbox } =
+		useAccountStore()
 	const [isComposeOpen, setIsComposeOpen] = useState(false)
+	const [selectedMessage, setSelectedMessage] = useState<{
+		uid: number
+		mailbox: string
+	} | null>(null)
+	const [focusedUid, setFocusedUid] = useState<number | null>(null)
 	const { loadDraft } = useDraftStore()
+	const { openMessage: openMessageInStore, closeMessage: closeMessageInStore } =
+		useMessageViewStore()
+	const queryClient = useQueryClient()
+
+	const getMessagesList = useCallback(() => {
+		if (!activeAccount || !activeMailbox) return []
+		const data = queryClient.getQueryData<{ pages: any[][] }>([
+			'messages',
+			activeAccount.id,
+			activeMailbox,
+		])
+		return data?.pages.flatMap((page) => page) || []
+	}, [activeAccount, activeMailbox, queryClient])
+
+	const navigateMessage = useCallback(
+		(direction: 'next' | 'prev') => {
+			const messages = getMessagesList()
+			if (messages.length === 0) return
+
+			const currentUid = selectedMessage?.uid ?? focusedUid
+			const currentIndex = currentUid
+				? messages.findIndex((m: any) => m.uid === currentUid)
+				: -1
+
+			let newIndex = -1
+			if (direction === 'next') {
+				newIndex = currentIndex + 1
+				if (newIndex >= messages.length) return
+			} else {
+				newIndex = currentIndex === -1 ? 0 : currentIndex - 1
+				if (newIndex < 0) return
+			}
+
+			const newMessage = messages[newIndex]
+			if (!newMessage) return
+
+			if (selectedMessage) {
+				setSelectedMessage({ uid: newMessage.uid, mailbox: activeMailbox! })
+				openMessageInStore(activeAccount!.id, activeMailbox!, newMessage.uid)
+			} else {
+				setFocusedUid(newMessage.uid)
+			}
+		},
+		[getMessagesList, selectedMessage, focusedUid, activeMailbox]
+	)
+
+	const canGoNext = useCallback(() => {
+		const messages = getMessagesList()
+		if (!messages.length) return false
+		const idx = messages.findIndex((m: any) => m.uid === selectedMessage?.uid)
+		return idx !== -1 && idx < messages.length - 1
+	}, [getMessagesList, selectedMessage])
+
+	const canGoPrev = useCallback(() => {
+		const messages = getMessagesList()
+		if (!messages.length) return false
+		const idx = messages.findIndex((m: any) => m.uid === selectedMessage?.uid)
+		return idx > 0
+	}, [getMessagesList, selectedMessage])
 
 	const handleNextMessage = useCallback(() => {
-		// handle next message
-	}, [])
+		navigateMessage('next')
+	}, [navigateMessage])
 
 	const handlePrevMessage = useCallback(() => {
-		// handle prev message
-	}, [])
+		navigateMessage('prev')
+	}, [navigateMessage])
 
 	const handleOpenMessage = useCallback(() => {
-		// handle open message
-	}, [])
+		if (focusedUid && !selectedMessage) {
+			setSelectedMessage({ uid: focusedUid, mailbox: activeMailbox! })
+			openMessageInStore(activeAccount!.id, activeMailbox!, focusedUid)
+		}
+	}, [focusedUid, selectedMessage, activeMailbox])
 
 	const handleDeleteMessage = useCallback(() => {
 		// handle delete message
@@ -99,11 +164,35 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 		return () => window.removeEventListener('compose:new', handleNewMessage)
 	}, [])
 
+	// Listen for reply events
+	useEffect(() => {
+		const handleReply = () => {
+			setIsComposeOpen(true)
+		}
+		window.addEventListener('compose:reply', handleReply)
+		return () => window.removeEventListener('compose:reply', handleReply)
+	}, [])
+
+	// Listen for forward events
+	useEffect(() => {
+		const handleForwardEvent = () => {
+			setIsComposeOpen(true)
+		}
+		window.addEventListener('compose:forward', handleForwardEvent)
+		return () => window.removeEventListener('compose:forward', handleForwardEvent)
+	}, [])
+
 	useEffect(() => {
 		if (!activeAccount && accounts.length > 0) {
 			setActiveAccount(accounts[0])
 		}
 	}, [accounts, activeAccount, setActiveAccount])
+
+	// reset selected message when mailbox changes
+	useEffect(() => {
+		setSelectedMessage(null)
+		closeMessageInStore()
+	}, [activeMailbox])
 
 	if (!activeAccount) {
 		return (
@@ -123,7 +212,19 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 					onCompose={() => setIsComposeOpen(true)}
 				/>
 				<div className='flex flex-1 flex-col overflow-hidden'>
-					{activeMailbox === 'Drafts' ? (
+					{selectedMessage ? (
+						<MessageView
+							accountId={activeAccount.id}
+							mailbox={selectedMessage.mailbox}
+							uid={selectedMessage.uid}
+							onBack={() => {
+								setSelectedMessage(null)
+								closeMessageInStore()
+							}}
+							onNext={canGoNext() ? handleNextMessage : undefined}
+							onPrev={canGoPrev() ? handlePrevMessage : undefined}
+						/>
+					) : activeMailbox === 'Drafts' ? (
 						<DraftsList
 							accountId={activeAccount.id}
 							onDraftClick={(draft: ComposeDraft) => {
@@ -135,8 +236,11 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 						<MessageList
 							account={activeAccount}
 							mailbox={activeMailbox}
-							onMessageClick={() => {
-								/* handle message click */
+							focusedUid={focusedUid}
+							onMessageClick={(uid: number) => {
+								setSelectedMessage({ uid, mailbox: activeMailbox })
+								openMessageInStore(activeAccount!.id, activeMailbox!, uid)
+								setFocusedUid(uid)
 							}}
 						/>
 					)}

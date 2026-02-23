@@ -17,6 +17,7 @@ import { useAnimationsEnabled } from '@/hooks/useMotion'
 interface MessageListProps {
 	account: AccountMeta
 	mailbox: string
+	focusedUid?: number | null
 	onMessageClick: (messageId: number) => void
 }
 
@@ -35,6 +36,7 @@ interface MessageRowProps {
 	onMouseLeave: () => void
 	onDelete: () => void
 	onToggleRead: () => void
+	isFocused: boolean
 }
 
 const MessageRow = memo(
@@ -51,6 +53,7 @@ const MessageRow = memo(
 		onMouseLeave,
 		onDelete,
 		onToggleRead,
+		isFocused,
 	}: MessageRowProps) => {
 		const { t } = useTypedTranslation()
 
@@ -70,6 +73,7 @@ const MessageRow = memo(
 				className={`message-unread-indicator group relative flex w-full cursor-pointer items-center border-b border-white/[0.04] px-4 py-3 text-left transition-all duration-150 outline-none focus-visible:bg-white/[0.05] ${
 					isUnread && !zenMode ? 'is-unread' : ''
 				} ${
+					isFocused ? 'bg-white/[0.06] shadow-[inset_3px_0_0_0_var(--accent-color)]' : 
 					isUnread && !zenMode
 						? 'bg-slate-900/30 hover:bg-slate-900/60'
 						: 'bg-transparent hover:bg-white/[0.03]'
@@ -197,7 +201,7 @@ const MessageRow = memo(
 	}
 )
 
-export const MessageList = ({ account, mailbox, onMessageClick }: MessageListProps) => {
+export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: MessageListProps) => {
 	const { t } = useTypedTranslation()
 	const animationsEnabled = useAnimationsEnabled()
 	const queryClient = useQueryClient()
@@ -285,7 +289,7 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 
 		return () => {
 			stopped = true
-			invoke('unwatch_mailbox', { accountId: account.id }).catch((e) =>
+			invoke('unwatch_mailbox', { accountId: account.id, mailbox }).catch((e) =>
 				console.error('Failed to stop mailbox watch:', e)
 			)
 		}
@@ -616,6 +620,7 @@ export const MessageList = ({ account, mailbox, onMessageClick }: MessageListPro
 							message={message}
 							isUnread={isUnread}
 							isHovered={isHovered}
+							isFocused={message.uid === focusedUid}
 							zenMode={zenMode}
 							accentColor={accentColor}
 							animationsEnabled={animationsEnabled}

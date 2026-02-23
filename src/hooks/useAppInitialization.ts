@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen, Event } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -30,6 +30,9 @@ export function useAppInitialization() {
 
 	const [tempPassphrase, setTempPassphrase] = useState<string | null>(null)
 	const [showRecoveryVerify, setShowRecoveryVerify] = useState(false)
+	// Guard against double-init from React StrictMode or dependency re-fires
+	const isInitializingRef = useRef(false)
+	const hasInitializedRef = useRef(false)
 
 	const fetchAccounts = useCallback(
 		async (options?: { forceShowAccountsOnEmpty?: boolean }) => {
@@ -100,17 +103,21 @@ export function useAppInitialization() {
 	useEffect(() => {
 		const init = async () => {
 			if (currentState !== 'init') return
+			if (isInitializingRef.current || hasInitializedRef.current) return
+			isInitializingRef.current = true
 			try {
 				const { status, method } = await invoke<{ status: string; method: string | null }>(
 					'get_app_initialization_status'
 				)
 				if (status === 'Locked') {
 					if (method === 'argon2') {
+						hasInitializedRef.current = true
 						setCurrentState('argon2-unlock')
 					} else if (method === 'tpm' || method === 'keyring') {
 						const lastMethod = method as string
 						try {
 							await invoke('initialize_security', { method: lastMethod })
+							hasInitializedRef.current = true
 							await loadSettings()
 							await fetchAccounts()
 						} catch (e) {
@@ -118,14 +125,19 @@ export function useAppInitialization() {
 							setCurrentState('security')
 						}
 					} else {
+						hasInitializedRef.current = true
 						setCurrentState('security')
 					}
 				} else {
+					hasInitializedRef.current = true
 					setCurrentState('welcome')
 				}
 			} catch (e) {
 				console.error('Failed to get initialization status', e)
+				hasInitializedRef.current = true
 				setCurrentState('welcome')
+			} finally {
+				isInitializingRef.current = false
 			}
 		}
 		init()

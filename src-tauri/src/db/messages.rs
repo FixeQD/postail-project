@@ -20,6 +20,7 @@ pub struct MessageBatchItem {
     pub internal_date: DateTime<Utc>,
     pub from: Option<String>,
     pub to: Vec<String>,
+    pub cc: Vec<String>,
     pub subject: Option<String>,
     pub snippet: Option<String>,
     pub flags: Vec<String>,
@@ -120,6 +121,7 @@ pub fn fetch_headers(
             subject: row.get(3)?,
             from: vec![row.get::<_, Option<String>>(4)?.unwrap_or_default()],
             to,
+            cc: vec![],
             flags,
             snippet: row.get(7)?,
             has_attachments: row.get::<_, i64>(8)? != 0,
@@ -130,52 +132,117 @@ pub fn fetch_headers(
     headers.map_err(DBError::Sqlite)
 }
 
+pub fn get_message_table_id(
+    conn: &Connection,
+    account_id: &str,
+    mailbox: &str,
+    uid: u32,
+) -> Result<Option<i64>, DBError> {
+    conn.query_row(
+        "SELECT id FROM messages WHERE account_id = ? AND mailbox = ? AND uid = ?",
+        params![account_id, mailbox, uid],
+        |row| row.get(0),
+    )
+    .optional()
+    .map_err(DBError::Sqlite)
+}
+
 pub fn fetch_message_full(
     conn: &Connection,
     account_id: &str,
     mailbox: &str,
     uid: u32,
 ) -> Result<Option<MessageFull>, DBError> {
-    let mut stmt = conn.prepare(
-        "SELECT message_id, internal_date, subject, from_addr, to_json, flags_json, snippet, has_attachments FROM messages
-         WHERE account_id = ? AND mailbox = ? AND uid = ?",
-    )?;
-    let header = stmt
-        .query_row(params![account_id, mailbox, uid], |row| {
-            let to_json: Option<String> = row.get(4)?;
-            let to: Vec<String> = to_json
-                .map(|s| serde_json::from_str(&s).unwrap_or_default())
-                .unwrap_or_default();
-            let flags_json: Option<String> = row.get(5)?;
-            let flags: Vec<String> = flags_json
-                .map(|s| serde_json::from_str(&s).unwrap_or_default())
-                .unwrap_or_default();
-            Ok(MailHeader {
-                uid,
-                message_id: row.get(0)?,
-                internal_date: safe_timestamp_from_utc(row.get::<_, i64>(1)?)
-                    .ok_or_else(|| rusqlite::Error::InvalidColumnName("internal_date".into()))?,
-                subject: row.get(2)?,
-                from: vec![row.get::<_, Option<String>>(3)?.unwrap_or_default()],
-                to,
-                flags,
-                snippet: row.get(6)?,
-                has_attachments: row.get::<_, i64>(7)? != 0,
-            })
-        })
+    // Load header only
+    let header = conn
+        .query_row(
+            "SELECT id, message_id, internal_date, subject, from_addr, to_json, flags_json, snippet, has_attachments
+             FROM messages
+             WHERE account_id = ? AND mailbox = ? AND uid = ?",
+            params![account_id, mailbox, uid],
+            |row| {
+                let to_json: Option<String> = row.get(5)?;
+                let to: Vec<String> = to_json
+                    .map(|s| serde_json::from_str(&s).unwrap_or_default())
+                    .unwrap_or_default();
+                let flags_json: Option<String> = row.get(6)?;
+                let flags: Vec<String> = flags_json
+                    .map(|s| serde_json::from_str(&s).unwrap_or_default())
+                    .unwrap_or_default();
+                Ok(MailHeader {
+                    uid,
+                    message_id: row.get(1)?,
+                    internal_date: safe_timestamp_from_utc(row.get::<_, i64>(2)?)
+                        .ok_or_else(|| rusqlite::Error::InvalidColumnName("internal_date".into()))?,
+                    subject: row.get(3)?,
+                    from: vec![row.get::<_, Option<String>>(4)?.unwrap_or_default()],
+                    to,
+                    cc: vec![],
+                    flags,
+                    snippet: row.get(7)?,
+                    has_attachments: row.get::<_, i64>(8)? != 0,
+                })
+            },
+        )
         .optional()?;
 
     if let Some(header) = header {
+        let all_attachments = load_message_attachments(conn, account_id, mailbox, uid)?;
+        let (attachments, inline_images): (Vec<_>, Vec<_>) = all_attachments
+            .into_iter()
+            .partition(|(is_inline, _)| !is_inline);
+        let attachments = attachments.into_iter().map(|(_, a)| a).collect();
+        let inline_images = inline_images.into_iter().map(|(_, a)| a).collect();
+
+        // body_html / body_plain start empty - caller injects from file cache
         Ok(Some(MessageFull {
             header,
             body_html_safe: String::new(),
             body_plain: String::new(),
-            attachments: vec![],
-            inline_images: vec![],
+            attachments,
+            inline_images,
         }))
     } else {
         Ok(None)
     }
+}
+
+fn load_message_attachments(
+    conn: &Connection,
+    account_id: &str,
+    mailbox: &str,
+    uid: u32,
+) -> Result<Vec<(bool, super::AttachmentMeta)>, DBError> {
+    use rusqlite::OptionalExtension;
+    let message_table_id: Option<i64> = conn
+        .query_row(
+            "SELECT id FROM messages WHERE account_id = ? AND mailbox = ? AND uid = ?",
+            params![account_id, mailbox, uid],
+            |row| row.get(0),
+        )
+        .optional()?;
+
+    let Some(id) = message_table_id else {
+        return Ok(vec![]);
+    };
+
+    let mut stmt = conn.prepare(
+        "SELECT part_id, filename, mime_type, size, is_inline, cached_path, cid FROM attachments WHERE message_table_id = ?",
+    )?;
+    let rows = stmt.query_map(params![id], |row| {
+        Ok((
+            row.get::<_, i64>(4)? != 0,
+            super::AttachmentMeta {
+                part_id: row.get(0)?,
+                filename: row.get(1)?,
+                mime_type: row.get(2)?,
+                size: row.get::<_, i64>(3)? as u64,
+                cached_path: row.get(5)?,
+                cid: row.get(6)?,
+            },
+        ))
+    })?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(DBError::Sqlite)
 }
 
 pub struct MessageUpsertData {

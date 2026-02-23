@@ -25,6 +25,8 @@ export interface AttachmentMeta {
 	filename?: string
 	mime_type: string
 	size: number
+	cached_path?: string
+	cid?: string
 }
 
 export interface MessageFull {
