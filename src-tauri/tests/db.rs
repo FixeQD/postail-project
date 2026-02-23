@@ -272,9 +272,7 @@ fn test_fts_search() {
             subject: Some("Test subject with keyword".to_string()),
             snippet: Some("Body text with searchable content".to_string()),
             flags_json: Some(r#"["\Seen", "\Flagged"]"#.to_string()),
-            cc_json: Some(
-                r#"["cc1@example.com", "cc2@example.com", "cc3@example.com"]"#.to_string(),
-            ),
+
             structure_json: Some("structure".to_string()),
         },
     )
@@ -293,7 +291,7 @@ fn test_fts_search() {
             subject: Some("Another subject".to_string()),
             snippet: Some("Different body content".to_string()),
             flags_json: Some(r#"["\Seen"]"#.to_string()),
-            cc_json: Some(r#"["boss@example.com", "hr@example.com"]"#.to_string()),
+
             structure_json: Some("structure".to_string()),
         },
     )
@@ -615,7 +613,7 @@ fn test_performance_large_datasets() {
                     subject: Some(format!("Subject {}", uid)),
                     snippet: Some(format!("Body content for message {}", uid)),
                     flags_json: Some(r#"["\Seen"]"#.to_string()),
-                    cc_json: Some(r#"["perf-cc@example.com"]"#.to_string()),
+
                     structure_json: None,
                 },
             )
