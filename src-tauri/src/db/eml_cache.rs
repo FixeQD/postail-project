@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::error::DBError;
 use crate::security::SecurityManager;
@@ -118,10 +118,10 @@ pub fn save_body(
     ensure_parent(&path)?;
 
     let json = serde_json::to_vec(body).map_err(|e| {
-        DBError::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("body serialization failed: {}", e),
-        ))
+        DBError::Io(std::io::Error::other(format!(
+            "body serialization failed: {}",
+            e
+        )))
     })?;
 
     let encrypted = encrypt(security, &json)?;
@@ -152,10 +152,10 @@ pub fn load_body(
     let json = decrypt(security, &encrypted)?;
 
     let body: CachedBody = serde_json::from_slice(&json).map_err(|e| {
-        DBError::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("body deserialization failed: {}", e),
-        ))
+        DBError::Io(std::io::Error::other(format!(
+            "body deserialization failed: {}",
+            e
+        )))
     })?;
 
     Ok(Some(body))
@@ -183,7 +183,7 @@ pub fn delete_account_eml_cache(account_id: &str) -> Result<(), DBError> {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-fn ensure_parent(path: &PathBuf) -> Result<(), DBError> {
+fn ensure_parent(path: &Path) -> Result<(), DBError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(DBError::Io)?;
     }
@@ -191,19 +191,13 @@ fn ensure_parent(path: &PathBuf) -> Result<(), DBError> {
 }
 
 fn encrypt(security: &SecurityManager, data: &[u8]) -> Result<Vec<u8>, DBError> {
-    security.encrypt(data).map_err(|e| {
-        DBError::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("encryption failed: {}", e),
-        ))
-    })
+    security
+        .encrypt(data)
+        .map_err(|e| DBError::Io(std::io::Error::other(format!("encryption failed: {}", e))))
 }
 
 fn decrypt(security: &SecurityManager, data: &[u8]) -> Result<Vec<u8>, DBError> {
-    security.decrypt(data).map_err(|e| {
-        DBError::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("decryption failed: {}", e),
-        ))
-    })
+    security
+        .decrypt(data)
+        .map_err(|e| DBError::Io(std::io::Error::other(format!("decryption failed: {}", e))))
 }
