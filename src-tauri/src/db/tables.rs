@@ -3,11 +3,7 @@ use crate::error::DBError;
 use rusqlite::Connection;
 
 pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
-    pragma_set(conn, "journal_mode", "WAL")?;
-    pragma_set(conn, "synchronous", "NORMAL")?;
-    pragma_set(conn, "cache_size", "-64000")?;
-    pragma_set(conn, "mmap_size", "268435456")?;
-
+    // NOTE: journal_mode, synchronous, cache_size are already applied by apply_sqlcipher_key before this function is called
     create_table_if_not_exists(
         conn,
         "accounts",

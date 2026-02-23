@@ -11,31 +11,31 @@ use uuid::Uuid;
 
 pub fn add_performance_indexes(conn: &Connection) -> SqlResult<()> {
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_messages_account_mailbox 
+        "CREATE INDEX IF NOT EXISTS idx_messages_account_mailbox
          ON messages(account_id, mailbox)",
         [],
     )?;
 
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_messages_uid 
+        "CREATE INDEX IF NOT EXISTS idx_messages_uid
          ON messages(account_id, mailbox, uid)",
         [],
     )?;
 
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_messages_internal_date 
+        "CREATE INDEX IF NOT EXISTS idx_messages_internal_date
          ON messages(internal_date DESC)",
         [],
     )?;
 
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_outbox_status_retry 
+        "CREATE INDEX IF NOT EXISTS idx_outbox_status_retry
          ON outbox(status, next_retry)",
         [],
     )?;
 
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_attachments_message 
+        "CREATE INDEX IF NOT EXISTS idx_attachments_message
          ON attachments(message_table_id)",
         [],
     )?;
@@ -48,7 +48,6 @@ pub fn configure_pragma(conn: &Connection) -> SqlResult<()> {
     conn.pragma_update(None, "synchronous", "NORMAL")?;
     conn.pragma_update(None, "cache_size", "-64000")?;
     conn.pragma_update(None, "temp_store", "memory")?;
-    conn.pragma_update(None, "mmap_size", "268435456")?;
     Ok(())
 }
 

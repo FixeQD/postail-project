@@ -147,29 +147,18 @@ pub fn get_message_table_id(
     .map_err(DBError::Sqlite)
 }
 
-pub fn has_cached_body(conn: &Connection, message_table_id: i64) -> Result<bool, DBError> {
-    let count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM message_bodies WHERE message_id = ?",
-        params![message_table_id],
-        |row| row.get(0),
-    )?;
-    Ok(count > 0)
-}
-
 pub fn fetch_message_full(
     conn: &Connection,
     account_id: &str,
     mailbox: &str,
     uid: u32,
 ) -> Result<Option<MessageFull>, DBError> {
-    // Load header + message table id in one query
-    let row = conn
+    // Load header only
+    let header = conn
         .query_row(
-            "SELECT m.id, m.message_id, m.internal_date, m.subject, m.from_addr, m.to_json, m.flags_json, m.snippet, m.has_attachments,
-                    mb.body_html_safe, mb.body_plain
-             FROM messages m
-             LEFT JOIN message_bodies mb ON mb.message_id = m.id
-             WHERE m.account_id = ? AND m.mailbox = ? AND m.uid = ?",
+            "SELECT id, message_id, internal_date, subject, from_addr, to_json, flags_json, snippet, has_attachments
+             FROM messages
+             WHERE account_id = ? AND mailbox = ? AND uid = ?",
             params![account_id, mailbox, uid],
             |row| {
                 let to_json: Option<String> = row.get(5)?;
@@ -180,7 +169,7 @@ pub fn fetch_message_full(
                 let flags: Vec<String> = flags_json
                     .map(|s| serde_json::from_str(&s).unwrap_or_default())
                     .unwrap_or_default();
-                let header = MailHeader {
+                Ok(MailHeader {
                     uid,
                     message_id: row.get(1)?,
                     internal_date: safe_timestamp_from_utc(row.get::<_, i64>(2)?)
@@ -192,16 +181,12 @@ pub fn fetch_message_full(
                     flags,
                     snippet: row.get(7)?,
                     has_attachments: row.get::<_, i64>(8)? != 0,
-                };
-                let body_html_safe: Option<String> = row.get(9)?;
-                let body_plain: Option<String> = row.get(10)?;
-                Ok((header, body_html_safe, body_plain))
+                })
             },
         )
         .optional()?;
 
-    if let Some((header, body_html_safe, body_plain)) = row {
-        // Load attachments and inline images from DB
+    if let Some(header) = header {
         let all_attachments = load_message_attachments(conn, account_id, mailbox, uid)?;
         let (attachments, inline_images): (Vec<_>, Vec<_>) = all_attachments
             .into_iter()
@@ -209,10 +194,11 @@ pub fn fetch_message_full(
         let attachments = attachments.into_iter().map(|(_, a)| a).collect();
         let inline_images = inline_images.into_iter().map(|(_, a)| a).collect();
 
+        // body_html / body_plain start empty - caller injects from file cache
         Ok(Some(MessageFull {
             header,
-            body_html_safe: body_html_safe.unwrap_or_default(),
-            body_plain: body_plain.unwrap_or_default(),
+            body_html_safe: String::new(),
+            body_plain: String::new(),
             attachments,
             inline_images,
         }))

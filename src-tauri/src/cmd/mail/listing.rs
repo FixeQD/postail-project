@@ -128,38 +128,80 @@ pub async fn fetch_message_full(
 ) -> Result<Option<MessageFull>, String> {
     let uid_u32: u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
 
-    // Step 1: check if encrypted EML file exists on disk (fast, no DB query needed)
-    if crate::db::has_cached_eml(&account_id, &mailbox, uid_u32) {
-        tracing::info!(
-            target: "postail",
-            "[API] fetch_message_full EML cache HIT uid={} mailbox={}",
-            uid_u32,
-            mailbox
-        );
+    tracing::info!(
+        target: "postail",
+        "[API] fetch_message_full START uid={} mailbox={}",
+        uid_u32, mailbox
+    );
+
+    // Step 1: check if parsed body file exists on disk (never touches SQLite)
+    let body_on_disk = crate::db::eml_cache::has_cached_body_file(&account_id, &mailbox, uid_u32);
+    tracing::info!(
+        target: "postail",
+        "[API] fetch_message_full body_on_disk={} uid={} mailbox={}",
+        body_on_disk, uid_u32, mailbox
+    );
+
+    if body_on_disk {
+        // Load header from DB (tiny read, no large blobs)
         let conn_guard = crate::globals::DB_CONN.lock().await;
         if let Some(conn) = conn_guard.as_ref() {
-            let msg = crate::db::fetch_message_full(conn, &account_id, &mailbox, uid_u32)
+            let mut msg = crate::db::fetch_message_full(conn, &account_id, &mailbox, uid_u32)
                 .map_err(|e| e.to_string())?;
-            // If DB has parsed body, return it directly
-            if let Some(m) = &msg {
-                if !m.body_html_safe.is_empty() || !m.body_plain.is_empty() {
-                    return Ok(msg);
+
+            if let Some(ref mut m) = msg {
+                // Inject body from encrypted file — zero DB reads for body content
+                let security = crate::globals::SECURITY.lock().await;
+                match crate::db::eml_cache::load_body(&security, &account_id, &mailbox, uid_u32) {
+                    Ok(Some(body)) => {
+                        tracing::info!(
+                            target: "postail",
+                            "[API] fetch_message_full file cache HIT uid={} html_len={} plain_len={}",
+                            uid_u32, body.body_html.len(), body.body_plain.len()
+                        );
+                        m.body_html_safe = body.body_html;
+                        m.body_plain = body.body_plain;
+                    }
+                    Ok(None) => {
+                        tracing::warn!(target: "postail",
+                            "[API] fetch_message_full body file missing despite has_cached_body_file=true uid={}", uid_u32);
+                    }
+                    Err(e) => {
+                        tracing::error!(target: "postail",
+                            "[API] fetch_message_full body file load error uid={} error={}", uid_u32, e);
+                    }
                 }
+                return Ok(msg);
             }
         }
-        // EML file exists but body not yet parsed in DB — let fetch_and_cache_message re-parse
     }
 
     // Step 2: fetch from IMAP (or re-parse from existing EML file), cache, return
     tracing::info!(
         target: "postail",
-        "[API] fetch_message_full fetching uid={} mailbox={}",
-        uid_u32,
-        mailbox
+        "[API] fetch_message_full => fetch_and_cache_message uid={} mailbox={}",
+        uid_u32, mailbox
     );
     let imap = IMAP_MANAGER.lock().await.clone();
-    imap.fetch_and_cache_message(&account_id, &mailbox, uid_u32)
-        .await
+    let result = imap
+        .fetch_and_cache_message(&account_id, &mailbox, uid_u32)
+        .await;
+
+    tracing::info!(
+        target: "postail",
+        "[API] fetch_message_full fetch_and_cache_message result: ok={} uid={} mailbox={}",
+        result.is_ok(),
+        uid_u32, mailbox
+    );
+    if let Err(ref e) = result {
+        tracing::error!(
+            target: "postail",
+            "[API] fetch_message_full FAILED uid={} mailbox={} error={}",
+            uid_u32, mailbox, e
+        );
+    }
+
+    result
 }
 
 #[command]

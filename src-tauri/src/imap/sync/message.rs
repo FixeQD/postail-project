@@ -1,12 +1,11 @@
 use futures::StreamExt;
-use mailparse::MailHeaderMap;
 
 use crate::db;
-use crate::db::eml_cache;
+use crate::db::eml_cache::{self, CachedBody};
 use crate::db::messages::sync_message_attachments_flag;
 
 impl crate::imap::ImapManager {
-    /// Cache-first sync read: returns full message from DB if body is already parsed.
+    /// Returns the full message from DB header + file-based body cache.
     pub async fn fetch_message_full_sync(
         &self,
         account_id: &str,
@@ -20,13 +19,14 @@ impl crate::imap::ImapManager {
         db::fetch_message_full(conn, account_id, mailbox, uid).map_err(|e| e.to_string())
     }
 
+    /// Fetches EML (or reuses disk cache), parses body + attachments, saves everything.
     pub async fn fetch_and_cache_message(
         &self,
         account_id: &str,
         mailbox: &str,
         uid: u32,
     ) -> Result<Option<crate::db::MessageFull>, String> {
-        // Step 1: try disk cache first
+        // ── Step 1: load or fetch raw EML ──────────────────────────────────
         let raw_eml = {
             let security = self.security.lock().await;
             eml_cache::load_eml(&security, account_id, mailbox, uid).map_err(|e| e.to_string())?
@@ -41,7 +41,6 @@ impl crate::imap::ImapManager {
                 bytes
             }
             None => {
-                // Step 2: fetch from IMAP
                 tracing::info!(
                     target: "postail",
                     "[EmlCache] Disk cache MISS uid={} mailbox={} — fetching from IMAP", uid, mailbox
@@ -54,47 +53,62 @@ impl crate::imap::ImapManager {
                 let security = self.security.lock().await;
                 eml_cache::save_eml(&security, account_id, mailbox, uid, &bytes)
                     .map_err(|e| e.to_string())?;
-
                 bytes
             }
         };
 
-        // Get message table id
-        let message_table_id = {
-            let conn_guard = self.conn.lock().await;
-            let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-            db::get_message_table_id(conn, account_id, mailbox, uid).map_err(|e| e.to_string())?
-        };
-
-        let message_table_id = match message_table_id {
-            Some(id) => id,
-            None => return Err("Message header not found in database".to_string()),
-        };
-
-        // Parse body
+        // ── Step 2: parse body ─────────────────────────────────────────────
         let (html, plain, parse_error) = db::parse_mail_with_fallback(&raw_eml);
 
-        {
-            let conn_guard = self.conn.lock().await;
-            let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-
-            // Save parsed body to DB (no raw_content BLOB)
-            db::save_message_body(conn, message_table_id, html.as_deref(), plain.as_deref())
-                .map_err(|e| e.to_string())?;
-
-            if let Some(err) = &parse_error {
-                tracing::warn!(
-                    target: "postail",
-                    "[EmlCache] Parse error uid={}: {}", uid, err
-                );
-            }
-
-            // Parse and save attachments
-            save_attachments_from_eml(conn, message_table_id, &raw_eml);
-
-            // Return full message from DB
-            db::fetch_message_full(conn, account_id, mailbox, uid).map_err(|e| e.to_string())
+        if let Some(ref err) = parse_error {
+            tracing::warn!(target: "postail", "[BodyCache] Parse error uid={}: {}", uid, err);
         }
+
+        tracing::info!(
+            target: "postail",
+            "[BodyCache] Parsed EML uid={} mailbox={}: html_len={} plain_len={} parse_error={:?}",
+            uid, mailbox,
+            html.as_deref().map(|s| s.len()).unwrap_or(0),
+            plain.as_deref().map(|s| s.len()).unwrap_or(0),
+            parse_error
+        );
+
+        let body_html = html.unwrap_or_default();
+        let body_plain = plain.unwrap_or_default();
+
+        // ── Step 4: save body to encrypted file ─────────────────────────────
+        {
+            let security = self.security.lock().await;
+            let cached_body = CachedBody {
+                body_html: body_html.clone(),
+                body_plain: body_plain.clone(),
+            };
+            eml_cache::save_body(&security, account_id, mailbox, uid, &cached_body)
+                .map_err(|e| e.to_string())?;
+        }
+
+        // ── Step 5: return full assembled message ──────────────────────────
+        let conn_guard = self.conn.lock().await;
+        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+        let mut msg =
+            db::fetch_message_full(conn, account_id, mailbox, uid).map_err(|e| e.to_string())?;
+
+        // Inject body from file cache
+        if let Some(ref mut m) = msg {
+            m.body_html_safe = body_html;
+            m.body_plain = body_plain;
+        }
+
+        tracing::info!(
+            target: "postail",
+            "[BodyCache] Final result uid={}: found={} html_len={} plain_len={}",
+            uid,
+            msg.is_some(),
+            msg.as_ref().map(|m| m.body_html_safe.len()).unwrap_or(0),
+            msg.as_ref().map(|m| m.body_plain.len()).unwrap_or(0),
+        );
+
+        Ok(msg)
     }
 
     async fn fetch_raw_eml_from_imap(
@@ -124,8 +138,9 @@ impl crate::imap::ImapManager {
     }
 }
 
-/// Parses raw EML and saves attachments + inline images to DB.
+/// Parses raw EML and saves attachment metadata (small rows, no BLOBs) to DB.
 fn save_attachments_from_eml(conn: &rusqlite::Connection, message_table_id: i64, raw_eml: &[u8]) {
+    use mailparse::MailHeaderMap;
     use mailparse::{parse_mail, ParsedMail};
 
     let Ok(mail) = parse_mail(raw_eml) else {
@@ -136,21 +151,17 @@ fn save_attachments_from_eml(conn: &rusqlite::Connection, message_table_id: i64,
         conn: &rusqlite::Connection,
         message_table_id: i64,
         part: &ParsedMail,
-        part_counter: &mut u32,
+        counter: &mut u32,
     ) {
         let mime_type = part.ctype.mimetype.to_lowercase();
-        let is_text = mime_type == "text/html" || mime_type == "text/plain";
-        let is_multipart = mime_type.starts_with("multipart/");
-
-        if is_multipart {
+        if mime_type.starts_with("multipart/") {
             for sub in &part.subparts {
-                walk_parts(conn, message_table_id, sub, part_counter);
+                walk_parts(conn, message_table_id, sub, counter);
             }
             return;
         }
-
-        if is_text {
-            *part_counter += 1;
+        if mime_type == "text/html" || mime_type == "text/plain" {
+            *counter += 1;
             return;
         }
 
@@ -161,10 +172,10 @@ fn save_attachments_from_eml(conn: &rusqlite::Connection, message_table_id: i64,
             .to_lowercase();
         let is_inline = disposition.starts_with("inline");
 
-        let content_id = part
+        let cid = part
             .get_headers()
             .get_first_value("Content-ID")
-            .map(|cid| cid.trim_matches(|c| c == '<' || c == '>').to_string());
+            .map(|s| s.trim_matches(|c| c == '<' || c == '>').to_string());
 
         let filename = part
             .get_headers()
@@ -187,11 +198,12 @@ fn save_attachments_from_eml(conn: &rusqlite::Connection, message_table_id: i64,
             });
 
         let size = part.get_body_raw().map(|b| b.len() as i64).unwrap_or(0);
-        let part_id = format!("{}", *part_counter);
-        *part_counter += 1;
+        let part_id = format!("{}", *counter);
+        *counter += 1;
 
         let _ = conn.execute(
-            "INSERT OR IGNORE INTO attachments (message_table_id, part_id, filename, mime_type, size, is_inline, cid)
+            "INSERT OR IGNORE INTO attachments
+             (message_table_id, part_id, filename, mime_type, size, is_inline, cid)
              VALUES (?, ?, ?, ?, ?, ?, ?)",
             rusqlite::params![
                 message_table_id,
@@ -200,7 +212,7 @@ fn save_attachments_from_eml(conn: &rusqlite::Connection, message_table_id: i64,
                 mime_type,
                 size,
                 if is_inline { 1i64 } else { 0i64 },
-                content_id,
+                cid,
             ],
         );
     }
