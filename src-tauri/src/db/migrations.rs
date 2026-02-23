@@ -56,6 +56,7 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         migrate_to_v4(conn)?;
         set_db_version(conn, 4)?;
     }
+
     if current_version < 5 {
         migrate_to_v5(conn)?;
         set_db_version(conn, 5)?;
@@ -130,8 +131,34 @@ fn migrate_to_v4(conn: &Connection) -> Result<(), DBError> {
 }
 
 fn migrate_to_v5(conn: &Connection) -> Result<(), DBError> {
-    if !column_exists(conn, "messages", "cc_json")? {
-        conn.execute("ALTER TABLE messages ADD COLUMN cc_json TEXT", [])?;
+    // Ensure message_bodies table exists for existing installs
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS message_bodies (
+            message_id INTEGER PRIMARY KEY,
+            body_html_safe TEXT,
+            body_plain TEXT NOT NULL DEFAULT '',
+            raw_content BLOB,
+            parse_error TEXT,
+            FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_message_bodies_message_id ON message_bodies(message_id)",
+        [],
+    )?;
+
+    // Add is_inline and cid columns to attachments for inline image support
+    if !column_exists(conn, "attachments", "is_inline")? {
+        conn.execute(
+            "ALTER TABLE attachments ADD COLUMN is_inline INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
+
+    if !column_exists(conn, "attachments", "cid")? {
+        conn.execute("ALTER TABLE attachments ADD COLUMN cid TEXT", [])?;
     }
 
     Ok(())

@@ -15,7 +15,6 @@ export interface MailHeader {
 	subject?: string
 	from: string[]
 	to: string[]
-	cc: string[]
 	flags: string[]
 	snippet?: string
 	has_attachments: boolean
@@ -26,8 +25,8 @@ export interface AttachmentMeta {
 	filename?: string
 	mime_type: string
 	size: number
-	cid?: string
 	cached_path?: string
+	cid?: string
 }
 
 export interface MessageFull {
@@ -36,15 +35,4 @@ export interface MessageFull {
 	body_plain: string
 	attachments: AttachmentMeta[]
 	inline_images: AttachmentMeta[]
-}
-
-export interface ParsedAddress {
-	name: string
-	email: string
-}
-
-export interface MessageViewSelection {
-	accountId: string
-	mailbox: string
-	uid: number
 }

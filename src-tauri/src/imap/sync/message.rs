@@ -1,9 +1,11 @@
 use futures::StreamExt;
-use rusqlite::params;
+use mailparse::MailHeaderMap;
 
 use crate::db;
+use crate::db::messages::sync_message_attachments_flag;
 
 impl crate::imap::ImapManager {
+    /// Cache-first: returns from DB if body is already cached, otherwise returns None
     pub async fn fetch_message_full_sync(
         &self,
         account_id: &str,
@@ -14,13 +16,11 @@ impl crate::imap::ImapManager {
         let conn = conn_guard
             .as_ref()
             .ok_or("Database not initialized".to_string())?;
-        match crate::db::fetch_message_full(conn, account_id, mailbox, uid) {
-            Ok(message) => Ok(message),
-            Err(e) => Err(format!("Failed to fetch message: {}", e)),
-        }
+        db::fetch_message_full(conn, account_id, mailbox, uid).map_err(|e| e.to_string())
     }
 
-    pub async fn fetch_message_full(
+    /// Fetches full message from IMAP, parses body + attachments, saves to message_bodies cache.
+    pub async fn fetch_and_cache_message(
         &self,
         account_id: &str,
         mailbox: &str,
@@ -29,106 +29,149 @@ impl crate::imap::ImapManager {
         let mut session = self.connect_imap(account_id).await?;
         session.select(mailbox).await.map_err(|e| e.to_string())?;
 
-        let fetch_result = {
-            tracing::info!(target: "postail", "[IMAP] fetch_message_full: calling uid_fetch for {}", uid);
+        let raw_eml: Option<Vec<u8>> = {
             let mut fetches = session
-                .uid_fetch(format!("{}", uid), "(BODY[])")
+                .uid_fetch(format!("{}", uid), "(BODY.PEEK[])")
                 .await
-                .map_err(|e| {
-                    tracing::error!(target: "postail", "[IMAP] fetch_message_full: uid_fetch failed: {}", e);
-                    e.to_string()
-                })?;
-
+                .map_err(|e| e.to_string())?;
             if let Some(fetch) = fetches.next().await {
-                let fetch = fetch.map_err(|e| {
-                    tracing::error!(target: "postail", "[IMAP] fetch_message_full: fetch.next() failed: {}", e);
-                    e.to_string()
-                })?;
-                let body_owned: Vec<u8> = fetch.body().ok_or_else(|| {
-                    tracing::error!(target: "postail", "[IMAP] fetch_message_full: No body in fetch result for uid={}", uid);
-                    "No body".to_string()
-                })?.to_vec(); // owned
-
-                tracing::info!(target: "postail", "[IMAP] fetch_message_full: got {} bytes for uid={}", body_owned.len(), uid);
-
-                drop(fetch);
-                drop(fetches);
-
-                let conn_guard = self.conn.lock().await;
-                let conn = conn_guard
-                    .as_ref()
-                    .ok_or_else(|| "Database not initialized".to_string())?;
-
-                // Fetch the header from the 'messages' table (read-only)
-                let header = {
-                    let mut stmt = conn.prepare(
-                        "SELECT message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments 
-                         FROM messages WHERE account_id = ? AND mailbox = ? AND uid = ?"
-                    ).map_err(|e| e.to_string())?;
-
-                    stmt.query_row(params![account_id, mailbox, uid], |row| {
-                        let to_json: Option<String> = row.get(4)?;
-                        let to: Vec<String> = to_json
-                            .map(|s| serde_json::from_str(&s).unwrap_or_default())
-                            .unwrap_or_default();
-                        let cc_json: Option<String> = row.get(5)?;
-                        let cc: Vec<String> = cc_json
-                            .map(|s| serde_json::from_str(&s).unwrap_or_default())
-                            .unwrap_or_default();
-                        let flags_json: Option<String> = row.get(6)?;
-                        let flags: Vec<String> = flags_json
-                            .map(|s| serde_json::from_str(&s).unwrap_or_default())
-                            .unwrap_or_default();
-
-                        Ok(db::MailHeader {
-                            uid,
-                            message_id: row.get(0)?,
-                            internal_date: db::messages::safe_timestamp_from_utc(
-                                row.get::<_, i64>(1)?,
-                            )
-                            .ok_or_else(|| {
-                                rusqlite::Error::InvalidColumnName("internal_date".into())
-                            })?,
-                            subject: row.get(2)?,
-                            from: vec![row.get::<_, Option<String>>(3)?.unwrap_or_default()],
-                            to,
-                            cc,
-                            flags,
-                            snippet: row.get(7)?,
-                            has_attachments: row.get::<_, i64>(8)? != 0,
-                        })
-                    })
-                    .map_err(|e| e.to_string())?
-                };
-
-                // Parse the body in-memory
-                let parts = db::message_bodies::parse_mail_with_fallback(&body_owned);
-                let attachments = parts.attachments;
-                let inline_images = parts.inline_images;
-                let html = parts.html_content;
-                let plain = parts.plain_content;
-
-                let mut header = header;
-                if !attachments.is_empty() || !inline_images.is_empty() {
-                    header.has_attachments = true;
-                }
-
-                tracing::info!(target: "postail", "[IMAP] fetch_message_full: returning direct MessageFull for uid={} (no cache, no sanitizer)", uid);
-
-                Ok(Some(db::MessageFull {
-                    header,
-                    body_html_safe: html.unwrap_or_else(|| plain.clone().unwrap_or_default()),
-                    body_plain: plain.unwrap_or_default(),
-                    attachments,
-                    inline_images,
-                }))
+                let fetch = fetch.map_err(|e| e.to_string())?;
+                fetch.body().map(|b| b.to_vec())
             } else {
-                tracing::warn!(target: "postail", "[IMAP] fetch_message_full: No fetch results for uid={}", uid);
-                Ok(None)
+                None
             }
         };
 
-        let _ = session.logout().await;
-        fetch_result
+        session.logout().await.map_err(|e| e.to_string())?;
+
+        let raw_eml = match raw_eml {
+            Some(b) => b,
+            None => return Ok(None),
+        };
+
+        // Get the messages.id (integer PK) for this uid
+        let message_table_id: Option<i64> = {
+            let conn_guard = self.conn.lock().await;
+            let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+            db::get_message_table_id(conn, account_id, mailbox, uid).map_err(|e| e.to_string())?
+        };
+
+        let message_table_id = match message_table_id {
+            Some(id) => id,
+            None => return Err("Message header not found in database".to_string()),
+        };
+
+        // Parse raw EML — body + attachments
+        let (html, plain, parse_error) = db::parse_mail_with_fallback(&raw_eml);
+
+        let conn_guard = self.conn.lock().await;
+        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+
+        db::save_message_body_with_raw(
+            conn,
+            message_table_id,
+            html.as_deref(),
+            plain.as_deref(),
+            &raw_eml,
+            parse_error.as_deref(),
+        )
+        .map_err(|e| e.to_string())?;
+
+        // Parse and save attachments
+        save_attachments_from_eml(conn, message_table_id, &raw_eml);
+
+        // Return full message from DB
+        db::fetch_message_full(conn, account_id, mailbox, uid).map_err(|e| e.to_string())
     }
+}
+
+/// Parses raw EML and saves attachments + inline images to DB.
+fn save_attachments_from_eml(conn: &rusqlite::Connection, message_table_id: i64, raw_eml: &[u8]) {
+    use mailparse::{parse_mail, ParsedMail};
+
+    let Ok(mail) = parse_mail(raw_eml) else {
+        return;
+    };
+
+    fn walk_parts(
+        conn: &rusqlite::Connection,
+        message_table_id: i64,
+        part: &ParsedMail,
+        part_counter: &mut u32,
+    ) {
+        let mime_type = part.ctype.mimetype.to_lowercase();
+
+        // Skip top-level text parts
+        let is_text = mime_type == "text/html" || mime_type == "text/plain";
+        let is_multipart = mime_type.starts_with("multipart/");
+
+        if is_multipart {
+            for sub in &part.subparts {
+                walk_parts(conn, message_table_id, sub, part_counter);
+            }
+            return;
+        }
+
+        if is_text {
+            *part_counter += 1;
+            return;
+        }
+
+        // Determine if inline
+        let disposition = part
+            .get_headers()
+            .get_first_value("Content-Disposition")
+            .unwrap_or_default()
+            .to_lowercase();
+        let is_inline = disposition.starts_with("inline");
+
+        let content_id = part
+            .get_headers()
+            .get_first_value("Content-ID")
+            .map(|cid| cid.trim_matches(|c| c == '<' || c == '>').to_string());
+
+        let filename = part
+            .get_headers()
+            .get_first_value("Content-Disposition")
+            .and_then(|d| {
+                d.split(';')
+                    .find(|p| p.trim().starts_with("filename"))
+                    .and_then(|p| p.split('=').nth(1))
+                    .map(|v| v.trim().trim_matches('"').to_string())
+            })
+            .or_else(|| {
+                part.get_headers()
+                    .get_first_value("Content-Type")
+                    .and_then(|ct| {
+                        ct.split(';')
+                            .find(|p| p.trim().starts_with("name"))
+                            .and_then(|p| p.split('=').nth(1))
+                            .map(|v| v.trim().trim_matches('"').to_string())
+                    })
+            });
+
+        let size = part.get_body_raw().map(|b| b.len() as i64).unwrap_or(0);
+        let part_id = format!("{}", *part_counter);
+        *part_counter += 1;
+
+        let _ = conn.execute(
+            "INSERT OR IGNORE INTO attachments (message_table_id, part_id, filename, mime_type, size, is_inline, cid)
+             VALUES (?, ?, ?, ?, ?, ?, ?)",
+            rusqlite::params![
+                message_table_id,
+                part_id,
+                filename,
+                mime_type,
+                size,
+                if is_inline { 1i64 } else { 0i64 },
+                content_id,
+            ],
+        );
+    }
+
+    let mut counter = 0u32;
+    walk_parts(conn, message_table_id, &mail, &mut counter);
+
+    // Update has_attachments flag on messages row
+    let _ = sync_message_attachments_flag(message_table_id, conn);
 }

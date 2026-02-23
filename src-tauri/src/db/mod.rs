@@ -32,8 +32,9 @@ pub use crate::db::imap::*;
 pub use crate::db::mailbox::{fetch_mailboxes, get_mailbox_by_role, upsert_mailbox};
 pub use crate::db::message_bodies::*;
 pub use crate::db::messages::{
-    batch_insert_messages, fetch_headers, fetch_message_full, mark_read, move_to_trash,
-    upsert_message, MessageBatchItem, MessageUpsertData, DEFAULT_BATCH_SIZE,
+    batch_insert_messages, fetch_headers, fetch_message_full, get_message_table_id,
+    has_cached_body, mark_read, move_to_trash, upsert_message, MessageBatchItem, MessageUpsertData,
+    DEFAULT_BATCH_SIZE,
 };
 pub use crate::db::migration::run_encryption_migration_if_needed;
 pub use crate::db::migrations::{get_db_version, run_migrations};
@@ -218,8 +219,10 @@ pub struct AttachmentMeta {
     pub filename: Option<String>,
     pub mime_type: String,
     pub size: u64,
-    pub cid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cached_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cid: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -274,12 +277,10 @@ pub async fn init_db() -> Result<(), DBError> {
 fn apply_sqlcipher_key(conn: &Connection, hex_key: &str) -> Result<(), DBError> {
     let pragmas = [
         format!("PRAGMA key = \"x'{hex_key}'\""),
-        "PRAGMA cipher_page_size = 4096".to_string(),
-        "PRAGMA kdf_iter = 256000".to_string(),
         "PRAGMA journal_mode = WAL".to_string(),
         "PRAGMA synchronous = NORMAL".to_string(),
         "PRAGMA cache_size = -64000".to_string(),
-        "PRAGMA mmap_size = 0".to_string(),
+        "PRAGMA mmap_size = 268435456".to_string(),
     ];
 
     for pragma in pragmas {

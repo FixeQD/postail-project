@@ -3,6 +3,11 @@ use crate::error::DBError;
 use rusqlite::Connection;
 
 pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
+    pragma_set(conn, "journal_mode", "WAL")?;
+    pragma_set(conn, "synchronous", "NORMAL")?;
+    pragma_set(conn, "cache_size", "-64000")?;
+    pragma_set(conn, "mmap_size", "268435456")?;
+
     create_table_if_not_exists(
         conn,
         "accounts",
@@ -54,7 +59,6 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
             ("internal_date", "INTEGER NOT NULL"),
             ("from_addr", "TEXT"),
             ("to_json", "TEXT"),
-            ("cc_json", "TEXT"),
             ("subject", "TEXT"),
             ("snippet", "TEXT"),
             ("flags_json", "TEXT"),
@@ -127,8 +131,9 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
             ("filename", "TEXT"),
             ("mime_type", "TEXT NOT NULL"),
             ("size", "INTEGER NOT NULL"),
-            ("cid", "TEXT"),
             ("cached_path", "TEXT"),
+            ("is_inline", "INTEGER NOT NULL DEFAULT 0"),
+            ("cid", "TEXT"),
             (
                 "FOREIGN KEY(message_table_id) REFERENCES messages(id) ON DELETE CASCADE",
                 "",
@@ -149,6 +154,22 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
     )?;
 
     create_fts_table(conn, "contacts_fts", &["email", "name"], "contacts", "id")?;
+
+    create_table_if_not_exists(
+        conn,
+        "message_bodies",
+        &[
+            ("message_id", "INTEGER PRIMARY KEY"),
+            ("body_html_safe", "TEXT"),
+            ("body_plain", "TEXT NOT NULL DEFAULT ''"),
+            ("raw_content", "BLOB"),
+            ("parse_error", "TEXT"),
+            (
+                "FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE",
+                "",
+            ),
+        ],
+    )?;
 
     create_table_if_not_exists(
         conn,

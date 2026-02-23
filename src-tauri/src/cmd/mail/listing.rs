@@ -1,4 +1,4 @@
-use crate::db::{MailHeader, Mailbox, MessageFull};
+use crate::db::{AttachmentMeta, MailHeader, Mailbox, MessageFull};
 use crate::globals::{DB_CONN, IMAP_MANAGER};
 use crate::oauth;
 use tauri::command;
@@ -126,115 +126,83 @@ pub async fn fetch_message_full(
     mailbox: String,
     uid: u64,
 ) -> Result<Option<MessageFull>, String> {
-    let uid_u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
+    let uid_u32: u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
 
-    // Release the lock before doing heavy work
-    let imap = {
-        let guard = IMAP_MANAGER.lock().await;
-        guard.clone()
+    // Step 1: check if body is already cached in message_bodies
+    let cached = {
+        let conn_guard = crate::globals::DB_CONN.lock().await;
+        if let Some(conn) = conn_guard.as_ref() {
+            match crate::db::get_message_table_id(conn, &account_id, &mailbox, uid_u32) {
+                Ok(Some(table_id)) => match crate::db::has_cached_body(conn, table_id) {
+                    Ok(true) => {
+                        tracing::info!(
+                            target: "postail",
+                            "[API] fetch_message_full cache HIT uid={} mailbox={}",
+                            uid_u32,
+                            mailbox
+                        );
+                        // Cache hit — load full message from DB
+                        crate::db::fetch_message_full(conn, &account_id, &mailbox, uid_u32)
+                            .map_err(|e| e.to_string())?
+                    }
+                    _ => None,
+                },
+                _ => None,
+            }
+        } else {
+            return Err("Database not initialized".to_string());
+        }
     };
 
-    // Try DB first
-    if let Ok(Some(msg)) = imap
-        .fetch_message_full_sync(&account_id, &mailbox, uid_u32)
+    if cached.is_some() {
+        return Ok(cached);
+    }
+
+    // Step 2: cache miss — fetch from IMAP, parse, save, return
+    tracing::info!(
+        target: "postail",
+        "[API] fetch_message_full cache MISS uid={} mailbox={} — fetching from IMAP",
+        uid_u32,
+        mailbox
+    );
+    let imap = IMAP_MANAGER.lock().await.clone();
+    imap.fetch_and_cache_message(&account_id, &mailbox, uid_u32)
         .await
-    {
-        if !msg.body_html_safe.is_empty() || !msg.body_plain.is_empty() {
-            tracing::info!(target: "postail", "[API] fetch_message_full: cache hit for uid={}", uid_u32);
-            return Ok(Some(msg));
-        }
-    }
-
-    tracing::info!(target: "postail", "[API] fetch_message_full: cache miss, fetching from IMAP for uid={}", uid_u32);
-    let result = imap
-        .fetch_message_full(&account_id, &mailbox, uid_u32)
-        .await;
-
-    if let Ok(None) = &result {
-        tracing::warn!(target: "postail", "[API] fetch_message_full: IMAP returned None for uid={}", uid_u32);
-    }
-
-    result
 }
+
 #[command]
 pub async fn save_attachment(
-    app: tauri::AppHandle,
     account_id: String,
     mailbox: String,
     uid: u64,
     part_id: String,
-    filename: String,
-) -> Result<bool, String> {
-    use futures::StreamExt;
-    use mailparse::parse_mail;
-    use std::fs;
-    use tauri_plugin_dialog::DialogExt;
+) -> Result<AttachmentMeta, String> {
+    use crate::globals::DB_CONN;
 
     let uid_u32: u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
 
-    // 1. Fetch message from IMAP
-    let imap = crate::globals::IMAP_MANAGER.lock().await.clone();
-    let mut session = imap.connect_imap(&account_id).await?;
-    session.select(&mailbox).await.map_err(|e| e.to_string())?;
+    let conn_guard = DB_CONN.lock().await;
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
 
-    let mut fetches = session
-        .uid_fetch(format!("{}", uid_u32), "(BODY[])")
-        .await
+    let row = conn
+        .query_row(
+            "SELECT a.part_id, a.filename, a.mime_type, a.size, a.cached_path, a.cid
+             FROM attachments a
+             JOIN messages m ON m.id = a.message_table_id
+             WHERE m.account_id = ? AND m.mailbox = ? AND m.uid = ? AND a.part_id = ?",
+            rusqlite::params![account_id, mailbox, uid_u32, part_id],
+            |row| {
+                Ok(AttachmentMeta {
+                    part_id: row.get(0)?,
+                    filename: row.get(1)?,
+                    mime_type: row.get(2)?,
+                    size: row.get::<_, i64>(3)? as u64,
+                    cached_path: row.get(4)?,
+                    cid: row.get(5)?,
+                })
+            },
+        )
         .map_err(|e| e.to_string())?;
 
-    let fetch = fetches
-        .next()
-        .await
-        .ok_or("Message not found")?
-        .map_err(|e| e.to_string())?;
-    let body = fetch.body().ok_or("No body in fetch result")?.to_vec();
-    drop(fetch);
-    drop(fetches);
-    let _ = session.logout().await;
-
-    // 2. Parse and find part
-    let parsed = parse_mail(&body).map_err(|e| e.to_string())?;
-
-    fn find_part_bytes<'a>(
-        part: &'a mailparse::ParsedMail<'a>,
-        target_id: &str,
-        current_id: &mut usize,
-    ) -> Option<Vec<u8>> {
-        let my_id = current_id.to_string();
-        *current_id += 1;
-
-        if my_id == target_id {
-            return Some(part.get_body_raw().unwrap_or_default());
-        }
-
-        for sub in &part.subparts {
-            if let Some(bytes) = find_part_bytes(sub, target_id, current_id) {
-                return Some(bytes);
-            }
-        }
-        None
-    }
-
-    let bytes = find_part_bytes(&parsed, &part_id, &mut 0).ok_or("Attachment part not found")?;
-
-    // 3. Save dialog
-    let save_path = app
-        .dialog()
-        .file()
-        .set_file_name(&filename)
-        .blocking_save_file();
-
-    match save_path {
-        Some(target) => {
-            let target_path = match target {
-                tauri_plugin_dialog::FilePath::Path(p) => p,
-                tauri_plugin_dialog::FilePath::Url(u) => u
-                    .to_file_path()
-                    .map_err(|_| "Invalid URL target".to_string())?,
-            };
-            fs::write(target_path, bytes).map_err(|e| e.to_string())?;
-            Ok(true)
-        }
-        None => Ok(false), // User cancelled
-    }
+    Ok(row)
 }
