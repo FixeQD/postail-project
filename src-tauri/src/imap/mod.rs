@@ -1,6 +1,6 @@
 use crate::error::AppError;
 use crate::imap::connection::ImapSession;
-use crate::imap::sync_status::{update_sync_status, SYNC_STATUS_MANAGER};
+use crate::imap::sync_status::{mark_sync_complete, update_sync_status, SYNC_STATUS_MANAGER};
 use crate::security::SecurityManager;
 use rusqlite::Connection;
 use std::sync::Arc;
@@ -105,6 +105,9 @@ impl ImapManager {
         if let Some(mut session) = session_guard.session.take() {
             session.logout().await.map_err(AppError::from)?;
         }
+
+        mark_sync_complete(account_id).await;
+
         Ok(())
     }
 }
