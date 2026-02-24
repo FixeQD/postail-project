@@ -323,20 +323,23 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 				const lastMessage = lastPage[lastPage.length - 1]
 				return lastMessage?.uid
 			},
-			enabled: !isSyncing || syncedRef.current.has(mailboxKey),
+
+			enabled: !needsSync && !isSyncing,
 		})
 
 	const allMessages = useMemo(() => data?.pages.flatMap((page) => page) ?? [], [data?.pages])
 
 	// Force-refresh infinite query by removing cache, triggering a full refetch from page 1
 	const refreshMessages = useCallback(() => {
-		queryClient.removeQueries({ queryKey: ['messages', account.id, mailbox] })
+		queryClient.invalidateQueries({ queryKey: ['messages', account.id, mailbox] })
 	}, [account.id, mailbox, queryClient])
 
 	useEffect(() => {
 		const unlisten = listen('sync:completed', (event: { payload: { accountId: string } }) => {
 			if (event.payload.accountId === account.id) {
-				refreshMessages()
+				if (syncedRef.current.has(mailboxKey)) {
+					refreshMessages()
+				}
 			}
 		})
 
@@ -375,7 +378,8 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 					p.accountId === account.id &&
 					p.mailbox === mailbox &&
 					p.current === p.total &&
-					p.total > 0
+					p.total > 0 &&
+					syncedRef.current.has(mailboxKey)
 				) {
 					refreshMessages()
 				}
