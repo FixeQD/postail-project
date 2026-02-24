@@ -71,6 +71,8 @@
 		"pending": "{{count}} pending",
 		"ready": "Ready",
 		"clickToView": "Click to view outbox",
-		"noMessages": "No messages in outbox"
+		"noMessages": "No messages in outbox",
+		"syncingAccounts": "Syncing {{count}}...",
+		"syncingMailbox": "Syncing {{mailbox}}"
 	}
 }
