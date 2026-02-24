@@ -189,6 +189,13 @@
 	background: transparent;
 }
 
+/* Smooth scrolling for containers */
+.smooth-scroll-container {
+	scroll-behavior: smooth;
+	overflow-y: auto;
+	height: 100%;
+}
+
 /* Hide scrollbar until hover on scrollable containers */
 .hover-scrollbar {
 	scrollbar-width: thin;

@@ -616,34 +616,36 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 
 	return (
 		<div className='flex h-full flex-1 flex-col'>
-			<Virtuoso
-				ref={virtuosoRef}
-				data={allMessages}
-				endReached={loadMore}
-				overscan={200}
-				itemContent={(_index, message) => {
-					const isUnread = !message.flags.includes('\\Seen')
-					const isHovered = hoveredMessageId === message.uid
+			<div className='smooth-scroll-container'>
+				<Virtuoso
+					ref={virtuosoRef}
+					data={allMessages}
+					endReached={loadMore}
+					overscan={200}
+					itemContent={(_index, message) => {
+						const isUnread = !message.flags.includes('\\Seen')
+						const isHovered = hoveredMessageId === message.uid
 
-					return (
-						<MessageRow
-							message={message}
-							isUnread={isUnread}
-							isHovered={isHovered}
-							isFocused={message.uid === focusedUid}
-							zenMode={zenMode}
-							accentColor={accentColor}
-							animationsEnabled={animationsEnabled}
-							formatDate={formatDate}
-							onMessageClick={onMessageClick}
-							onMouseEnter={() => setHoveredMessageId(message.uid)}
-							onMouseLeave={() => setHoveredMessageId(null)}
-							onDelete={() => handleDeleteMessage(message.uid)}
-							onToggleRead={() => handleToggleReadStatus(message.uid, isUnread)}
-						/>
-					)
-				}}
-			/>
+						return (
+							<MessageRow
+								message={message}
+								isUnread={isUnread}
+								isHovered={isHovered}
+								isFocused={message.uid === focusedUid}
+								zenMode={zenMode}
+								accentColor={accentColor}
+								animationsEnabled={animationsEnabled}
+								formatDate={formatDate}
+								onMessageClick={onMessageClick}
+								onMouseEnter={() => setHoveredMessageId(message.uid)}
+								onMouseLeave={() => setHoveredMessageId(null)}
+								onDelete={() => handleDeleteMessage(message.uid)}
+								onToggleRead={() => handleToggleReadStatus(message.uid, isUnread)}
+							/>
+						)
+					}}
+				/>
+			</div>
 		</div>
 	)
 }
