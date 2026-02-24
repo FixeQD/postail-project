@@ -28,8 +28,15 @@ pub fn upsert_contact(conn: &Connection, email: &str, name: Option<&str>) -> Res
 }
 
 pub fn upsert_from_address_string(conn: &Connection, address: &str) -> Result<(), DBError> {
+    let address = address.trim();
+    if address.is_empty() {
+        return Ok(());
+    }
+    // Try full "Name <email>" format first, then fall back to plain email
     if let Some((name, email)) = parse_address(address) {
         upsert_contact(conn, &email, name.as_deref())?;
+    } else if address.contains('@') {
+        upsert_contact(conn, address, None)?;
     }
     Ok(())
 }

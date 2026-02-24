@@ -79,7 +79,29 @@ impl crate::imap::ImapManager {
                                     .as_ref()
                                     .map(|b| String::from_utf8_lossy(b))
                                     .unwrap_or_default();
-                                format!("{}@{}", mailbox, host)
+                                let email = format!("{}@{}", mailbox, host);
+                                let name = a
+                                    .name
+                                    .as_ref()
+                                    .and_then(|b| {
+                                        crate::utils::mail::decode_mime_header(Some(b.as_ref()))
+                                    })
+                                    .filter(|n| !n.is_empty());
+                                match name {
+                                    Some(n) => format!("{} <{}>", n, email),
+                                    None => email.clone(),
+                                };
+                                let name = a
+                                    .name
+                                    .as_ref()
+                                    .and_then(|b| {
+                                        crate::utils::mail::decode_mime_header(Some(b.as_ref()))
+                                    })
+                                    .filter(|n| !n.is_empty());
+                                match name {
+                                    Some(n) => format!("{} <{}>", n, email),
+                                    None => email,
+                                }
                             })
                             .collect()
                     })
@@ -101,7 +123,29 @@ impl crate::imap::ImapManager {
                                     .as_ref()
                                     .map(|b| String::from_utf8_lossy(b))
                                     .unwrap_or_default();
-                                format!("{}@{}", mailbox, host)
+                                let email = format!("{}@{}", mailbox, host);
+                                let name = a
+                                    .name
+                                    .as_ref()
+                                    .and_then(|b| {
+                                        crate::utils::mail::decode_mime_header(Some(b.as_ref()))
+                                    })
+                                    .filter(|n| !n.is_empty());
+                                match name {
+                                    Some(n) => format!("{} <{}>", n, email),
+                                    None => email.clone(),
+                                };
+                                let name = a
+                                    .name
+                                    .as_ref()
+                                    .and_then(|b| {
+                                        crate::utils::mail::decode_mime_header(Some(b.as_ref()))
+                                    })
+                                    .filter(|n| !n.is_empty());
+                                match name {
+                                    Some(n) => format!("{} <{}>", n, email),
+                                    None => email,
+                                }
                             })
                             .collect()
                     })
@@ -123,7 +167,18 @@ impl crate::imap::ImapManager {
                                     .as_ref()
                                     .map(|b| String::from_utf8_lossy(b))
                                     .unwrap_or_default();
-                                format!("{}@{}", mailbox, host)
+                                let email = format!("{}@{}", mailbox, host);
+                                let name = a
+                                    .name
+                                    .as_ref()
+                                    .and_then(|b| {
+                                        crate::utils::mail::decode_mime_header(Some(b.as_ref()))
+                                    })
+                                    .filter(|n| !n.is_empty());
+                                match name {
+                                    Some(n) => format!("{} <{}>", n, email),
+                                    None => email,
+                                }
                             })
                             .collect()
                     })
@@ -338,7 +393,18 @@ impl crate::imap::ImapManager {
                                 .as_ref()
                                 .map(|b| String::from_utf8_lossy(b))
                                 .unwrap_or_default();
-                            format!("{}@{}", mailbox, host)
+                            let email = format!("{}@{}", mailbox, host);
+                            let name = a
+                                .name
+                                .as_ref()
+                                .and_then(|b| {
+                                    crate::utils::mail::decode_mime_header(Some(b.as_ref()))
+                                })
+                                .filter(|n| !n.is_empty());
+                            match name {
+                                Some(n) => format!("{} <{}>", n, email),
+                                None => email,
+                            }
                         })
                         .collect()
                 })
@@ -360,7 +426,18 @@ impl crate::imap::ImapManager {
                                 .as_ref()
                                 .map(|b| String::from_utf8_lossy(b))
                                 .unwrap_or_default();
-                            format!("{}@{}", mailbox, host)
+                            let email = format!("{}@{}", mailbox, host);
+                            let name = a
+                                .name
+                                .as_ref()
+                                .and_then(|b| {
+                                    crate::utils::mail::decode_mime_header(Some(b.as_ref()))
+                                })
+                                .filter(|n| !n.is_empty());
+                            match name {
+                                Some(n) => format!("{} <{}>", n, email),
+                                None => email,
+                            }
                         })
                         .collect()
                 })
@@ -382,7 +459,18 @@ impl crate::imap::ImapManager {
                                 .as_ref()
                                 .map(|b| String::from_utf8_lossy(b))
                                 .unwrap_or_default();
-                            format!("{}@{}", mailbox, host)
+                            let email = format!("{}@{}", mailbox, host);
+                            let name = a
+                                .name
+                                .as_ref()
+                                .and_then(|b| {
+                                    crate::utils::mail::decode_mime_header(Some(b.as_ref()))
+                                })
+                                .filter(|n| !n.is_empty());
+                            match name {
+                                Some(n) => format!("{} <{}>", n, email),
+                                None => email,
+                            }
                         })
                         .collect()
                 })
