@@ -55,9 +55,12 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
             ("internal_date", "INTEGER NOT NULL"),
             ("from_addr", "TEXT"),
             ("to_json", "TEXT"),
+            ("cc_json", "TEXT"),
+            ("bcc_json", "TEXT"),
             ("subject", "TEXT"),
             ("snippet", "TEXT"),
             ("flags_json", "TEXT"),
+            ("has_attachments", "INTEGER NOT NULL DEFAULT 0"),
             ("cached_structure_json", "TEXT"),
             ("UNIQUE(account_id, mailbox, uid)", ""),
             (
