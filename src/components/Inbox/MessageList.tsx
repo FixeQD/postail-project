@@ -23,6 +23,8 @@ interface MessageListProps {
 
 const BATCH_SIZE = 50
 
+const syncedMailboxes = new Set<string>()
+
 interface MessageRowProps {
 	message: MailHeader
 	isUnread: boolean
@@ -73,10 +75,11 @@ const MessageRow = memo(
 				className={`message-unread-indicator group relative flex w-full cursor-pointer items-center border-b border-white/[0.04] px-4 py-3 text-left transition-all duration-150 outline-none focus-visible:bg-white/[0.05] ${
 					isUnread && !zenMode ? 'is-unread' : ''
 				} ${
-					isFocused ? 'bg-white/[0.06] shadow-[inset_3px_0_0_0_var(--accent-color)]' : 
-					isUnread && !zenMode
-						? 'bg-slate-900/30 hover:bg-slate-900/60'
-						: 'bg-transparent hover:bg-white/[0.03]'
+					isFocused
+						? 'bg-white/[0.06] shadow-[inset_3px_0_0_0_var(--accent-color)]'
+						: isUnread && !zenMode
+							? 'bg-slate-900/30 hover:bg-slate-900/60'
+							: 'bg-transparent hover:bg-white/[0.03]'
 				}`}>
 				{/* Checkbox & Star */}
 				<div className='flex items-center gap-2.5 pr-3'>
@@ -109,7 +112,9 @@ const MessageRow = memo(
 					{/* Sender */}
 					<div
 						className={`w-44 shrink-0 truncate text-[13px] ${
-							isUnread && !zenMode ? 'font-semibold text-white' : 'font-medium text-slate-300'
+							isUnread && !zenMode
+								? 'font-semibold text-white'
+								: 'font-medium text-slate-300'
 						}`}>
 						{message.from[0]?.replace(/<.*>/, '').trim() || message.from.join(', ')}
 					</div>
@@ -118,7 +123,9 @@ const MessageRow = memo(
 					<div className='flex min-w-0 flex-1 items-baseline gap-2'>
 						<span
 							className={`truncate text-[13px] ${
-								isUnread && !zenMode ? 'font-semibold text-slate-200' : 'text-slate-400'
+								isUnread && !zenMode
+									? 'font-semibold text-slate-200'
+									: 'text-slate-400'
 							}`}>
 							{message.subject || '(No Subject)'}
 						</span>
@@ -179,7 +186,9 @@ const MessageRow = memo(
 					) : (
 						<span
 							className={`text-xs tabular-nums ${
-								isUnread && !zenMode ? 'font-medium text-slate-300' : 'text-slate-600'
+								isUnread && !zenMode
+									? 'font-medium text-slate-300'
+									: 'text-slate-600'
 							}`}>
 							{formatDate(message.internal_date)}
 						</span>
@@ -210,7 +219,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 	const [isSyncing, setIsSyncing] = useState(false)
 	const [syncError, setSyncError] = useState<string | null>(null)
 	const syncingRef = useRef(false)
-	const syncedRef = useRef<Set<string>>(new Set())
+	const syncedRef = { current: syncedMailboxes }
 	const { settings } = useSettingsStore()
 	const zenMode = settings['zen-mode']
 	const accentColor = useThemeStore((s) => s.accentColor)
@@ -314,8 +323,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 				const lastMessage = lastPage[lastPage.length - 1]
 				return lastMessage?.uid
 			},
-			// Block message fetching until sync is done
-			enabled: !needsSync && !isSyncing,
+			enabled: !isSyncing || syncedRef.current.has(mailboxKey),
 		})
 
 	const allMessages = useMemo(() => data?.pages.flatMap((page) => page) ?? [], [data?.pages])
@@ -601,8 +609,6 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 			</div>
 		)
 	}
-
-
 
 	return (
 		<div className='flex h-full flex-1 flex-col'>
