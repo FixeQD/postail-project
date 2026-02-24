@@ -1,3 +1,4 @@
+pub mod build_info;
 pub mod cmd;
 pub mod db;
 pub mod error;
@@ -118,7 +119,8 @@ pub fn run() {
             cmd::settings::migrate_data_path,
             cmd::settings::get_default_data_dir,
             cmd::settings::get_theme_config,
-            cmd::settings::set_theme_config
+            cmd::settings::set_theme_config,
+            cmd::settings::get_build_info
         ])
         .register_uri_scheme_protocol("postail", protocol::handler)
         .run(tauri::generate_context!())

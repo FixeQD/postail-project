@@ -10,6 +10,7 @@ import {
 	LogOut,
 	Lock,
 	PenLine,
+	Info,
 } from 'lucide-react'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
@@ -20,6 +21,7 @@ import { SecuritySettings } from './Sections/SecuritySettings'
 import { AppearanceSettings } from './Sections/AppearanceSettings'
 import { NotificationsSettings } from './Sections/NotificationsSettings'
 import { ComposingSettings } from './Sections/ComposingSettings'
+import { AboutSettings } from './Sections/AboutSettings'
 import { invoke } from '@tauri-apps/api/core'
 import { useAccountStore } from '@/stores/accountStore'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
@@ -39,20 +41,16 @@ interface SettingsNavItemProps {
 }
 
 const SettingsNavItem = memo(
-	({
-		section,
-		isActive,
-		accentColor,
-		animationsEnabled,
-		onClick,
-	}: SettingsNavItemProps) => {
+	({ section, isActive, accentColor, animationsEnabled, onClick }: SettingsNavItemProps) => {
 		return (
 			<motion.button
 				type='button'
 				onClick={onClick}
 				{...(animationsEnabled ? { whileTap: { scale: 0.97 } } : {})}
 				className={`relative flex w-full items-center gap-3 rounded-xl px-4 py-2.5 transition-colors duration-200 ${
-					isActive ? 'text-slate-100' : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+					isActive
+						? 'text-slate-100'
+						: 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
 				}`}>
 				{/* Active background pill */}
 				{isActive && (
@@ -130,6 +128,7 @@ export function SettingsScreen({
 			{ id: 'appearance', label: t('settings:sections.appearance'), icon: Palette },
 			{ id: 'notifications', label: t('settings:sections.notifications'), icon: Bell },
 			{ id: 'composing', label: t('settings:sections.composing'), icon: PenLine },
+			{ id: 'about', label: 'About', icon: Info },
 		],
 		[t]
 	)
@@ -156,6 +155,8 @@ export function SettingsScreen({
 				return <NotificationsSettings />
 			case 'composing':
 				return <ComposingSettings />
+			case 'about':
+				return <AboutSettings />
 			default:
 				return (
 					<div className='flex h-full items-center justify-center text-slate-500'>

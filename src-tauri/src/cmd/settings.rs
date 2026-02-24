@@ -61,3 +61,8 @@ pub async fn set_theme_config(
     };
     crate::utils::config::save_theme_config(&theme)
 }
+
+#[tauri::command]
+pub fn get_build_info() -> crate::build_info::BuildInfo {
+    crate::build_info::get()
+}
