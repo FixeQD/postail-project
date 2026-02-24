@@ -11,6 +11,7 @@
 			"subtitle": "All caught up!"
 		},
 		"error": "Failed to load messages",
+		"loadingMore": "Loading more messages...",
 		"actions": {
 			"archive": "Archive",
 			"delete": "Delete",

@@ -653,6 +653,26 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 						)
 					}}
 				/>
+				{isFetchingNextPage && (
+					<div className='flex items-center justify-center py-4'>
+						<motion.div
+							{...(animationsEnabled
+								? {
+										initial: { opacity: 0, scale: 0.9 },
+										animate: { opacity: 1, scale: 1 },
+									}
+								: {})}
+							className='flex items-center gap-2'>
+							<div
+								className='h-4 w-4 animate-spin rounded-full border-2 border-transparent'
+								style={{ borderTopColor: accentColor }}
+							/>
+							<span className='text-xs text-slate-400'>
+								{t('inbox:messageList.loadingMore')}
+							</span>
+						</motion.div>
+					</div>
+				)}
 			</div>
 		</div>
 	)
