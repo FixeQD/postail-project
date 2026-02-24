@@ -60,7 +60,7 @@ const MessageRow = memo(
 		const { t } = useTypedTranslation()
 
 		return (
-			<div
+			<motion.div
 				role='button'
 				tabIndex={0}
 				onMouseEnter={onMouseEnter}
@@ -80,7 +80,15 @@ const MessageRow = memo(
 						: isUnread && !zenMode
 							? 'bg-slate-900/30 hover:bg-slate-900/60'
 							: 'bg-transparent hover:bg-white/[0.03]'
-				}`}>
+				}`}
+				whileHover={
+					animationsEnabled
+						? {
+								scale: 1.01,
+								transition: { type: 'spring', damping: 20, stiffness: 300 },
+							}
+						: {}
+				}>
 				{/* Checkbox & Star */}
 				<div className='flex items-center gap-2.5 pr-3'>
 					<input
@@ -205,7 +213,7 @@ const MessageRow = memo(
 						}}
 					/>
 				)}
-			</div>
+			</motion.div>
 		)
 	}
 )
