@@ -1,6 +1,9 @@
 {
 	"sidebar": {
-		"newMessage": "New Message"
+		"newMessage": "New Message",
+		"mailboxes": {
+			"drafts": "Drafts"
+		}
 	},
 	"search": {
 		"placeholder": "Search in inbox..."
