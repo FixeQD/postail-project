@@ -39,6 +39,16 @@ interface MailboxItemProps {
 	onSelect: (name: string) => void
 }
 
+const listVariants = {
+	hidden: {},
+	visible: {
+		transition: {
+			staggerChildren: 0.05,
+			delayChildren: 0.02,
+		},
+	},
+}
+
 const MailboxItem = memo(
 	({
 		mailbox,
@@ -77,7 +87,14 @@ const MailboxItem = memo(
 				type='button'
 				onClick={() => onSelect(mailbox.name)}
 				title={isCollapsed ? mailbox.display_name : undefined}
-				{...(animationsEnabled ? { whileTap: { scale: 0.97 } } : {})}
+				{...(animationsEnabled
+					? {
+							whileTap: { scale: 0.97 },
+							initial: { opacity: 0, x: -8 },
+							animate: { opacity: 1, x: 0 },
+							transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] },
+						}
+					: {})}
 				className={`relative flex w-full items-center rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
 					isActive ? '' : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
 				} ${isCollapsed ? 'justify-center px-0' : ''}`}
@@ -201,8 +218,6 @@ export const Sidebar = ({
 		}
 	}, [isResizing])
 
-
-
 	const sortedMailboxes = useMemo(() => {
 		const sorted = [...allMailboxes].sort((a, b) => {
 			if (a.name.toLowerCase() === 'inbox') return -1
@@ -261,7 +276,10 @@ export const Sidebar = ({
 							))}
 						</div>
 					) : (
-						<div className='stagger-children'>
+						<motion.div
+							{...(animationsEnabled
+								? { variants: listVariants, initial: 'hidden', animate: 'visible' }
+								: {})}>
 							{sortedMailboxes.map((mailbox) => (
 								<MailboxItem
 									key={mailbox.name}
@@ -273,7 +291,7 @@ export const Sidebar = ({
 									onSelect={onMailboxSelect}
 								/>
 							))}
-						</div>
+						</motion.div>
 					)}
 				</div>
 
