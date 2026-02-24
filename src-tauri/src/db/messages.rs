@@ -91,13 +91,13 @@ pub fn fetch_headers(
 ) -> Result<Vec<MailHeader>, DBError> {
     let (query, params) = if let Some(anchor) = anchor {
         (
-            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, flags_json, snippet, has_attachments
+            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments
              FROM messages WHERE account_id = ? AND mailbox = ? AND uid > ? ORDER BY uid DESC LIMIT ?",
             vec![account_id.to_string(), mailbox.to_string(), anchor.to_string(), limit.to_string()],
         )
     } else {
         (
-            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, flags_json, snippet, has_attachments
+            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments
              FROM messages WHERE account_id = ? AND mailbox = ? ORDER BY uid DESC LIMIT ?",
             vec![account_id.to_string(), mailbox.to_string(), limit.to_string()],
         )
@@ -109,7 +109,11 @@ pub fn fetch_headers(
         let to: Vec<String> = to_json
             .map(|s| serde_json::from_str(&s).unwrap_or_default())
             .unwrap_or_default();
-        let flags_json: Option<String> = row.get(6)?;
+        let cc_json: Option<String> = row.get(6)?;
+        let cc: Vec<String> = cc_json
+            .map(|s| serde_json::from_str(&s).unwrap_or_default())
+            .unwrap_or_default();
+        let flags_json: Option<String> = row.get(7)?;
         let flags: Vec<String> = flags_json
             .map(|s| serde_json::from_str(&s).unwrap_or_default())
             .unwrap_or_default();
@@ -121,10 +125,10 @@ pub fn fetch_headers(
             subject: row.get(3)?,
             from: vec![row.get::<_, Option<String>>(4)?.unwrap_or_default()],
             to,
-            cc: vec![],
+            cc,
             flags,
-            snippet: row.get(7)?,
-            has_attachments: row.get::<_, i64>(8)? != 0,
+            snippet: row.get(8)?,
+            has_attachments: row.get::<_, i64>(9)? != 0,
         })
     })?;
 
@@ -156,7 +160,7 @@ pub fn fetch_message_full(
     // Load header only
     let header = conn
         .query_row(
-            "SELECT id, message_id, internal_date, subject, from_addr, to_json, flags_json, snippet, has_attachments
+            "SELECT id, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments
              FROM messages
              WHERE account_id = ? AND mailbox = ? AND uid = ?",
             params![account_id, mailbox, uid],
@@ -165,7 +169,11 @@ pub fn fetch_message_full(
                 let to: Vec<String> = to_json
                     .map(|s| serde_json::from_str(&s).unwrap_or_default())
                     .unwrap_or_default();
-                let flags_json: Option<String> = row.get(6)?;
+                let cc_json: Option<String> = row.get(6)?;
+                let cc: Vec<String> = cc_json
+                    .map(|s| serde_json::from_str(&s).unwrap_or_default())
+                    .unwrap_or_default();
+                let flags_json: Option<String> = row.get(7)?;
                 let flags: Vec<String> = flags_json
                     .map(|s| serde_json::from_str(&s).unwrap_or_default())
                     .unwrap_or_default();
@@ -177,10 +185,10 @@ pub fn fetch_message_full(
                     subject: row.get(3)?,
                     from: vec![row.get::<_, Option<String>>(4)?.unwrap_or_default()],
                     to,
-                    cc: vec![],
+                    cc,
                     flags,
-                    snippet: row.get(7)?,
-                    has_attachments: row.get::<_, i64>(8)? != 0,
+                    snippet: row.get(8)?,
+                    has_attachments: row.get::<_, i64>(9)? != 0,
                 })
             },
         )

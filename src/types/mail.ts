@@ -15,9 +15,15 @@ export interface MailHeader {
 	subject?: string
 	from: string[]
 	to: string[]
+	cc: string[]
 	flags: string[]
 	snippet?: string
 	has_attachments: boolean
+}
+
+export interface ParsedAddress {
+	name: string
+	email: string
 }
 
 export interface AttachmentMeta {
