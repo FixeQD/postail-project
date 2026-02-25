@@ -249,51 +249,59 @@ impl LinuxTpmStore {
     fn unseal_data(&self, ctx: &mut Context, primary: KeyHandle, blob: &[u8]) -> Result<Vec<u8>> {
         let (private, public) = Self::parse_sealed_blob(blob)?;
 
-        // Load sealed object
+        // Load sealed object under an HMAC session.
         let load_session = create_hmac_session(ctx)?;
         let sealed_handle = ctx
             .execute_with_session(Some(load_session), |ctx| ctx.load(primary, private, public))
             .map_err(tpm_err)?;
 
-        // Satisfy PCR policy before unsealing
-        let policy_auth_session = ctx
-            .start_auth_session(
-                None,
-                None,
-                None,
-                SessionType::Policy,
-                SymmetricDefinition::Null,
-                HashingAlgorithm::Sha256,
-            )
-            .map_err(tpm_err)?
-            .ok_or_else(|| SecurityError::Tpm("failed to create policy session".into()))?;
+        // Run the actual unseal in a closure so we can flush every live handle unconditionally once the closure returns
+        let result: Result<Vec<u8>> = (|| {
+            let policy_auth_session = ctx
+                .start_auth_session(
+                    None,
+                    None,
+                    None,
+                    SessionType::Policy,
+                    SymmetricDefinition::Null,
+                    HashingAlgorithm::Sha256,
+                )
+                .map_err(tpm_err)?
+                .ok_or_else(|| SecurityError::Tpm("failed to create policy session".into()))?;
 
-        let policy_session: PolicySession = policy_auth_session
-            .try_into()
-            .map_err(|_| SecurityError::Tpm("failed to extract policy session".into()))?;
+            // policy_session is a view into policy_auth_session — same handle, different type.
+            let policy_session: PolicySession = policy_auth_session
+                .try_into()
+                .map_err(|_| SecurityError::Tpm("failed to extract policy session".into()))?;
 
-        let pcr_selection = super::pcr::create_pcr_selection_for_boot_state().map_err(tpm_err)?;
+            let pcr_selection =
+                super::pcr::create_pcr_selection_for_boot_state().map_err(tpm_err)?;
 
-        ctx.policy_pcr(policy_session, Digest::default(), pcr_selection)
-            .map_err(|e| {
-                SecurityError::Tpm(format!(
-                    "PCR policy check failed - boot state has changed: {}",
-                    e
-                ))
-            })?;
+            ctx.policy_pcr(policy_session, Digest::default(), pcr_selection)
+                .map_err(|e| {
+                    SecurityError::Tpm(format!(
+                        "PCR policy check failed - boot state has changed: {}",
+                        e
+                    ))
+                })?;
 
-        let unsealed = ctx
-            .execute_with_session(Some(policy_auth_session), |ctx| {
-                ctx.unseal(sealed_handle.into())
-            })
-            .map_err(|e| SecurityError::Tpm(format!("Failed to unseal: {}", e)))?;
+            let unsealed = ctx
+                .execute_with_session(Some(policy_auth_session), |ctx| {
+                    ctx.unseal(sealed_handle.into())
+                })
+                .map_err(|e| SecurityError::Tpm(format!("Failed to unseal: {}", e)))?;
 
-        ctx.flush_context(SessionHandle::from(load_session).into())
-            .map_err(tpm_err)?;
-        ctx.flush_context(SessionHandle::from(policy_auth_session).into())
-            .map_err(tpm_err)?;
+            // Flush policy session — execute_with_session does not flush it for us.
+            let _ = ctx.flush_context(SessionHandle::from(policy_auth_session).into());
 
-        Ok(unsealed.to_vec())
+            Ok(unsealed.to_vec())
+        })();
+
+        // Always flush the loaded object and the HMAC load session
+        let _ = ctx.flush_context(sealed_handle.into());
+        let _ = ctx.flush_context(SessionHandle::from(load_session).into());
+
+        result
     }
 
     // ── Blob parsing ───────────────────────────────────────────────
