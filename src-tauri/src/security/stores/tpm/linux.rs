@@ -5,29 +5,78 @@ use tss_esapi::{
     handles::{KeyHandle, SessionHandle},
     interface_types::{
         algorithm::{HashingAlgorithm, PublicAlgorithm},
-        key_bits::RsaKeyBits,
         resource_handles::Hierarchy,
-        session_handles::PolicySession,
+        session_handles::{AuthSession, PolicySession},
     },
     structures::{
         CreatePrimaryKeyResult, Digest, Public, PublicBuilder, PublicKeyedHashParameters,
-        PublicRsaParametersBuilder, RsaExponent, SensitiveData, SymmetricDefinition,
-        SymmetricDefinitionObject,
+        SensitiveData, SymmetricDefinition, SymmetricDefinitionObject,
     },
     tcti_ldr::TctiNameConf,
     traits::{Marshall, UnMarshall},
     Context,
 };
 
+#[cfg(feature = "tpm")]
+use std::convert::TryInto;
 use std::fs;
 use std::path::PathBuf;
+#[cfg(feature = "tpm")]
 use std::str::FromStr;
 
 use crate::error::{Result, SecurityError};
 use crate::security::master_key::MasterKey;
 use crate::security::stores::SecretStore;
 
+// ── Constants ──────────────────────────────────────────────────────
+
 const SEALED_FILE_NAME: &str = "master_key.tpm";
+
+// ── Helpers ────────────────────────────────────────────────────────
+
+fn tpm_dev_exists() -> bool {
+    std::path::Path::new("/dev/tpmrm0").exists() || std::path::Path::new("/dev/tpm0").exists()
+}
+
+fn default_storage_path() -> PathBuf {
+    dirs::data_local_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("postail")
+        .join("security")
+}
+
+#[cfg(feature = "tpm")]
+fn tpm_err(e: impl std::fmt::Display) -> SecurityError {
+    SecurityError::Tpm(e.to_string())
+}
+
+/// Creates an HMAC auth session with AES-128-CFB encryption.
+#[cfg(feature = "tpm")]
+fn create_hmac_session(ctx: &mut Context) -> Result<AuthSession> {
+    let session = ctx
+        .start_auth_session(
+            None,
+            None,
+            None,
+            SessionType::Hmac,
+            SymmetricDefinition::AES_128_CFB,
+            HashingAlgorithm::Sha256,
+        )
+        .map_err(tpm_err)?
+        .ok_or_else(|| SecurityError::Tpm("failed to create auth session".into()))?;
+
+    let attrs = SessionAttributesBuilder::new()
+        .with_decrypt(true)
+        .with_encrypt(true)
+        .build();
+
+    ctx.tr_sess_set_attributes(session, attrs.0, attrs.1)
+        .map_err(tpm_err)?;
+
+    Ok(session)
+}
+
+// ── LinuxTpmStore ──────────────────────────────────────────────────
 
 pub struct LinuxTpmStore {
     storage_path: PathBuf,
@@ -44,11 +93,9 @@ impl LinuxTpmStore {
         #[cfg(feature = "tpm")]
         {
             let tcti = if std::path::Path::new("/dev/tpmrm0").exists() {
-                TctiNameConf::from_str("device:/dev/tpmrm0")
-                    .map_err(|e| SecurityError::Tpm(e.to_string()))?
+                TctiNameConf::from_str("device:/dev/tpmrm0").map_err(tpm_err)?
             } else if std::path::Path::new("/dev/tpm0").exists() {
-                TctiNameConf::from_str("device:/dev/tpm0")
-                    .map_err(|e| SecurityError::Tpm(e.to_string()))?
+                TctiNameConf::from_str("device:/dev/tpm0").map_err(tpm_err)?
             } else {
                 TctiNameConf::Tabrmd(Default::default())
             };
@@ -66,57 +113,28 @@ impl LinuxTpmStore {
         self.storage_path.join(SEALED_FILE_NAME)
     }
 
+    // ── Context & availability ─────────────────────────────────────
+
     #[cfg(feature = "tpm")]
     fn create_context(&self) -> Result<Context> {
-        Context::new(self.tcti.clone()).map_err(|e| SecurityError::Tpm(e.to_string()))
+        Context::new(self.tcti.clone()).map_err(tpm_err)
     }
 
     #[cfg(feature = "tpm")]
     pub fn check_context_silent(&self) -> bool {
-        let tpm_dev_exists = std::path::Path::new("/dev/tpmrm0").exists()
-            || std::path::Path::new("/dev/tpm0").exists();
-
-        if !tpm_dev_exists {
-            return false;
-        }
-
-        self.create_context().is_ok()
+        tpm_dev_exists() && self.create_context().is_ok()
     }
 
     #[cfg(feature = "tpm")]
     pub fn check_needs_elevation(&self) -> bool {
-        let tpm_dev_exists = std::path::Path::new("/dev/tpmrm0").exists()
-            || std::path::Path::new("/dev/tpm0").exists();
-
-        if !tpm_dev_exists {
-            return false;
-        }
-
-        // If device exists but we can't create context, we need elevation
-        !self.check_context_silent()
+        tpm_dev_exists() && !self.check_context_silent()
     }
+
+    // ── Key management ─────────────────────────────────────────────
 
     #[cfg(feature = "tpm")]
     fn create_primary_key(&self, ctx: &mut Context) -> Result<CreatePrimaryKeyResult> {
-        let session = ctx
-            .start_auth_session(
-                None,
-                None,
-                None,
-                SessionType::Hmac,
-                SymmetricDefinition::AES_128_CFB,
-                HashingAlgorithm::Sha256,
-            )
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?
-            .ok_or_else(|| SecurityError::Tpm("failed to create auth session".into()))?;
-
-        let session_attrs = SessionAttributesBuilder::new()
-            .with_decrypt(true)
-            .with_encrypt(true)
-            .build();
-
-        ctx.tr_sess_set_attributes(session, session_attrs.0, session_attrs.1)
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
+        let session = create_hmac_session(ctx)?;
 
         let primary_public = PublicBuilder::new()
             .with_public_algorithm(PublicAlgorithm::SymCipher)
@@ -130,7 +148,7 @@ impl LinuxTpmStore {
                     .with_decrypt(true)
                     .with_restricted(true)
                     .build()
-                    .map_err(|e| SecurityError::Tpm(e.to_string()))?,
+                    .map_err(tpm_err)?,
             )
             .with_symmetric_cipher_parameters(
                 tss_esapi::structures::SymmetricCipherParameters::new(
@@ -139,77 +157,18 @@ impl LinuxTpmStore {
             )
             .with_symmetric_cipher_unique_identifier(Default::default())
             .build()
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
+            .map_err(tpm_err)?;
 
         ctx.execute_with_session(Some(session), |ctx| {
             ctx.create_primary(Hierarchy::Owner, primary_public, None, None, None, None)
         })
-        .map_err(|e| SecurityError::Tpm(e.to_string()))
+        .map_err(tpm_err)
     }
 
-    #[allow(dead_code)]
-    #[cfg(feature = "tpm")]
-    fn create_srk(&self, ctx: &mut Context) -> Result<KeyHandle> {
-        let session = ctx
-            .start_auth_session(
-                None,
-                None,
-                None,
-                SessionType::Hmac,
-                SymmetricDefinition::AES_128_CFB,
-                HashingAlgorithm::Sha256,
-            )
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?
-            .ok_or_else(|| SecurityError::Tpm("failed to create auth session".into()))?;
+    // ── PCR policy ─────────────────────────────────────────────────
 
-        let session_attrs = SessionAttributesBuilder::new()
-            .with_decrypt(true)
-            .with_encrypt(true)
-            .build();
-
-        ctx.tr_sess_set_attributes(session, session_attrs.0, session_attrs.1)
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
-
-        let srk_public = PublicBuilder::new()
-            .with_public_algorithm(PublicAlgorithm::Rsa)
-            .with_name_hashing_algorithm(HashingAlgorithm::Sha256)
-            .with_object_attributes(
-                tss_esapi::attributes::ObjectAttributesBuilder::new()
-                    .with_fixed_tpm(true)
-                    .with_fixed_parent(true)
-                    .with_sensitive_data_origin(true)
-                    .with_user_with_auth(true)
-                    .with_decrypt(true)
-                    .with_restricted(true)
-                    .build()
-                    .map_err(|e| SecurityError::Tpm(e.to_string()))?,
-            )
-            .with_rsa_parameters(
-                PublicRsaParametersBuilder::new_restricted_decryption_key(
-                    SymmetricDefinitionObject::AES_128_CFB,
-                    RsaKeyBits::Rsa2048,
-                    RsaExponent::default(),
-                )
-                .build()
-                .map_err(|e| SecurityError::Tpm(e.to_string()))?,
-            )
-            .build()
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
-
-        let result = ctx
-            .execute_with_session(Some(session), |ctx| {
-                ctx.create_primary(Hierarchy::Endorsement, srk_public, None, None, None, None)
-            })
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
-
-        Ok(result.key_handle)
-    }
-
-    /// Compute policy digest for PCR binding using a trial session
     #[cfg(feature = "tpm")]
     fn compute_pcr_policy_digest(&self, ctx: &mut Context) -> Result<Digest> {
-        use std::convert::TryInto;
-
         let trial_session = ctx
             .start_auth_session(
                 None,
@@ -219,44 +178,32 @@ impl LinuxTpmStore {
                 SymmetricDefinition::Null,
                 HashingAlgorithm::Sha256,
             )
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?
+            .map_err(tpm_err)?
             .ok_or_else(|| SecurityError::Tpm("failed to create trial session".into()))?;
 
-        let pcr_selection = super::pcr::create_pcr_selection_for_boot_state()
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
+        let pcr_selection = super::pcr::create_pcr_selection_for_boot_state().map_err(tpm_err)?;
 
         let policy_session: PolicySession = trial_session
             .try_into()
             .map_err(|_| SecurityError::Tpm("failed to extract policy session".into()))?;
 
         ctx.policy_pcr(policy_session, Digest::default(), pcr_selection)
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
+            .map_err(tpm_err)?;
 
-        let policy_digest = ctx
-            .policy_get_digest(policy_session)
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
+        let digest = ctx.policy_get_digest(policy_session).map_err(tpm_err)?;
 
         ctx.flush_context(SessionHandle::from(trial_session).into())
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
+            .map_err(tpm_err)?;
 
-        Ok(policy_digest)
+        Ok(digest)
     }
+
+    // ── Seal / unseal ──────────────────────────────────────────────
 
     #[cfg(feature = "tpm")]
     fn seal_data(&self, ctx: &mut Context, primary: KeyHandle, data: &[u8]) -> Result<Vec<u8>> {
         let policy_digest = self.compute_pcr_policy_digest(ctx)?;
-
-        let session = ctx
-            .start_auth_session(
-                None,
-                None,
-                None,
-                SessionType::Hmac,
-                SymmetricDefinition::AES_128_CFB,
-                HashingAlgorithm::Sha256,
-            )
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?
-            .ok_or_else(|| SecurityError::Tpm("failed to create auth session".into()))?;
+        let session = create_hmac_session(ctx)?;
 
         let seal_public = PublicBuilder::new()
             .with_public_algorithm(PublicAlgorithm::KeyedHash)
@@ -265,34 +212,31 @@ impl LinuxTpmStore {
                 tss_esapi::attributes::ObjectAttributesBuilder::new()
                     .with_fixed_tpm(true)
                     .with_fixed_parent(true)
-                    .with_admin_with_policy(true) // Required for policy-based auth
+                    .with_admin_with_policy(true)
                     .build()
-                    .map_err(|e| SecurityError::Tpm(e.to_string()))?,
+                    .map_err(tpm_err)?,
             )
             .with_keyed_hash_parameters(PublicKeyedHashParameters::new(
                 tss_esapi::structures::KeyedHashScheme::Null,
             ))
             .with_keyed_hash_unique_identifier(Digest::default())
-            .with_auth_policy(policy_digest) // Set the PCR policy
+            .with_auth_policy(policy_digest)
             .build()
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
+            .map_err(tpm_err)?;
 
-        let sensitive_data = SensitiveData::try_from(data.to_vec())
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
+        let sensitive_data = SensitiveData::try_from(data.to_vec()).map_err(tpm_err)?;
 
         let result = ctx
             .execute_with_session(Some(session), |ctx| {
                 ctx.create(primary, seal_public, None, Some(sensitive_data), None, None)
             })
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
+            .map_err(tpm_err)?;
 
-        let mut blob = Vec::new();
+        // Pack private + public into a single blob: [priv_len][priv][pub_len][pub]
         let priv_bytes = result.out_private.to_vec();
-        let pub_bytes = result
-            .out_public
-            .marshall()
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
+        let pub_bytes = result.out_public.marshall().map_err(tpm_err)?;
 
+        let mut blob = Vec::with_capacity(8 + priv_bytes.len() + pub_bytes.len());
         blob.extend_from_slice(&(priv_bytes.len() as u32).to_le_bytes());
         blob.extend_from_slice(&priv_bytes);
         blob.extend_from_slice(&(pub_bytes.len() as u32).to_le_bytes());
@@ -303,55 +247,15 @@ impl LinuxTpmStore {
 
     #[cfg(feature = "tpm")]
     fn unseal_data(&self, ctx: &mut Context, primary: KeyHandle, blob: &[u8]) -> Result<Vec<u8>> {
-        use std::convert::TryInto;
+        let (private, public) = Self::parse_sealed_blob(blob)?;
 
-        if blob.len() < 8 {
-            return Err(SecurityError::Tpm("corrupted sealed blob".into()));
-        }
-
-        let priv_len = u32::from_le_bytes([blob[0], blob[1], blob[2], blob[3]]) as usize;
-        if blob.len() < 4 + priv_len + 4 {
-            return Err(SecurityError::Tpm("corrupted sealed blob".into()));
-        }
-
-        let priv_bytes = &blob[4..4 + priv_len];
-        let pub_offset = 4 + priv_len;
-        let pub_len = u32::from_le_bytes([
-            blob[pub_offset],
-            blob[pub_offset + 1],
-            blob[pub_offset + 2],
-            blob[pub_offset + 3],
-        ]) as usize;
-
-        if blob.len() < pub_offset + 4 + pub_len {
-            return Err(SecurityError::Tpm("corrupted sealed blob".into()));
-        }
-
-        let pub_bytes = &blob[pub_offset + 4..pub_offset + 4 + pub_len];
-
-        let private = tss_esapi::structures::Private::try_from(priv_bytes.to_vec())
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
-        let public =
-            Public::unmarshall(pub_bytes).map_err(|e| SecurityError::Tpm(e.to_string()))?;
-
-        // Create HMAC session for loading the key
-        let load_session = ctx
-            .start_auth_session(
-                None,
-                None,
-                None,
-                SessionType::Hmac,
-                SymmetricDefinition::AES_128_CFB,
-                HashingAlgorithm::Sha256,
-            )
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?
-            .ok_or_else(|| SecurityError::Tpm("failed to create load session".into()))?;
-
-        // Load the sealed object
+        // Load sealed object
+        let load_session = create_hmac_session(ctx)?;
         let sealed_handle = ctx
             .execute_with_session(Some(load_session), |ctx| ctx.load(primary, private, public))
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
+            .map_err(tpm_err)?;
 
+        // Satisfy PCR policy before unsealing
         let policy_auth_session = ctx
             .start_auth_session(
                 None,
@@ -361,16 +265,14 @@ impl LinuxTpmStore {
                 SymmetricDefinition::Null,
                 HashingAlgorithm::Sha256,
             )
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?
+            .map_err(tpm_err)?
             .ok_or_else(|| SecurityError::Tpm("failed to create policy session".into()))?;
 
-        // Extract PolicySession from AuthSession
         let policy_session: PolicySession = policy_auth_session
             .try_into()
             .map_err(|_| SecurityError::Tpm("failed to extract policy session".into()))?;
 
-        let pcr_selection = super::pcr::create_pcr_selection_for_boot_state()
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
+        let pcr_selection = super::pcr::create_pcr_selection_for_boot_state().map_err(tpm_err)?;
 
         ctx.policy_pcr(policy_session, Digest::default(), pcr_selection)
             .map_err(|e| {
@@ -387,30 +289,67 @@ impl LinuxTpmStore {
             .map_err(|e| SecurityError::Tpm(format!("Failed to unseal: {}", e)))?;
 
         ctx.flush_context(SessionHandle::from(load_session).into())
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
+            .map_err(tpm_err)?;
         ctx.flush_context(SessionHandle::from(policy_auth_session).into())
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
+            .map_err(tpm_err)?;
 
         Ok(unsealed.to_vec())
     }
+
+    // ── Blob parsing ───────────────────────────────────────────────
+
+    /// Blob format: [priv_len: u32 LE][priv_bytes][pub_len: u32 LE][pub_bytes]
+    #[cfg(feature = "tpm")]
+    fn parse_sealed_blob(blob: &[u8]) -> Result<(tss_esapi::structures::Private, Public)> {
+        if blob.len() < 8 {
+            return Err(SecurityError::Tpm("corrupted sealed blob".into()));
+        }
+
+        let priv_len = u32::from_le_bytes([blob[0], blob[1], blob[2], blob[3]]) as usize;
+        if blob.len() < 4 + priv_len + 4 {
+            return Err(SecurityError::Tpm("corrupted sealed blob".into()));
+        }
+
+        let priv_bytes = &blob[4..4 + priv_len];
+        let pub_offset = 4 + priv_len;
+
+        let pub_len = u32::from_le_bytes([
+            blob[pub_offset],
+            blob[pub_offset + 1],
+            blob[pub_offset + 2],
+            blob[pub_offset + 3],
+        ]) as usize;
+
+        if blob.len() < pub_offset + 4 + pub_len {
+            return Err(SecurityError::Tpm("corrupted sealed blob".into()));
+        }
+
+        let pub_bytes = &blob[pub_offset + 4..pub_offset + 4 + pub_len];
+
+        let private =
+            tss_esapi::structures::Private::try_from(priv_bytes.to_vec()).map_err(tpm_err)?;
+        let public = Public::unmarshall(pub_bytes).map_err(tpm_err)?;
+
+        Ok((private, public))
+    }
 }
+
+// ── SecretStore impl ───────────────────────────────────────────────
 
 impl SecretStore for LinuxTpmStore {
     #[cfg(feature = "tpm")]
     fn store(&self, key: &MasterKey) -> Result<()> {
         let mut ctx = self.create_context()?;
-        let primary_result = self.create_primary_key(&mut ctx)?;
-        let sealed = self.seal_data(&mut ctx, primary_result.key_handle, key.as_bytes())?;
+        let primary = self.create_primary_key(&mut ctx)?;
+        let sealed = self.seal_data(&mut ctx, primary.key_handle, key.as_bytes())?;
 
         if let Some(parent) = self.get_sealed_path().parent() {
             fs::create_dir_all(parent)?;
         }
-
         fs::write(self.get_sealed_path(), sealed)?;
 
-        ctx.flush_context(primary_result.key_handle.into())
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
-
+        ctx.flush_context(primary.key_handle.into())
+            .map_err(tpm_err)?;
         Ok(())
     }
 
@@ -430,11 +369,11 @@ impl SecretStore for LinuxTpmStore {
         })?;
 
         let mut ctx = self.create_context()?;
-        let primary_result = self.create_primary_key(&mut ctx)?;
-        let unsealed = self.unseal_data(&mut ctx, primary_result.key_handle, &sealed)?;
+        let primary = self.create_primary_key(&mut ctx)?;
+        let unsealed = self.unseal_data(&mut ctx, primary.key_handle, &sealed)?;
 
-        ctx.flush_context(primary_result.key_handle.into())
-            .map_err(|e| SecurityError::Tpm(e.to_string()))?;
+        ctx.flush_context(primary.key_handle.into())
+            .map_err(tpm_err)?;
 
         MasterKey::from_bytes(&unsealed)
     }
@@ -459,8 +398,7 @@ impl SecretStore for LinuxTpmStore {
     fn is_available(&self) -> bool {
         #[cfg(feature = "tpm")]
         {
-            std::path::Path::new("/dev/tpmrm0").exists()
-                || std::path::Path::new("/dev/tpm0").exists()
+            tpm_dev_exists()
         }
 
         #[cfg(not(feature = "tpm"))]
@@ -472,11 +410,4 @@ impl SecretStore for LinuxTpmStore {
     fn name(&self) -> &'static str {
         "TPM2 (Linux)"
     }
-}
-
-fn default_storage_path() -> PathBuf {
-    dirs::data_local_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("postail")
-        .join("security")
 }
