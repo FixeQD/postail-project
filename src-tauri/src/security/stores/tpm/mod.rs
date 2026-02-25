@@ -13,9 +13,13 @@ use crate::security::stores::SecretStore;
 
 #[cfg(all(target_os = "linux", feature = "tpm"))]
 pub fn get_tpm_store() -> Option<Box<dyn SecretStore>> {
-    match linux::LinuxTpmStore::new() {
-        Ok(store) if store.is_available() => Some(Box::new(store)),
-        _ => None,
+    use crate::security::stores::SecretStore;
+    if std::path::Path::new("/dev/tpmrm0").exists() || std::path::Path::new("/dev/tpm0").exists() {
+        linux::LinuxTpmStore::new()
+            .ok()
+            .map(|store| Box::new(store) as Box<dyn SecretStore>)
+    } else {
+        None
     }
 }
 

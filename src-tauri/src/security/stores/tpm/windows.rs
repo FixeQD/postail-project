@@ -101,7 +101,35 @@ impl WindowsTpmStore {
 
     #[cfg(all(target_os = "windows", feature = "tpm"))]
     fn check_tpm_available(&self) -> bool {
-        std::path::Path::new(r"\\.\TPM").exists()
+        use windows::core::PCWSTR;
+        use windows::Win32::Foundation::{CloseHandle, HANDLE, INVALID_HANDLE_VALUE};
+        use windows::Win32::Storage::FileSystem::{
+            CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+        };
+
+        unsafe {
+            let tpm_path: Vec<u16> = r"\\.\TPM"
+                .encode_utf16()
+                .chain(std::iter::once(0))
+                .collect();
+            let handle = CreateFileW(
+                PCWSTR(tpm_path.as_ptr()),
+                0, // No access rights needed for existence check
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                None,
+                OPEN_EXISTING,
+                FILE_ATTRIBUTE_NORMAL,
+                HANDLE::default(),
+            );
+
+            match handle {
+                Ok(h) if h != INVALID_HANDLE_VALUE => {
+                    let _ = CloseHandle(h);
+                    true
+                }
+                _ => false,
+            }
+        }
     }
 }
 

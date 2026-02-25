@@ -9,6 +9,20 @@ use std::process::{exit, Command};
 fn main() {
     #[cfg(target_os = "linux")]
     {
+        if env::var("POSTAIL_TPM_HELPER").is_ok() {
+            // Helper mode: just initialize TPM and exit
+            match postail_project_lib::tpm_helper_init() {
+                Ok(()) => {
+                    eprintln!("TPM initialized successfully");
+                    exit(0);
+                }
+                Err(e) => {
+                    eprintln!("TPM initialization failed: {}", e);
+                    exit(1);
+                }
+            }
+        }
+
         let recovery_mode = env::var("POSTAIL_RECOVERY_MODE").unwrap_or_default();
 
         if recovery_mode.is_empty() {

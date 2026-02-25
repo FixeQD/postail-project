@@ -23,13 +23,21 @@ impl TpmInitializer {
     }
 
     pub fn check_availability(&self) -> TpmAvailability {
-        let store = get_tpm_store();
-
-        if store.is_some() && store.as_ref().unwrap().is_available() {
-            return TpmAvailability::Available;
-        }
+        use crate::security::stores::tpm::linux::LinuxTpmStore;
+        use crate::security::stores::SecretStore;
 
         if Path::new("/dev/tpmrm0").exists() || Path::new("/dev/tpm0").exists() {
+            if let Ok(store) = LinuxTpmStore::new() {
+                // First check if device exists
+                if store.is_available() {
+                    // Try to actually create context to check real access
+                    if store.check_context_silent() {
+                        return TpmAvailability::Available;
+                    } else {
+                        return TpmAvailability::RequiresElevation;
+                    }
+                }
+            }
             return TpmAvailability::RequiresElevation;
         }
 

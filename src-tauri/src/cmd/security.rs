@@ -16,19 +16,29 @@ use tokio::time::timeout;
 #[derive(Serialize)]
 pub struct SecurityOptions {
     pub tpm_available: bool,
+    pub tpm_requires_elevation: bool,
     pub keyring_available: bool,
     pub argon2_available: bool,
 }
 
 #[command]
 pub async fn check_security_options() -> Result<SecurityOptions, String> {
-    let tpm_available = timeout(
+    let (tpm_available, tpm_requires_elevation) = timeout(
         Duration::from_millis(500),
-        spawn_blocking(|| get_tpm_store().is_some()),
+        spawn_blocking(|| {
+            use crate::security::TpmInitializer;
+            let initializer = TpmInitializer::new();
+            let availability = initializer.check_availability();
+            match availability {
+                crate::security::TpmAvailability::Available => (true, false),
+                crate::security::TpmAvailability::RequiresElevation => (true, true),
+                crate::security::TpmAvailability::NotAvailable => (false, false),
+            }
+        }),
     )
     .await
-    .unwrap_or(Ok(false))
-    .unwrap_or(false);
+    .unwrap_or(Ok((false, false)))
+    .unwrap_or((false, false));
 
     let keyring_available = KeyringStore::new()
         .map(|k| k.is_available())
@@ -36,6 +46,7 @@ pub async fn check_security_options() -> Result<SecurityOptions, String> {
 
     Ok(SecurityOptions {
         tpm_available,
+        tpm_requires_elevation,
         keyring_available,
         argon2_available: true,
     })
@@ -51,8 +62,19 @@ pub enum TpmStatus {
 #[command]
 pub async fn check_tpm_availability() -> Result<TpmStatus, String> {
     use crate::security::TpmAvailability;
-    let initializer = crate::security::TpmInitializer::new();
-    match initializer.check_availability() {
+
+    let result = timeout(
+        Duration::from_millis(500),
+        spawn_blocking(|| {
+            let initializer = crate::security::TpmInitializer::new();
+            initializer.check_availability()
+        }),
+    )
+    .await
+    .unwrap_or(Ok(TpmAvailability::NotAvailable))
+    .unwrap_or(TpmAvailability::NotAvailable);
+
+    match result {
         TpmAvailability::Available => Ok(TpmStatus::Available),
         TpmAvailability::RequiresElevation => Ok(TpmStatus::RequiresElevation),
         TpmAvailability::NotAvailable => Ok(TpmStatus::NotAvailable),
@@ -193,6 +215,35 @@ pub async fn initialize_security_and_database(
     Ok(())
 }
 
+/// Initialize TPM with elevated privileges if needed (Linux only)
+#[cfg(target_os = "linux")]
+async fn initialize_tpm_elevated() -> Result<(), String> {
+    use std::process::Command;
+
+    // Check if we're already running as helper mode
+    if std::env::var("POSTAIL_TPM_HELPER").is_ok() {
+        return Err("Already in helper mode".to_string());
+    }
+
+    // Get current executable path
+    let exe_path =
+        std::env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;
+
+    // Run via pkexec with helper mode flag
+    let output = Command::new("pkexec")
+        .env("POSTAIL_TPM_HELPER", "1")
+        .arg(&exe_path)
+        .output()
+        .map_err(|e| format!("Failed to execute pkexec: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Elevated TPM initialization failed: {}", stderr));
+    }
+
+    Ok(())
+}
+
 #[command]
 pub async fn initialize_security(
     method: String,
@@ -202,6 +253,23 @@ pub async fn initialize_security(
     if method == "argon2" && passphrase.is_none() {
         return Err("Passphrase required for Argon2".to_string());
     }
+
+    // Check if TPM requires elevation (Linux only)
+    #[cfg(target_os = "linux")]
+    if method == "tpm" {
+        use crate::security::TpmInitializer;
+        let initializer = TpmInitializer::new();
+        let availability = initializer.check_availability();
+
+        if matches!(
+            availability,
+            crate::security::TpmAvailability::RequiresElevation
+        ) {
+            // Use pkexec to run helper mode
+            initialize_tpm_elevated().await?;
+        }
+    }
+
     initialize_security_and_database(&method, passphrase, recovery_phrase).await
 }
 

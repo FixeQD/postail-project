@@ -11,6 +11,7 @@ import { ArrowLeft, Shield } from 'lucide-react'
 
 interface SecurityOptions {
 	tpm_available: boolean
+	tpm_requires_elevation: boolean
 	keyring_available: boolean
 	argon2_available: boolean
 }
@@ -37,6 +38,7 @@ export const EncryptionChoice = ({
 			console.error('Failed to check security options:', error)
 			setSecurityOptions({
 				tpm_available: false,
+				tpm_requires_elevation: false,
 				keyring_available: false,
 				argon2_available: true,
 			})
@@ -162,6 +164,7 @@ export const EncryptionChoice = ({
 								className='hover-lift'>
 								<TPMOption
 									available={securityOptions?.tpm_available ?? false}
+									requiresElevation={securityOptions?.tpm_requires_elevation ?? false}
 									onSelect={handleTpmSelect}
 									disabled={loadingMethod !== null}
 									loading={loadingMethod === 'tpm'}

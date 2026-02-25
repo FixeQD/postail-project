@@ -1,13 +1,15 @@
 import { useSecurityTranslation } from '../../hooks/useTypedTranslation'
-import { Cpu, Shield, Check, X } from 'lucide-react'
+import { Cpu, Shield, Check, X, ShieldAlert } from 'lucide-react'
 
 export const TPMOption = ({
 	available,
+	requiresElevation = false,
 	onSelect,
 	disabled = false,
 	loading = false,
 }: {
 	available: boolean
+	requiresElevation?: boolean
 	onSelect: () => void
 	disabled?: boolean
 	loading?: boolean
@@ -36,7 +38,7 @@ export const TPMOption = ({
 
 			<div className='relative'>
 				{/* Status Badge */}
-				<div className='absolute top-0 right-0'>
+				<div className='absolute top-0 right-0 flex flex-col items-end gap-1.5'>
 					{available ? (
 						<div className='flex items-center rounded-full bg-green-500/10 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-green-400 ring-1 ring-green-400/20'>
 							<Check className='mr-1 h-3 w-3' />
@@ -46,6 +48,14 @@ export const TPMOption = ({
 						<div className='flex items-center rounded-full bg-slate-800/60 px-2.5 py-1 text-[11px] font-medium text-slate-500 ring-1 ring-white/[0.06]'>
 							<X className='mr-1 h-3 w-3' />
 							{t('common:status.unavailable')}
+						</div>
+					)}
+					
+					{/* Admin Required Badge */}
+					{available && requiresElevation && (
+						<div className='flex items-center rounded-full bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-400 ring-1 ring-amber-400/20'>
+							<ShieldAlert className='mr-1 h-3 w-3' />
+							Requires Admin
 						</div>
 					)}
 				</div>
@@ -95,6 +105,13 @@ export const TPMOption = ({
 					<div className='mt-2 flex items-center text-xs text-slate-500'>
 						<Shield className='mr-1.5 h-3 w-3 text-green-400/70' />
 						Hardware-based encryption
+					</div>
+				)}
+				
+				{available && requiresElevation && !loading && (
+					<div className='mt-2 flex items-center text-xs text-amber-400/70'>
+						<ShieldAlert className='mr-1.5 h-3 w-3' />
+						Administrator permissions required
 					</div>
 				)}
 

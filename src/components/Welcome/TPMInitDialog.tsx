@@ -33,8 +33,8 @@ export function TPMInitDialog({ open, onClose, onSuccess }: TPMInitDialogProps) 
 		setStatus('checking')
 		setError(null)
 		try {
-			const result = await invoke<{ status: string }>('check_tpm_availability')
-			switch (result.status) {
+			const status = await invoke<string>('check_tpm_availability')
+			switch (status) {
 				case 'Available':
 					setStatus('available')
 					break
