@@ -1,22 +1,9 @@
-pub mod accounts;
-pub mod attachments;
-pub mod backup;
-pub mod contacts;
-pub mod drafts;
-pub mod eml_cache;
-pub mod flag_queue;
-pub mod imap;
-pub mod mailbox;
-pub mod message_bodies;
-pub mod messages;
-pub mod migration;
-pub mod migrations;
-pub mod outbox;
-pub mod outbox_db;
+pub mod account;
+pub mod compose;
+pub mod mail;
+pub mod schema;
 pub mod search;
-pub mod settings;
 pub mod sql_helpers;
-pub mod tables;
 
 use std::fs;
 
@@ -24,26 +11,12 @@ use chrono::{DateTime, Utc};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
-pub use crate::db::accounts::*;
-pub use crate::db::backup::{export_backup, import_backup, run_maintenance};
-pub use crate::db::contacts::*;
-pub use crate::db::drafts::*;
-pub use crate::db::eml_cache::*;
-pub use crate::db::flag_queue::*;
-pub use crate::db::imap::*;
-pub use crate::db::mailbox::{fetch_mailboxes, get_mailbox_by_role, upsert_mailbox};
-pub use crate::db::message_bodies::parse_mail_with_fallback;
-pub use crate::db::messages::{
-    batch_insert_messages, fetch_headers, fetch_message_full, get_message_table_id, mark_read,
-    move_to_trash, upsert_message, MessageBatchItem, MessageUpsertData, DEFAULT_BATCH_SIZE,
-};
-pub use crate::db::migration::run_encryption_migration_if_needed;
-pub use crate::db::migrations::{get_db_version, run_migrations};
-pub use crate::db::outbox::*;
-pub use crate::db::outbox_db::{enqueue_message, list_outbox};
+pub use crate::db::account::*;
+pub use crate::db::compose::*;
+pub use crate::db::mail::*;
+pub use crate::db::schema::*;
 pub use crate::db::search::*;
 pub use crate::db::sql_helpers::*;
-pub use crate::db::tables::*;
 use crate::error::DBError;
 
 #[derive(Debug, Serialize, Deserialize)]

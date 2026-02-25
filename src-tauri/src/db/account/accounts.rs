@@ -5,6 +5,7 @@ use rusqlite::{params, Connection};
 use uuid::Uuid;
 
 use crate::db::messages::safe_timestamp_from_utc;
+use crate::db::save_creds_blob;
 use crate::db::sql_helpers::{delete_where, insert_or_replace_into};
 use crate::db::AccountInput;
 use crate::db::AccountMeta;
@@ -27,7 +28,7 @@ pub fn add_account(
     let encrypted = security
         .encrypt(creds_json.as_bytes())
         .map_err(DBError::Security)?;
-    let creds_path = super::save_creds_blob(&id, &encrypted)?;
+    let creds_path = save_creds_blob(&id, &encrypted)?;
     let encryption_mode = "aes-gcm".to_string();
     let created_at = Utc::now();
 

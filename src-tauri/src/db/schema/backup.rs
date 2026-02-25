@@ -1,4 +1,5 @@
-use crate::db::message_bodies;
+use crate::db::compose::outbox::cleanup_old_sent_messages;
+use crate::db::mail::message_bodies;
 use crate::error::DBError;
 use crate::security::SecurityManager;
 use rusqlite::{params, Connection, Result as SqlResult};
@@ -355,7 +356,7 @@ pub fn run_maintenance(conn: &Connection) -> Result<(), DBError> {
     conn.execute("VACUUM", [])?;
     conn.execute("ANALYZE", [])?;
 
-    if let Ok(count) = super::outbox::cleanup_old_sent_messages(conn, 30) {
+    if let Ok(count) = cleanup_old_sent_messages(conn, 30) {
         if count > 0 {
             tracing::info!(target: "postail", "[DB] Cleaned up {} old sent messages (>30 days)", count);
         }

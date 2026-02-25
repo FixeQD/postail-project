@@ -1,3 +1,4 @@
+use crate::db::mail::messages::sync_message_attachments_flag;
 use crate::error::DBError;
 use crate::security::SecurityManager;
 use chrono::Utc;
@@ -126,7 +127,7 @@ pub fn save_attachment(
         ],
     )?;
 
-    if let Err(e) = super::messages::sync_message_attachments_flag(message_table_id, conn) {
+    if let Err(e) = sync_message_attachments_flag(message_table_id, conn) {
         tracing::warn!(target: "postail", "[DB] Failed to sync attachments flag: {}", e);
     }
 

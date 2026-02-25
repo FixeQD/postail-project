@@ -1,5 +1,7 @@
-use super::MailHeader;
-use super::MessageFull;
+use crate::db::upsert_from_address_string;
+use crate::db::AttachmentMeta;
+use crate::db::MailHeader;
+use crate::db::MessageFull;
 use crate::error::DBError;
 use chrono::{DateTime, TimeZone, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
@@ -64,10 +66,10 @@ pub fn batch_insert_messages(
         )?;
 
         if let Some(from) = &item.from {
-            let _ = super::upsert_from_address_string(&tx, from);
+            let _ = upsert_from_address_string(&tx, from);
         }
         for recipient in &item.to {
-            let _ = super::upsert_from_address_string(&tx, recipient);
+            let _ = upsert_from_address_string(&tx, recipient);
         }
 
         total_inserted += 1;
@@ -220,7 +222,7 @@ fn load_message_attachments(
     account_id: &str,
     mailbox: &str,
     uid: u32,
-) -> Result<Vec<(bool, super::AttachmentMeta)>, DBError> {
+) -> Result<Vec<(bool, AttachmentMeta)>, DBError> {
     use rusqlite::OptionalExtension;
     let message_table_id: Option<i64> = conn
         .query_row(
@@ -240,7 +242,7 @@ fn load_message_attachments(
     let rows = stmt.query_map(params![id], |row| {
         Ok((
             row.get::<_, i64>(4)? != 0,
-            super::AttachmentMeta {
+            AttachmentMeta {
                 part_id: row.get(0)?,
                 filename: row.get(1)?,
                 mime_type: row.get(2)?,
@@ -290,12 +292,11 @@ pub fn upsert_message(
     )?;
 
     if let Some(from) = &data.from {
-        let _ = super::upsert_from_address_string(conn, from);
-    }
-    if let Some(to_json) = &data.to_json {
-        if let Ok(to) = serde_json::from_str::<Vec<String>>(to_json) {
-            for recipient in to {
-                let _ = super::upsert_from_address_string(conn, &recipient);
+        let _ = upsert_from_address_string(conn, from);
+        if let Some(to) = &data.to_json {
+            let to_list: Vec<String> = serde_json::from_str(to).unwrap_or_default();
+            for recipient in to_list {
+                let _ = upsert_from_address_string(conn, &recipient);
             }
         }
     }
