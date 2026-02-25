@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { ManualAccountForm } from './ManualAccountForm'
+import { useAccountStore } from '@/stores/accountStore'
 
 interface AddAccountDialogProps {
 	onAccountAdded?: () => void
@@ -75,6 +76,7 @@ const ProviderOption = ({
 
 export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogProps) {
 	const { t } = useAccountsTranslation()
+	const fetchAccounts = useAccountStore((s) => s.fetchAccounts)
 	const [loading, setLoading] = useState<string | null>(null)
 	const [open, setOpen] = useState(false)
 	const [showManualForm, setShowManualForm] = useState(false)
@@ -104,7 +106,7 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 	const handleManualSuccess = () => {
 		setShowManualForm(false)
 		setOpen(false)
-		onAccountAdded?.()
+		onAccountAdded ? onAccountAdded() : fetchAccounts()
 	}
 
 	const handleManualCancel = () => {

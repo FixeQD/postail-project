@@ -30,6 +30,7 @@ interface SettingsScreenProps {
 	onBack: () => void
 	canGoBack?: boolean
 	showSidebar?: boolean
+	onAccountAdded?: () => void
 }
 
 interface SettingsNavItemProps {
@@ -103,6 +104,7 @@ export function SettingsScreen({
 	onBack,
 	canGoBack = true,
 	showSidebar = true,
+	onAccountAdded,
 }: SettingsScreenProps) {
 	const { accounts, removeAccount: onRemoveAccount } = useAccountStore()
 
@@ -141,6 +143,7 @@ export function SettingsScreen({
 						accounts={accounts}
 						onRemoveAccount={onRemoveAccount}
 						onSyncAccount={onSyncAccount}
+						onAccountAdded={onAccountAdded}
 					/>
 				)
 			case 'general':
@@ -164,7 +167,7 @@ export function SettingsScreen({
 					</div>
 				)
 		}
-	}, [activeSection, accounts, onRemoveAccount, onSyncAccount, t])
+	}, [activeSection, accounts, onRemoveAccount, onSyncAccount, onAccountAdded, t])
 
 	return (
 		<div className='flex h-full text-slate-100'>

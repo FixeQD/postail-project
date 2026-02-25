@@ -33,6 +33,7 @@ function App() {
 	const {
 		currentState,
 		setCurrentState,
+		handleAccountAdded,
 		handleUnlockSuccess,
 		handleSecurityChoice,
 		handleRecoveryVerified,
@@ -179,14 +180,15 @@ function App() {
 						onBack={() => setCurrentState('dashboard')}
 						canGoBack={currentState === 'settings'}
 						showSidebar={currentState === 'settings'}
+						onAccountAdded={
+							currentState === 'accounts' ? handleAccountAdded : undefined
+						}
 					/>
 				)
 			case 'dashboard':
 				return (
 					<>
-						<InboxScreen
-							onOpenSettings={() => setCurrentState('settings')}
-						/>
+						<InboxScreen onOpenSettings={() => setCurrentState('settings')} />
 						{outboxOpen && activeAccount && (
 							<OutboxPanel
 								accountId={activeAccount.id}
@@ -229,9 +231,7 @@ function App() {
 					<div className='h-full'>{renderCurrentScreen()}</div>
 				)}
 			</main>
-			{currentState === 'dashboard' && (
-				<StatusBar onOpenOutbox={() => setOutboxOpen(true)} />
-			)}
+			{currentState === 'dashboard' && <StatusBar onOpenOutbox={() => setOutboxOpen(true)} />}
 			<Toaster />
 			<LockScreen
 				isLocked={isLocked}

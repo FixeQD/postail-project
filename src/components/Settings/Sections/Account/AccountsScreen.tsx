@@ -12,9 +12,15 @@ interface AccountsScreenProps {
 	accounts: AccountMeta[]
 	onRemoveAccount: (id: string) => void
 	onSyncAccount: (id: string) => void
+	onAccountAdded?: () => void
 }
 
-export function AccountsScreen({ accounts, onRemoveAccount, onSyncAccount }: AccountsScreenProps) {
+export function AccountsScreen({
+	accounts,
+	onRemoveAccount,
+	onSyncAccount,
+	onAccountAdded,
+}: AccountsScreenProps) {
 	const { t } = useAccountsTranslation()
 	const animationsEnabled = useAnimationsEnabled()
 
@@ -95,7 +101,7 @@ export function AccountsScreen({ accounts, onRemoveAccount, onSyncAccount }: Acc
 						<p className='mx-auto mt-2 mb-7 max-w-sm text-sm text-slate-500'>
 							Connect your Gmail or Outlook account to start syncing messages.
 						</p>
-						<AddAccountDialog />
+						<AddAccountDialog onAccountAdded={onAccountAdded} />
 					</motion.div>
 				)}
 			</div>
