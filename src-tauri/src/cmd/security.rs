@@ -335,9 +335,7 @@ async fn initialize_tpm_elevated() -> Result<(), String> {
     }
     .await;
 
-    if let Err(e) = wait_res {
-        return Err(e);
-    }
+    wait_res?;
 
     // Final verification: try to connect to ensure the server finished binding
     let mut retries = 5;

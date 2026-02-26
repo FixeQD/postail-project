@@ -416,7 +416,7 @@ impl SecretStore for LinuxTpmStore {
                 key: key.as_bytes().to_vec(),
             })
             .map(|_| ())
-            .map_err(|proxy_err| SecurityError::Tpm(proxy_err));
+            .map_err(SecurityError::Tpm);
         }
 
         match self.create_context() {
@@ -440,7 +440,7 @@ impl SecretStore for LinuxTpmStore {
                         key: key.as_bytes().to_vec(),
                     })
                     .map(|_| ())
-                    .map_err(|proxy_err| SecurityError::Tpm(proxy_err));
+                    .map_err(SecurityError::Tpm);
                 }
 
                 Err(e)
@@ -458,7 +458,7 @@ impl SecretStore for LinuxTpmStore {
         #[cfg(target_os = "linux")]
         if self.should_use_proxy() {
             let key_bytes = proxy::call_proxy(proxy::TpmRequest::Retrieve)
-                .map_err(|e| SecurityError::Tpm(e))?
+                .map_err(SecurityError::Tpm)?
                 .ok_or_else(|| SecurityError::Tpm("No key returned from proxy".into()))?;
             return MasterKey::from_bytes(&key_bytes);
         }
@@ -486,7 +486,7 @@ impl SecretStore for LinuxTpmStore {
                 #[cfg(target_os = "linux")]
                 if proxy::is_socket_alive() {
                     let key_bytes = proxy::call_proxy(proxy::TpmRequest::Retrieve)
-                        .map_err(|proxy_err| SecurityError::Tpm(proxy_err))?
+                        .map_err(SecurityError::Tpm)?
                         .ok_or_else(|| SecurityError::Tpm("No key returned from proxy".into()))?;
                     return MasterKey::from_bytes(&key_bytes);
                 }
