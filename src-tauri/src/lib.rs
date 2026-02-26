@@ -168,13 +168,13 @@ pub fn tpm_helper_init() -> Result<(), String> {
         }
 
         // 2. Process requests
+        let store = get_tpm_store().ok_or_else(|| "TPM store not available".to_string())?;
+
         loop {
             let req: TpmRequest = match receive_message_async(stream).await {
                 Ok(r) => r,
                 Err(_) => break, // Connection closed
             };
-
-            let store = get_tpm_store().ok_or_else(|| "TPM store not available".to_string())?;
 
             let res = match req {
                 TpmRequest::Store { key } => match MasterKey::from_bytes(&key) {
