@@ -86,7 +86,9 @@ pub struct LinuxTpmStore {
 
 #[cfg(all(target_os = "linux", feature = "tpm"))]
 mod proxy {
-    pub use crate::security::tpm_protocol::{receive_message, send_message, TpmRequest, TpmResponse};
+    pub use crate::security::tpm_protocol::{
+        receive_message, send_message, TpmRequest, TpmResponse,
+    };
     use std::os::unix::net::UnixStream;
     use std::path::PathBuf;
 
@@ -169,7 +171,9 @@ impl LinuxTpmStore {
 
     #[cfg(feature = "tpm")]
     pub fn check_context_silent(&self) -> bool {
-        if !tpm_dev_exists() { return false; }
+        if !tpm_dev_exists() {
+            return false;
+        }
 
         if self.should_use_proxy() {
             return true;
@@ -179,8 +183,10 @@ impl LinuxTpmStore {
 
     #[cfg(feature = "tpm")]
     pub fn check_needs_elevation(&self) -> bool {
-        if !tpm_dev_exists() { return false; }
-        
+        if !tpm_dev_exists() {
+            return false;
+        }
+
         if self.should_use_proxy() {
             return false;
         }
@@ -449,6 +455,15 @@ impl SecretStore for LinuxTpmStore {
 
     #[cfg(feature = "tpm")]
     fn retrieve(&self) -> Result<MasterKey> {
+        #[cfg(target_os = "linux")]
+        if self.should_use_proxy() {
+            let key_bytes = proxy::call_proxy(proxy::TpmRequest::Retrieve)
+                .map_err(|e| SecurityError::Tpm(e))?
+                .ok_or_else(|| SecurityError::Tpm("No key returned from proxy".into()))?;
+            return MasterKey::from_bytes(&key_bytes);
+        }
+
+        // Read the sealed blob and unseal locally.
         let sealed = fs::read(self.get_sealed_path()).map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
                 SecurityError::MasterKeyNotFound
@@ -456,14 +471,6 @@ impl SecretStore for LinuxTpmStore {
                 SecurityError::Io(e)
             }
         })?;
-
-        #[cfg(target_os = "linux")]
-        if self.should_use_proxy() {
-            let key_bytes = proxy::call_proxy(proxy::TpmRequest::Retrieve)
-                .map_err(|proxy_err| SecurityError::Tpm(proxy_err))?
-                .ok_or_else(|| SecurityError::Tpm("No key returned from proxy".into()))?;
-            return MasterKey::from_bytes(&key_bytes);
-        }
 
         match self.create_context() {
             Ok(mut ctx) => {
@@ -477,7 +484,7 @@ impl SecretStore for LinuxTpmStore {
             }
             Err(e) => {
                 #[cfg(target_os = "linux")]
-                if proxy::get_socket_path().exists() {
+                if proxy::is_socket_alive() {
                     let key_bytes = proxy::call_proxy(proxy::TpmRequest::Retrieve)
                         .map_err(|proxy_err| SecurityError::Tpm(proxy_err))?
                         .ok_or_else(|| SecurityError::Tpm("No key returned from proxy".into()))?;
