@@ -7,6 +7,7 @@ pub mod master_key;
 pub mod recovery;
 pub mod stores;
 pub mod tpm_init;
+pub mod tpm_protocol;
 pub mod zeroize_helpers;
 
 pub use crypto::{decrypt_with_key, encrypt_with_key, Crypto};

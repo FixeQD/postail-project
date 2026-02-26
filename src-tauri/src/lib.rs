@@ -18,31 +18,131 @@ use crate::imap::sync_status::set_sync_status_app_handle;
 /// TPM helper mode: Initialize TPM with elevated privileges (Linux only)
 #[cfg(all(target_os = "linux", feature = "tpm"))]
 pub fn tpm_helper_init() -> Result<(), String> {
-    use crate::security::stores::tpm::get_tpm_store;
-    use crate::security::MasterKey;
+    use std::fs;
+    use std::os::unix::fs::PermissionsExt;
+    use std::path::PathBuf;
+    use tokio::net::{UnixListener, UnixStream};
 
-    // Get TPM store
-    let store = get_tpm_store().ok_or_else(|| "TPM store not available".to_string())?;
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| e.to_string())?;
 
-    // Generate and store a test key to verify TPM works
-    let test_key = MasterKey::generate();
-    store
-        .store(&test_key)
-        .map_err(|e| format!("Failed to store test key: {}", e))?;
+    rt.block_on(async {
+        // Use PKEXEC_UID set by pkexec is more secure than USER env var
+        let pkexec_uid_str = std::env::var("PKEXEC_UID")
+            .map_err(|_| "PKEXEC_UID env var not set (Helper must be run via pkexec)".to_string())?;
+        let uid_raw: u32 = pkexec_uid_str.parse().map_err(|_| "Invalid PKEXEC_UID".to_string())?;
+        let uid = nix::unistd::Uid::from_raw(uid_raw);
 
-    // Verify we can retrieve it
-    let retrieved = store
-        .retrieve()
-        .map_err(|e| format!("Failed to retrieve test key: {}", e))?;
+        let user = nix::unistd::User::from_uid(uid)
+            .map_err(|e| format!("Failed to find user with UID {}: {}", uid_raw, e))?
+            .ok_or_else(|| format!("User with UID {} not found", uid_raw))?;
+        let gid = user.gid;
 
-    if test_key.as_bytes() != retrieved.as_bytes() {
-        return Err("Key mismatch after retrieval".to_string());
+        let socket_dir = PathBuf::from(format!("/run/user/{}", uid));
+        
+        // Ensure the directory exists
+        if !socket_dir.exists() {
+             fs::create_dir_all(&socket_dir).map_err(|e| format!("Failed to create socket dir: {}", e))?;
+             let _ = nix::unistd::chown(&socket_dir, Some(uid), Some(gid));
+        }
+        
+        let socket_path = socket_dir.join("postail-tpm.sock");
+
+        // Clean up old socket
+        let _ = fs::remove_file(&socket_path);
+
+        let listener = UnixListener::bind(&socket_path)
+            .map_err(|e| format!("Failed to bind socket at {:?}: {}", socket_path, e))?;
+
+        // Set socket permissions so only the user can connect
+        let _ = fs::set_permissions(&socket_path, fs::Permissions::from_mode(0o600));
+        let _ = nix::unistd::chown(&socket_path, Some(uid), Some(gid));
+
+        eprintln!("TPM Proxy Helper (UID: {}) listening on {:?}", uid_raw, socket_path);
+
+        while let Ok((mut stream, _)) = listener.accept().await {
+            tokio::spawn(async move {
+                if let Err(e) = handle_client(&mut stream).await {
+                    eprintln!("Client error: {}", e);
+                }
+            });
+        }
+        Ok::<(), String>(())
+    })?;
+
+    async fn handle_client(stream: &mut UnixStream) -> Result<(), String> {
+        use crate::security::stores::tpm::get_tpm_store;
+        use crate::security::tpm_protocol::{
+            async_io::{receive_message_async, send_message_async},
+            TpmRequest, TpmResponse,
+        };
+        use crate::security::MasterKey;
+        use nix::sys::socket::{getsockopt, sockopt};
+        use std::os::fd::AsFd;
+
+        // 1. Verify peer (UID and binary path)
+        let fd = stream.as_fd();
+        let creds = getsockopt(&fd, sockopt::PeerCredentials)
+            .map_err(|e| e.to_string())?;
+        
+        // Use PKEXEC_UID for verification
+        let pkexec_uid_str = std::env::var("PKEXEC_UID").map_err(|_| "PKEXEC_UID not set".to_string())?;
+        let target_uid: u32 = pkexec_uid_str.parse().map_err(|_| "Invalid PKEXEC_UID".to_string())?;
+        
+        // Verify UID matches the user who started us, or root
+        if creds.uid() != target_uid && creds.uid() != 0 {
+             return Err("Unauthorized: UID mismatch".to_string());
+        }
+
+        // Verify executable path (only Postail can connect)
+        let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+        let peer_exe = std::fs::read_link(format!("/proc/{}/exe", creds.pid()))
+            .map_err(|e| e.to_string())?;
+        
+        if exe_path != peer_exe {
+            return Err("Unauthorized: Binary mismatch".to_string());
+        }
+
+        // 2. Process requests
+        loop {
+            let req: TpmRequest = match receive_message_async(stream).await {
+                Ok(r) => r,
+                Err(_) => break, // Connection closed
+            };
+
+            let store = get_tpm_store().ok_or_else(|| "TPM store not available".to_string())?;
+
+            let res = match req {
+                TpmRequest::Store { key } => {
+                    match MasterKey::from_bytes(&key) {
+                        Ok(mk) => match store.store(&mk) {
+                            Ok(_) => TpmResponse::Ok { key: None },
+                            Err(e) => TpmResponse::Err(e.to_string()),
+                        },
+                        Err(e) => TpmResponse::Err(e.to_string()),
+                    }
+                }
+                TpmRequest::Retrieve => {
+                    match store.retrieve() {
+                        Ok(mk) => TpmResponse::Ok { key: Some(mk.as_bytes().to_vec()) },
+                        Err(e) => TpmResponse::Err(e.to_string()),
+                    }
+                }
+                TpmRequest::Delete => {
+                    match store.delete() {
+                        Ok(_) => TpmResponse::Ok { key: None },
+                        Err(e) => TpmResponse::Err(e.to_string()),
+                    }
+                }
+            };
+
+            send_message_async(stream, &res).await?;
+        }
+
+        Ok(())
     }
-
-    // Clean up test key
-    store
-        .delete()
-        .map_err(|e| format!("Failed to delete test key: {}", e))?;
 
     Ok(())
 }

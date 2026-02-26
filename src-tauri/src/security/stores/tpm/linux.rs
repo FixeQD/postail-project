@@ -84,6 +84,41 @@ pub struct LinuxTpmStore {
     tcti: TctiNameConf,
 }
 
+#[cfg(all(target_os = "linux", feature = "tpm"))]
+mod proxy {
+    pub use crate::security::tpm_protocol::{receive_message, send_message, TpmRequest, TpmResponse};
+    use std::os::unix::net::UnixStream;
+    use std::path::PathBuf;
+
+    pub fn get_socket_path() -> PathBuf {
+        let uid = unsafe { nix::libc::getuid() };
+        PathBuf::from(format!("/run/user/{}/postail-tpm.sock", uid))
+    }
+
+    pub fn is_socket_alive() -> bool {
+        let path = get_socket_path();
+        if !path.exists() {
+            return false;
+        }
+        // Try to connect to see if there's actually a helper listening
+        std::os::unix::net::UnixStream::connect(&path).is_ok()
+    }
+
+    pub fn call_proxy(req: TpmRequest) -> Result<Option<Vec<u8>>, String> {
+        let path = get_socket_path();
+        let mut stream = UnixStream::connect(&path)
+            .map_err(|e| format!("Failed to connect to TPM helper: {}", e))?;
+
+        send_message(&mut stream, &req)?;
+        let res: TpmResponse = receive_message(&mut stream)?;
+
+        match res {
+            TpmResponse::Ok { key } => Ok(key),
+            TpmResponse::Err(e) => Err(e),
+        }
+    }
+}
+
 impl LinuxTpmStore {
     pub fn new() -> Result<Self> {
         Self::with_storage_path(default_storage_path())
@@ -121,13 +156,35 @@ impl LinuxTpmStore {
     }
 
     #[cfg(feature = "tpm")]
+    fn should_use_proxy(&self) -> bool {
+        #[cfg(target_os = "linux")]
+        {
+            std::env::var("POSTAIL_TPM_HELPER").is_err() && proxy::is_socket_alive()
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            false
+        }
+    }
+
+    #[cfg(feature = "tpm")]
     pub fn check_context_silent(&self) -> bool {
-        tpm_dev_exists() && self.create_context().is_ok()
+        if !tpm_dev_exists() { return false; }
+
+        if self.should_use_proxy() {
+            return true;
+        }
+        self.create_context().is_ok()
     }
 
     #[cfg(feature = "tpm")]
     pub fn check_needs_elevation(&self) -> bool {
-        tpm_dev_exists() && !self.check_context_silent()
+        if !tpm_dev_exists() { return false; }
+        
+        if self.should_use_proxy() {
+            return false;
+        }
+        self.create_context().is_err()
     }
 
     // ── Key management ─────────────────────────────────────────────
@@ -347,18 +404,42 @@ impl LinuxTpmStore {
 impl SecretStore for LinuxTpmStore {
     #[cfg(feature = "tpm")]
     fn store(&self, key: &MasterKey) -> Result<()> {
-        let mut ctx = self.create_context()?;
-        let primary = self.create_primary_key(&mut ctx)?;
-        let sealed = self.seal_data(&mut ctx, primary.key_handle, key.as_bytes())?;
-
-        if let Some(parent) = self.get_sealed_path().parent() {
-            fs::create_dir_all(parent)?;
+        #[cfg(target_os = "linux")]
+        if self.should_use_proxy() {
+            return proxy::call_proxy(proxy::TpmRequest::Store {
+                key: key.as_bytes().to_vec(),
+            })
+            .map(|_| ())
+            .map_err(|proxy_err| SecurityError::Tpm(proxy_err));
         }
-        fs::write(self.get_sealed_path(), sealed)?;
 
-        ctx.flush_context(primary.key_handle.into())
-            .map_err(tpm_err)?;
-        Ok(())
+        match self.create_context() {
+            Ok(mut ctx) => {
+                let primary = self.create_primary_key(&mut ctx)?;
+                let sealed = self.seal_data(&mut ctx, primary.key_handle, key.as_bytes())?;
+
+                if let Some(parent) = self.get_sealed_path().parent() {
+                    fs::create_dir_all(parent)?;
+                }
+                fs::write(self.get_sealed_path(), sealed)?;
+
+                ctx.flush_context(primary.key_handle.into())
+                    .map_err(tpm_err)?;
+                Ok(())
+            }
+            Err(e) => {
+                #[cfg(target_os = "linux")]
+                if proxy::get_socket_path().exists() {
+                    return proxy::call_proxy(proxy::TpmRequest::Store {
+                        key: key.as_bytes().to_vec(),
+                    })
+                    .map(|_| ())
+                    .map_err(|proxy_err| SecurityError::Tpm(proxy_err));
+                }
+
+                Err(e)
+            }
+        }
     }
 
     #[cfg(not(feature = "tpm"))]
@@ -376,14 +457,36 @@ impl SecretStore for LinuxTpmStore {
             }
         })?;
 
-        let mut ctx = self.create_context()?;
-        let primary = self.create_primary_key(&mut ctx)?;
-        let unsealed = self.unseal_data(&mut ctx, primary.key_handle, &sealed)?;
+        #[cfg(target_os = "linux")]
+        if self.should_use_proxy() {
+            let key_bytes = proxy::call_proxy(proxy::TpmRequest::Retrieve)
+                .map_err(|proxy_err| SecurityError::Tpm(proxy_err))?
+                .ok_or_else(|| SecurityError::Tpm("No key returned from proxy".into()))?;
+            return MasterKey::from_bytes(&key_bytes);
+        }
 
-        ctx.flush_context(primary.key_handle.into())
-            .map_err(tpm_err)?;
+        match self.create_context() {
+            Ok(mut ctx) => {
+                let primary = self.create_primary_key(&mut ctx)?;
+                let unsealed = self.unseal_data(&mut ctx, primary.key_handle, &sealed)?;
 
-        MasterKey::from_bytes(&unsealed)
+                ctx.flush_context(primary.key_handle.into())
+                    .map_err(tpm_err)?;
+
+                MasterKey::from_bytes(&unsealed)
+            }
+            Err(e) => {
+                #[cfg(target_os = "linux")]
+                if proxy::get_socket_path().exists() {
+                    let key_bytes = proxy::call_proxy(proxy::TpmRequest::Retrieve)
+                        .map_err(|proxy_err| SecurityError::Tpm(proxy_err))?
+                        .ok_or_else(|| SecurityError::Tpm("No key returned from proxy".into()))?;
+                    return MasterKey::from_bytes(&key_bytes);
+                }
+
+                Err(e)
+            }
+        }
     }
 
     #[cfg(not(feature = "tpm"))]
@@ -395,6 +498,18 @@ impl SecretStore for LinuxTpmStore {
         let path = self.get_sealed_path();
         if path.exists() {
             fs::remove_file(&path)?;
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            if self.should_use_proxy() {
+                let _ = proxy::call_proxy(proxy::TpmRequest::Delete);
+                return Ok(());
+            }
+
+            if self.create_context().is_err() && proxy::get_socket_path().exists() {
+                let _ = proxy::call_proxy(proxy::TpmRequest::Delete);
+            }
         }
         Ok(())
     }
