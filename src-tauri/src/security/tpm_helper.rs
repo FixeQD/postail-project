@@ -30,7 +30,7 @@ pub fn tpm_helper_init() -> Result<(), String> {
         let _ = fs::set_permissions(&socket_path, fs::Permissions::from_mode(0o600));
         let _ = nix::unistd::chown(&socket_path, Some(uid), Some(gid));
 
-        eprintln!(
+        tracing::info!(
             "TPM Proxy Helper (UID: {}) listening on {:?}",
             uid.as_raw(),
             socket_path
@@ -44,7 +44,7 @@ pub fn tpm_helper_init() -> Result<(), String> {
             let target_uid = uid.as_raw();
             tokio::spawn(async move {
                 if let Err(e) = handle_client(&mut stream, target_uid).await {
-                    eprintln!("Client error: {}", e);
+                    tracing::error!("Client error: {}", e);
                 }
             });
         }
@@ -118,7 +118,7 @@ fn start_watchdog(parent_pid: u32) -> Result<(), String> {
         use tokio::io::unix::AsyncFd;
         if let Ok(async_pidfd) = AsyncFd::new(pidfd) {
             let _ = async_pidfd.readable().await;
-            eprintln!(
+            tracing::warn!(
                 "[TPM helper] Parent process {} exited — shutting down",
                 parent_pid
             );
