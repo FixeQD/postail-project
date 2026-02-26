@@ -275,10 +275,15 @@ async fn initialize_tpm_elevated() -> Result<(), String> {
     let (tx, mut rx) = tokio::sync::oneshot::channel();
 
     tokio::spawn(async move {
+        let data_dir = crate::utils::config::get_data_dir()
+            .to_string_lossy()
+            .to_string();
+
         let status = Command::new("pkexec")
             .arg("env")
             .arg("POSTAIL_TPM_HELPER=1")
             .arg(format!("POSTAIL_PARENT_PID={}", std::process::id()))
+            .arg(format!("POSTAIL_DATA_DIR={}", data_dir))
             .arg(&exe_path)
             .status()
             .await;
@@ -368,15 +373,15 @@ pub async fn initialize_security(
     // Check if TPM requires elevation (Linux only)
     #[cfg(target_os = "linux")]
     if method == "tpm" {
-        use crate::security::TpmInitializer;
-        let initializer = TpmInitializer::new();
-        let availability = initializer.check_availability();
+        let availability =
+            spawn_blocking(|| crate::security::TpmInitializer::new().check_availability())
+                .await
+                .map_err(|e| e.to_string())?;
 
         if matches!(
             availability,
             crate::security::TpmAvailability::RequiresElevation
         ) {
-            // Use pkexec to run helper mode
             initialize_tpm_elevated().await?;
         }
     }
