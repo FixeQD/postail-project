@@ -18,7 +18,9 @@ pub enum TpmResponse {
 pub fn send_message<W: Write>(writer: &mut W, msg: &impl Serialize) -> Result<(), String> {
     let bytes = serde_json::to_vec(msg).map_err(|e| e.to_string())?;
     let len = bytes.len() as u32;
-    writer.write_all(&len.to_le_bytes()).map_err(|e| e.to_string())?;
+    writer
+        .write_all(&len.to_le_bytes())
+        .map_err(|e| e.to_string())?;
     writer.write_all(&bytes).map_err(|e| e.to_string())?;
     writer.flush().map_err(|e| e.to_string())?;
     Ok(())
@@ -47,7 +49,10 @@ pub mod async_io {
     ) -> Result<(), String> {
         let bytes = serde_json::to_vec(msg).map_err(|e| e.to_string())?;
         let len = bytes.len() as u32;
-        writer.write_all(&len.to_le_bytes()).await.map_err(|e| e.to_string())?;
+        writer
+            .write_all(&len.to_le_bytes())
+            .await
+            .map_err(|e| e.to_string())?;
         writer.write_all(&bytes).await.map_err(|e| e.to_string())?;
         writer.flush().await.map_err(|e| e.to_string())?;
         Ok(())
@@ -57,11 +62,17 @@ pub mod async_io {
         reader: &mut R,
     ) -> Result<T, String> {
         let mut len_buf = [0u8; 4];
-        reader.read_exact(&mut len_buf).await.map_err(|e| e.to_string())?;
+        reader
+            .read_exact(&mut len_buf)
+            .await
+            .map_err(|e| e.to_string())?;
         let len = u32::from_le_bytes(len_buf) as usize;
 
         let mut bytes = vec![0u8; len];
-        reader.read_exact(&mut bytes).await.map_err(|e| e.to_string())?;
+        reader
+            .read_exact(&mut bytes)
+            .await
+            .map_err(|e| e.to_string())?;
 
         serde_json::from_slice(&bytes).map_err(|e| e.to_string())
     }
