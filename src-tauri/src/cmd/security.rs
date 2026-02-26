@@ -218,7 +218,10 @@ pub async fn initialize_security_and_database(
 /// Initialize TPM with elevated privileges if needed (Linux only)
 #[cfg(target_os = "linux")]
 async fn initialize_tpm_elevated() -> Result<(), String> {
+    use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
+    use std::os::unix::io::{AsRawFd, RawFd};
     use std::time::Duration;
+    use tokio::io::unix::AsyncFd;
     use tokio::process::Command;
 
     // Check if we're already running as helper mode to avoid infinite loops
@@ -246,6 +249,28 @@ async fn initialize_tpm_elevated() -> Result<(), String> {
         .to_string();
 
     tracing::info!(target: "postail", "Requesting TPM elevation via pkexec (persistent helper)...");
+
+    let socket_dir = socket_path.parent().ok_or("Invalid socket path")?;
+
+    #[derive(Debug)]
+    struct InotifyWrapper(Inotify);
+    impl AsRawFd for InotifyWrapper {
+        fn as_raw_fd(&self) -> RawFd {
+            use std::os::fd::AsFd;
+            self.0.as_fd().as_raw_fd()
+        }
+    }
+
+    let inotify = Inotify::init(InitFlags::IN_NONBLOCK | InitFlags::IN_CLOEXEC)
+        .map_err(|e: nix::Error| e.to_string())?;
+    inotify
+        .add_watch(
+            socket_dir,
+            AddWatchFlags::IN_CREATE | AddWatchFlags::IN_MOVED_TO,
+        )
+        .map_err(|e: nix::Error| e.to_string())?;
+    let async_inotify =
+        AsyncFd::new(InotifyWrapper(inotify)).map_err(|e: std::io::Error| e.to_string())?;
 
     let (tx, mut rx) = tokio::sync::oneshot::channel();
 
@@ -277,39 +302,18 @@ async fn initialize_tpm_elevated() -> Result<(), String> {
 
     tracing::info!(target: "postail", "Waiting for TPM helper socket to appear...");
 
-    let socket_dir = socket_path.parent().ok_or("Invalid socket path")?;
-
+    // Check if socket already appeared between add_watch and the await
     let wait_res: Result<(), String> = async {
         if socket_path.exists() {
             return Ok::<(), String>(());
         }
 
-        use nix::sys::inotify::{Inotify, AddWatchFlags, InitFlags};
-        use tokio::io::unix::AsyncFd;
-        use std::os::unix::io::{AsRawFd, RawFd};
-
-        #[derive(Debug)]
-        struct InotifyWrapper(Inotify);
-        impl AsRawFd for InotifyWrapper {
-            fn as_raw_fd(&self) -> RawFd {
-                use std::os::fd::AsFd;
-                self.0.as_fd().as_raw_fd()
-            }
-        }
-
-        let inotify = Inotify::init(InitFlags::IN_NONBLOCK | InitFlags::IN_CLOEXEC)
-            .map_err(|e: nix::Error| e.to_string())?;
-
-        inotify.add_watch(socket_dir, AddWatchFlags::IN_CREATE | AddWatchFlags::IN_MOVED_TO)
-            .map_err(|e: nix::Error| e.to_string())?;
-
-        let async_inotify = AsyncFd::new(InotifyWrapper(inotify)).map_err(|e: std::io::Error| e.to_string())?;
-
         while !socket_path.exists() {
             tokio::select! {
                 res = async_inotify.readable() => {
                     let mut guard = res.map_err(|e: std::io::Error| e.to_string())?;
-                    let mut events = guard.get_inner().0.read_events().map_err(|e: nix::Error| e.to_string())?;
+                    let mut events = guard.get_inner().0.read_events()
+                        .map_err(|e: nix::Error| e.to_string())?;
                     let mut found = false;
                     for event in &mut events {
                         if let Some(name) = &event.name {
@@ -328,7 +332,8 @@ async fn initialize_tpm_elevated() -> Result<(), String> {
             }
         }
         Ok::<(), String>(())
-    }.await;
+    }
+    .await;
 
     if let Err(e) = wait_res {
         return Err(e);
