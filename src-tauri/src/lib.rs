@@ -19,6 +19,7 @@ use crate::imap::sync_status::set_sync_status_app_handle;
 #[cfg(all(target_os = "linux", feature = "tpm"))]
 pub fn tpm_helper_init() -> Result<(), String> {
     use std::fs;
+    use std::os::fd::FromRawFd;
     use std::os::unix::fs::PermissionsExt;
     use std::path::PathBuf;
     use tokio::net::{UnixListener, UnixStream};
@@ -30,9 +31,12 @@ pub fn tpm_helper_init() -> Result<(), String> {
 
     rt.block_on(async {
         // Use PKEXEC_UID set by pkexec is more secure than USER env var
-        let pkexec_uid_str = std::env::var("PKEXEC_UID")
-            .map_err(|_| "PKEXEC_UID env var not set (Helper must be run via pkexec)".to_string())?;
-        let uid_raw: u32 = pkexec_uid_str.parse().map_err(|_| "Invalid PKEXEC_UID".to_string())?;
+        let pkexec_uid_str = std::env::var("PKEXEC_UID").map_err(|_| {
+            "PKEXEC_UID env var not set (Helper must be run via pkexec)".to_string()
+        })?;
+        let uid_raw: u32 = pkexec_uid_str
+            .parse()
+            .map_err(|_| "Invalid PKEXEC_UID".to_string())?;
         let uid = nix::unistd::Uid::from_raw(uid_raw);
 
         let user = nix::unistd::User::from_uid(uid)
@@ -41,13 +45,14 @@ pub fn tpm_helper_init() -> Result<(), String> {
         let gid = user.gid;
 
         let socket_dir = PathBuf::from(format!("/run/user/{}", uid));
-        
+
         // Ensure the directory exists
         if !socket_dir.exists() {
-             fs::create_dir_all(&socket_dir).map_err(|e| format!("Failed to create socket dir: {}", e))?;
-             let _ = nix::unistd::chown(&socket_dir, Some(uid), Some(gid));
+            fs::create_dir_all(&socket_dir)
+                .map_err(|e| format!("Failed to create socket dir: {}", e))?;
+            let _ = nix::unistd::chown(&socket_dir, Some(uid), Some(gid));
         }
-        
+
         let socket_path = socket_dir.join("postail-tpm.sock");
 
         // Clean up old socket
@@ -60,15 +65,70 @@ pub fn tpm_helper_init() -> Result<(), String> {
         let _ = fs::set_permissions(&socket_path, fs::Permissions::from_mode(0o600));
         let _ = nix::unistd::chown(&socket_path, Some(uid), Some(gid));
 
-        eprintln!("TPM Proxy Helper (UID: {}) listening on {:?}", uid_raw, socket_path);
+        eprintln!(
+            "TPM Proxy Helper (UID: {}) listening on {:?}",
+            uid_raw, socket_path
+        );
 
-        while let Ok((mut stream, _)) = listener.accept().await {
-            tokio::spawn(async move {
-                if let Err(e) = handle_client(&mut stream).await {
-                    eprintln!("Client error: {}", e);
-                }
-            });
+        let parent_pid: u32 = std::env::var("POSTAIL_PARENT_PID")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .ok_or_else(|| "POSTAIL_PARENT_PID not set — cannot monitor parent".to_string())?;
+
+        let raw_pidfd = unsafe {
+            nix::libc::syscall(
+                nix::libc::SYS_pidfd_open,
+                parent_pid as nix::libc::pid_t,
+                0 as nix::libc::c_int,
+            )
+        };
+        if raw_pidfd < 0 {
+            return Err(format!(
+                "pidfd_open({}) failed: {}",
+                parent_pid,
+                std::io::Error::last_os_error()
+            ));
         }
+        // SAFETY: syscall succeeded, fd is valid and owned by us.
+        let pidfd = unsafe { std::os::fd::OwnedFd::from_raw_fd(raw_pidfd as std::os::fd::RawFd) };
+
+        let watchdog = tokio::spawn(async move {
+            use tokio::io::unix::AsyncFd;
+
+            match AsyncFd::new(pidfd) {
+                Ok(async_pidfd) => {
+                    let _ = async_pidfd.readable().await;
+                    eprintln!(
+                        "[TPM helper] Parent process {} exited — shutting down",
+                        parent_pid
+                    );
+                }
+                Err(e) => {
+                    eprintln!(
+                        "[TPM helper] AsyncFd on pidfd failed: {} — shutting down",
+                        e
+                    );
+                }
+            }
+            std::process::exit(0);
+        });
+
+        let accept_loop = async {
+            while let Ok((mut stream, _)) = listener.accept().await {
+                tokio::spawn(async move {
+                    if let Err(e) = handle_client(&mut stream).await {
+                        eprintln!("Client error: {}", e);
+                    }
+                });
+            }
+            Ok::<(), String>(())
+        };
+
+        tokio::select! {
+            res = accept_loop => res?,
+            _ = watchdog => {}
+        }
+
         Ok::<(), String>(())
     })?;
 
@@ -84,23 +144,25 @@ pub fn tpm_helper_init() -> Result<(), String> {
 
         // 1. Verify peer (UID and binary path)
         let fd = stream.as_fd();
-        let creds = getsockopt(&fd, sockopt::PeerCredentials)
-            .map_err(|e| e.to_string())?;
-        
+        let creds = getsockopt(&fd, sockopt::PeerCredentials).map_err(|e| e.to_string())?;
+
         // Use PKEXEC_UID for verification
-        let pkexec_uid_str = std::env::var("PKEXEC_UID").map_err(|_| "PKEXEC_UID not set".to_string())?;
-        let target_uid: u32 = pkexec_uid_str.parse().map_err(|_| "Invalid PKEXEC_UID".to_string())?;
-        
+        let pkexec_uid_str =
+            std::env::var("PKEXEC_UID").map_err(|_| "PKEXEC_UID not set".to_string())?;
+        let target_uid: u32 = pkexec_uid_str
+            .parse()
+            .map_err(|_| "Invalid PKEXEC_UID".to_string())?;
+
         // Verify UID matches the user who started us, or root
         if creds.uid() != target_uid && creds.uid() != 0 {
-             return Err("Unauthorized: UID mismatch".to_string());
+            return Err("Unauthorized: UID mismatch".to_string());
         }
 
         // Verify executable path (only Postail can connect)
         let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
-        let peer_exe = std::fs::read_link(format!("/proc/{}/exe", creds.pid()))
-            .map_err(|e| e.to_string())?;
-        
+        let peer_exe =
+            std::fs::read_link(format!("/proc/{}/exe", creds.pid())).map_err(|e| e.to_string())?;
+
         if exe_path != peer_exe {
             return Err("Unauthorized: Binary mismatch".to_string());
         }
@@ -115,27 +177,23 @@ pub fn tpm_helper_init() -> Result<(), String> {
             let store = get_tpm_store().ok_or_else(|| "TPM store not available".to_string())?;
 
             let res = match req {
-                TpmRequest::Store { key } => {
-                    match MasterKey::from_bytes(&key) {
-                        Ok(mk) => match store.store(&mk) {
-                            Ok(_) => TpmResponse::Ok { key: None },
-                            Err(e) => TpmResponse::Err(e.to_string()),
-                        },
-                        Err(e) => TpmResponse::Err(e.to_string()),
-                    }
-                }
-                TpmRequest::Retrieve => {
-                    match store.retrieve() {
-                        Ok(mk) => TpmResponse::Ok { key: Some(mk.as_bytes().to_vec()) },
-                        Err(e) => TpmResponse::Err(e.to_string()),
-                    }
-                }
-                TpmRequest::Delete => {
-                    match store.delete() {
+                TpmRequest::Store { key } => match MasterKey::from_bytes(&key) {
+                    Ok(mk) => match store.store(&mk) {
                         Ok(_) => TpmResponse::Ok { key: None },
                         Err(e) => TpmResponse::Err(e.to_string()),
-                    }
-                }
+                    },
+                    Err(e) => TpmResponse::Err(e.to_string()),
+                },
+                TpmRequest::Retrieve => match store.retrieve() {
+                    Ok(mk) => TpmResponse::Ok {
+                        key: Some(mk.as_bytes().to_vec()),
+                    },
+                    Err(e) => TpmResponse::Err(e.to_string()),
+                },
+                TpmRequest::Delete => match store.delete() {
+                    Ok(_) => TpmResponse::Ok { key: None },
+                    Err(e) => TpmResponse::Err(e.to_string()),
+                },
             };
 
             send_message_async(stream, &res).await?;

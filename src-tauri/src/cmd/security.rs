@@ -245,7 +245,6 @@ async fn initialize_tpm_elevated() -> Result<(), String> {
         .to_string_lossy()
         .to_string();
 
-
     tracing::info!(target: "postail", "Requesting TPM elevation via pkexec (persistent helper)...");
 
     let (tx, mut rx) = tokio::sync::oneshot::channel();
@@ -253,7 +252,8 @@ async fn initialize_tpm_elevated() -> Result<(), String> {
     tokio::spawn(async move {
         let status = Command::new("pkexec")
             .arg("env")
-            .arg(format!("POSTAIL_TPM_HELPER=1"))
+            .arg("POSTAIL_TPM_HELPER=1")
+            .arg(format!("POSTAIL_PARENT_PID={}", std::process::id()))
             .arg(&exe_path)
             .status()
             .await;
@@ -276,7 +276,7 @@ async fn initialize_tpm_elevated() -> Result<(), String> {
     });
 
     tracing::info!(target: "postail", "Waiting for TPM helper socket to appear...");
-    
+
     let socket_dir = socket_path.parent().ok_or("Invalid socket path")?;
 
     let wait_res: Result<(), String> = async {
@@ -299,7 +299,7 @@ async fn initialize_tpm_elevated() -> Result<(), String> {
 
         let inotify = Inotify::init(InitFlags::IN_NONBLOCK | InitFlags::IN_CLOEXEC)
             .map_err(|e: nix::Error| e.to_string())?;
-        
+
         inotify.add_watch(socket_dir, AddWatchFlags::IN_CREATE | AddWatchFlags::IN_MOVED_TO)
             .map_err(|e: nix::Error| e.to_string())?;
 
@@ -343,7 +343,7 @@ async fn initialize_tpm_elevated() -> Result<(), String> {
         tokio::time::sleep(Duration::from_millis(50)).await;
         retries -= 1;
     }
-    
+
     if retries == 0 {
         return Err("TPM helper socket appeared but is not responding".to_string());
     }
