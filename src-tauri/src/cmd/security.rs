@@ -24,7 +24,7 @@ pub struct SecurityOptions {
 #[command]
 pub async fn check_security_options() -> Result<SecurityOptions, String> {
     let (tpm_available, tpm_requires_elevation) = timeout(
-        Duration::from_millis(500),
+        Duration::from_secs(3),
         spawn_blocking(|| {
             use crate::security::TpmInitializer;
             let initializer = TpmInitializer::new();
@@ -64,7 +64,7 @@ pub async fn check_tpm_availability() -> Result<TpmStatus, String> {
     use crate::security::TpmAvailability;
 
     let result = timeout(
-        Duration::from_millis(500),
+        Duration::from_secs(3),
         spawn_blocking(|| {
             let initializer = crate::security::TpmInitializer::new();
             initializer.check_availability()
