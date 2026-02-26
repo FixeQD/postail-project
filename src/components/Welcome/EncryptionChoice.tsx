@@ -217,7 +217,10 @@ export const EncryptionChoice = ({
 
 			<TPMInitDialog
 				open={tpmDialogOpen}
-				onClose={() => setTpmDialogOpen(false)}
+				onClose={() => {
+					setTpmDialogOpen(false)
+					setLoadingMethod(null)
+				}}
 				onSuccess={handleTpmSuccess}
 			/>
 		</>
