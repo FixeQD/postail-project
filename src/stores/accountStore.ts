@@ -1,11 +1,13 @@
 import { create } from 'zustand'
 import { invoke } from '@tauri-apps/api/core'
 import type { AccountMeta } from '../types/accounts'
+import { useMessageViewStore } from './messageViewStore'
 
 interface AccountState {
 	accounts: AccountMeta[]
 	activeAccount: AccountMeta | null
 	activeMailbox: string
+	lastMailboxes: Record<string, string>
 	isLoading: boolean
 
 	setAccounts: (accounts: AccountMeta[]) => void
@@ -19,13 +21,31 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 	accounts: [],
 	activeAccount: null,
 	activeMailbox: 'INBOX',
+	lastMailboxes: {},
 	isLoading: false,
 
 	setAccounts: (accounts) => set({ accounts }),
 	
-	setActiveAccount: (account) => set({ activeAccount: account }),
+	setActiveAccount: (account) => {
+		useMessageViewStore.getState().closeMessage()
+		
+		const { lastMailboxes } = get()
+		const nextMailbox = account ? (lastMailboxes[account.id] || 'INBOX') : 'INBOX'
+		
+		set({ activeAccount: account, activeMailbox: nextMailbox })
+	},
 	
-	setActiveMailbox: (mailbox) => set({ activeMailbox: mailbox }),
+	setActiveMailbox: (mailbox) => {
+		const { activeAccount, lastMailboxes } = get()
+		if (activeAccount) {
+			set({ 
+				activeMailbox: mailbox,
+				lastMailboxes: { ...lastMailboxes, [activeAccount.id]: mailbox }
+			})
+		} else {
+			set({ activeMailbox: mailbox })
+		}
+	},
 
 	fetchAccounts: async () => {
 		set({ isLoading: true })

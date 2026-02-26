@@ -10,6 +10,7 @@ import { useThemeStore } from '@/stores/themeStore'
 import { useAccountStore } from '@/stores/accountStore'
 import { useMessageViewStore } from '@/stores/messageViewStore'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { AccountSwitcher } from './TitleBar/AccountSwitcher'
 
 interface TitleBarProps {
 	isDashboard?: boolean
@@ -54,7 +55,7 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 
 	return (
 		<div
-			className='glass relative flex h-14 shrink-0 items-center justify-between border-b border-white/[0.06] select-none'
+			className='glass relative z-50 flex h-14 shrink-0 items-center justify-between border-b border-white/[0.06] select-none'
 			onMouseDown={startDrag}>
 			{/* Subtle top highlight */}
 			<div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent' />
@@ -225,16 +226,8 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 							<Settings className='h-[18px] w-[18px]' />
 						</motion.button>
 
-						{/* Avatar */}
-						<div
-							className='ml-1 h-8 w-8 overflow-hidden rounded-full ring-2 ring-slate-950 ring-offset-1 ring-offset-slate-800/50'
-							style={{
-								background: `linear-gradient(135deg, var(--accent-color), var(--accent-dark))`,
-							}}>
-							<div className='text-accent-contrast flex h-full w-full items-center justify-center text-sm font-bold'>
-								{activeAccount.name.charAt(0).toUpperCase()}
-							</div>
-						</div>
+						{/* Avatar / Account Switcher */}
+						<AccountSwitcher onOpenSettings={onOpenSettings!} />
 					</div>
 				)}
 
