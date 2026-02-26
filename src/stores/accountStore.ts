@@ -33,6 +33,11 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 		const nextMailbox = account ? (lastMailboxes[account.id] || 'INBOX') : 'INBOX'
 		
 		set({ activeAccount: account, activeMailbox: nextMailbox })
+
+		if (account) {
+			invoke('set_setting', { key: 'postail.last_account', value: account.id }).catch(console.error)
+			invoke('set_setting', { key: `postail.last_mailbox.${account.id}`, value: nextMailbox }).catch(console.error)
+		}
 	},
 	
 	setActiveMailbox: (mailbox) => {
@@ -42,6 +47,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 				activeMailbox: mailbox,
 				lastMailboxes: { ...lastMailboxes, [activeAccount.id]: mailbox }
 			})
+			invoke('set_setting', { key: `postail.last_mailbox.${activeAccount.id}`, value: mailbox }).catch(console.error)
 		} else {
 			set({ activeMailbox: mailbox })
 		}
@@ -53,10 +59,29 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 			const fetchedAccounts = await invoke<AccountMeta[]>('list_accounts')
 			set({ accounts: fetchedAccounts, isLoading: false })
 			
-			// Auto-set active account if none selected
+			// Try to restore last account and its last mailbox
 			const { activeAccount } = get()
 			if (fetchedAccounts.length > 0 && !activeAccount) {
-				set({ activeAccount: fetchedAccounts[0] })
+				try {
+					const lastAccountId = await invoke<string | null>('get_setting', { key: 'postail.last_account' })
+					let targetAccount = fetchedAccounts.find(a => a.id === lastAccountId)
+
+					if (!targetAccount) {
+						targetAccount = fetchedAccounts[0]
+					}
+					
+					const lastAccountMailbox = await invoke<string | null>('get_setting', { key: `postail.last_mailbox.${targetAccount.id}` })
+					const initialMailbox = lastAccountMailbox || 'INBOX'
+
+					set({ 
+						activeAccount: targetAccount, 
+						activeMailbox: initialMailbox,
+						lastMailboxes: { [targetAccount.id]: initialMailbox } 
+					})
+				} catch (err) {
+					console.error('Failed to restore last active account', err)
+					set({ activeAccount: fetchedAccounts[0] })
+				}
 			}
 			
 			return fetchedAccounts
