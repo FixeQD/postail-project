@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import * as opener from '@tauri-apps/plugin-opener'
 import { useAccountsTranslation } from '../../../../hooks/useTypedTranslation'
@@ -26,9 +26,20 @@ interface EditAccountDialogProps {
 
 export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDialogProps) {
 	const { t } = useAccountsTranslation()
-	const { updateAccount, setPendingReauthAccountId } = useAccountStore()
+	const { updateAccount, setPendingReauthAccountId, pendingReauthAccountId } = useAccountStore()
 	const [isLoading, setIsLoading] = useState(false)
 	const [newName, setNewName] = useState(account.name)
+	const prevPendingRef = useRef(pendingReauthAccountId)
+
+	const isReauthing = pendingReauthAccountId === account.id
+
+	useEffect(() => {
+		// If we were reauthing and it became null, it means it's done
+		if (prevPendingRef.current === account.id && pendingReauthAccountId === null) {
+			onOpenChange(false)
+		}
+		prevPendingRef.current = pendingReauthAccountId
+	}, [pendingReauthAccountId, account.id, onOpenChange])
 
 	const isOAuth = account.auth_type === 'oauth2'
 
@@ -54,8 +65,7 @@ export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDi
 				provider: account.provider_type,
 			})
 			await opener.openUrl(url)
-			// The listener in useAppInitialization will handle the callback
-			onOpenChange(false)
+			// Don't close immediately anymore - wait for the callback
 		} catch (error) {
 			console.error('Failed to start re-auth:', error)
 			setPendingReauthAccountId(null)
@@ -117,11 +127,20 @@ export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDi
 								</div>
 								<Button 
 									onClick={handleReauth}
-									disabled={isLoading}
+									disabled={isLoading || isReauthing}
 									className='w-full bg-blue-600 hover:bg-blue-500'
 								>
-									{isLoading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-									{t('settings:accounts.reauth.button', 'Re-authenticate')}
+									{isReauthing ? (
+										<>
+											<Loader2 className='mr-2 h-4 w-4 animate-spin' />
+											{t('settings:accounts.reauth.waiting', 'Waiting for browser...')}
+										</>
+									) : (
+										<>
+											{isLoading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+											{t('settings:accounts.reauth.button', 'Re-authenticate')}
+										</>
+									)}
 								</Button>
 							</div>
 
