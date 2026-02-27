@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { motion } from 'framer-motion'
-import { useSecurityTranslation } from '../../hooks/useTypedTranslation'
+import { useSecurityTranslation } from '../../../hooks/useTypedTranslation'
 import { useThemeStore } from '@/stores/themeStore'
-import { TPMOption } from './TPMOption'
-import { KeyringOption } from './KeyringOption'
+import { TPMOption } from '../tpm/TPMOption'
+import { KeyringOption } from '../keyring/KeyringOption'
 import { Argon2Option } from './Argon2Option'
-import { TPMInitDialog } from './TPMInitDialog'
+import { TPMInitDialog } from '../tpm/TPMInitDialog'
 import { ArrowLeft, Shield } from 'lucide-react'
 
 interface SecurityOptions {

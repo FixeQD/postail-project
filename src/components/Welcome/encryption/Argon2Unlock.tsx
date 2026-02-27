@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { motion } from 'framer-motion'
-import { useTypedTranslation } from '../../hooks/useTypedTranslation'
+import { useTypedTranslation } from '../../../hooks/useTypedTranslation'
 import { useThemeStore } from '@/stores/themeStore'
 import { ArrowLeft, Lock, Eye, EyeOff, AlertTriangle } from 'lucide-react'
-import icon from '../../assets/icon.png'
+import icon from '../../../assets/icon.png'
 
 export const Argon2Unlock = ({
 	onBack,
@@ -196,7 +196,7 @@ export const Argon2Unlock = ({
 											setIsRecoveryMode(true)
 											setError(null)
 										}}
-										className='text-xs text-slate-500 hover:text-slate-300 transition-colors'>
+										className='text-xs text-slate-500 transition-colors hover:text-slate-300'>
 										{t('welcome:recovery.unlock.forgotPassword')}
 									</button>
 								</div>
@@ -220,8 +220,16 @@ export const Argon2Unlock = ({
 					<motion.button
 						type='submit'
 						disabled={loading || (isRecoveryMode ? !recoveryPhrase : !passphrase)}
-						whileHover={!loading && (isRecoveryMode ? recoveryPhrase : passphrase) ? { scale: 1.02 } : {}}
-						whileTap={!loading && (isRecoveryMode ? recoveryPhrase : passphrase) ? { scale: 0.97 } : {}}
+						whileHover={
+							!loading && (isRecoveryMode ? recoveryPhrase : passphrase)
+								? { scale: 1.02 }
+								: {}
+						}
+						whileTap={
+							!loading && (isRecoveryMode ? recoveryPhrase : passphrase)
+								? { scale: 0.97 }
+								: {}
+						}
 						className='text-accent-contrast flex w-full items-center justify-center gap-2.5 rounded-xl px-6 py-3.5 text-sm font-semibold shadow-lg transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none'
 						style={{
 							background: `linear-gradient(to right, var(--accent-dark), var(--accent-color))`,
@@ -237,13 +245,11 @@ export const Argon2Unlock = ({
 						) : (
 							<>
 								<Lock className='h-4 w-4' />
-								{isRecoveryMode
-									? t('welcome:recovery.unlock.button')
-									: 'Unlock'}
+								{isRecoveryMode ? t('welcome:recovery.unlock.button') : 'Unlock'}
 							</>
 						)}
 					</motion.button>
-					
+
 					{isRecoveryMode && (
 						<button
 							type='button'
@@ -251,7 +257,7 @@ export const Argon2Unlock = ({
 								setIsRecoveryMode(false)
 								setError(null)
 							}}
-							className='w-full text-center text-xs text-slate-500 hover:text-slate-300 transition-colors'>
+							className='w-full text-center text-xs text-slate-500 transition-colors hover:text-slate-300'>
 							{t('welcome:recovery.unlock.usePassword')}
 						</button>
 					)}

@@ -1,4 +1,4 @@
-import { useSecurityTranslation } from '../../hooks/useTypedTranslation'
+import { useSecurityTranslation } from '../../../hooks/useTypedTranslation'
 import { useThemeStore } from '@/stores/themeStore'
 import { Lock, Check, KeyRound } from 'lucide-react'
 

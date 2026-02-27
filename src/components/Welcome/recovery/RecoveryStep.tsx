@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { Copy, Download, Check, ShieldAlert, ArrowRight } from 'lucide-react'
-import DecryptedText from '../DecryptedText'
+import DecryptedText from '../../DecryptedText'
 import { useThemeStore } from '@/stores/themeStore'
 
 export const RecoveryStep = ({ onNext }: { onNext: (phrase: string) => void }) => {
@@ -166,7 +166,9 @@ export const RecoveryStep = ({ onNext }: { onNext: (phrase: string) => void }) =
 							{copied ? (
 								<>
 									<Check className='h-4 w-4 text-green-400' />
-									<span className='text-green-400'>{t('recovery.action.copied')}</span>
+									<span className='text-green-400'>
+										{t('recovery.action.copied')}
+									</span>
 								</>
 							) : (
 								<>
@@ -181,7 +183,9 @@ export const RecoveryStep = ({ onNext }: { onNext: (phrase: string) => void }) =
 							{saved ? (
 								<>
 									<Check className='h-4 w-4 text-green-400' />
-									<span className='text-green-400'>{t('recovery.action.saved')}</span>
+									<span className='text-green-400'>
+										{t('recovery.action.saved')}
+									</span>
 								</>
 							) : (
 								<>
