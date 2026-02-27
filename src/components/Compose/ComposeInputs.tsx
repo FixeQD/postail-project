@@ -4,21 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { AddressInput } from './Inputs/AddressInput'
 import { SubjectInput } from './Inputs/SubjectInput'
 import { useDraftStore } from '@/stores/draftStore'
-import type { EmailAddress, ComposeDraft } from '@/types/compose'
-
-interface ComposeInputsProps {
-	to: EmailAddress[]
-	cc: EmailAddress[]
-	bcc: EmailAddress[]
-	subject: string
-	showCc: boolean
-	showBcc: boolean
-	setShowCc: (show: boolean) => void
-	setShowBcc: (show: boolean) => void
-	onUpdate: (updates: Partial<ComposeDraft>) => void
-	onAddRecipient: (type: 'to' | 'cc' | 'bcc', recipient: EmailAddress) => void
-	onRemoveRecipient: (type: 'to' | 'cc' | 'bcc', email: string) => void
-}
+import type { ComposeInputsProps } from '@/types/components/compose'
 
 export function ComposeInputs({
 	to,

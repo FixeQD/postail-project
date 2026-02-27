@@ -5,11 +5,7 @@ import { ColorPicker } from '@/components/ui/custom/ColorPicker'
 import { ArrowLeft, ArrowRight, Palette, Check, Pipette } from 'lucide-react'
 import { useThemeStore, ACCENT_PRESETS, BACKGROUND_PRESETS } from '@/stores/themeStore'
 import { useTranslation } from 'react-i18next'
-
-interface AccentColorStepProps {
-	onNext: () => void
-	onBack: () => void
-}
+import type { AccentColorStepProps } from '@/types/components/welcome'
 
 export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 	const { t } = useTranslation()

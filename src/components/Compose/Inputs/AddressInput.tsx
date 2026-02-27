@@ -4,23 +4,7 @@ import { motion } from 'framer-motion'
 import { invoke } from '@tauri-apps/api/core'
 import { cn } from '@/lib/utils'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
-import type { EmailAddress } from '@/types/compose'
-
-interface Contact {
-	id: number
-	email: string
-	name: string | null
-}
-
-interface AddressInputProps {
-	label: string
-	recipients: EmailAddress[]
-	onAdd: (recipient: EmailAddress) => void
-	onRemove: (email: string) => void
-	placeholder?: string
-	className?: string
-	rightElement?: React.ReactNode
-}
+import type { AddressInputProps, Contact } from '@/types/components/compose'
 
 export function AddressInput({
 	label,

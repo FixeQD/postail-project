@@ -11,18 +11,9 @@ import {
 import { ShieldCheck, Loader2, AlertTriangle, ArrowRight } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useThemeStore } from '@/stores/themeStore'
+import type { RecoveryVerifyDialogProps } from '@/types/components/shared'
 
-interface RecoveryVerifyDialogProps {
-	open: boolean
-	onClose: () => void
-	onVerified: () => void
-}
-
-export function RecoveryVerifyDialog({
-	open,
-	onClose,
-	onVerified,
-}: RecoveryVerifyDialogProps) {
+export function RecoveryVerifyDialog({ open, onClose, onVerified }: RecoveryVerifyDialogProps) {
 	const { t } = useTranslation(['welcome', 'common'])
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const [indices, setIndices] = useState<number[]>([])
@@ -101,7 +92,9 @@ export function RecoveryVerifyDialog({
 									value={inputs[i]}
 									onChange={(e) => handleInputChange(i, e.target.value)}
 									className='w-full rounded-lg bg-slate-800/50 px-3 py-2 text-slate-100 placeholder-slate-600 ring-1 ring-white/[0.1] focus:ring-2 focus:ring-[var(--accent-color)] focus:outline-none'
-									placeholder={t('recovery.verify.placeholder', { number: idx + 1 })}
+									placeholder={t('recovery.verify.placeholder', {
+										number: idx + 1,
+									})}
 									style={
 										{
 											'--accent-color': accentColor,
@@ -127,14 +120,14 @@ export function RecoveryVerifyDialog({
 					<div className='mt-6 flex justify-end gap-3'>
 						<button
 							onClick={onClose}
-							className='rounded-lg px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-colors'
+							className='rounded-lg px-4 py-2 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-800/50 hover:text-slate-200'
 							disabled={loading}>
 							{t('common:actions.cancel') || 'Cancel'}
 						</button>
 						<button
 							onClick={handleVerify}
 							disabled={!isComplete || loading}
-							className='flex items-center gap-2 rounded-lg bg-[var(--accent-color)] px-4 py-2 text-sm font-medium text-white shadow-lg shadow-[var(--accent-color)]/20 transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none'
+							className='flex items-center gap-2 rounded-lg bg-[var(--accent-color)] px-4 py-2 text-sm font-medium text-white shadow-[var(--accent-color)]/20 shadow-lg transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none'
 							style={
 								{
 									'--accent-color': accentColor,

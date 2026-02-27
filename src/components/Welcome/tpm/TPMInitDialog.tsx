@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useSecurityTranslation } from '@/hooks/useTypedTranslation'
+import type { TPMInitDialogProps } from '@/types/components/welcome'
 
 type TpmStatus =
 	| 'checking'
@@ -20,13 +21,6 @@ type TpmStatus =
 	| 'success'
 	| 'error'
 	| 'elevation_cancelled'
-
-interface TPMInitDialogProps {
-	open: boolean
-	onClose: () => void
-	onSuccess: () => void
-	requiresElevation?: boolean
-}
 
 /** Matches error strings produced by initialize_tpm_elevated in security.rs */
 function isCancellationError(msg: string): boolean {

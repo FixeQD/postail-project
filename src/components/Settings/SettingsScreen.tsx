@@ -25,21 +25,7 @@ import { AboutSettings } from './Sections/AboutSettings'
 import { invoke } from '@tauri-apps/api/core'
 import { useAccountStore } from '@/stores/accountStore'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
-
-interface SettingsScreenProps {
-	onBack: () => void
-	canGoBack?: boolean
-	showSidebar?: boolean
-	onAccountAdded?: () => void
-}
-
-interface SettingsNavItemProps {
-	section: { id: string; label: string; icon: React.ElementType }
-	isActive: boolean
-	accentColor: string
-	animationsEnabled: boolean
-	onClick: () => void
-}
+import type { SettingsScreenProps, SettingsNavItemProps } from '@/types/components/settings'
 
 const SettingsNavItem = memo(
 	({ section, isActive, accentColor, animationsEnabled, onClick }: SettingsNavItemProps) => {

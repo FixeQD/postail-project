@@ -24,15 +24,7 @@ import { MessageViewErrorBoundary } from './MessageViewErrorBoundary'
 import { useInboxShortcuts } from '@/hooks/useInboxShortcuts'
 import { toast } from '@/stores/toastStore'
 import { MessageViewSkeleton } from './MessageViewSkeleton'
-
-interface MessageViewProps {
-	accountId: string
-	mailbox: string
-	uid: number
-	onBack: () => void
-	onNext?: () => void
-	onPrev?: () => void
-}
+import type { MessageViewProps } from '@/types/components/shared'
 
 export const MessageView = ({
 	accountId,

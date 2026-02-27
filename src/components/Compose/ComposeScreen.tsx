@@ -20,12 +20,7 @@ import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 import { ComposeHeader } from './ComposeHeader'
 import { ComposeInputs } from './ComposeInputs'
 import { ComposeFooter } from './ComposeFooter'
-
-interface ComposeScreenProps {
-	open: boolean
-	onOpenChange: (open: boolean) => void
-	accountId?: string
-}
+import type { ComposeScreenProps } from '@/types/components/compose'
 
 export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenProps) {
 	const { t } = useTranslation()

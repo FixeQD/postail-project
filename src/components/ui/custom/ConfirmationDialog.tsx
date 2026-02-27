@@ -7,16 +7,7 @@ import {
 	DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-
-interface ConfirmationDialogProps {
-	open: boolean
-	onOpenChange: (open: boolean) => void
-	title: string
-	description: string
-	confirmLabel: string
-	cancelLabel: string
-	onConfirm: () => void
-}
+import type { ConfirmationDialogProps } from '@/types/components/ui'
 
 export function ConfirmationDialog({
 	open,

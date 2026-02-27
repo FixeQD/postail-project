@@ -4,15 +4,7 @@ import { GitBranch, GitCommit, Clock, Cpu, Package, Terminal } from 'lucide-reac
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
-
-interface BuildInfo {
-	version: string
-	build_timestamp: string
-	git_hash: string
-	git_branch: string
-	profile: string
-	rustc: string
-}
+import type { BuildInfo } from '@/types/components/shared'
 
 const Row = ({
 	icon: Icon,

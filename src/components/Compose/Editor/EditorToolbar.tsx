@@ -4,6 +4,7 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { invoke } from '@tauri-apps/api/core'
 import { useTranslation } from 'react-i18next'
 import type { EmailAttachment } from '@/types/compose'
+import type { LinkPopoverProps } from '@/types/components/compose'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 import { CompatibilityButton } from '@/components/Compose/CompatibilityButton'
 import {
@@ -80,20 +81,6 @@ const useEditorFormats = (editor: LexicalEditor, linkPopoverOpen: boolean) => {
 	}, [editor, linkPopoverOpen])
 
 	return { formats, linkData }
-}
-
-interface LinkPopoverProps {
-	editor: LexicalEditor
-	formats: {
-		bold: boolean
-		italic: boolean
-		underline: boolean
-		strikethrough: boolean
-		ordered: boolean
-		unordered: boolean
-		link: boolean
-	}
-	linkData: { url: string; text: string }
 }
 
 const LinkPopover = memo(({ editor, formats, linkData }: LinkPopoverProps) => {

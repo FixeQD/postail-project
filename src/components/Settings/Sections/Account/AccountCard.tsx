@@ -14,15 +14,9 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { cn } from '@/lib/utils'
-import type { AccountMeta } from '@/types/accounts'
 import { invoke } from '@tauri-apps/api/core'
 import { EditAccountDialog } from './EditAccountDialog'
-
-interface AccountCardProps {
-	account: AccountMeta
-	onRemove: (id: string) => void
-	onSync: (id: string) => void
-}
+import type { AccountCardProps } from '@/types/components/shared'
 
 type SyncStatus = 'Idle' | 'Syncing' | { Error: string }
 
@@ -121,7 +115,7 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 				: {})}>
 			<Card className='group relative overflow-visible border-white/[0.06] bg-white/[0.03] backdrop-blur-md transition-all duration-300 hover:border-white/[0.1] hover:bg-white/[0.06] hover:shadow-xl hover:shadow-black/30'>
 				{/* Hover gradient overlay */}
-				<div className='pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100 rounded-[inherit]' />
+				<div className='pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-white/[0.04] via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100' />
 
 				{/* Subtle top highlight */}
 				<div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100' />
@@ -144,7 +138,8 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 							<div className='mt-1.5 flex items-center gap-2'>
 								{animationsEnabled ? (
 									<AnimatePresence mode='wait'>
-										<motion.div key={typeof status === 'string' ? status : 'error'}>
+										<motion.div
+											key={typeof status === 'string' ? status : 'error'}>
 											{statusBadge}
 										</motion.div>
 									</AnimatePresence>
@@ -194,20 +189,26 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 										exit={{ opacity: 0, scaleY: 0.8, y: -4 }}
 										transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
 										style={{ transformOrigin: 'top right' }}
-										className='absolute right-0 top-full z-50 mt-1 w-48 overflow-hidden rounded-lg border border-white/[0.06] bg-slate-900/95 py-1 shadow-xl shadow-black/40 backdrop-blur-xl'>
+										className='absolute top-full right-0 z-50 mt-1 w-48 overflow-hidden rounded-lg border border-white/[0.06] bg-slate-900/95 py-1 shadow-xl shadow-black/40 backdrop-blur-xl'>
 										<p className='px-3 py-1.5 text-xs font-medium text-slate-500'>
 											Actions
 										</p>
 										<div className='mx-1 my-1 h-px bg-white/[0.06]' />
 										<button
 											className='flex w-full items-center gap-2.5 px-3 py-2 text-sm text-slate-200 transition-colors hover:bg-white/[0.06] hover:text-slate-100'
-											onClick={() => { setIsEditDialogOpen(true); setMenuOpen(false) }}>
+											onClick={() => {
+												setIsEditDialogOpen(true)
+												setMenuOpen(false)
+											}}>
 											<Settings2 className='h-4 w-4 text-slate-400' />
 											Edit settings
 										</button>
 										<button
 											className='flex w-full items-center gap-2.5 px-3 py-2 text-sm text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300'
-											onClick={() => { onRemove(account.id); setMenuOpen(false) }}>
+											onClick={() => {
+												onRemove(account.id)
+												setMenuOpen(false)
+											}}>
 											<Trash2 className='h-4 w-4' />
 											Remove account
 										</button>

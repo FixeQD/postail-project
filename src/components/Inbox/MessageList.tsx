@@ -8,38 +8,15 @@ import { Star, Trash2, MailOpen, Mail, FolderSync } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from '@/components/ui/custom/Toaster'
 import type { MailHeader, Mailbox } from '@/types/mail'
-import type { AccountMeta } from '@/types/accounts'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
-
-interface MessageListProps {
-	account: AccountMeta
-	mailbox: string
-	focusedUid?: number | null
-	onMessageClick: (messageId: number) => void
-}
+import type { MessageListProps, MessageRowProps } from '@/types/components/inbox'
 
 const BATCH_SIZE = 50
 
 const syncedMailboxes = new Set<string>()
-
-interface MessageRowProps {
-	message: MailHeader
-	isUnread: boolean
-	isHovered: boolean
-	zenMode: boolean
-	accentColor: string
-	animationsEnabled: boolean
-	formatDate: (date: string) => string
-	onMessageClick: (uid: number) => void
-	onMouseEnter: () => void
-	onMouseLeave: () => void
-	onDelete: () => void
-	onToggleRead: () => void
-	isFocused: boolean
-}
 
 const MessageRow = memo(
 	({

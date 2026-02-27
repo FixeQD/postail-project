@@ -8,13 +8,7 @@ import { KeyringOption } from '../keyring/KeyringOption'
 import { Argon2Option } from './Argon2Option'
 import { TPMInitDialog } from '../tpm/TPMInitDialog'
 import { ArrowLeft, Shield } from 'lucide-react'
-
-interface SecurityOptions {
-	tpm_available: boolean
-	tpm_requires_elevation: boolean
-	keyring_available: boolean
-	argon2_available: boolean
-}
+import type { SecurityOptions } from '@/types/components/welcome'
 
 export const EncryptionChoice = ({
 	onChoiceSelected,

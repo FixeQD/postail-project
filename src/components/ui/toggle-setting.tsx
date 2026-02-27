@@ -1,15 +1,6 @@
 import { motion } from 'framer-motion'
-import type { LucideIcon } from 'lucide-react'
 import { useThemeStore } from '@/stores/themeStore'
-
-interface ToggleSettingProps {
-	value: boolean
-	onChange: (value: boolean) => void
-	label: string
-	description: string
-	icon: LucideIcon
-	disabled?: boolean
-}
+import type { ToggleSettingProps } from '@/types/components/ui'
 
 export function ToggleSetting({
 	value,

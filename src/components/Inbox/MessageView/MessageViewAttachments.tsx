@@ -13,13 +13,7 @@ import { motion, type Variants } from 'framer-motion'
 import { invoke } from '@tauri-apps/api/core'
 import { toast } from '@/stores/toastStore'
 import { useState } from 'react'
-
-interface MessageViewAttachmentsProps {
-	attachments: AttachmentMeta[]
-	accountId: string
-	mailbox: string
-	uid: number
-}
+import type { MessageViewAttachmentsProps } from '@/types/components/shared'
 
 export const MessageViewAttachments = ({
 	attachments,
@@ -58,8 +52,7 @@ export const MessageViewAttachments = ({
 	const getIcon = (mimeType: string) => {
 		if (mimeType.startsWith('image/'))
 			return <FileImageIcon className='size-5 text-purple-400' />
-		if (mimeType.startsWith('text/'))
-			return <FileTextIcon className='size-5 text-blue-400' />
+		if (mimeType.startsWith('text/')) return <FileTextIcon className='size-5 text-blue-400' />
 		if (
 			mimeType.includes('zip') ||
 			mimeType.includes('rar') ||
@@ -114,7 +107,7 @@ export const MessageViewAttachments = ({
 						key={att.part_id}
 						variants={item}
 						className='group relative flex items-center gap-3 rounded-lg border border-white/[0.06] bg-slate-900/30 p-3 transition-colors hover:border-white/[0.1] hover:bg-slate-800/50'>
-						<div className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-white/[0.03] ring-1 ring-inset ring-white/[0.05]'>
+						<div className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-white/[0.03] ring-1 ring-white/[0.05] ring-inset'>
 							{getIcon(att.mime_type)}
 						</div>
 
@@ -122,16 +115,16 @@ export const MessageViewAttachments = ({
 							<p className='truncate text-sm font-medium text-slate-200'>
 								{att.filename || 'Unnamed'}
 							</p>
-							<p className='text-xs text-slate-500'>
-								{formatFileSize(att.size)}
-							</p>
+							<p className='text-xs text-slate-500'>{formatFileSize(att.size)}</p>
 						</div>
 
 						<button
 							onClick={() => handleDownload(att)}
 							disabled={downloading === att.part_id}
 							className={`flex size-8 shrink-0 items-center justify-center rounded-md text-slate-400 transition-all hover:bg-white/[0.08] hover:text-slate-200 focus:opacity-100 disabled:cursor-not-allowed disabled:opacity-50 ${
-								downloading === att.part_id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+								downloading === att.part_id
+									? 'opacity-100'
+									: 'opacity-0 group-hover:opacity-100'
 							}`}>
 							{downloading === att.part_id ? (
 								<div className='size-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent' />

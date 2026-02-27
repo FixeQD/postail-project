@@ -16,12 +16,8 @@ import { cn } from '@/lib/utils'
 import { ManualAccountForm } from './ManualAccountForm'
 import { useAccountStore } from '@/stores/accountStore'
 import { useAnimate } from 'framer-motion'
-import { ComponentType } from 'react'
-
-interface AddAccountDialogProps {
-	onAccountAdded?: () => void
-	children?: React.ReactNode
-}
+import type { ComponentType } from 'react'
+import type { AddAccountDialogProps } from '@/types/components/shared'
 
 const ProviderOption = ({
 	title,

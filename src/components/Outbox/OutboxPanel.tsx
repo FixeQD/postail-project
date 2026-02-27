@@ -10,12 +10,7 @@ import { useOutboxStore, setupOutboxListeners } from '@/stores/outboxStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import type { OutboxItem } from '@/stores/outboxStore'
-
-interface OutboxPanelProps {
-	accountId: string
-	isOpen: boolean
-	onClose: () => void
-}
+import type { OutboxPanelProps } from '@/types/components/shared'
 
 const statusConfig: Record<
 	OutboxItem['status'],

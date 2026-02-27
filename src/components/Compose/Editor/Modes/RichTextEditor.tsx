@@ -3,16 +3,9 @@ import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
 import { ListPlugin } from '@lexical/react/LexicalListPlugin'
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
-import { LexicalEditor, EditorState } from 'lexical'
 import PastePlugin from '../Plugins/PastePlugin'
 import DragDropPlugin from '../Plugins/DragDropPlugin'
-
-interface RichTextEditorProps {
-	contentEditable: React.ReactElement
-	placeholder: React.ReactElement
-	errorBoundary: React.ComponentType<any>
-	handleEditorChange: (editorState: EditorState, editor: LexicalEditor) => void
-}
+import type { RichTextEditorProps } from '@/types/components/compose'
 
 const MemoRichTextPlugin = memo(RichTextPlugin)
 const MemoHistoryPlugin = memo(HistoryPlugin)

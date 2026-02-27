@@ -3,17 +3,7 @@ import { motion, type Variants } from 'framer-motion'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
-
-interface MessageViewHeaderProps {
-	onBack: () => void
-	onReply: () => void
-	onReplyAll: () => void
-	onForward: () => void
-	onDelete: () => void
-	onMarkUnread: () => void
-	hasHtml?: boolean
-	isDeleting?: boolean
-}
+import type { MessageViewHeaderProps } from '@/types/components/shared'
 
 export const MessageViewHeader = ({
 	onBack,

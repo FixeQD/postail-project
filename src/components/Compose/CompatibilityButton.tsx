@@ -3,14 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { AlertTriangle, CheckCircle2, Info, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import type { SanitizeIssue } from '@/types/compose'
-
-interface CompatibilityButtonProps {
-	isOpen: boolean
-	onClick: () => void
-	issues: SanitizeIssue[]
-	isLoading?: boolean
-}
+import type { CompatibilityButtonProps } from '@/types/components/compose'
 
 export const CompatibilityButton = memo(function CompatibilityButton({
 	isOpen,

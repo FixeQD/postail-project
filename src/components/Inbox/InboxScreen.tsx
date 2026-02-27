@@ -10,12 +10,9 @@ import { useInboxShortcuts } from '@/hooks/useInboxShortcuts'
 import { useMessageViewStore } from '@/stores/messageViewStore'
 import type { ComposeDraft } from '@/types/compose'
 import type { MailHeader } from '@/types/mail'
+import type { InboxScreenProps } from '@/types/components/inbox'
 
 import { useAccountStore } from '@/stores/accountStore'
-
-interface InboxScreenProps {
-	onOpenSettings: () => void
-}
 
 export const InboxScreen = ({}: InboxScreenProps) => {
 	const { accounts, activeAccount, setActiveAccount, activeMailbox, setActiveMailbox } =

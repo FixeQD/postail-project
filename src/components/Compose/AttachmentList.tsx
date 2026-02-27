@@ -1,13 +1,8 @@
 import { X, File, FileImage, FileText } from 'lucide-react'
-import type { EmailAttachment } from '@/types/compose'
 import { memo } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTranslation } from 'react-i18next'
-
-interface AttachmentListProps {
-	attachments: EmailAttachment[]
-	onRemove: (id: string) => void
-}
+import type { AttachmentListProps } from '@/types/components/compose'
 
 function getFileIcon(contentType: string | undefined) {
 	if (!contentType) return File

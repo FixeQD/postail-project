@@ -2,14 +2,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
-
-interface SubjectInputProps {
-	value: string
-	onChange: (value: string) => void
-	placeholder?: string
-	className?: string
-	autoFocus?: boolean
-}
+import type { SubjectInputProps } from '@/types/components/compose'
 
 export function SubjectInput({
 	value,

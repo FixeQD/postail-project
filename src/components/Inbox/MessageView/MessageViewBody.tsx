@@ -13,16 +13,7 @@ import { Button } from '@/components/ui/button'
 import { openUrl } from '@tauri-apps/plugin-opener'
 
 import { convertFileSrc } from '@tauri-apps/api/core'
-import { AttachmentMeta } from '@/types/mail'
-
-interface MessageViewBodyProps {
-	htmlContent: string
-	plainContent: string
-	viewMode: 'html' | 'plain'
-	allowExternalResources?: boolean
-	inline_images?: AttachmentMeta[]
-	onCspBlocked?: () => void
-}
+import type { MessageViewBodyProps } from '@/types/components/shared'
 
 export const MessageViewBody = ({
 	htmlContent,

@@ -15,14 +15,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ManualAccountForm } from './ManualAccountForm'
 import { useAccountStore } from '@/stores/accountStore'
-import type { AccountMeta } from '@/types/accounts'
 import { toast } from '@/components/ui/custom/Toaster'
-
-interface EditAccountDialogProps {
-	account: AccountMeta
-	open: boolean
-	onOpenChange: (open: boolean) => void
-}
+import type { EditAccountDialogProps } from '@/types/components/shared'
 
 export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDialogProps) {
 	const { t } = useAccountsTranslation()

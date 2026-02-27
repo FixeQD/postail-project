@@ -11,13 +11,7 @@ import { useAccountStore } from '@/stores/accountStore'
 import { useMessageViewStore } from '@/stores/messageViewStore'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { AccountSwitcher } from './TitleBar/AccountSwitcher'
-
-interface TitleBarProps {
-	isDashboard?: boolean
-	onSearch?: (query: string) => void
-	onOpenSettings?: () => void
-	onOpenOutbox?: () => void
-}
+import type { TitleBarProps } from '@/types/components/shared'
 
 export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }: TitleBarProps) {
 	const { activeAccount } = useAccountStore()

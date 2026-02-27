@@ -1,5 +1,4 @@
 import React, { useRef, useEffect, memo, useMemo } from 'react'
-import { LexicalEditor, EditorState } from 'lexical'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { ContentEditable } from '@lexical/react/LexicalContentEditable'
 import RichTextEditor from './Modes/RichTextEditor'
@@ -7,20 +6,7 @@ import SourceEditor from './Modes/SourceEditor'
 import { useDraftStore } from '@/stores/draftStore'
 import { htmlToLexical } from './utils/conversion'
 import { AttachmentList } from '../AttachmentList'
-import type { EmailAttachment } from '@/types/compose'
-
-interface EditorContentProps {
-	editorRef: React.RefObject<HTMLDivElement | null>
-	htmlRef: React.MutableRefObject<string>
-	isHydratingRef: React.MutableRefObject<boolean>
-	handleEditorChange: (editorState: EditorState, editor: LexicalEditor) => void
-	attachments: EmailAttachment[]
-	onRemoveAttachment: (id: string) => void
-	onSourceChange?: () => void
-	autoFixKey?: number
-	isFixing?: boolean
-	onEditorMount?: () => void
-}
+import type { EditorContentProps } from '@/types/components/compose'
 
 export const EditorContent = memo(
 	({

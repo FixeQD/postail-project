@@ -4,12 +4,7 @@ import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useDraftStore } from '@/stores/draftStore'
 import EditorToolbar from './Editor/EditorToolbar'
-
-interface ComposeFooterProps {
-	onSend: () => void
-	onDiscard: () => void
-	isValid: boolean
-}
+import type { ComposeFooterProps } from '@/types/components/compose'
 
 export const ComposeFooter = memo(({ onSend, onDiscard, isValid }: ComposeFooterProps) => {
 	const { t } = useTranslation()

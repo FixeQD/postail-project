@@ -1,11 +1,7 @@
 import { XCircle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSecurityTranslation } from '@/hooks/useTypedTranslation'
-
-interface TPMUnlockFailedProps {
-	error: { message: string; cancelled: boolean } | null
-	onRetry: () => void
-}
+import type { TPMUnlockFailedProps } from '@/types/components/welcome'
 
 export function TPMUnlockFailed({ error, onRetry }: TPMUnlockFailedProps) {
 	const { t } = useSecurityTranslation()

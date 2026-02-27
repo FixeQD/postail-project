@@ -12,6 +12,7 @@ import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { memo, useCallback, useEffect } from 'react'
 import { html_beautify } from 'js-beautify'
 import { motion } from 'framer-motion'
+import type { MonacoEnvironment, SourceEditorProps } from '@/types/components/compose'
 
 // @ts-ignore
 import htmlWorkerUrl from 'monaco-editor/esm/vs/language/html/html.worker?url'
@@ -21,9 +22,6 @@ import cssWorkerUrl from 'monaco-editor/esm/vs/language/css/css.worker?url'
 import editorWorkerUrl from 'monaco-editor/esm/vs/editor/editor.worker?url'
 
 // mass magic - manual minimal import (only HTML & CSS) to keep the bundle tiny
-interface MonacoEnvironment {
-	getWorkerUrl: (moduleId: string, label: string) => string
-}
 
 if (typeof window !== 'undefined') {
 	;(window as unknown as { MonacoEnvironment?: MonacoEnvironment }).MonacoEnvironment = {
@@ -39,13 +37,6 @@ if (typeof window !== 'undefined') {
 		},
 	}
 	loader.config({ monaco })
-}
-
-interface SourceEditorProps {
-	htmlRef: React.MutableRefObject<string>
-	onChange?: (value: string | undefined) => void
-	isFixing?: boolean
-	onMount?: () => void
 }
 
 const formatOptions: import('js-beautify').HTMLBeautifyOptions = {

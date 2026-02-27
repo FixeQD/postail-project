@@ -2,21 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { motion } from 'motion/react'
-import type { HTMLMotionProps } from 'motion/react'
-
-interface DecryptedTextProps extends HTMLMotionProps<'span'> {
-	text: string
-	speed?: number
-	maxIterations?: number
-	sequential?: boolean
-	revealDirection?: 'start' | 'end' | 'center'
-	useOriginalCharsOnly?: boolean
-	characters?: string
-	className?: string
-	encryptedClassName?: string
-	parentClassName?: string
-	animateOn?: 'view' | 'hover' | 'both'
-}
+import type { DecryptedTextProps } from '@/types/components/shared'
 
 export default function DecryptedText({
 	text,

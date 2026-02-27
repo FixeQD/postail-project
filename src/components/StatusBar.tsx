@@ -24,10 +24,7 @@ import {
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useAccountStore } from '@/stores/accountStore'
-
-interface StatusBarProps {
-	onOpenOutbox: () => void
-}
+import type { StatusBarProps } from '@/types/components/shared'
 
 export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 	const { accounts } = useAccountStore()

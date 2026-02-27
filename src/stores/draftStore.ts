@@ -11,6 +11,7 @@ import type {
 	DraftState,
 	SanitizeIssue,
 } from '@/types/compose'
+import type { DraftFromRust } from '@/types/stores'
 
 const formatOptions: import('js-beautify').HTMLBeautifyOptions = {
 	indent_size: 1,
@@ -23,20 +24,6 @@ const formatOptions: import('js-beautify').HTMLBeautifyOptions = {
 	end_with_newline: false,
 	indent_inner_html: true,
 	extra_liners: [],
-}
-
-// Type for draft data coming from Rust backend
-interface DraftFromRust {
-	id: string
-	accountId: string
-	to: string[]
-	cc?: string[]
-	bcc?: string[]
-	subject?: string
-	body?: string
-	attachments?: EmailAttachment[]
-	createdAt: number
-	updatedAt: number
 }
 
 let validationTimer: ReturnType<typeof setTimeout> | null = null

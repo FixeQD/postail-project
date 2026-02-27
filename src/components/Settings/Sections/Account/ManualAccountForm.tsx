@@ -7,12 +7,7 @@ import { Label } from '@/components/ui/label'
 import { useAccountsTranslation } from '@/hooks/useTypedTranslation'
 import type { AccountMeta } from '@/types/accounts'
 import { useAccountStore } from '@/stores/accountStore'
-
-interface ManualAccountFormProps {
-	onSuccess: () => void
-	onCancel: () => void
-	editAccount?: AccountMeta
-}
+import type { ManualAccountFormProps } from '@/types/components/shared'
 
 interface FormData {
 	accountName: string

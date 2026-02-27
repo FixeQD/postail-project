@@ -2,13 +2,9 @@ import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { parseAddresses } from '@/lib/parseAddress'
-import type { MailHeader } from '@/types/mail'
 import { motion, AnimatePresence } from 'framer-motion'
 import i18n from '@/i18n'
-
-interface MessageViewMetaProps {
-	header: MailHeader
-}
+import type { MessageViewMetaProps } from '@/types/components/shared'
 
 // Generate initials + deterministic hue from email string
 const senderAvatar = (name: string, email: string) => {

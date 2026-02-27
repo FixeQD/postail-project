@@ -1,12 +1,7 @@
 import { X, Minimize2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from 'react-i18next'
-
-interface ComposeHeaderProps {
-	isDragging: boolean
-	onMouseDown: (e: React.MouseEvent) => void
-	onClose: () => void
-}
+import type { ComposeHeaderProps } from '@/types/components/compose'
 
 export function ComposeHeader({ isDragging, onMouseDown, onClose }: ComposeHeaderProps) {
 	const { t } = useTranslation()

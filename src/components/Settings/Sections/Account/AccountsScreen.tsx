@@ -6,14 +6,7 @@ import { useAnimationsEnabled } from '@/hooks/useMotion'
 
 import { AccountCard } from './AccountCard'
 import { AddAccountDialog } from './AddAccountDialog'
-import type { AccountMeta } from '@/types/accounts'
-
-interface AccountsScreenProps {
-	accounts: AccountMeta[]
-	onRemoveAccount: (id: string) => void
-	onSyncAccount: (id: string) => void
-	onAccountAdded?: () => void
-}
+import type { AccountsScreenProps } from '@/types/components/settings'
 
 export function AccountsScreen({
 	accounts,

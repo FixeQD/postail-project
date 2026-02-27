@@ -7,13 +7,8 @@ import { useTranslation } from 'react-i18next'
 import { useDraftStore } from '@/stores/draftStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
-import type { ComposeDraft } from '@/types/compose'
 import { Button } from '@/components/ui/button'
-
-interface DraftsListProps {
-	accountId: string
-	onDraftClick: (draft: ComposeDraft) => void
-}
+import type { DraftsListProps } from '@/types/components/shared'
 
 export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 	const { t } = useTranslation()
