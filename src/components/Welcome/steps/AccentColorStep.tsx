@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ColorPicker } from '../../ui/custom/ColorPicker'
+import { ColorPicker } from '@/components/ui/custom/ColorPicker'
 
 import { ArrowLeft, ArrowRight, Palette, Check, Pipette } from 'lucide-react'
 import { useThemeStore, ACCENT_PRESETS, BACKGROUND_PRESETS } from '@/stores/themeStore'

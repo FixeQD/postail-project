@@ -4,9 +4,9 @@ import { Loader2, AlertCircle, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useAccountsTranslation } from '../../../../hooks/useTypedTranslation'
-import type { AccountMeta } from '../../../../types/accounts'
-import { useAccountStore } from '../../../../stores/accountStore'
+import { useAccountsTranslation } from '@/hooks/useTypedTranslation'
+import type { AccountMeta } from '@/types/accounts'
+import { useAccountStore } from '@/stores/accountStore'
 
 interface ManualAccountFormProps {
 	onSuccess: () => void

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { motion } from 'framer-motion'
-import { useSecurityTranslation } from '../../../hooks/useTypedTranslation'
+import { useSecurityTranslation } from '@/hooks/useTypedTranslation'
 import { useThemeStore } from '@/stores/themeStore'
 import { TPMOption } from '../tpm/TPMOption'
 import { KeyringOption } from '../keyring/KeyringOption'

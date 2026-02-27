@@ -13,9 +13,9 @@ import {
 } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
 import { useQuery } from '@tanstack/react-query'
-import type { Mailbox } from '../../types/mail'
-import type { AccountMeta } from '../../types/accounts'
-import { useTypedTranslation } from '../../hooks/useTypedTranslation'
+import type { Mailbox } from '@/types/mail'
+import type { AccountMeta } from '@/types/accounts'
+import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 

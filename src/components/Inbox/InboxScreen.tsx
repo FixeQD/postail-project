@@ -8,7 +8,7 @@ import { ComposeScreen } from '../Compose/ComposeScreen'
 import { useDraftStore } from '@/stores/draftStore'
 import { useInboxShortcuts } from '@/hooks/useInboxShortcuts'
 import { useMessageViewStore } from '@/stores/messageViewStore'
-import type { ComposeDraft } from '../../types/compose'
+import type { ComposeDraft } from '@/types/compose'
 
 import { useAccountStore } from '@/stores/accountStore'
 

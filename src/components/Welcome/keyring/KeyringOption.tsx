@@ -1,4 +1,4 @@
-import { useSecurityTranslation } from '../../../hooks/useTypedTranslation'
+import { useSecurityTranslation } from '@/hooks/useTypedTranslation'
 import { Key, Check, X, ShieldCheck } from 'lucide-react'
 
 export const KeyringOption = ({

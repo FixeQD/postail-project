@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import * as opener from '@tauri-apps/plugin-opener'
-import { useAccountsTranslation } from '../../../../hooks/useTypedTranslation'
+import { useAccountsTranslation } from '@/hooks/useTypedTranslation'
 import { Plus, Mail, Loader2, ArrowRight, Settings } from 'lucide-react'
 import {
 	Dialog,
@@ -24,7 +24,12 @@ interface AddAccountDialogProps {
 }
 
 const ProviderOption = ({
-	title, icon: Icon, onClick, isLoading, disabled, brandColor,
+	title,
+	icon: Icon,
+	onClick,
+	isLoading,
+	disabled,
+	brandColor,
 }: {
 	title: string
 	icon: ComponentType<{ className?: string }>
@@ -41,16 +46,27 @@ const ProviderOption = ({
 			'group relative flex w-full items-center justify-between overflow-hidden rounded-xl border border-white/5 bg-white/5 p-4 transition-all hover:border-white/10 hover:bg-white/10',
 			disabled && 'cursor-not-allowed opacity-50'
 		)}>
-		<div className={cn('absolute inset-0 bg-gradient-to-r opacity-0 transition-opacity group-hover:opacity-5', brandColor)} />
+		<div
+			className={cn(
+				'absolute inset-0 bg-gradient-to-r opacity-0 transition-opacity group-hover:opacity-5',
+				brandColor
+			)}
+		/>
 		<div className='flex items-center gap-4'>
-			<div className={cn('flex h-10 w-10 items-center justify-center rounded-lg bg-slate-950/50 ring-1 ring-white/10', brandColor.replace('from-', 'text-'))}>
+			<div
+				className={cn(
+					'flex h-10 w-10 items-center justify-center rounded-lg bg-slate-950/50 ring-1 ring-white/10',
+					brandColor.replace('from-', 'text-')
+				)}>
 				<Icon className='h-5 w-5' />
 			</div>
 			<h3 className='font-medium text-slate-100'>{title}</h3>
 		</div>
-		{isLoading
-			? <Loader2 className='h-5 w-5 animate-spin text-slate-400' />
-			: <ArrowRight className='h-5 w-5 -translate-x-2 text-slate-500 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100' />}
+		{isLoading ? (
+			<Loader2 className='h-5 w-5 animate-spin text-slate-400' />
+		) : (
+			<ArrowRight className='h-5 w-5 -translate-x-2 text-slate-500 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100' />
+		)}
 	</button>
 )
 
@@ -80,9 +96,12 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 		if (transitioning.current) return
 		transitioning.current = true
 
-		const shell   = shellScope.current   as HTMLDivElement | null
+		const shell = shellScope.current as HTMLDivElement | null
 		const content = contentScope.current as HTMLDivElement | null
-		if (!shell || !content) { transitioning.current = false; return }
+		if (!shell || !content) {
+			transitioning.current = false
+			return
+		}
 
 		// 1. Fade out current content
 		await animateContent(content, { opacity: 0 }, { duration: 0.15, ease: 'easeInOut' })
@@ -95,17 +114,15 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 		setShowManualForm(next)
 
 		// 4. Wait two frames so the browser has painted the new content
-		await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+		await new Promise<void>((r) =>
+			requestAnimationFrame(() => requestAnimationFrame(() => r()))
+		)
 
 		// 5. Read the new natural height
 		const newH = content.scrollHeight
 
 		// 6. Animate shell height to new value
-		await animateShell(
-			shell,
-			{ height: newH },
-			{ duration: 0.36, ease: [0.16, 1, 0.3, 1] }
-		)
+		await animateShell(shell, { height: newH }, { duration: 0.36, ease: [0.16, 1, 0.3, 1] })
 
 		// 7. Release fixed height so content can reflow freely (e.g. checkbox expanding)
 		shell.style.height = 'auto'
@@ -120,7 +137,9 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 	const handleProviderClick = async (provider: 'gmail' | 'outlook') => {
 		setLoading(provider)
 		try {
-			const { url } = await invoke<{ url: string; port: number }>('start_oauth_flow', { provider })
+			const { url } = await invoke<{ url: string; port: number }>('start_oauth_flow', {
+				provider,
+			})
 			await opener.openUrl(url)
 		} catch (e) {
 			console.error(e)
@@ -141,7 +160,7 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 			setLoading(null)
 			transitioning.current = false
 			if (shellScope.current) {
-				(shellScope.current as HTMLDivElement).style.height = 'auto'
+				;(shellScope.current as HTMLDivElement).style.height = 'auto'
 				;(shellScope.current as HTMLDivElement).style.overflow = ''
 			}
 		}
@@ -164,8 +183,12 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 					{/* Content wrapper: we fade this independently */}
 					<div ref={contentScope} className='p-6'>
 						<DialogHeader className='mb-2'>
-							<DialogTitle className='text-xl font-bold'>{t('settings:accounts.title')}</DialogTitle>
-							<DialogDescription className='text-slate-400'>{t('settings:accounts.subtitle')}</DialogDescription>
+							<DialogTitle className='text-xl font-bold'>
+								{t('settings:accounts.title')}
+							</DialogTitle>
+							<DialogDescription className='text-slate-400'>
+								{t('settings:accounts.subtitle')}
+							</DialogDescription>
 						</DialogHeader>
 
 						{!showManualForm ? (
@@ -173,18 +196,30 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 								<ProviderOption
 									title={t('settings:accounts.providers.gmail.title')}
 									icon={Mail}
-									brandColor={availableProviders.includes('gmail') ? 'from-red-500 to-orange-500' : 'from-slate-500 to-slate-400'}
+									brandColor={
+										availableProviders.includes('gmail')
+											? 'from-red-500 to-orange-500'
+											: 'from-slate-500 to-slate-400'
+									}
 									onClick={() => handleProviderClick('gmail')}
 									isLoading={loading === 'gmail'}
-									disabled={!availableProviders.includes('gmail') || loading !== null}
+									disabled={
+										!availableProviders.includes('gmail') || loading !== null
+									}
 								/>
 								<ProviderOption
 									title={t('settings:accounts.providers.outlook.title')}
 									icon={Mail}
-									brandColor={availableProviders.includes('outlook') ? 'from-blue-500 to-cyan-500' : 'from-slate-500 to-slate-400'}
+									brandColor={
+										availableProviders.includes('outlook')
+											? 'from-blue-500 to-cyan-500'
+											: 'from-slate-500 to-slate-400'
+									}
 									onClick={() => handleProviderClick('outlook')}
 									isLoading={loading === 'outlook'}
-									disabled={!availableProviders.includes('outlook') || loading !== null}
+									disabled={
+										!availableProviders.includes('outlook') || loading !== null
+									}
 								/>
 								<ProviderOption
 									title={t('settings:accounts.providers.imap.title')}

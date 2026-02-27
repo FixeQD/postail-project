@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { motion } from 'framer-motion'
-import { useTypedTranslation } from '../../../hooks/useTypedTranslation'
+import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { useThemeStore } from '@/stores/themeStore'
 import { ArrowLeft, Lock, Eye, EyeOff, AlertTriangle } from 'lucide-react'
-import icon from '../../../assets/icon.png'
+import icon from '@/assets/icon.png'
 
 export const Argon2Unlock = ({
 	onBack,

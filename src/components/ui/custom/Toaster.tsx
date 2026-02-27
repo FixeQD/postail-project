@@ -8,8 +8,8 @@ import {
 	XIcon,
 } from 'lucide-react'
 
-import { useToastStore, type ToastType } from '../../../stores/toastStore'
-export { toast } from '../../../stores/toastStore'
+import { useToastStore, type ToastType } from '@/stores/toastStore'
+export { toast } from '@/stores/toastStore'
 
 const icons: Record<ToastType, React.ReactNode> = {
 	success: <CircleCheckIcon className='size-5 text-emerald-400' />,
@@ -23,7 +23,7 @@ export function Toaster() {
 	const { toasts, removeToast } = useToastStore()
 
 	return (
-		<div className='pointer-events-none fixed bottom-6 right-6 z-[9999] flex flex-col gap-3 overflow-visible p-4'>
+		<div className='pointer-events-none fixed right-6 bottom-6 z-[9999] flex flex-col gap-3 overflow-visible p-4'>
 			<AnimatePresence mode='popLayout'>
 				{toasts.map((t) => (
 					<motion.div
@@ -39,7 +39,7 @@ export function Toaster() {
 							restDelta: 0.01,
 						}}
 						style={{ willChange: 'transform, opacity, filter' }}
-						className='pointer-events-auto relative min-w-[320px] max-w-md cursor-default select-none overflow-hidden rounded-2xl border border-white/[0.08] bg-slate-900/80 p-4 shadow-2xl backdrop-blur-2xl transition-shadow hover:shadow-white/[0.02]'>
+						className='pointer-events-auto relative max-w-md min-w-[320px] cursor-default overflow-hidden rounded-2xl border border-white/[0.08] bg-slate-900/80 p-4 shadow-2xl backdrop-blur-2xl transition-shadow select-none hover:shadow-white/[0.02]'>
 						<div
 							className='absolute inset-0 -z-10 opacity-20'
 							style={{
@@ -50,7 +50,7 @@ export function Toaster() {
 						<div className='flex items-start gap-3'>
 							<div className='mt-0.5 shrink-0'>{icons[t.type]}</div>
 							<div className='flex-1 overflow-hidden'>
-								<p className='text-[15px] font-medium leading-tight text-white/95'>
+								<p className='text-[15px] leading-tight font-medium text-white/95'>
 									{t.message}
 								</p>
 								{t.description && (
@@ -59,7 +59,7 @@ export function Toaster() {
 							</div>
 							<button
 								onClick={() => removeToast(t.id)}
-								className='-mr-1 -mt-1 ml-2 rounded-full p-1 text-white/20 transition-colors hover:bg-white/5 hover:text-white/40'>
+								className='-mt-1 -mr-1 ml-2 rounded-full p-1 text-white/20 transition-colors hover:bg-white/5 hover:text-white/40'>
 								<XIcon className='size-4' />
 							</button>
 						</div>

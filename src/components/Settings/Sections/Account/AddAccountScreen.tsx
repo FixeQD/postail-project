@@ -1,7 +1,7 @@
 import { ReactNode, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import * as opener from '@tauri-apps/plugin-opener'
-import { useAccountsTranslation } from '../../../../hooks/useTypedTranslation'
+import { useAccountsTranslation } from '@/hooks/useTypedTranslation'
 import { Plus, Settings, ArrowLeft, Loader2 } from 'lucide-react'
 import { ManualAccountForm } from './ManualAccountForm'
 

@@ -1,4 +1,4 @@
-import { useSecurityTranslation } from '../../../hooks/useTypedTranslation'
+import { useSecurityTranslation } from '@/hooks/useTypedTranslation'
 import { Cpu, Shield, Check, X, ShieldAlert } from 'lucide-react'
 
 export const TPMOption = ({

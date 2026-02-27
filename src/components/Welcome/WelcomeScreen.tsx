@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
-import { useWelcomeTranslation } from '../../hooks/useTypedTranslation'
-import icon from '../../assets/icon.png'
+import { useWelcomeTranslation } from '@/hooks/useTypedTranslation'
+import icon from '@/assets/icon.png'
 
 export const WelcomeScreen = ({ onGetStarted }: { onGetStarted: () => void }) => {
 	const { t } = useWelcomeTranslation()
