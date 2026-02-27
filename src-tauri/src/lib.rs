@@ -64,6 +64,7 @@ pub fn run() {
             cmd::utils::greet,
             cmd::account::start_oauth_flow,
             cmd::account::complete_oauth_flow,
+            cmd::account::complete_reauth_flow,
             cmd::account::add_account,
             cmd::account::add_custom_account,
             cmd::account::update_account_name,
