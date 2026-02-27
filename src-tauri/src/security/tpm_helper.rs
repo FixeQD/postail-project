@@ -154,6 +154,13 @@ async fn handle_client(stream: &mut UnixStream, target_uid: u32) -> Result<(), S
         };
 
         let res = match req {
+            TpmRequest::Ping => {
+                if store.is_available() {
+                    TpmResponse::Ok { key: None }
+                } else {
+                    TpmResponse::Err("TPM hardware not accessible by helper".to_string())
+                }
+            }
             TpmRequest::Store { key } => match MasterKey::from_bytes(&key) {
                 Ok(mk) => match store.store(&mk) {
                     Ok(_) => TpmResponse::Ok { key: None },

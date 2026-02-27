@@ -233,13 +233,16 @@ async fn initialize_tpm_elevated() -> Result<(), String> {
     let uid = unsafe { nix::libc::getuid() };
     let socket_path = std::path::PathBuf::from(format!("/run/user/{}/postail-tpm.sock", uid));
 
-    // If socket already exists, try to connect to check if it's alive
+    // If socket already exists, try to PING it to check if it's really alive and has TPM access
     if socket_path.exists() {
-        if std::os::unix::net::UnixStream::connect(&socket_path).is_ok() {
-            tracing::info!(target: "postail", "TPM helper already running and responsive.");
-            return Ok(());
+        use crate::security::stores::tpm::linux::LinuxTpmStore;
+        if let Ok(store) = LinuxTpmStore::new() {
+            if store.verify_proxy() {
+                tracing::info!(target: "postail", "TPM helper already running and healthy.");
+                return Ok(());
+            }
         }
-        // If it exists but is stale, try to restart it
+        // If it exists but is stale/unhealthy, try to restart it
         let _ = std::fs::remove_file(&socket_path);
     }
 

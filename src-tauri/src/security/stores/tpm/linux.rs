@@ -162,27 +162,35 @@ impl LinuxTpmStore {
 
     #[cfg(feature = "tpm")]
     pub fn check_context_silent(&self) -> bool {
+        self.check_direct_access() || {
+            #[cfg(target_os = "linux")]
+            {
+                std::env::var("POSTAIL_TPM_HELPER").is_err() && self.verify_proxy()
+            }
+            #[cfg(not(target_os = "linux"))]
+            {
+                false
+            }
+        }
+    }
+
+    /// Verifies if the current process has direct access to the TPM device by attempting a real (but lightweight) operation.
+    #[cfg(feature = "tpm")]
+    pub fn check_direct_access(&self) -> bool {
         if !tpm_dev_exists() {
             return false;
         }
 
-        if self.create_context().is_ok() {
-            return true;
+        match self.create_context() {
+            Ok(mut ctx) => ctx.get_random(8).is_ok(),
+            Err(_) => false,
         }
-        #[cfg(target_os = "linux")]
-        if std::env::var("POSTAIL_TPM_HELPER").is_err() && proxy::is_socket_alive() {
-            return true;
-        }
-        false
     }
 
     /// Returns true if TPM is present but direct access fails AND proxy is not running.
     #[cfg(feature = "tpm")]
     pub fn check_needs_elevation(&self) -> bool {
-        if !tpm_dev_exists() {
-            return false;
-        }
-        if self.create_context().is_ok() {
+        if self.check_direct_access() {
             return false; // direct works, no elevation needed
         }
         #[cfg(target_os = "linux")]
@@ -193,6 +201,12 @@ impl LinuxTpmStore {
             }
         }
         true
+    }
+
+    /// Verifies if the proxy helper is running and responsive.
+    #[cfg(all(target_os = "linux", feature = "tpm"))]
+    pub fn verify_proxy(&self) -> bool {
+        proxy::call_proxy(proxy::TpmRequest::Ping).is_ok()
     }
 
     // ── Key management ─────────────────────────────────────────────

@@ -30,8 +30,8 @@ impl TpmInitializer {
             if let Ok(store) = LinuxTpmStore::new() {
                 // First check if device exists
                 if store.is_available() {
-                    // Try to actually create context to check real access
-                    if store.check_context_silent() {
+                    // Try to actually check direct access to the hardware.
+                    if store.check_direct_access() {
                         return TpmAvailability::Available;
                     } else {
                         return TpmAvailability::RequiresElevation;

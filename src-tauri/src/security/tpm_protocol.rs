@@ -3,6 +3,7 @@ use std::io::{Read, Write};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum TpmRequest {
+    Ping,
     Store { key: Vec<u8> },
     Retrieve,
     Delete,
