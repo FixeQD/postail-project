@@ -128,3 +128,59 @@ pub fn get_account_email(conn: &Connection, id: &str) -> Result<Option<String>, 
     let email: Option<String> = stmt.query_row(params![id], |row| row.get(0)).ok();
     Ok(email)
 }
+pub fn update_account_name(conn: &Connection, id: &str, name: &str) -> Result<(), DBError> {
+    conn.execute(
+        "UPDATE accounts SET name = ? WHERE id = ?",
+        params![name, id],
+    )
+    .map_err(DBError::Sqlite)?;
+    Ok(())
+}
+
+pub fn update_account_config(
+    conn: &Connection,
+    id: &str,
+    input: AccountInput,
+    security: &SecurityManager,
+) -> Result<(), DBError> {
+    let creds_json = serde_json::to_string(&input.credentials).map_err(DBError::Json)?;
+    let encrypted = security
+        .encrypt(creds_json.as_bytes())
+        .map_err(DBError::Security)?;
+    let creds_path = save_creds_blob(id, &encrypted)?;
+
+    conn.execute(
+        "UPDATE accounts SET 
+            name = ?, 
+            email = ?, 
+            provider_type = ?, 
+            auth_type = ?, 
+            imap_host = ?, 
+            imap_port = ?, 
+            imap_tls = ?, 
+            smtp_host = ?, 
+            smtp_port = ?, 
+            smtp_tls = ?, 
+            creds_blob_path = ?, 
+            encryption_mode = ? 
+         WHERE id = ?",
+        params![
+            &input.name,
+            &input.email,
+            &input.provider_type,
+            &input.auth_type,
+            &input.imap_config.host,
+            &(input.imap_config.port as i64).to_string(),
+            &(input.imap_config.tls as i64).to_string(),
+            &input.smtp_config.host,
+            &(input.smtp_config.port as i64).to_string(),
+            &(input.smtp_config.tls as i64).to_string(),
+            &creds_path,
+            "aes-gcm",
+            id,
+        ],
+    )
+    .map_err(DBError::Sqlite)?;
+
+    Ok(())
+}

@@ -1,6 +1,7 @@
 use crate::db::accounts::{
     add_account as db_add_account, list_accounts as db_list_accounts,
-    remove_account as db_remove_account,
+    remove_account as db_remove_account, update_account_config as db_update_account_config,
+    update_account_name as db_update_account_name,
 };
 use crate::db::{
     AccountInput, AccountMeta, Credentials, ImapConfig, ManualServerConfig, OAuthCredentials,
@@ -306,6 +307,73 @@ pub async fn add_custom_account(config: ManualServerConfig) -> Result<AccountMet
 }
 
 #[command]
+pub async fn update_account_name(id: String, name: String) -> Result<(), String> {
+    let conn_guard = DB_CONN.lock().await;
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+    db_update_account_name(conn, &id, &name).map_err(|e| e.to_string())
+}
+
+#[command]
+pub async fn update_custom_account(
+    id: String,
+    config: ManualServerConfig,
+) -> Result<AccountMeta, String> {
+    config.validate()?;
+
+    tracing::info!(target: "postail", "[update_custom_account] Testing connections for {}", config.email);
+
+    if let Err(e) = test_imap_connection(&config).await {
+        tracing::error!(target: "postail", "[update_custom_account] IMAP test failed: {}", e);
+        return Err(e.to_string());
+    }
+
+    if let Err(e) = test_smtp_connection(&config).await {
+        tracing::error!(target: "postail", "[update_custom_account] SMTP test failed: {}", e);
+        return Err(e.to_string());
+    }
+
+    tracing::info!(target: "postail", "[update_custom_account] Connection tests passed, updating account");
+
+    let username = config.get_username().to_string();
+    let account_input = AccountInput {
+        name: config.account_name.clone(),
+        email: config.email.clone(),
+        provider_type: "custom".to_string(),
+        auth_type: "password".to_string(),
+        credentials: Credentials::Password(PasswordCredentials {
+            username,
+            password: config.password.clone(),
+        }),
+        imap_config: ImapConfig {
+            host: config.imap_host.clone(),
+            port: config.imap_port,
+            tls: config.imap_tls,
+        },
+        smtp_config: SmtpConfig {
+            host: config.smtp_host.clone(),
+            port: config.smtp_port,
+            tls: config.smtp_tls,
+        },
+    };
+
+    let (conn_guard, security) = {
+        let conn_guard = DB_CONN.lock().await;
+        let security = SECURITY.lock().await;
+        (conn_guard, security)
+    };
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+
+    db_update_account_config(conn, &id, account_input, &security).map_err(|e| e.to_string())?;
+
+    // Return the updated meta
+    let accounts = db_list_accounts(conn).map_err(|e| e.to_string())?;
+    accounts
+        .into_iter()
+        .find(|a| a.id == id)
+        .ok_or_else(|| "Account not found after update".to_string())
+}
+
+#[command]
 pub async fn list_accounts() -> Result<Vec<AccountMeta>, String> {
     let conn_guard = DB_CONN.lock().await;
     let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
@@ -340,6 +408,39 @@ pub async fn start_oauth_flow(
     }
 }
 
+async fn fetch_oauth_email(
+    provider_kind: oauth::ProviderKind,
+    access_token: &str,
+) -> Result<String, String> {
+    let provider_info = oauth::ProviderInfo::get(provider_kind);
+    let client = reqwest::Client::builder()
+        .timeout(HTTP_TIMEOUT_SECS)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let response = client
+        .get(provider_info.user_info_url())
+        .bearer_auth(access_token)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status().to_string();
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Failed to read response body".to_string());
+        tracing::error!(target: "postail", "Failed to fetch {} user info. Status: {}, Body: {}", provider_kind, status, body);
+        return Err(format!("Failed to fetch {} user info", provider_kind));
+    }
+
+    let user_info: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
+    provider_info
+        .extract_email(&user_info)
+        .ok_or_else(|| format!("No email in {} response", provider_kind))
+}
+
 #[command]
 pub async fn complete_oauth_flow(
     code: String,
@@ -353,32 +454,7 @@ pub async fn complete_oauth_flow(
             Err(e) => return Err(e.to_string()),
         };
 
-    let provider_info = oauth::ProviderInfo::get(provider.kind);
-    let email = {
-        let client = reqwest::Client::builder()
-            .timeout(HTTP_TIMEOUT_SECS)
-            .build()
-            .map_err(|e| e.to_string())?;
-        let response = client
-            .get(provider_info.user_info_url())
-            .bearer_auth(&tokens.access_token)
-            .send()
-            .await
-            .map_err(|e| e.to_string())?;
-        if !response.status().is_success() {
-            let status = response.status().to_string();
-            let body = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "Failed to read response body".to_string());
-            tracing::error!(target: "postail", "Failed to fetch {} user info. Status: {}, Body: {}", provider.kind, status, body);
-            return Err(format!("Failed to fetch {} user info", provider.kind));
-        }
-        let user_info: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
-        provider_info
-            .extract_email(&user_info)
-            .ok_or_else(|| format!("No email in {} response", provider.kind))?
-    };
+    let email = fetch_oauth_email(provider.kind, &tokens.access_token).await?;
 
     let account_input = AccountInput {
         name: format!("{} Account", provider.kind.display_name()),
@@ -425,10 +501,98 @@ pub async fn complete_oauth_flow(
     } {
         tracing::warn!(target: "postail", "[Account] Failed to sync mailbox list for new OAuth account {}: {}", account.id, e);
     } else {
-        tracing::info!(target: "postail", "[Account] Synced mailbox list for new OAuth account {}", account.id);
+        tracing::info!(
+            target: "postail",
+            "[Account] Synced mailbox list for new OAuth account {}",
+            account.id
+        );
     }
 
     Ok(account)
+}
+
+#[command]
+pub async fn complete_reauth_flow(
+    account_id: String,
+    code: String,
+    state: String,
+    code_verifier: String,
+    provider_type: String,
+) -> Result<AccountMeta, String> {
+    let (provider, tokens) =
+        match oauth::complete_oauth_flow(code, state, code_verifier, provider_type).await {
+            Ok(result) => result,
+            Err(e) => return Err(e.to_string()),
+        };
+
+    let email = fetch_oauth_email(provider.kind, &tokens.access_token).await?;
+
+    // Verify email matches existing account
+    let existing_email = {
+        let conn_guard = DB_CONN.lock().await;
+        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+        crate::db::accounts::get_account_email(conn, &account_id)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Account not found".to_string())?
+    };
+
+    if email.to_lowercase() != existing_email.to_lowercase() {
+        return Err(format!(
+            "Re-authentication failed: logged in as {}, but expected {}",
+            email, existing_email
+        ));
+    }
+
+    // Update account with new credentials
+    let (conn_guard, security) = {
+        let conn_guard = DB_CONN.lock().await;
+        let security = SECURITY.lock().await;
+        (conn_guard, security)
+    };
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+
+    let existing_account = db_list_accounts(conn)
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .find(|a| a.id == account_id)
+        .ok_or_else(|| "Account not found".to_string())?;
+
+    let account_input = AccountInput {
+        name: existing_account.name,
+        email,
+        provider_type: provider.kind.as_str().to_string(),
+        auth_type: "oauth2".to_string(),
+        credentials: Credentials::OAuth(OAuthCredentials {
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+            expires_at: Utc::now().timestamp() + tokens.expires_in as i64,
+            auth_type: "oauth2".to_string(),
+            provider_type: provider.kind.as_str().to_string(),
+        }),
+        imap_config: ImapConfig {
+            host: oauth::ProviderInfo::get(provider.kind)
+                .imap_host
+                .to_string(),
+            port: 993,
+            tls: true,
+        },
+        smtp_config: SmtpConfig {
+            host: oauth::ProviderInfo::get(provider.kind)
+                .smtp_host
+                .to_string(),
+            port: 587,
+            tls: true,
+        },
+    };
+
+    db_update_account_config(conn, &account_id, account_input, &security).map_err(|e| e.to_string())?;
+
+    // Return the updated meta
+    let accounts = db_list_accounts(conn).map_err(|e| e.to_string())?;
+    accounts
+        .into_iter()
+        .find(|a| a.id == account_id)
+        .ok_or_else(|| "Account not found after update".to_string())
 }
 
 #[derive(Serialize)]
