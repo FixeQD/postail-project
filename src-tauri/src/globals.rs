@@ -3,7 +3,7 @@ use crate::security::SecurityManager;
 use crate::smtp::SmtpManager;
 use lazy_static::lazy_static;
 use rusqlite::Connection;
-use std::sync::{Arc, Once};
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
 lazy_static! {
@@ -22,12 +22,8 @@ lazy_static! {
     )));
 }
 
-static INIT: Once = Once::new();
-
 pub fn set_oauth_port(port: u16) {
-    INIT.call_once(|| {
-        *OAUTH_PORT.lock().unwrap() = port;
-    });
+    *OAUTH_PORT.lock().unwrap() = port;
 }
 
 pub fn get_oauth_port() -> u16 {
