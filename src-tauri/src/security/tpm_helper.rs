@@ -136,6 +136,21 @@ fn start_watchdog(parent_pid: u32) -> Result<(), String> {
     Ok(())
 }
 
+/// Read the APPIMAGE env var from a peer process's /proc/{pid}/environ.
+/// Returns None if the file is unreadable or the variable is not set.
+#[cfg(all(target_os = "linux", feature = "tpm"))]
+fn read_peer_appimage_env(pid: u32) -> Option<String> {
+    let environ = std::fs::read(format!("/proc/{}/environ", pid)).ok()?;
+    for entry in environ.split(|&b| b == 0) {
+        if let Ok(s) = std::str::from_utf8(entry) {
+            if let Some(val) = s.strip_prefix("APPIMAGE=") {
+                return Some(val.to_string());
+            }
+        }
+    }
+    None
+}
+
 #[cfg(all(target_os = "linux", feature = "tpm"))]
 async fn handle_client(stream: &mut UnixStream, target_uid: u32) -> Result<(), String> {
     let fd = stream.as_fd();
@@ -145,11 +160,18 @@ async fn handle_client(stream: &mut UnixStream, target_uid: u32) -> Result<(), S
         return Err("Unauthorized: UID mismatch".to_string());
     }
 
-    let exe_path = get_executable_path().map_err(|e| e.to_string())?;
-    let peer_exe =
-        std::fs::read_link(format!("/proc/{}/exe", creds.pid())).map_err(|e| e.to_string())?;
+    let authorized = if let Ok(own_appimage) = std::env::var("APPIMAGE") {
+        read_peer_appimage_env(creds.pid() as u32)
+            .map(|peer_appimage| peer_appimage == own_appimage)
+            .unwrap_or(false)
+    } else {
+        let exe_path = get_executable_path().map_err(|e| e.to_string())?;
+        let peer_exe =
+            std::fs::read_link(format!("/proc/{}/exe", creds.pid())).map_err(|e| e.to_string())?;
+        exe_path == peer_exe
+    };
 
-    if exe_path != peer_exe {
+    if !authorized {
         return Err("Unauthorized: Binary mismatch".to_string());
     }
 

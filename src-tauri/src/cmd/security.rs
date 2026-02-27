@@ -337,19 +337,19 @@ async fn initialize_tpm_elevated() -> Result<(), TpmInitError> {
             .to_string_lossy()
             .to_string();
 
-        let user_env_vars = ["XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS"];
+        let passthrough_vars = ["XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS", "APPIMAGE"];
 
         let mut cmd = Command::new("pkexec");
-        cmd.arg("env");
-        for var in user_env_vars {
+        cmd.arg("env")
+            .arg("POSTAIL_TPM_HELPER=1")
+            .arg(format!("POSTAIL_PARENT_PID={}", std::process::id()))
+            .arg(format!("POSTAIL_DATA_DIR={}", data_dir));
+        for var in passthrough_vars {
             if let Ok(val) = std::env::var(var) {
                 cmd.arg(format!("{}={}", var, val));
             }
         }
-        cmd.arg("POSTAIL_TPM_HELPER=1")
-            .arg(format!("POSTAIL_PARENT_PID={}", std::process::id()))
-            .arg(format!("POSTAIL_DATA_DIR={}", data_dir))
-            .arg(&exe_path);
+        cmd.arg(&exe_path);
 
         let status = cmd.status().await;
 
