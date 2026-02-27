@@ -6,6 +6,14 @@ use std::env;
 #[cfg(target_os = "linux")]
 use std::process::{exit, Command};
 
+#[cfg(target_os = "linux")]
+fn get_executable_path() -> std::path::PathBuf {
+    if let Ok(appimage) = env::var("APPIMAGE") {
+        return std::path::PathBuf::from(appimage);
+    }
+    env::current_exe().expect("Failed to get current executable path")
+}
+
 fn main() {
     #[cfg(target_os = "linux")]
     {
@@ -27,7 +35,7 @@ fn main() {
 
         if recovery_mode.is_empty() {
             // Master process: try to launch normally and monitor for issues (Case 1: Error 71, Case 2: Panic)
-            let current_exe = env::current_exe().expect("Failed to get current executable path");
+            let current_exe = get_executable_path();
             let args: Vec<String> = env::args().skip(1).collect();
 
             let mut child = Command::new(&current_exe)

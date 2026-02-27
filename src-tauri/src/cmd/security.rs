@@ -132,6 +132,13 @@ pub fn get_app_initialization_status() -> InitStatus {
     InitStatus { status, method }
 }
 
+fn get_executable_path() -> std::io::Result<std::path::PathBuf> {
+    if let Ok(appimage) = std::env::var("APPIMAGE") {
+        return Ok(std::path::PathBuf::from(appimage));
+    }
+    std::env::current_exe()
+}
+
 pub async fn initialize_security_and_database(
     method: &str,
     passphrase: Option<String>,
@@ -278,7 +285,7 @@ async fn initialize_tpm_elevated() -> Result<(), TpmInitError> {
         let _ = std::fs::remove_file(&socket_path);
     }
 
-    let exe_path = std::env::current_exe()
+    let exe_path = get_executable_path()
         .map_err(|e| TpmInitError {
             error_type: TpmErrorType::Other,
             message: format!("Failed to get executable path: {}", e),
@@ -330,14 +337,21 @@ async fn initialize_tpm_elevated() -> Result<(), TpmInitError> {
             .to_string_lossy()
             .to_string();
 
-        let status = Command::new("pkexec")
-            .arg("env")
-            .arg("POSTAIL_TPM_HELPER=1")
+        let user_env_vars = ["XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS"];
+
+        let mut cmd = Command::new("pkexec");
+        cmd.arg("env");
+        for var in user_env_vars {
+            if let Ok(val) = std::env::var(var) {
+                cmd.arg(format!("{}={}", var, val));
+            }
+        }
+        cmd.arg("POSTAIL_TPM_HELPER=1")
             .arg(format!("POSTAIL_PARENT_PID={}", std::process::id()))
             .arg(format!("POSTAIL_DATA_DIR={}", data_dir))
-            .arg(&exe_path)
-            .status()
-            .await;
+            .arg(&exe_path);
+
+        let status = cmd.status().await;
 
         match status {
             Ok(s) if !s.success() => {

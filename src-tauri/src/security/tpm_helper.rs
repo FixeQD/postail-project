@@ -11,6 +11,14 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use tokio::net::{UnixListener, UnixStream};
 
+#[cfg(all(target_os = "linux", feature = "tpm"))]
+fn get_executable_path() -> std::io::Result<PathBuf> {
+    if let Ok(appimage) = std::env::var("APPIMAGE") {
+        return Ok(PathBuf::from(appimage));
+    }
+    std::env::current_exe()
+}
+
 /// TPM helper mode: Initialize TPM with elevated privileges (Linux only)
 #[cfg(all(target_os = "linux", feature = "tpm"))]
 pub fn tpm_helper_init() -> Result<(), String> {
@@ -137,7 +145,7 @@ async fn handle_client(stream: &mut UnixStream, target_uid: u32) -> Result<(), S
         return Err("Unauthorized: UID mismatch".to_string());
     }
 
-    let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+    let exe_path = get_executable_path().map_err(|e| e.to_string())?;
     let peer_exe =
         std::fs::read_link(format!("/proc/{}/exe", creds.pid())).map_err(|e| e.to_string())?;
 
