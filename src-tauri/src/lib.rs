@@ -66,6 +66,8 @@ pub fn run() {
             cmd::account::complete_oauth_flow,
             cmd::account::add_account,
             cmd::account::add_custom_account,
+            cmd::account::update_account_name,
+            cmd::account::update_custom_account,
             cmd::account::list_accounts,
             cmd::account::remove_account,
             cmd::account::get_available_providers,

@@ -1,6 +1,7 @@
 use crate::db::accounts::{
     add_account as db_add_account, list_accounts as db_list_accounts,
-    remove_account as db_remove_account,
+    remove_account as db_remove_account, update_account_config as db_update_account_config,
+    update_account_name as db_update_account_name,
 };
 use crate::db::{
     AccountInput, AccountMeta, Credentials, ImapConfig, ManualServerConfig, OAuthCredentials,
@@ -303,6 +304,73 @@ pub async fn add_custom_account(config: ManualServerConfig) -> Result<AccountMet
     }
 
     Ok(account)
+}
+
+#[command]
+pub async fn update_account_name(id: String, name: String) -> Result<(), String> {
+    let conn_guard = DB_CONN.lock().await;
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+    db_update_account_name(conn, &id, &name).map_err(|e| e.to_string())
+}
+
+#[command]
+pub async fn update_custom_account(
+    id: String,
+    config: ManualServerConfig,
+) -> Result<AccountMeta, String> {
+    config.validate()?;
+
+    tracing::info!(target: "postail", "[update_custom_account] Testing connections for {}", config.email);
+
+    if let Err(e) = test_imap_connection(&config).await {
+        tracing::error!(target: "postail", "[update_custom_account] IMAP test failed: {}", e);
+        return Err(e.to_string());
+    }
+
+    if let Err(e) = test_smtp_connection(&config).await {
+        tracing::error!(target: "postail", "[update_custom_account] SMTP test failed: {}", e);
+        return Err(e.to_string());
+    }
+
+    tracing::info!(target: "postail", "[update_custom_account] Connection tests passed, updating account");
+
+    let username = config.get_username().to_string();
+    let account_input = AccountInput {
+        name: config.account_name.clone(),
+        email: config.email.clone(),
+        provider_type: "custom".to_string(),
+        auth_type: "password".to_string(),
+        credentials: Credentials::Password(PasswordCredentials {
+            username,
+            password: config.password.clone(),
+        }),
+        imap_config: ImapConfig {
+            host: config.imap_host.clone(),
+            port: config.imap_port,
+            tls: config.imap_tls,
+        },
+        smtp_config: SmtpConfig {
+            host: config.smtp_host.clone(),
+            port: config.smtp_port,
+            tls: config.smtp_tls,
+        },
+    };
+
+    let (conn_guard, security) = {
+        let conn_guard = DB_CONN.lock().await;
+        let security = SECURITY.lock().await;
+        (conn_guard, security)
+    };
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+
+    db_update_account_config(conn, &id, account_input, &security).map_err(|e| e.to_string())?;
+
+    // Return the updated meta
+    let accounts = db_list_accounts(conn).map_err(|e| e.to_string())?;
+    accounts
+        .into_iter()
+        .find(|a| a.id == id)
+        .ok_or_else(|| "Account not found after update".to_string())
 }
 
 #[command]
