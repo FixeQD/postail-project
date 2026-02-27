@@ -104,7 +104,8 @@
 			"title": "TPM Unlock Failed",
 			"cancelledDescription": "The authentication prompt was cancelled. TPM requires administrator access to unlock.",
 			"errorDescription": "Could not unlock with TPM. The hardware state may have changed.",
-			"retry": "Retry"
+			"retry": "Retry",
+			"useRecovery": "Failing to unlock? Use recovery phrase"
 		}
 	}
 }

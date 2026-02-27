@@ -153,7 +153,13 @@ function App() {
 					<EncryptionChoice onChoiceSelected={handleSecurityChoice} onBack={handleBack} />
 				)
 			case 'tpm-unlock-failed':
-				return <TPMUnlockFailed error={tpmUnlockError} onRetry={retryTpmUnlock} />
+				return (
+					<TPMUnlockFailed
+						error={tpmUnlockError}
+						onRetry={retryTpmUnlock}
+						onUnlock={handleUnlockSuccess}
+					/>
+				)
 			case 'argon2-setup':
 				return (
 					<Argon2Setup

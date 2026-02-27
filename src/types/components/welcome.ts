@@ -13,6 +13,7 @@ export interface AccentColorStepProps {
 export interface TPMUnlockFailedProps {
 	error: { message: string; cancelled: boolean } | null
 	onRetry: () => void
+	onUnlock: () => void
 }
 
 export interface TPMInitDialogProps {
