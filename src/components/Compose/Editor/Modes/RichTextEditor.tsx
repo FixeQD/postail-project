@@ -8,9 +8,9 @@ import PastePlugin from '../Plugins/PastePlugin'
 import DragDropPlugin from '../Plugins/DragDropPlugin'
 
 interface RichTextEditorProps {
-	contentEditable: any
-	placeholder: any
-	errorBoundary: any
+	contentEditable: React.ReactElement
+	placeholder: React.ReactElement
+	errorBoundary: React.ComponentType<any>
 	handleEditorChange: (editorState: EditorState, editor: LexicalEditor) => void
 }
 

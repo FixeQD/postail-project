@@ -55,7 +55,8 @@ export function AboutSettings() {
 	const animationsEnabled = useAnimationsEnabled()
 	const { i18n } = useTranslation('common')
 	const locale =
-		(i18n.getResourceBundle(i18n.language, 'common') as any)?.app?.languageCode ?? i18n.language
+		(i18n.getResourceBundle(i18n.language, 'common') as { app?: { languageCode?: string } })
+			?.app?.languageCode ?? i18n.language
 	const [info, setInfo] = useState<BuildInfo | null>(null)
 
 	useEffect(() => {

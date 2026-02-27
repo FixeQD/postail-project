@@ -487,18 +487,20 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 			if (signal?.aborted) return accountId
 			const validDrafts: ComposeDraft[] = []
 
-			const isValidDraft = (x: any): x is DraftFromRust => {
-				if (!x) return false
-				if (typeof x.id !== 'string') return false
-				if (typeof x.accountId !== 'string') return false
-				if (!Array.isArray(x.to) || !x.to.every((e: any) => typeof e === 'string'))
+			const isValidDraft = (x: unknown): x is DraftFromRust => {
+				if (!x || typeof x !== 'object') return false
+				const obj = x as Record<string, unknown>
+				if (typeof obj.id !== 'string') return false
+				if (typeof obj.accountId !== 'string') return false
+				if (!Array.isArray(obj.to) || !obj.to.every((e) => typeof e === 'string'))
 					return false
-				if (x.cc && !Array.isArray(x.cc)) return false
-				if (x.bcc && !Array.isArray(x.bcc)) return false
-				// createdAt/updatedAt should be numeric (seconds since epoch) or numeric-like
-				if (typeof x.createdAt !== 'number' || !Number.isFinite(x.createdAt)) return false
-				if (typeof x.updatedAt !== 'number' || !Number.isFinite(x.updatedAt)) return false
-				if (x.attachments && !Array.isArray(x.attachments)) return false
+				if (obj.cc && !Array.isArray(obj.cc)) return false
+				if (obj.bcc && !Array.isArray(obj.bcc)) return false
+				if (typeof obj.createdAt !== 'number' || !Number.isFinite(obj.createdAt))
+					return false
+				if (typeof obj.updatedAt !== 'number' || !Number.isFinite(obj.updatedAt))
+					return false
+				if (obj.attachments && !Array.isArray(obj.attachments)) return false
 				return true
 			}
 

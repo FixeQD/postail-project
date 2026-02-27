@@ -7,13 +7,14 @@ import SourceEditor from './Modes/SourceEditor'
 import { useDraftStore } from '@/stores/draftStore'
 import { htmlToLexical } from './utils/conversion'
 import { AttachmentList } from '../AttachmentList'
+import type { EmailAttachment } from '@/types/compose'
 
 interface EditorContentProps {
 	editorRef: React.RefObject<HTMLDivElement | null>
 	htmlRef: React.MutableRefObject<string>
 	isHydratingRef: React.MutableRefObject<boolean>
 	handleEditorChange: (editorState: EditorState, editor: LexicalEditor) => void
-	attachments: any[]
+	attachments: EmailAttachment[]
 	onRemoveAttachment: (id: string) => void
 	onSourceChange?: () => void
 	autoFixKey?: number

@@ -12,6 +12,9 @@ import {
 	FORMAT_TEXT_COMMAND,
 	$createTextNode,
 	$insertNodes,
+	type LexicalEditor,
+	type EditorState,
+	type LexicalCommand,
 } from 'lexical'
 import { $getNearestNodeOfType } from '@lexical/utils'
 import { ListNode, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND } from '@lexical/list'
@@ -33,7 +36,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Input } from '@/components/ui/input'
 import { useDraftStore } from '@/stores/draftStore'
 
-const useEditorFormats = (editor: any, linkPopoverOpen: boolean) => {
+const useEditorFormats = (editor: LexicalEditor, linkPopoverOpen: boolean) => {
 	const [formats, setFormats] = useState({
 		bold: false,
 		italic: false,
@@ -46,7 +49,7 @@ const useEditorFormats = (editor: any, linkPopoverOpen: boolean) => {
 	const [linkData, setLinkData] = useState({ url: '', text: '' })
 
 	useEffect(() => {
-		return editor.registerUpdateListener(({ editorState }: { editorState: any }) => {
+		return editor.registerUpdateListener(({ editorState }: { editorState: EditorState }) => {
 			editorState.read(() => {
 				const selection = $getSelection()
 				if ($isRangeSelection(selection)) {
@@ -79,7 +82,21 @@ const useEditorFormats = (editor: any, linkPopoverOpen: boolean) => {
 	return { formats, linkData }
 }
 
-const LinkPopover = memo(({ editor, formats, linkData }: any) => {
+interface LinkPopoverProps {
+	editor: LexicalEditor
+	formats: {
+		bold: boolean
+		italic: boolean
+		underline: boolean
+		strikethrough: boolean
+		ordered: boolean
+		unordered: boolean
+		link: boolean
+	}
+	linkData: { url: string; text: string }
+}
+
+const LinkPopover = memo(({ editor, formats, linkData }: LinkPopoverProps) => {
 	const [open, setOpen] = useState(false)
 	const [localText, setLocalText] = useState('')
 	const [localUrl, setLocalUrl] = useState('')
@@ -186,7 +203,7 @@ export function EditorToolbar() {
 	} | null>(null)
 	const [dialogOpen, setDialogOpen] = useState(false)
 
-	const exec = (cmd: any, val?: any) => {
+	const exec = (cmd: LexicalCommand<unknown>, val?: unknown) => {
 		editor.dispatchCommand(cmd, val)
 		editor.focus()
 	}

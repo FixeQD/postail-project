@@ -21,8 +21,12 @@ import cssWorkerUrl from 'monaco-editor/esm/vs/language/css/css.worker?url'
 import editorWorkerUrl from 'monaco-editor/esm/vs/editor/editor.worker?url'
 
 // mass magic - manual minimal import (only HTML & CSS) to keep the bundle tiny
+interface MonacoEnvironment {
+	getWorkerUrl: (moduleId: string, label: string) => string
+}
+
 if (typeof window !== 'undefined') {
-	;(window as any).MonacoEnvironment = {
+	;(window as unknown as { MonacoEnvironment?: MonacoEnvironment }).MonacoEnvironment = {
 		getWorkerUrl: (_moduleId: string, label: string) => {
 			switch (label) {
 				case 'html':

@@ -18,7 +18,14 @@ import {
 import { Button } from '@/components/ui/button'
 import { ToggleSetting } from '@/components/ui/toggle-setting'
 
-const SettingCard = ({ label, description, icon: Icon, children }: any) => (
+interface SettingCardProps {
+	label: string
+	description: string
+	icon: React.ComponentType<{ className?: string }>
+	children: React.ReactNode
+}
+
+const SettingCard = ({ label, description, icon: Icon, children }: SettingCardProps) => (
 	<div className='flex items-center justify-between rounded-2xl border border-white/5 bg-white/5 p-4 transition-colors hover:bg-white/10'>
 		<div className='flex items-center gap-4'>
 			<div className='flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 ring-1 ring-white/10'>

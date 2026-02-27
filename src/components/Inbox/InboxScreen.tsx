@@ -9,6 +9,7 @@ import { useDraftStore } from '@/stores/draftStore'
 import { useInboxShortcuts } from '@/hooks/useInboxShortcuts'
 import { useMessageViewStore } from '@/stores/messageViewStore'
 import type { ComposeDraft } from '@/types/compose'
+import type { MailHeader } from '@/types/mail'
 
 import { useAccountStore } from '@/stores/accountStore'
 
@@ -32,7 +33,7 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 
 	const getMessagesList = useCallback(() => {
 		if (!activeAccount || !activeMailbox) return []
-		const data = queryClient.getQueryData<{ pages: any[][] }>([
+		const data = queryClient.getQueryData<{ pages: MailHeader[][] }>([
 			'messages',
 			activeAccount.id,
 			activeMailbox,
@@ -46,9 +47,7 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 			if (messages.length === 0) return
 
 			const currentUid = selectedMessage?.uid ?? focusedUid
-			const currentIndex = currentUid
-				? messages.findIndex((m: any) => m.uid === currentUid)
-				: -1
+			const currentIndex = currentUid ? messages.findIndex((m) => m.uid === currentUid) : -1
 
 			let newIndex = -1
 			if (direction === 'next') {
@@ -75,14 +74,14 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 	const canGoNext = useCallback(() => {
 		const messages = getMessagesList()
 		if (!messages.length) return false
-		const idx = messages.findIndex((m: any) => m.uid === selectedMessage?.uid)
+		const idx = messages.findIndex((m) => m.uid === selectedMessage?.uid)
 		return idx !== -1 && idx < messages.length - 1
 	}, [getMessagesList, selectedMessage])
 
 	const canGoPrev = useCallback(() => {
 		const messages = getMessagesList()
 		if (!messages.length) return false
-		const idx = messages.findIndex((m: any) => m.uid === selectedMessage?.uid)
+		const idx = messages.findIndex((m) => m.uid === selectedMessage?.uid)
 		return idx > 0
 	}, [getMessagesList, selectedMessage])
 
