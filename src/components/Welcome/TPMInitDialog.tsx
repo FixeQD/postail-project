@@ -23,18 +23,23 @@ interface TPMInitDialogProps {
 	open: boolean
 	onClose: () => void
 	onSuccess: () => void
+	requiresElevation?: boolean
 }
 
-export function TPMInitDialog({ open, onClose, onSuccess }: TPMInitDialogProps) {
+export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: TPMInitDialogProps) {
 	const [status, setStatus] = useState<TpmStatus>('checking')
 	const [error, setError] = useState<string | null>(null)
 
 	const checkTpmAvailability = useCallback(async () => {
+		if (requiresElevation !== undefined) {
+			setStatus(requiresElevation ? 'requires_elevation' : 'available')
+			return
+		}
 		setStatus('checking')
 		setError(null)
 		try {
-			const status = await invoke<string>('check_tpm_availability')
-			switch (status) {
+			const result = await invoke<string>('check_tpm_availability')
+			switch (result) {
 				case 'Available':
 					setStatus('available')
 					break
@@ -51,7 +56,7 @@ export function TPMInitDialog({ open, onClose, onSuccess }: TPMInitDialogProps) 
 			setStatus('not_available')
 			setError(e instanceof Error ? e.message : 'Failed to check TPM availability')
 		}
-	}, [])
+	}, [requiresElevation])
 
 	useEffect(() => {
 		if (open) {

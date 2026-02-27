@@ -24,7 +24,7 @@ pub struct SecurityOptions {
 #[command]
 pub async fn check_security_options() -> Result<SecurityOptions, String> {
     let (tpm_available, tpm_requires_elevation) = timeout(
-        Duration::from_millis(500),
+        Duration::from_secs(3),
         spawn_blocking(|| {
             use crate::security::TpmInitializer;
             let initializer = TpmInitializer::new();
@@ -64,7 +64,7 @@ pub async fn check_tpm_availability() -> Result<TpmStatus, String> {
     use crate::security::TpmAvailability;
 
     let result = timeout(
-        Duration::from_millis(500),
+        Duration::from_secs(3),
         spawn_blocking(|| {
             let initializer = crate::security::TpmInitializer::new();
             initializer.check_availability()
@@ -218,29 +218,148 @@ pub async fn initialize_security_and_database(
 /// Initialize TPM with elevated privileges if needed (Linux only)
 #[cfg(target_os = "linux")]
 async fn initialize_tpm_elevated() -> Result<(), String> {
-    use std::process::Command;
+    use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
+    use std::os::unix::io::{AsRawFd, RawFd};
+    use std::time::Duration;
+    use tokio::io::unix::AsyncFd;
+    use tokio::process::Command;
 
-    // Check if we're already running as helper mode
+    // Check if we're already running as helper mode to avoid infinite loops
     if std::env::var("POSTAIL_TPM_HELPER").is_ok() {
         return Err("Already in helper mode".to_string());
     }
 
-    // Get current executable path
-    let exe_path =
-        std::env::current_exe().map_err(|e| format!("Failed to get executable path: {}", e))?;
+    // Define socket path
+    let uid = unsafe { nix::libc::getuid() };
+    let socket_path = std::path::PathBuf::from(format!("/run/user/{}/postail-tpm.sock", uid));
 
-    // Run via pkexec with helper mode flag
-    let output = Command::new("pkexec")
-        .env("POSTAIL_TPM_HELPER", "1")
-        .arg(&exe_path)
-        .output()
-        .map_err(|e| format!("Failed to execute pkexec: {}", e))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Elevated TPM initialization failed: {}", stderr));
+    // If socket already exists, try to PING it to check if it's really alive and has TPM access
+    if socket_path.exists() {
+        use crate::security::stores::tpm::linux::LinuxTpmStore;
+        if let Ok(store) = LinuxTpmStore::new() {
+            if store.verify_proxy() {
+                tracing::info!(target: "postail", "TPM helper already running and healthy.");
+                return Ok(());
+            }
+        }
+        // If it exists but is stale/unhealthy, try to restart it
+        let _ = std::fs::remove_file(&socket_path);
     }
 
+    let exe_path = std::env::current_exe()
+        .map_err(|e| format!("Failed to get executable path: {}", e))?
+        .to_string_lossy()
+        .to_string();
+
+    tracing::info!(target: "postail", "Requesting TPM elevation via pkexec (persistent helper)...");
+
+    let socket_dir = socket_path.parent().ok_or("Invalid socket path")?;
+
+    #[derive(Debug)]
+    struct InotifyWrapper(Inotify);
+    impl AsRawFd for InotifyWrapper {
+        fn as_raw_fd(&self) -> RawFd {
+            use std::os::fd::AsFd;
+            self.0.as_fd().as_raw_fd()
+        }
+    }
+
+    let inotify = Inotify::init(InitFlags::IN_NONBLOCK | InitFlags::IN_CLOEXEC)
+        .map_err(|e: nix::Error| e.to_string())?;
+    inotify
+        .add_watch(
+            socket_dir,
+            AddWatchFlags::IN_CREATE | AddWatchFlags::IN_MOVED_TO,
+        )
+        .map_err(|e: nix::Error| e.to_string())?;
+    let async_inotify =
+        AsyncFd::new(InotifyWrapper(inotify)).map_err(|e: std::io::Error| e.to_string())?;
+
+    let (tx, mut rx) = tokio::sync::oneshot::channel();
+
+    tokio::spawn(async move {
+        let data_dir = crate::utils::config::get_data_dir()
+            .to_string_lossy()
+            .to_string();
+
+        let status = Command::new("pkexec")
+            .arg("env")
+            .arg("POSTAIL_TPM_HELPER=1")
+            .arg(format!("POSTAIL_PARENT_PID={}", std::process::id()))
+            .arg(format!("POSTAIL_DATA_DIR={}", data_dir))
+            .arg(&exe_path)
+            .status()
+            .await;
+
+        match status {
+            Ok(s) if !s.success() => {
+                let err_msg = format!("Persistent TPM helper failed or was cancelled: {}", s);
+                tracing::error!(target: "postail", "{}", err_msg);
+                let _ = tx.send(err_msg);
+            }
+            Err(e) => {
+                let err_msg = format!("Failed to start persistent TPM helper: {}", e);
+                tracing::error!(target: "postail", "{}", err_msg);
+                let _ = tx.send(err_msg);
+            }
+            _ => {
+                tracing::info!(target: "postail", "Persistent TPM helper exited.");
+            }
+        }
+    });
+
+    tracing::info!(target: "postail", "Waiting for TPM helper socket to appear...");
+
+    // Check if socket already appeared between add_watch and the await
+    let wait_res: Result<(), String> = async {
+        if socket_path.exists() {
+            return Ok::<(), String>(());
+        }
+
+        while !socket_path.exists() {
+            tokio::select! {
+                res = async_inotify.readable() => {
+                    let mut guard = res.map_err(|e: std::io::Error| e.to_string())?;
+                    let mut events = guard.get_inner().0.read_events()
+                        .map_err(|e: nix::Error| e.to_string())?;
+                    let mut found = false;
+                    for event in &mut events {
+                        if let Some(name) = &event.name {
+                            if name.to_string_lossy() == "postail-tpm.sock" {
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                    if found { break; }
+                    guard.clear_ready();
+                }
+                err = &mut rx => {
+                    return Err(err.unwrap_or_else(|_| "TPM helper failed to start".to_string()));
+                }
+            }
+        }
+        Ok::<(), String>(())
+    }
+    .await;
+
+    wait_res?;
+
+    // Final verification: try to connect to ensure the server finished binding
+    let mut retries = 5;
+    while retries > 0 {
+        if std::os::unix::net::UnixStream::connect(&socket_path).is_ok() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        retries -= 1;
+    }
+
+    if retries == 0 {
+        return Err("TPM helper socket appeared but is not responding".to_string());
+    }
+
+    tracing::info!(target: "postail", "TPM elevation successful (proxy ready).");
     Ok(())
 }
 
@@ -257,15 +376,15 @@ pub async fn initialize_security(
     // Check if TPM requires elevation (Linux only)
     #[cfg(target_os = "linux")]
     if method == "tpm" {
-        use crate::security::TpmInitializer;
-        let initializer = TpmInitializer::new();
-        let availability = initializer.check_availability();
+        let availability =
+            spawn_blocking(|| crate::security::TpmInitializer::new().check_availability())
+                .await
+                .map_err(|e| e.to_string())?;
 
         if matches!(
             availability,
             crate::security::TpmAvailability::RequiresElevation
         ) {
-            // Use pkexec to run helper mode
             initialize_tpm_elevated().await?;
         }
     }

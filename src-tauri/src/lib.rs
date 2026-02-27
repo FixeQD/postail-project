@@ -16,40 +16,8 @@ use crate::imap::pool::init_pool;
 use crate::imap::sync_status::set_sync_status_app_handle;
 
 /// TPM helper mode: Initialize TPM with elevated privileges (Linux only)
-#[cfg(all(target_os = "linux", feature = "tpm"))]
 pub fn tpm_helper_init() -> Result<(), String> {
-    use crate::security::stores::tpm::get_tpm_store;
-    use crate::security::MasterKey;
-
-    // Get TPM store
-    let store = get_tpm_store().ok_or_else(|| "TPM store not available".to_string())?;
-
-    // Generate and store a test key to verify TPM works
-    let test_key = MasterKey::generate();
-    store
-        .store(&test_key)
-        .map_err(|e| format!("Failed to store test key: {}", e))?;
-
-    // Verify we can retrieve it
-    let retrieved = store
-        .retrieve()
-        .map_err(|e| format!("Failed to retrieve test key: {}", e))?;
-
-    if test_key.as_bytes() != retrieved.as_bytes() {
-        return Err("Key mismatch after retrieval".to_string());
-    }
-
-    // Clean up test key
-    store
-        .delete()
-        .map_err(|e| format!("Failed to delete test key: {}", e))?;
-
-    Ok(())
-}
-
-#[cfg(not(all(target_os = "linux", feature = "tpm")))]
-pub fn tpm_helper_init() -> Result<(), String> {
-    Err("TPM helper mode only available on Linux with TPM feature".to_string())
+    crate::security::tpm_helper::tpm_helper_init()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

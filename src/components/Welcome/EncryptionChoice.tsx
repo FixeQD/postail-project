@@ -164,7 +164,9 @@ export const EncryptionChoice = ({
 								className='hover-lift'>
 								<TPMOption
 									available={securityOptions?.tpm_available ?? false}
-									requiresElevation={securityOptions?.tpm_requires_elevation ?? false}
+									requiresElevation={
+										securityOptions?.tpm_requires_elevation ?? false
+									}
 									onSelect={handleTpmSelect}
 									disabled={loadingMethod !== null}
 									loading={loadingMethod === 'tpm'}
@@ -217,8 +219,12 @@ export const EncryptionChoice = ({
 
 			<TPMInitDialog
 				open={tpmDialogOpen}
-				onClose={() => setTpmDialogOpen(false)}
+				onClose={() => {
+					setTpmDialogOpen(false)
+					setLoadingMethod(null)
+				}}
 				onSuccess={handleTpmSuccess}
+				requiresElevation={securityOptions?.tpm_requires_elevation}
 			/>
 		</>
 	)
