@@ -16,6 +16,8 @@ interface AccountState {
 	fetchAccounts: () => Promise<AccountMeta[]>
 	removeAccount: (id: string) => Promise<void>
 	updateAccount: (account: AccountMeta) => void
+	pendingReauthAccountId: string | null
+	setPendingReauthAccountId: (id: string | null) => void
 }
 
 export const useAccountStore = create<AccountState>((set, get) => ({
@@ -123,4 +125,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 					: activeAccount,
 		})
 	},
+
+	pendingReauthAccountId: null,
+	setPendingReauthAccountId: (id) => set({ pendingReauthAccountId: id }),
 }))

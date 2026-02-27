@@ -4,6 +4,7 @@ import { listen, Event } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { toast } from '@/components/ui/custom/Toaster'
 import { useAccountStore } from '@/stores/accountStore'
+import type { AccountMeta } from '@/types/accounts'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useTranslation } from 'react-i18next'
@@ -175,18 +176,36 @@ export function useAppInitialization() {
 					provider_type: string
 				}>
 			) => {
-				try {
-					await invoke('complete_oauth_flow', {
-						code: event.payload.code,
-						state: event.payload.state,
-						codeVerifier: event.payload.code_verifier,
-						providerType: event.payload.provider_type,
-					})
+				const { pendingReauthAccountId, setPendingReauthAccountId, updateAccount } =
+					useAccountStore.getState()
 
-					handleAccountAdded()
+				try {
+					if (pendingReauthAccountId) {
+						const updated = await invoke<AccountMeta>('complete_reauth_flow', {
+							accountId: pendingReauthAccountId,
+							code: event.payload.code,
+							state: event.payload.state,
+							codeVerifier: event.payload.code_verifier,
+							providerType: event.payload.provider_type,
+						})
+
+						updateAccount(updated)
+						setPendingReauthAccountId(null)
+						toast.success(t('app.reauthSuccess', 'Re-authenticated successfully'))
+					} else {
+						await invoke('complete_oauth_flow', {
+							code: event.payload.code,
+							state: event.payload.state,
+							codeVerifier: event.payload.code_verifier,
+							providerType: event.payload.provider_type,
+						})
+
+						handleAccountAdded()
+					}
 					await getCurrentWindow().maximize()
 				} catch (error) {
 					console.error('Failed to complete OAuth flow:', error)
+					setPendingReauthAccountId(null)
 					toast.error(
 						t('errors.oauth.failed', 'Failed to connect account. Please try again.')
 					)

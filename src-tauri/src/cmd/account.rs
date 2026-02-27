@@ -585,7 +585,8 @@ pub async fn complete_reauth_flow(
         },
     };
 
-    db_update_account_config(conn, &account_id, account_input, &security).map_err(|e| e.to_string())?;
+    db_update_account_config(conn, &account_id, account_input, &security)
+        .map_err(|e| e.to_string())?;
 
     // Return the updated meta
     let accounts = db_list_accounts(conn).map_err(|e| e.to_string())?;

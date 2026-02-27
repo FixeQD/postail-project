@@ -23,6 +23,7 @@ import {
 import { cn } from '@/lib/utils'
 import type { AccountMeta } from '@/types/accounts'
 import { invoke } from '@tauri-apps/api/core'
+import { EditAccountDialog } from './EditAccountDialog'
 
 interface AccountCardProps {
 	account: AccountMeta
@@ -49,6 +50,7 @@ const getProviderGlow = (type: string) => {
 export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps) => {
 	const animationsEnabled = useAnimationsEnabled()
 	const [status, setStatus] = useState<SyncStatus>('Idle')
+	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
 	useEffect(() => {
 		const fetchStatus = async () => {
@@ -184,7 +186,10 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 									Actions
 								</DropdownMenuLabel>
 								<DropdownMenuSeparator className='bg-white/[0.06]' />
-								<DropdownMenuItem className='cursor-pointer focus:bg-white/[0.06] focus:text-slate-100'>
+								<DropdownMenuItem 
+									className='cursor-pointer focus:bg-white/[0.06] focus:text-slate-100'
+									onClick={() => setIsEditDialogOpen(true)}
+								>
 									Edit settings
 								</DropdownMenuItem>
 								<DropdownMenuItem
@@ -198,6 +203,12 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 					</div>
 				</div>
 			</Card>
+
+			<EditAccountDialog 
+				account={account} 
+				open={isEditDialogOpen} 
+				onOpenChange={setIsEditDialogOpen} 
+			/>
 		</motion.div>
 	)
 })
