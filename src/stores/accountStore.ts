@@ -15,6 +15,7 @@ interface AccountState {
 	setActiveMailbox: (mailbox: string) => void
 	fetchAccounts: () => Promise<AccountMeta[]>
 	removeAccount: (id: string) => Promise<void>
+	updateAccount: (account: AccountMeta) => void
 }
 
 export const useAccountStore = create<AccountState>((set, get) => ({
@@ -106,5 +107,20 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 			console.error('Failed to remove account:', error)
 			throw error
 		}
-	}
+	},
+
+	updateAccount: (updatedAccount) => {
+		const { accounts, activeAccount } = get()
+		const updatedAccounts = accounts.map((a) =>
+			a.id === updatedAccount.id ? updatedAccount : a
+		)
+
+		set({
+			accounts: updatedAccounts,
+			activeAccount:
+				activeAccount?.id === updatedAccount.id
+					? updatedAccount
+					: activeAccount,
+		})
+	},
 }))

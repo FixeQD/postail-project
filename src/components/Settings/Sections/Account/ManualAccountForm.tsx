@@ -5,10 +5,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAccountsTranslation } from '../../../../hooks/useTypedTranslation'
+import type { AccountMeta } from '../../../../types/accounts'
+import { useAccountStore } from '../../../../stores/accountStore'
 
 interface ManualAccountFormProps {
 	onSuccess: () => void
 	onCancel: () => void
+	editAccount?: AccountMeta
 }
 
 interface FormData {
@@ -25,22 +28,23 @@ interface FormData {
 	smtpTls: boolean
 }
 
-export function ManualAccountForm({ onSuccess, onCancel }: ManualAccountFormProps) {
+export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAccountFormProps) {
 	useAccountsTranslation()
+	const updateAccount = useAccountStore((state) => state.updateAccount)
 	const [isLoading, setIsLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const [formData, setFormData] = useState<FormData>({
-		accountName: '',
-		email: '',
+		accountName: editAccount?.name || '',
+		email: editAccount?.email || '',
 		useSeparateUsername: false,
 		username: '',
 		password: '',
-		imapHost: '',
-		imapPort: '993',
-		imapTls: true,
-		smtpHost: '',
-		smtpPort: '587',
-		smtpTls: true,
+		imapHost: editAccount?.imap_host || '',
+		imapPort: editAccount?.imap_port?.toString() || '993',
+		imapTls: editAccount?.imap_tls ?? true,
+		smtpHost: editAccount?.smtp_host || '',
+		smtpPort: editAccount?.smtp_port?.toString() || '587',
+		smtpTls: editAccount?.smtp_tls ?? true,
 	})
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -49,25 +53,34 @@ export function ManualAccountForm({ onSuccess, onCancel }: ManualAccountFormProp
 		setIsLoading(true)
 
 		try {
-			const result = await invoke('add_custom_account', {
-				config: {
-					account_name: formData.accountName,
-					email: formData.email,
-					use_separate_username: formData.useSeparateUsername,
-					username: formData.useSeparateUsername ? formData.username : null,
-					password: formData.password,
-					imap_host: formData.imapHost,
-					imap_port: parseInt(formData.imapPort, 10),
-					imap_tls: formData.imapTls,
-					smtp_host: formData.smtpHost,
-					smtp_port: parseInt(formData.smtpPort, 10),
-					smtp_tls: formData.smtpTls,
-				},
-			})
-			console.log('Account added:', result)
+			const config = {
+				account_name: formData.accountName,
+				email: formData.email,
+				use_separate_username: formData.useSeparateUsername,
+				username: formData.useSeparateUsername ? formData.username : null,
+				password: formData.password,
+				imap_host: formData.imapHost,
+				imap_port: parseInt(formData.imapPort, 10),
+				imap_tls: formData.imapTls,
+				smtp_host: formData.smtpHost,
+				smtp_port: parseInt(formData.smtpPort, 10),
+				smtp_tls: formData.smtpTls,
+			}
+
+			if (editAccount) {
+				const result = await invoke<AccountMeta>('update_custom_account', {
+					id: editAccount.id,
+					config,
+				})
+				updateAccount(result)
+			} else {
+				await invoke('add_custom_account', { config })
+			}
+
 			onSuccess()
 		} catch (err) {
-			console.error('Failed to add account:', err)
+			const action = editAccount ? 'update' : 'add'
+			console.error(`Failed to ${action} account:`, err)
 			setError(err instanceof Error ? err.message : String(err))
 		} finally {
 			setIsLoading(false)
@@ -145,7 +158,9 @@ export function ManualAccountForm({ onSuccess, onCancel }: ManualAccountFormProp
 				)}
 
 				<div className='space-y-2'>
-					<Label htmlFor='password'>Password</Label>
+					<Label htmlFor='password'>
+						{editAccount ? 'Verify/Update Password' : 'Password'}
+					</Label>
 					<Input
 						id='password'
 						type='password'
@@ -267,7 +282,7 @@ export function ManualAccountForm({ onSuccess, onCancel }: ManualAccountFormProp
 					) : (
 						<>
 							<Check className='mr-2 h-4 w-4' />
-							Test & Add Account
+							{editAccount ? 'Test & Save Changes' : 'Test & Add Account'}
 						</>
 					)}
 				</Button>
