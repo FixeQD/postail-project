@@ -61,5 +61,50 @@
 		"description": "You are about to open a link in your external browser. Make sure it's a trusted source.",
 		"open": "Open link",
 		"cancel": "Cancel"
+	},
+	"tpm": {
+		"dialog": {
+			"title": "TPM Security Setup",
+			"description": "Configure hardware-based encryption using your TPM chip"
+		},
+		"status": {
+			"checking": "Checking TPM availability...",
+			"initializing": "Initializing TPM security...",
+			"initializingHint": "This may take a moment",
+			"success": "TPM Initialized Successfully!",
+			"redirecting": "Redirecting..."
+		},
+		"available": {
+			"title": "TPM2 Available",
+			"description": "Your system has a TPM2 chip that can be used for hardware-based encryption.",
+			"cta": "Initialize TPM"
+		},
+		"elevation": {
+			"title": "Administrator Access Required",
+			"description": "TPM is available but requires administrator permissions to initialize. You will be prompted for authentication.",
+			"cta": "Authenticate & Initialize"
+		},
+		"notAvailable": {
+			"title": "TPM Not Available",
+			"description": "No TPM2 chip was detected on this system, or it is not accessible. Please use an alternative security method.",
+			"cta": "Choose Another Method"
+		},
+		"cancelled": {
+			"title": "Authentication Cancelled",
+			"description": "The pkexec authentication prompt was dismissed. Administrator access is required to use TPM security.",
+			"retry": "Try Again",
+			"chooseAnother": "Choose Another Method"
+		},
+		"error": {
+			"title": "Initialization Failed",
+			"retry": "Retry",
+			"cancel": "Cancel"
+		},
+		"unlockFailed": {
+			"title": "TPM Unlock Failed",
+			"cancelledDescription": "The authentication prompt was cancelled. TPM requires administrator access to unlock.",
+			"errorDescription": "Could not unlock with TPM. The hardware state may have changed.",
+			"retry": "Retry"
+		}
 	}
 }

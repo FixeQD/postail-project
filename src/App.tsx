@@ -8,6 +8,7 @@ import { Argon2Setup } from './components/Welcome/Argon2Setup'
 import { Argon2Unlock } from './components/Welcome/Argon2Unlock'
 import { RecoveryStep } from './components/Welcome/RecoveryStep'
 import { RecoveryVerifyDialog } from './components/Welcome/RecoveryVerifyDialog'
+import { TPMUnlockFailed } from './components/Welcome/TPMUnlockFailed'
 import { SettingsScreen } from './components/Settings/SettingsScreen'
 import { InboxScreen } from './components/Inbox/InboxScreen'
 import { OutboxPanel } from './components/Outbox/OutboxPanel'
@@ -41,6 +42,8 @@ function App() {
 		showRecoveryVerify,
 		setShowRecoveryVerify,
 		activeAccount,
+		tpmUnlockError,
+		retryTpmUnlock,
 	} = useAppInitialization()
 
 	useEffect(() => {
@@ -149,6 +152,8 @@ function App() {
 				return (
 					<EncryptionChoice onChoiceSelected={handleSecurityChoice} onBack={handleBack} />
 				)
+			case 'tpm-unlock-failed':
+				return <TPMUnlockFailed error={tpmUnlockError} onRetry={retryTpmUnlock} />
 			case 'argon2-setup':
 				return (
 					<Argon2Setup

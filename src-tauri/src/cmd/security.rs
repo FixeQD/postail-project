@@ -13,6 +13,35 @@ use tauri::command;
 use tokio::task::spawn_blocking;
 use tokio::time::timeout;
 
+#[derive(Serialize, Debug, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+pub enum TpmErrorType {
+    Cancelled,
+    AccessDenied,
+    HelperFailed,
+    StartFailed,
+    SocketTimeout,
+    Other,
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct TpmInitError {
+    pub error_type: TpmErrorType,
+    pub message: String,
+}
+
+impl std::fmt::Display for TpmInitError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}: {}", self.error_type, self.message)
+    }
+}
+
+impl From<TpmInitError> for String {
+    fn from(err: TpmInitError) -> Self {
+        serde_json::to_string(&err).unwrap_or(err.message)
+    }
+}
+
 #[derive(Serialize)]
 pub struct SecurityOptions {
     pub tpm_available: bool,
@@ -217,7 +246,7 @@ pub async fn initialize_security_and_database(
 
 /// Initialize TPM with elevated privileges if needed (Linux only)
 #[cfg(target_os = "linux")]
-async fn initialize_tpm_elevated() -> Result<(), String> {
+async fn initialize_tpm_elevated() -> Result<(), TpmInitError> {
     use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
     use std::os::unix::io::{AsRawFd, RawFd};
     use std::time::Duration;
@@ -226,7 +255,10 @@ async fn initialize_tpm_elevated() -> Result<(), String> {
 
     // Check if we're already running as helper mode to avoid infinite loops
     if std::env::var("POSTAIL_TPM_HELPER").is_ok() {
-        return Err("Already in helper mode".to_string());
+        return Err(TpmInitError {
+            error_type: TpmErrorType::Other,
+            message: "Already in helper mode".to_string(),
+        });
     }
 
     // Define socket path
@@ -247,13 +279,19 @@ async fn initialize_tpm_elevated() -> Result<(), String> {
     }
 
     let exe_path = std::env::current_exe()
-        .map_err(|e| format!("Failed to get executable path: {}", e))?
+        .map_err(|e| TpmInitError {
+            error_type: TpmErrorType::Other,
+            message: format!("Failed to get executable path: {}", e),
+        })?
         .to_string_lossy()
         .to_string();
 
     tracing::info!(target: "postail", "Requesting TPM elevation via pkexec (persistent helper)...");
 
-    let socket_dir = socket_path.parent().ok_or("Invalid socket path")?;
+    let socket_dir = socket_path.parent().ok_or_else(|| TpmInitError {
+        error_type: TpmErrorType::Other,
+        message: "Invalid socket path".to_string(),
+    })?;
 
     #[derive(Debug)]
     struct InotifyWrapper(Inotify);
@@ -264,18 +302,28 @@ async fn initialize_tpm_elevated() -> Result<(), String> {
         }
     }
 
-    let inotify = Inotify::init(InitFlags::IN_NONBLOCK | InitFlags::IN_CLOEXEC)
-        .map_err(|e: nix::Error| e.to_string())?;
+    let inotify = Inotify::init(InitFlags::IN_NONBLOCK | InitFlags::IN_CLOEXEC).map_err(
+        |e: nix::Error| TpmInitError {
+            error_type: TpmErrorType::Other,
+            message: format!("inotify init failed: {}", e),
+        },
+    )?;
     inotify
         .add_watch(
             socket_dir,
             AddWatchFlags::IN_CREATE | AddWatchFlags::IN_MOVED_TO,
         )
-        .map_err(|e: nix::Error| e.to_string())?;
+        .map_err(|e: nix::Error| TpmInitError {
+            error_type: TpmErrorType::Other,
+            message: format!("inotify add_watch failed: {}", e),
+        })?;
     let async_inotify =
-        AsyncFd::new(InotifyWrapper(inotify)).map_err(|e: std::io::Error| e.to_string())?;
+        AsyncFd::new(InotifyWrapper(inotify)).map_err(|e: std::io::Error| TpmInitError {
+            error_type: TpmErrorType::Other,
+            message: format!("AsyncFd wrapper failed: {}", e),
+        })?;
 
-    let (tx, mut rx) = tokio::sync::oneshot::channel();
+    let (tx, mut rx) = tokio::sync::oneshot::channel::<TpmInitError>();
 
     tokio::spawn(async move {
         let data_dir = crate::utils::config::get_data_dir()
@@ -293,14 +341,32 @@ async fn initialize_tpm_elevated() -> Result<(), String> {
 
         match status {
             Ok(s) if !s.success() => {
-                let err_msg = format!("Persistent TPM helper failed or was cancelled: {}", s);
+                let code = s.code();
+                let (error_type, err_msg) = if code == Some(126) || code == Some(127) {
+                    // pkexec returns 126 or 127 when auth is cancelled or failed
+                    (
+                        TpmErrorType::Cancelled,
+                        "TPM elevation was cancelled by user".to_string(),
+                    )
+                } else {
+                    (
+                        TpmErrorType::HelperFailed,
+                        format!("Persistent TPM helper failed with status: {}", s),
+                    )
+                };
                 tracing::error!(target: "postail", "{}", err_msg);
-                let _ = tx.send(err_msg);
+                let _ = tx.send(TpmInitError {
+                    error_type,
+                    message: err_msg,
+                });
             }
             Err(e) => {
                 let err_msg = format!("Failed to start persistent TPM helper: {}", e);
                 tracing::error!(target: "postail", "{}", err_msg);
-                let _ = tx.send(err_msg);
+                let _ = tx.send(TpmInitError {
+                    error_type: TpmErrorType::StartFailed,
+                    message: err_msg,
+                });
             }
             _ => {
                 tracing::info!(target: "postail", "Persistent TPM helper exited.");
@@ -311,17 +377,23 @@ async fn initialize_tpm_elevated() -> Result<(), String> {
     tracing::info!(target: "postail", "Waiting for TPM helper socket to appear...");
 
     // Check if socket already appeared between add_watch and the await
-    let wait_res: Result<(), String> = async {
+    let wait_res: Result<(), TpmInitError> = async {
         if socket_path.exists() {
-            return Ok::<(), String>(());
+            return Ok::<(), TpmInitError>(());
         }
 
         while !socket_path.exists() {
             tokio::select! {
                 res = async_inotify.readable() => {
-                    let mut guard = res.map_err(|e: std::io::Error| e.to_string())?;
+                    let mut guard = res.map_err(|e: std::io::Error| TpmInitError {
+                        error_type: TpmErrorType::Other,
+                        message: e.to_string()
+                    })?;
                     let mut events = guard.get_inner().0.read_events()
-                        .map_err(|e: nix::Error| e.to_string())?;
+                        .map_err(|e: nix::Error| TpmInitError {
+                            error_type: TpmErrorType::Other,
+                            message: e.to_string()
+                        })?;
                     let mut found = false;
                     for event in &mut events {
                         if let Some(name) = &event.name {
@@ -335,11 +407,14 @@ async fn initialize_tpm_elevated() -> Result<(), String> {
                     guard.clear_ready();
                 }
                 err = &mut rx => {
-                    return Err(err.unwrap_or_else(|_| "TPM helper failed to start".to_string()));
+                    return Err(err.unwrap_or_else(|_| TpmInitError {
+                        error_type: TpmErrorType::HelperFailed,
+                        message: "TPM helper failed to start".to_string()
+                    }));
                 }
             }
         }
-        Ok::<(), String>(())
+        Ok::<(), TpmInitError>(())
     }
     .await;
 
@@ -356,7 +431,10 @@ async fn initialize_tpm_elevated() -> Result<(), String> {
     }
 
     if retries == 0 {
-        return Err("TPM helper socket appeared but is not responding".to_string());
+        return Err(TpmInitError {
+            error_type: TpmErrorType::SocketTimeout,
+            message: "TPM helper socket appeared but is not responding".to_string(),
+        });
     }
 
     tracing::info!(target: "postail", "TPM elevation successful (proxy ready).");
@@ -385,11 +463,13 @@ pub async fn initialize_security(
             availability,
             crate::security::TpmAvailability::RequiresElevation
         ) {
-            initialize_tpm_elevated().await?;
+            initialize_tpm_elevated().await.map_err(|e| e.to_string())?;
         }
     }
 
-    initialize_security_and_database(&method, passphrase, recovery_phrase).await
+    initialize_security_and_database(&method, passphrase, recovery_phrase)
+        .await
+        .map_err(|e| e)
 }
 
 #[command]

@@ -19,10 +19,15 @@ export type AppState =
 	| 'argon2-unlock'
 	| 'settings'
 	| 'recovery-setup'
+	| 'tpm-unlock-failed'
 
 export function useAppInitialization() {
 	const { t } = useTranslation()
 	const [currentState, setCurrentState] = useState<AppState>('init')
+	const [tpmUnlockError, setTpmUnlockError] = useState<{
+		message: string
+		cancelled: boolean
+	} | null>(null)
 	const loadSettings = useSettingsStore((s) => s.loadSettings)
 	const { persistTheme } = useThemeStore()
 	const fetchAccountsData = useAccountStore((s) => s.fetchAccounts)
@@ -121,8 +126,24 @@ export function useAppInitialization() {
 							await loadSettings()
 							await fetchAccounts()
 						} catch (e) {
-							console.error(`Auto-unlock failed for ${lastMethod}`, e)
-							setCurrentState('security')
+							const errorData = String(e)
+							let msg = errorData
+							let cancelled = false
+
+							try {
+								if (errorData.startsWith('{') && errorData.endsWith('}')) {
+									const parsed = JSON.parse(errorData)
+									msg = parsed.message || msg
+									cancelled = parsed.errorType === 'cancelled'
+								}
+							} catch (err) {
+								console.error('Failed to parse structured error:', err)
+							}
+
+							console.error(`Auto-unlock failed for ${lastMethod}`, msg)
+							hasInitializedRef.current = true
+							setTpmUnlockError({ message: msg, cancelled })
+							setCurrentState('tpm-unlock-failed')
 						}
 					} else {
 						hasInitializedRef.current = true
@@ -178,6 +199,12 @@ export function useAppInitialization() {
 		}
 	}, [handleAccountAdded, t])
 
+	const retryTpmUnlock = useCallback(() => {
+		setTpmUnlockError(null)
+		hasInitializedRef.current = false
+		setCurrentState('init')
+	}, [])
+
 	return {
 		currentState,
 		setCurrentState,
@@ -191,5 +218,7 @@ export function useAppInitialization() {
 		showRecoveryVerify,
 		setShowRecoveryVerify,
 		activeAccount,
+		tpmUnlockError,
+		retryTpmUnlock,
 	}
 }
