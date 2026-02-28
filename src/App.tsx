@@ -174,7 +174,10 @@ function App() {
 			case 'recovery-setup':
 				return (
 					<>
-						<RecoveryStep onNext={() => setShowRecoveryVerify(true)} />
+						<RecoveryStep
+							onNext={() => setShowRecoveryVerify(true)}
+							encryptionMethod='argon2'
+						/>
 						<RecoveryVerifyDialog
 							open={showRecoveryVerify}
 							onClose={() => setShowRecoveryVerify(false)}

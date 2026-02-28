@@ -11,14 +11,15 @@
 		"background": "Background",
 		"backgroundHint": "Sets the base tone of the interface",
 		"preview": "Preview",
-	"continue": "Continue"
+		"continue": "Continue"
 	},
 	"recovery": {
 		"title": "Recovery Phrase",
 		"subtitle": "Your only way to recover access if you forget your password",
 		"warning": {
 			"title": "Save this phrase securely",
-			"description": "If you lose your password, these 12 words are the ONLY way to unlock your account. Write them down and keep them safe."
+			"descriptionArgon2": "If you lose your password, these 12 words are the ONLY way to unlock your account. Write them down and keep them safe.",
+			"descriptionTPM": "If something breaks, these 12 words are the ONLY way to unlock your account. Write them down and keep them safe."
 		},
 		"action": {
 			"copy": "Copy",

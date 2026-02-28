@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { Shield, Lock, AlertCircle, Loader2, CheckCircle, XCircle } from 'lucide-react'
 import {
@@ -10,6 +10,10 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useSecurityTranslation } from '@/hooks/useTypedTranslation'
+import { useAnimate } from 'framer-motion'
+import { cn } from '@/lib/utils'
+import { RecoveryStep } from '@/components/Welcome/recovery/RecoveryStep'
+import { RecoveryVerifyDialog } from '@/components/Welcome/recovery/RecoveryVerifyDialog'
 import type { TPMInitDialogProps } from '@/types/components/welcome'
 
 type TpmStatus =
@@ -34,10 +38,17 @@ function isCancellationError(msg: string): boolean {
 	)
 }
 
+const SUCCESS_TO_RECOVERY_DELAY_MS = 1400
+
 export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: TPMInitDialogProps) {
 	const { t } = useSecurityTranslation()
 	const [status, setStatus] = useState<TpmStatus>('checking')
 	const [error, setError] = useState<string | null>(null)
+	const [showRecoveryStep, setShowRecoveryStep] = useState(false)
+	const [showRecoveryVerify, setShowRecoveryVerify] = useState(false)
+	const transitioning = useRef(false)
+	const [shellScope, animateShell] = useAnimate()
+	const [contentScope, animateContent] = useAnimate()
 
 	const checkTpmAvailability = useCallback(async () => {
 		if (requiresElevation !== undefined) {
@@ -71,13 +82,46 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 		}
 	}, [open, checkTpmAvailability])
 
+	const switchToRecovery = useCallback(async () => {
+		if (transitioning.current) return
+		transitioning.current = true
+
+		const shell = shellScope.current as HTMLDivElement | null
+		const content = contentScope.current as HTMLDivElement | null
+		if (!shell || !content) {
+			transitioning.current = false
+			return
+		}
+
+		await animateContent(content, { opacity: 0 }, { duration: 0.15, ease: 'easeInOut' })
+
+		shell.style.height = shell.offsetHeight + 'px'
+		shell.style.overflow = 'hidden'
+
+		setShowRecoveryStep(true)
+
+		await new Promise<void>((r) =>
+			requestAnimationFrame(() => requestAnimationFrame(() => r()))
+		)
+
+		const newH = content.scrollHeight
+		await animateShell(shell, { height: newH }, { duration: 0.36, ease: [0.16, 1, 0.3, 1] })
+
+		shell.style.height = 'auto'
+		shell.style.overflow = ''
+
+		await animateContent(content, { opacity: 1 }, { duration: 0.15, ease: 'easeInOut' })
+
+		transitioning.current = false
+	}, [animateShell, animateContent, shellScope, contentScope])
+
 	const handleInitialize = useCallback(async () => {
 		setStatus('initializing')
 		setError(null)
 		try {
 			await invoke('initialize_security', { method: 'tpm' })
 			setStatus('success')
-			setTimeout(() => onSuccess(), 1500)
+			setTimeout(() => switchToRecovery(), SUCCESS_TO_RECOVERY_DELAY_MS)
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : String(e)
 			if (isCancellationError(msg)) {
@@ -87,7 +131,34 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 				setError(msg)
 			}
 		}
-	}, [onSuccess])
+	}, [switchToRecovery])
+
+	const handleRecoveryContinue = useCallback(() => {
+		setShowRecoveryVerify(true)
+	}, [])
+
+	const handleRecoveryVerified = useCallback(() => {
+		setShowRecoveryVerify(false)
+		onSuccess()
+		onClose()
+	}, [onSuccess, onClose])
+
+	const handleOpenChange = useCallback(
+		(o: boolean) => {
+			if (!o) {
+				onClose()
+				setShowRecoveryStep(false)
+				setShowRecoveryVerify(false)
+				transitioning.current = false
+				const shell = shellScope.current as HTMLDivElement | null
+				if (shell) {
+					shell.style.height = 'auto'
+					shell.style.overflow = ''
+				}
+			}
+		},
+		[onClose, shellScope]
+	)
 
 	// Go back to the elevation prompt so user can try authenticating again
 	const handleRetryFromCancelled = useCallback(() => {
@@ -269,19 +340,44 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 	}
 
 	return (
-		<Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-			<DialogContent className='border-slate-800 bg-slate-900/95 text-slate-100 backdrop-blur-xl sm:max-w-md'>
-				<DialogHeader>
-					<DialogTitle className='flex items-center gap-2'>
-						<Shield className='h-5 w-5 text-green-400' />
-						{t('security:tpm.dialog.title')}
-					</DialogTitle>
-					<DialogDescription className='text-slate-400'>
-						{t('security:tpm.dialog.description')}
-					</DialogDescription>
-				</DialogHeader>
-				{renderContent()}
-			</DialogContent>
-		</Dialog>
+		<>
+			<Dialog open={open} onOpenChange={handleOpenChange}>
+				<DialogContent
+					className={cn(
+						'overflow-hidden border-slate-800 bg-slate-900/95 p-0 text-slate-100 backdrop-blur-xl sm:max-w-md',
+						showRecoveryStep && 'sm:max-w-2xl'
+					)}>
+					<div ref={shellScope} className='w-full'>
+						<div ref={contentScope} className='p-6'>
+							<DialogHeader className='mb-2'>
+								<DialogTitle className='flex items-center gap-2'>
+									<Shield className='h-5 w-5 text-green-400' />
+									{t('security:tpm.dialog.title')}
+								</DialogTitle>
+								<DialogDescription className='text-slate-400'>
+									{t('security:tpm.dialog.description')}
+								</DialogDescription>
+							</DialogHeader>
+
+							{showRecoveryStep ? (
+								<RecoveryStep
+									variant='embedded'
+									onNext={handleRecoveryContinue}
+									encryptionMethod='tpm'
+								/>
+							) : (
+								renderContent()
+							)}
+						</div>
+					</div>
+				</DialogContent>
+			</Dialog>
+
+			<RecoveryVerifyDialog
+				open={showRecoveryVerify}
+				onClose={() => setShowRecoveryVerify(false)}
+				onVerified={handleRecoveryVerified}
+			/>
+		</>
 	)
 }
