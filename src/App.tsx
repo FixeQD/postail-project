@@ -17,6 +17,7 @@ import { LockScreen } from './components/LockScreen'
 import { Toaster } from './components/ui/custom/Toaster'
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
 import { useAutoLock } from './hooks/useAutoLock'
+import { useNotifications } from './hooks/useNotifications'
 import { useSettingsStore } from './stores/settingsStore'
 import { useThemeStore } from './stores/themeStore'
 import { useAnimationsEnabled } from './hooks/useMotion'
@@ -60,6 +61,7 @@ function App() {
 
 	const [outboxOpen, setOutboxOpen] = useState(false)
 
+	useNotifications()
 	useGlobalShortcuts({
 		onNewMessage: () => {
 			if (currentState === 'dashboard' && activeAccount) {
