@@ -1,12 +1,15 @@
 import { motion } from 'framer-motion'
-import { Bell, Volume2, Hash, Star } from 'lucide-react'
+import { Bell, Volume2, Star } from 'lucide-react'
 import { ToggleSetting } from '@/components/ui/toggle-setting'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
+import { useNotificationStore } from '@/stores/notificationStore'
 
 export function NotificationsSettings() {
 	const { t } = useSettingsTranslation()
 	const animationsEnabled = useAnimationsEnabled()
+	const prefs = useNotificationStore((s) => s.prefs)
+	const setPref = useNotificationStore((s) => s.setPref)
 
 	return (
 		<div className='mx-auto flex h-full w-full max-w-3xl flex-col space-y-8 p-8'>
@@ -30,30 +33,16 @@ export function NotificationsSettings() {
 							icon={Bell}
 							label={t('settings:notifications.alerts.desktop.label')}
 							description={t('settings:notifications.alerts.desktop.description')}
-							value={true}
-							onChange={() => {}}
+							value={prefs.enabled}
+							onChange={(v) => setPref('enabled', v)}
 						/>
 						<ToggleSetting
 							icon={Volume2}
 							label={t('settings:notifications.alerts.sound.label')}
 							description={t('settings:notifications.alerts.sound.description')}
-							value={false}
-							onChange={() => {}}
-						/>
-					</div>
-				</section>
-
-				<section>
-					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
-						{t('settings:notifications.badge.title')}
-					</h2>
-					<div className='space-y-3'>
-						<ToggleSetting
-							icon={Hash}
-							label={t('settings:notifications.badge.count.label')}
-							description={t('settings:notifications.badge.count.description')}
-							value={true}
-							onChange={() => {}}
+							value={prefs.sound}
+							onChange={(v) => setPref('sound', v)}
+							disabled={!prefs.enabled}
 						/>
 					</div>
 				</section>
@@ -69,8 +58,9 @@ export function NotificationsSettings() {
 							description={t(
 								'settings:notifications.filters.importantOnly.description'
 							)}
-							value={false}
-							onChange={() => {}}
+							value={prefs.importantOnly}
+							onChange={(v) => setPref('importantOnly', v)}
+							disabled={!prefs.enabled}
 						/>
 					</div>
 				</section>
