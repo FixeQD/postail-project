@@ -14,6 +14,7 @@ export interface TPMUnlockFailedProps {
 	error: { message: string; cancelled: boolean } | null
 	onRetry: () => void
 	onUnlock: () => void
+	onRecoveryVerified: () => void
 }
 
 export interface TPMInitDialogProps {

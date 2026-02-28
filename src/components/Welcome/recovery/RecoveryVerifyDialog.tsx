@@ -46,7 +46,7 @@ export function RecoveryVerifyDialog({ open, onClose, onVerified }: RecoveryVeri
 			})
 
 			if (isValid) {
-				onVerified()
+				await onVerified()
 			} else {
 				setError(t('recovery.verify.error'))
 			}

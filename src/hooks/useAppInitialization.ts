@@ -21,6 +21,7 @@ export type AppState =
 	| 'settings'
 	| 'recovery-setup'
 	| 'tpm-unlock-failed'
+	| 'recovery-reencrypt'
 
 export function useAppInitialization() {
 	const { t } = useTranslation()
@@ -35,7 +36,9 @@ export function useAppInitialization() {
 	const activeAccount = useAccountStore((s) => s.activeAccount)
 
 	const [tempPassphrase, setTempPassphrase] = useState<string | null>(null)
+	const [isRecoveryReencrypt, setIsRecoveryReencrypt] = useState(false)
 	const [showRecoveryVerify, setShowRecoveryVerify] = useState(false)
+	const [recoveryReencryptSource, setRecoveryReencryptSource] = useState<AppState | null>(null)
 	// Guard against double-init from React StrictMode or dependency re-fires
 	const isInitializingRef = useRef(false)
 	const hasInitializedRef = useRef(false)
@@ -74,6 +77,32 @@ export function useAppInitialization() {
 		await fetchAccounts()
 	}, [fetchAccounts, loadSettings])
 
+	const handleRecoveryPhraseVerified = useCallback(
+		(source?: AppState) => {
+			setRecoveryReencryptSource(source ?? currentState)
+			setIsRecoveryReencrypt(true)
+			setCurrentState('recovery-reencrypt')
+		},
+		[currentState]
+	)
+
+	// Called by EncryptionChoice when in recovery-reencrypt mode.
+	const handleRecoveryReencrypt = async (method: string) => {
+		if (method === 'argon2') {
+			setIsRecoveryReencrypt(true)
+			setCurrentState('argon2-setup')
+			return
+		}
+		try {
+			await invoke('change_security_method', { method })
+			await persistTheme()
+			await loadSettings()
+			await fetchAccounts({ forceShowAccountsOnEmpty: true })
+		} catch (error) {
+			console.error(`Failed to change security method to ${method}:`, error)
+		}
+	}
+
 	const handleSecurityChoice = async (method: string) => {
 		if (method === 'argon2') {
 			setCurrentState('argon2-setup')
@@ -93,16 +122,34 @@ export function useAppInitialization() {
 
 	const handleRecoveryVerified = async () => {
 		try {
-			await invoke('initialize_security', {
-				method: 'argon2',
-				passphrase: tempPassphrase,
-			})
+			if (isRecoveryReencrypt) {
+				// Re-store existing master key with new argon2 method (don't reinitialize DB)
+				await invoke('change_security_method', {
+					method: 'argon2',
+					passphrase: tempPassphrase,
+				})
+				setIsRecoveryReencrypt(false)
+			} else {
+				await invoke('initialize_security', {
+					method: 'argon2',
+					passphrase: tempPassphrase,
+				})
+			}
 			setShowRecoveryVerify(false)
 			await new Promise((resolve) => setTimeout(resolve, 100))
 			await persistTheme()
+			await loadSettings()
 			await fetchAccounts({ forceShowAccountsOnEmpty: true })
 		} catch (error) {
-			console.error('Failed to initialize Argon2 security:', error)
+			console.error('Failed to change security method:', error)
+			toast.error(
+				typeof error === 'string'
+					? error
+					: t(
+							'app.securityChangeFailed',
+							'Failed to change security method. Please try again.'
+						)
+			)
 		}
 	}
 
@@ -220,6 +267,7 @@ export function useAppInitialization() {
 
 	const retryTpmUnlock = useCallback(() => {
 		setTpmUnlockError(null)
+		setIsRecoveryReencrypt(false)
 		hasInitializedRef.current = false
 		setCurrentState('init')
 	}, [])
@@ -239,5 +287,10 @@ export function useAppInitialization() {
 		activeAccount,
 		tpmUnlockError,
 		retryTpmUnlock,
+		handleRecoveryPhraseVerified,
+		handleRecoveryReencrypt,
+		isRecoveryReencrypt,
+		setIsRecoveryReencrypt,
+		recoveryReencryptSource,
 	}
 }

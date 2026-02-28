@@ -44,6 +44,9 @@ function App() {
 		activeAccount,
 		tpmUnlockError,
 		retryTpmUnlock,
+		handleRecoveryPhraseVerified,
+		handleRecoveryReencrypt,
+		recoveryReencryptSource,
 	} = useAppInitialization()
 
 	useEffect(() => {
@@ -158,6 +161,16 @@ function App() {
 						error={tpmUnlockError}
 						onRetry={retryTpmUnlock}
 						onUnlock={handleUnlockSuccess}
+						onRecoveryVerified={handleRecoveryPhraseVerified}
+					/>
+				)
+			case 'recovery-reencrypt':
+				return (
+					<EncryptionChoice
+						onChoiceSelected={handleRecoveryReencrypt}
+						onBack={() =>
+							recoveryReencryptSource && setCurrentState(recoveryReencryptSource)
+						}
 					/>
 				)
 			case 'argon2-setup':
@@ -186,7 +199,13 @@ function App() {
 					</>
 				)
 			case 'argon2-unlock':
-				return <Argon2Unlock onBack={handleBack} onUnlock={handleUnlockSuccess} />
+				return (
+					<Argon2Unlock
+						onBack={handleBack}
+						onUnlock={handleUnlockSuccess}
+						onRecoveryVerified={handleRecoveryPhraseVerified}
+					/>
+				)
 			case 'accounts':
 			case 'settings':
 				return (

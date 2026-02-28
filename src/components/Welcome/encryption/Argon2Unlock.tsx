@@ -9,9 +9,11 @@ import icon from '@/assets/icon.png'
 export const Argon2Unlock = ({
 	onBack,
 	onUnlock,
+	onRecoveryVerified,
 }: {
 	onBack: () => void
 	onUnlock: () => void
+	onRecoveryVerified?: () => void
 }) => {
 	const { t } = useTypedTranslation(['common', 'security', 'welcome'])
 	const accentColor = useThemeStore((s) => s.accentColor)
@@ -33,13 +35,18 @@ export const Argon2Unlock = ({
 				await invoke('unlock_with_recovery_phrase', {
 					phrase: recoveryPhrase,
 				})
+				if (onRecoveryVerified) {
+					onRecoveryVerified()
+				} else {
+					onUnlock()
+				}
 			} else {
 				await invoke('initialize_security', {
 					method: 'argon2',
 					passphrase,
 				})
+				onUnlock()
 			}
-			onUnlock()
 		} catch (err) {
 			console.error('Failed to unlock:', err)
 			setError(

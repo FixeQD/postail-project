@@ -10,7 +10,12 @@ import type { TPMUnlockFailedProps } from '@/types/components/welcome'
 
 type View = 'failed' | 'recovery'
 
-export function TPMUnlockFailed({ error, onRetry, onUnlock }: TPMUnlockFailedProps) {
+export function TPMUnlockFailed({
+	error,
+	onRetry,
+	onUnlock: _onUnlock,
+	onRecoveryVerified,
+}: TPMUnlockFailedProps) {
 	const { t: tSec } = useSecurityTranslation()
 	const { t } = useTranslation('welcome')
 	const accentColor = useThemeStore((s) => s.accentColor)
@@ -30,7 +35,7 @@ export function TPMUnlockFailed({ error, onRetry, onUnlock }: TPMUnlockFailedPro
 		setRecoveryError(null)
 		try {
 			await invoke('unlock_with_recovery_phrase', { phrase })
-			onUnlock()
+			onRecoveryVerified()
 		} catch (err) {
 			console.error('Recovery unlock failed:', err)
 			setRecoveryError(t('recovery.verify.error'))

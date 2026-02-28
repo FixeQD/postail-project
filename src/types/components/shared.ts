@@ -57,7 +57,7 @@ export interface AccountSwitcherProps {
 export interface RecoveryVerifyDialogProps {
 	open: boolean
 	onClose: () => void
-	onVerified: () => void
+	onVerified: () => void | Promise<void>
 }
 
 export interface OutboxPanelProps {
