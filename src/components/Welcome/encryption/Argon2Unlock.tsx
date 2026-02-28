@@ -3,15 +3,13 @@ import { invoke } from '@tauri-apps/api/core'
 import { motion } from 'framer-motion'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { useThemeStore } from '@/stores/themeStore'
-import { ArrowLeft, Lock, Eye, EyeOff, AlertTriangle } from 'lucide-react'
+import { Lock, Eye, EyeOff, AlertTriangle } from 'lucide-react'
 import icon from '@/assets/icon.png'
 
 export const Argon2Unlock = ({
-	onBack,
 	onUnlock,
 	onRecoveryVerified,
 }: {
-	onBack: () => void
 	onUnlock: () => void
 	onRecoveryVerified?: () => void
 }) => {
@@ -67,21 +65,6 @@ export const Argon2Unlock = ({
 				style={{ backgroundColor: `rgba(var(--accent-rgb), 0.04)` }}
 			/>
 			<div className='pointer-events-none absolute right-1/4 bottom-1/3 h-48 w-48 rounded-full bg-indigo-500/[0.03] blur-[80px]' />
-
-			{/* Back button - top left */}
-			<motion.div
-				initial={{ opacity: 0, x: -8 }}
-				animate={{ opacity: 1, x: 0 }}
-				transition={{ duration: 0.3 }}
-				className='absolute top-6 left-6 z-10'>
-				<button
-					type='button'
-					onClick={onBack}
-					className='group flex items-center gap-2 text-sm text-slate-500 transition-colors hover:text-slate-200'>
-					<ArrowLeft className='h-4 w-4 transition-transform group-hover:-translate-x-0.5' />
-					{t('common:actions.back')}
-				</button>
-			</motion.div>
 
 			{/* Central unlock card */}
 			<motion.div

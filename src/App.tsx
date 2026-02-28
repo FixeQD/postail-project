@@ -201,7 +201,6 @@ function App() {
 			case 'argon2-unlock':
 				return (
 					<Argon2Unlock
-						onBack={handleBack}
 						onUnlock={handleUnlockSuccess}
 						onRecoveryVerified={handleRecoveryPhraseVerified}
 					/>
