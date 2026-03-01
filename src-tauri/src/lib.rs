@@ -35,6 +35,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             let handle = app.handle().clone();
 
@@ -94,6 +95,7 @@ pub fn run() {
             cmd::mail::listing::fetch_message_full,
             cmd::mail::listing::save_attachment,
             cmd::mail::sync::start_sync,
+            cmd::mail::sync::get_inbox_baseline_uids,
             cmd::mail::sync::stop_sync,
             cmd::mail::sync::get_sync_status,
             cmd::mail::sync::sync_mailbox_list,
@@ -122,6 +124,7 @@ pub fn run() {
             cmd::attachments::remove_attachment,
             cmd::smtp::build_email_from_draft,
             cmd::utils::process_email_content,
+            cmd::utils::show_notification,
             cmd::utils::auto_fix_email_html,
             cmd::settings::get_all_settings,
             cmd::settings::get_setting,

@@ -21,6 +21,15 @@ const PREF_KEYS: Record<keyof NotificationPrefs, string> = {
 	importantOnly: 'notifications.importantOnly',
 }
 
+// ── UID baseline ───────────────────────────────────────────────────
+// Key: `${accountId}:${mailbox}` → highest UID seen at startup.
+// Any new mail event with newHighestUid > baseline[key] is "new since start".
+export type UidBaseline = Record<string, number>
+
+function baselineKey(accountId: string, mailbox: string): string {
+	return `${accountId}:${mailbox}`
+}
+
 // ── In-app notification items ──────────────────────────────────────
 
 export type AppNotificationType = 'new_mail' | 'sync_error' | 'system'
@@ -44,6 +53,10 @@ interface NotificationState {
 	prefs: NotificationPrefs
 	isLoadingPrefs: boolean
 
+	// Baseline UIDs loaded at startup
+	baseline: UidBaseline
+	baselineReady: boolean
+
 	items: AppNotification[]
 	unreadCount: number
 	centerOpen: boolean
@@ -54,6 +67,11 @@ interface NotificationState {
 		key: K,
 		value: NotificationPrefs[K]
 	) => Promise<void>
+
+	// Baseline
+	loadBaseline: () => Promise<void>
+	isNewMail: (accountId: string, mailbox: string, newHighestUid: number) => boolean
+	updateBaseline: (accountId: string, mailbox: string, uid: number) => void
 
 	// Center
 	openCenter: () => void
@@ -73,6 +91,8 @@ const MAX_ITEMS = 50
 export const useNotificationStore = create<NotificationState>((set, get) => ({
 	prefs: PREF_DEFAULTS,
 	isLoadingPrefs: false,
+	baseline: {},
+	baselineReady: false,
 	items: [],
 	unreadCount: 0,
 	centerOpen: false,
@@ -99,18 +119,53 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
 	setPref: async (key, value) => {
 		try {
-			await invoke('set_setting', { key: PREF_KEYS[key], value: String(value) })
+			await invoke('set_setting', {
+				key: PREF_KEYS[key as keyof NotificationPrefs],
+				value: String(value),
+			})
 			set((s) => ({ prefs: { ...s.prefs, [key]: value } }))
 		} catch (e) {
 			console.error(`[Notifications] Failed to set pref ${key}:`, e)
 		}
 	},
 
+	// ── Baseline ───────────────────────────────────────────────────
+
+	loadBaseline: async () => {
+		try {
+			const rows =
+				await invoke<Array<{ accountId: string; mailbox: string; uid: number }>>(
+					'get_inbox_baseline_uids'
+				)
+			const baseline: UidBaseline = {}
+			for (const row of rows) {
+				baseline[baselineKey(row.accountId, row.mailbox)] = row.uid
+			}
+			set({ baseline, baselineReady: true })
+		} catch (e) {
+			console.error('[Notifications] Failed to load baseline UIDs:', e)
+			set({ baselineReady: true }) // don't block forever
+		}
+	},
+
+	isNewMail: (accountId, mailbox, newHighestUid) => {
+		const { baseline, baselineReady } = get()
+		if (!baselineReady) return false
+		const key = baselineKey(accountId, mailbox)
+		const known = baseline[key] ?? 0
+		return newHighestUid > known
+	},
+
+	updateBaseline: (accountId, mailbox, uid) => {
+		set((s) => ({
+			baseline: { ...s.baseline, [baselineKey(accountId, mailbox)]: uid },
+		}))
+	},
+
 	// ── Center ─────────────────────────────────────────────────────
 
 	openCenter: () => {
 		set({ centerOpen: true })
-		// mark all read when opening
 		get().markAllRead()
 	},
 	closeCenter: () => set({ centerOpen: false }),
@@ -123,12 +178,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
 	addNotification: (notif) => {
 		const id = `notif_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
-		const item: AppNotification = {
-			...notif,
-			id,
-			timestamp: Date.now(),
-			read: false,
-		}
+		const item: AppNotification = { ...notif, id, timestamp: Date.now(), read: false }
 		set((s) => {
 			const next = [item, ...s.items].slice(0, MAX_ITEMS)
 			return { items: next, unreadCount: next.filter((n) => !n.read).length }
@@ -142,12 +192,8 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 		})
 	},
 
-	markAllRead: () => {
-		set((s) => ({
-			items: s.items.map((n) => ({ ...n, read: true })),
-			unreadCount: 0,
-		}))
-	},
+	markAllRead: () =>
+		set((s) => ({ items: s.items.map((n) => ({ ...n, read: true })), unreadCount: 0 })),
 
 	dismiss: (id) => {
 		set((s) => {

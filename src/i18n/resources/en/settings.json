@@ -178,6 +178,26 @@
 				"label": "Important Only",
 				"description": "Only notify for emails from starred contacts or marked as important."
 			}
+		},
+		"center": {
+			"title": "Notifications",
+			"allRead": "All read",
+			"clear": "Clear",
+			"empty": "No notifications",
+			"emptyDescription": "New mail and alerts will appear here"
+		},
+		"time": {
+			"justNow": "just now",
+			"minsAgo": "{{m}}m ago",
+			"hoursAgo": "{{h}}h ago",
+			"daysAgo": "{{d}}d ago"
+		},
+		"messages": {
+			"newSingle": "New message — {{email}}",
+			"newMultiple": "{{count}} new messages — {{email}}",
+			"newMailInbox": "New mail in your inbox.",
+			"newMailIn": "New mail in {{mailbox}}.",
+			"syncFailed": "Sync failed — {{email}}"
 		}
 	},
 	"composing": {

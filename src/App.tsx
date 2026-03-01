@@ -61,7 +61,9 @@ function App() {
 
 	const [outboxOpen, setOutboxOpen] = useState(false)
 
-	useNotifications()
+	useNotifications(
+		currentState === 'dashboard' || currentState === 'settings' || currentState === 'accounts'
+	)
 	useGlobalShortcuts({
 		onNewMessage: () => {
 			if (currentState === 'dashboard' && activeAccount) {

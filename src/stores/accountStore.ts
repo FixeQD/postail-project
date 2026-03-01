@@ -83,6 +83,22 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 				}
 			}
 
+			try {
+				const { loadBaseline } = await import('@/stores/notificationStore').then((m) =>
+					m.useNotificationStore.getState()
+				)
+				await loadBaseline()
+			} catch (e) {
+				console.warn('[AccountStore] Failed to load notification baseline:', e)
+			}
+
+			// Auto-start sync for every account so IDLE begins immediately
+			for (const account of fetchedAccounts) {
+				invoke('start_sync', { accountId: account.id }).catch((e) =>
+					console.warn('[Sync] Failed to auto-start sync for', account.email, e)
+				)
+			}
+
 			return fetchedAccounts
 		} catch (error) {
 			console.error('Failed to fetch accounts:', error)

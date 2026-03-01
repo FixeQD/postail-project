@@ -44,6 +44,8 @@ pub enum SyncEvent {
         account_id: String,
         mailbox: String,
         count: u32,
+        #[serde(rename = "newHighestUid")]
+        new_highest_uid: u32,
     },
 }
 
@@ -112,11 +114,18 @@ impl SyncStatusManager {
         }
     }
 
-    pub async fn emit_new_messages(&self, account_id: &str, mailbox: &str, count: u32) {
+    pub async fn emit_new_messages(
+        &self,
+        account_id: &str,
+        mailbox: &str,
+        count: u32,
+        new_highest_uid: u32,
+    ) {
         self.emit_event(SyncEvent::NewMessages {
             account_id: account_id.to_string(),
             mailbox: mailbox.to_string(),
             count,
+            new_highest_uid,
         });
     }
 

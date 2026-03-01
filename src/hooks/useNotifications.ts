@@ -1,12 +1,15 @@
 import { useEffect } from 'react'
 import { listen } from '@tauri-apps/api/event'
+import { invoke } from '@tauri-apps/api/core'
 import { useAccountStore } from '@/stores/accountStore'
 import { useNotificationStore } from '@/stores/notificationStore'
+import i18n from '@/i18n'
 
 interface NewMessagesPayload {
 	accountId: string
 	mailbox: string
 	count: number
+	newHighestUid: number
 }
 
 interface SyncErrorPayload {
@@ -14,89 +17,86 @@ interface SyncErrorPayload {
 	error: string
 }
 
-async function ensureOsPermission(): Promise<boolean> {
-	if (!('Notification' in window)) return false
-	if (Notification.permission === 'granted') return true
-	if (Notification.permission === 'denied') return false
-	const result = await Notification.requestPermission()
-	return result === 'granted'
+function t(key: string, opts?: Record<string, unknown>): string {
+	return i18n.t(key, { ns: 'settings', ...opts })
 }
 
-function fireOsNotification(title: string, body: string) {
-	if (Notification.permission !== 'granted') return
-	new Notification(title, { body })
+async function fireNativeNotification(title: string, body: string) {
+	try {
+		await invoke('show_notification', { title, body })
+	} catch (e) {
+		console.warn('[Notifications] Native notification failed:', e)
+	}
 }
 
-export function useNotifications() {
-	const prefs = useNotificationStore((s) => s.prefs)
+let listenersInitialized = false
+
+function initListeners() {
+	if (listenersInitialized) return
+	listenersInitialized = true
+
+	// Only idle_loop and poll_loop emit this event
+	listen<NewMessagesPayload>('sync:new_messages', (event) => {
+		const { accountId, mailbox, count, newHighestUid } = event.payload
+		const store = useNotificationStore.getState()
+		const { accounts } = useAccountStore.getState()
+
+		if (!store.isNewMail(accountId, mailbox, newHighestUid)) return
+
+		store.updateBaseline(accountId, mailbox, newHighestUid)
+
+		if (store.prefs.importantOnly && mailbox.toUpperCase() !== 'INBOX') return
+
+		const account = accounts.find((a) => a.id === accountId)
+		const accountEmail = account?.email ?? accountId
+
+		const title =
+			count === 1
+				? t('notifications.messages.newSingle', { email: accountEmail })
+				: t('notifications.messages.newMultiple', { count, email: accountEmail })
+
+		const body =
+			mailbox.toUpperCase() === 'INBOX'
+				? t('notifications.messages.newMailInbox')
+				: t('notifications.messages.newMailIn', { mailbox })
+
+		store.addNotification({
+			type: 'new_mail',
+			title,
+			body,
+			accountId,
+			accountEmail,
+			mailbox,
+			count,
+		})
+
+		if (store.prefs.enabled) fireNativeNotification(title, body)
+	})
+
+	listen<SyncErrorPayload>('sync:error', (event) => {
+		const { accountId, error } = event.payload
+		const { addNotification } = useNotificationStore.getState()
+		const { accounts } = useAccountStore.getState()
+
+		const account = accounts.find((a) => a.id === accountId)
+		const accountEmail = account?.email ?? accountId
+
+		addNotification({
+			type: 'sync_error',
+			title: t('notifications.messages.syncFailed', { email: accountEmail }),
+			body: error,
+			accountId,
+			accountEmail,
+		})
+	})
+}
+
+export function useNotifications(ready: boolean) {
 	const loadPrefs = useNotificationStore((s) => s.loadPrefs)
-	const addNotification = useNotificationStore((s) => s.addNotification)
-	const accounts = useAccountStore((s) => s.accounts)
 
 	useEffect(() => {
+		if (!ready) return
 		loadPrefs()
-	}, [loadPrefs])
-
-	useEffect(() => {
-		if (prefs.enabled) ensureOsPermission()
-	}, [prefs.enabled])
-
-	// ── New mail ────────────────────────────────────────────────────
-	useEffect(() => {
-		const unlisten = listen<NewMessagesPayload>('sync:new_messages', (event) => {
-			const { accountId, mailbox, count } = event.payload
-			if (prefs.importantOnly && mailbox.toUpperCase() !== 'INBOX') return
-
-			const account = accounts.find((a) => a.id === accountId)
-			const accountEmail = account?.email ?? accountId
-
-			const title =
-				count === 1
-					? `New message — ${accountEmail}`
-					: `${count} new messages — ${accountEmail}`
-			const body =
-				mailbox.toUpperCase() === 'INBOX'
-					? 'New mail in your inbox.'
-					: `New mail in ${mailbox}.`
-
-			// Always push to in-app center
-			addNotification({
-				type: 'new_mail',
-				title,
-				body,
-				accountId,
-				accountEmail,
-				mailbox,
-				count,
-			})
-
-			// OS notification only if enabled
-			if (prefs.enabled) fireOsNotification(title, body)
-		})
-
-		return () => {
-			unlisten.then((fn) => fn())
-		}
-	}, [prefs.enabled, prefs.importantOnly, accounts, addNotification])
-
-	// ── Sync errors ─────────────────────────────────────────────────
-	useEffect(() => {
-		const unlisten = listen<SyncErrorPayload>('sync:error', (event) => {
-			const { accountId, error } = event.payload
-			const account = accounts.find((a) => a.id === accountId)
-			const accountEmail = account?.email ?? accountId
-
-			addNotification({
-				type: 'sync_error',
-				title: `Sync failed — ${accountEmail}`,
-				body: error,
-				accountId,
-				accountEmail,
-			})
-		})
-
-		return () => {
-			unlisten.then((fn) => fn())
-		}
-	}, [accounts, addNotification])
+		initListeners()
+	}, [ready, loadPrefs])
 }

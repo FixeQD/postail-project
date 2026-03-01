@@ -129,3 +129,41 @@ pub async fn record_mailbox_activity(account_id: String, mailbox: String) -> Res
     pool.record_activity(&account_id, &mailbox).await;
     Ok(())
 }
+
+#[command]
+pub async fn get_inbox_baseline_uids() -> Result<Vec<serde_json::Value>, String> {
+    use crate::globals::DB_CONN;
+    use serde_json::json;
+
+    let conn_guard = DB_CONN.lock().await;
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT account_id, name, COALESCE(last_synced_uid, 0) as uid \
+             FROM mailboxes",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let rows = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut result = Vec::new();
+    for row in rows {
+        let (account_id, mailbox, uid) = row.map_err(|e| e.to_string())?;
+        result.push(json!({
+            "accountId": account_id,
+            "mailbox": mailbox,
+            "uid": uid as u32,
+        }));
+    }
+
+    Ok(result)
+}

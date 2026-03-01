@@ -31,6 +31,18 @@ lazy_static::lazy_static! {
 
 impl crate::imap::ImapManager {
     pub async fn start_sync(&self, account_id: &str) -> Result<(), AppError> {
+        // Guard: don't spawn a second task if one is already running for this account
+        {
+            let flags = STOP_FLAGS.lock().await;
+            if let Some(flag) = flags.get(account_id) {
+                if !flag.load(Ordering::SeqCst) {
+                    // Flag exists and is NOT set to stop — sync is already running
+                    tracing::info!(target: "postail", "[IMAP] start_sync called but already running for {}, ignoring", account_id);
+                    return Ok(());
+                }
+            }
+        }
+
         let account_email = {
             let conn_guard = self.conn.lock().await;
             let conn = conn_guard
@@ -43,7 +55,10 @@ impl crate::imap::ImapManager {
 
         start_sync_status_tracking(account_id, &account_email).await;
 
-        let stop_flag = Arc::new(AtomicBool::new(false));
+        // Use SYNC_STATUS_MANAGER's stop flag so stop_sync() can actually halt the IDLE loop
+        let stop_flag = SYNC_STATUS_MANAGER.get_stop_flag(account_id).await;
+        // Reset the flag in case it was previously set
+        stop_flag.store(false, Ordering::SeqCst);
         {
             let mut flags = STOP_FLAGS.lock().await;
             flags.insert(account_id.to_string(), Arc::clone(&stop_flag));
@@ -294,6 +309,11 @@ impl crate::imap::ImapManager {
             tracing::info!(target: "postail", "[IMAP] Catching up {}@{} (local: {}, remote: {}, fetch_start: {})", mailbox_name, account_id, last_uid, highest_uid, start);
             self.fetch_missing_messages(account_id, mailbox_name, start, highest_uid)
                 .await?;
+
+            let new_count = highest_uid.saturating_sub(last_uid);
+            SYNC_STATUS_MANAGER
+                .emit_new_messages(account_id, mailbox_name, new_count, highest_uid)
+                .await;
         }
 
         if let Err(e) = self
@@ -334,8 +354,12 @@ impl crate::imap::ImapManager {
                 highest_uid,
             )
             .await?;
+            let new_count = highest_uid.saturating_sub(last_uid);
             last_uid = highest_uid;
             mark_sync_complete(account_id).await;
+            SYNC_STATUS_MANAGER
+                .emit_new_messages(account_id, mailbox_name, new_count, last_uid)
+                .await;
         }
 
         tracing::info!(target: "postail", "[IMAP] Starting IDLE for {}@{}", mailbox_name, account_id);
@@ -411,7 +435,7 @@ impl crate::imap::ImapManager {
                         *last_uid = new_highest_uid;
                         mark_sync_complete(account_id).await;
                         SYNC_STATUS_MANAGER
-                            .emit_new_messages(account_id, mailbox_name, new_count)
+                            .emit_new_messages(account_id, mailbox_name, new_count, new_highest_uid)
                             .await;
                     } else {
                         tracing::debug!(target: "postail",
@@ -522,7 +546,7 @@ impl crate::imap::ImapManager {
                         *last_uid = new_highest_uid;
                         mark_sync_complete(account_id).await;
                         SYNC_STATUS_MANAGER
-                            .emit_new_messages(account_id, mailbox_name, new_count)
+                            .emit_new_messages(account_id, mailbox_name, new_count, new_highest_uid)
                             .await;
                     } else if let Err(e) = self
                         .sync_flags_from_server(account_id, mailbox_name, None)

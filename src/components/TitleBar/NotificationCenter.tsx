@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import React, { useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bell, Mail, AlertTriangle, Info, Trash2, CheckCheck, X, BellOff } from 'lucide-react'
 import {
@@ -7,19 +7,23 @@ import {
 	type AppNotificationType,
 } from '@/stores/notificationStore'
 import { useThemeStore } from '@/stores/themeStore'
+import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 
 // ── Helpers ────────────────────────────────────────────────────────
 
-function relativeTime(ts: number): string {
+function relativeTime(
+	ts: number,
+	t: (key: string, opts?: Record<string, unknown>) => string
+): string {
 	const diff = Date.now() - ts
 	const s = Math.floor(diff / 1000)
-	if (s < 60) return 'just now'
+	if (s < 60) return t('notifications.time.justNow')
 	const m = Math.floor(s / 60)
-	if (m < 60) return `${m}m ago`
+	if (m < 60) return t('notifications.time.minsAgo', { m })
 	const h = Math.floor(m / 60)
-	if (h < 24) return `${h}h ago`
+	if (h < 24) return t('notifications.time.hoursAgo', { h })
 	const d = Math.floor(h / 24)
-	return `${d}d ago`
+	return t('notifications.time.daysAgo', { d })
 }
 
 const typeIcon: Record<AppNotificationType, React.ReactNode> = {
@@ -42,9 +46,10 @@ const typeBg: Record<AppNotificationType, string> = {
 
 // ── Item ──────────────────────────────────────────────────────────
 
-function NotificationItem({ item }: { item: AppNotification }) {
+function NotificationItem({ item }: { item: AppNotification; key?: string }) {
 	const dismiss = useNotificationStore((s) => s.dismiss)
 	const markRead = useNotificationStore((s) => s.markRead)
+	const { t } = useSettingsTranslation()
 
 	return (
 		<motion.div
@@ -78,7 +83,7 @@ function NotificationItem({ item }: { item: AppNotification }) {
 				<p className='mt-0.5 line-clamp-2 text-xs leading-relaxed text-slate-500'>
 					{item.body}
 				</p>
-				<p className='mt-1 text-[10px] text-slate-600'>{relativeTime(item.timestamp)}</p>
+				<p className='mt-1 text-[10px] text-slate-600'>{relativeTime(item.timestamp, t)}</p>
 			</div>
 
 			{/* Dismiss */}
@@ -104,6 +109,7 @@ export function NotificationCenter() {
 	const markAllRead = useNotificationStore((s) => s.markAllRead)
 	const clearAll = useNotificationStore((s) => s.clearAll)
 	const accentColor = useThemeStore((s) => s.accentColor)
+	const { t } = useSettingsTranslation()
 
 	const panelRef = useRef<HTMLDivElement>(null)
 
@@ -163,7 +169,7 @@ export function NotificationCenter() {
 							<div className='flex items-center gap-2'>
 								<Bell className='h-4 w-4 text-slate-400' />
 								<span className='text-sm font-semibold text-slate-100'>
-									Notifications
+									{t('notifications.center.title')}
 								</span>
 								{unreadCount > 0 && (
 									<span
@@ -179,7 +185,7 @@ export function NotificationCenter() {
 										onClick={markAllRead}
 										className='flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-slate-300'>
 										<CheckCheck className='h-3.5 w-3.5' />
-										All read
+										{t('notifications.center.allRead')}
 									</button>
 								)}
 								{items.length > 0 && (
@@ -187,7 +193,7 @@ export function NotificationCenter() {
 										onClick={clearAll}
 										className='flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-slate-500 transition-colors hover:bg-red-500/10 hover:text-red-400'>
 										<Trash2 className='h-3.5 w-3.5' />
-										Clear
+										{t('notifications.center.clear')}
 									</button>
 								)}
 							</div>
@@ -202,16 +208,16 @@ export function NotificationCenter() {
 									</div>
 									<div>
 										<p className='text-sm font-medium text-slate-400'>
-											No notifications
+											{t('notifications.center.empty')}
 										</p>
 										<p className='mt-0.5 text-xs text-slate-600'>
-											New mail and alerts will appear here
+											{t('notifications.center.emptyDescription')}
 										</p>
 									</div>
 								</div>
 							) : (
 								<AnimatePresence initial={false}>
-									{items.map((item) => (
+									{items.map((item: AppNotification) => (
 										<NotificationItem key={item.id} item={item} />
 									))}
 								</AnimatePresence>

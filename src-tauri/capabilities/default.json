@@ -15,6 +15,10 @@
 		"dialog:allow-open",
 		"dialog:default",
 		"core:event:default",
-		"core:path:default"
+		"core:path:default",
+		"notification:default",
+		"notification:allow-request-permission",
+		"notification:allow-notify",
+		"notification:allow-is-permission-granted"
 	]
 }
