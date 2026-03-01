@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { platform } from '@tauri-apps/plugin-os'
-import { Search, Bell, Settings, Send } from 'lucide-react'
+import { Search, Settings, Send } from 'lucide-react'
 import { motion } from 'framer-motion'
 import icon from '@/assets/icon.png'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
@@ -11,6 +11,7 @@ import { useAccountStore } from '@/stores/accountStore'
 import { useMessageViewStore } from '@/stores/messageViewStore'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { AccountSwitcher } from './TitleBar/AccountSwitcher'
+import { NotificationCenter } from './TitleBar/NotificationCenter'
 import type { TitleBarProps } from '@/types/components/shared'
 
 export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }: TitleBarProps) {
@@ -168,16 +169,7 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 				{/* Dashboard Actions */}
 				{isDashboard && activeAccount && (
 					<div className='mr-3 flex items-center gap-1 border-r border-white/[0.06] pr-3'>
-						<motion.button
-							className='relative flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-slate-200'
-							whileTap={{ scale: 0.9 }}
-							onMouseDown={(e) => e.stopPropagation()}>
-							<Bell className='h-[18px] w-[18px]' />
-							<span
-								className='badge-pulse absolute top-1.5 right-1.5 h-2 w-2 rounded-full'
-								style={{ backgroundColor: accentColor }}
-							/>
-						</motion.button>
+						<NotificationCenter />
 
 						<motion.button
 							id='outbox-button'

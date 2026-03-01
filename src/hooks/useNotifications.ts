@@ -9,7 +9,12 @@ interface NewMessagesPayload {
 	count: number
 }
 
-async function requestPermission(): Promise<boolean> {
+interface SyncErrorPayload {
+	accountId: string
+	error: string
+}
+
+async function ensureOsPermission(): Promise<boolean> {
 	if (!('Notification' in window)) return false
 	if (Notification.permission === 'granted') return true
 	if (Notification.permission === 'denied') return false
@@ -17,59 +22,81 @@ async function requestPermission(): Promise<boolean> {
 	return result === 'granted'
 }
 
-function sendNotification(title: string, body: string) {
+function fireOsNotification(title: string, body: string) {
 	if (Notification.permission !== 'granted') return
-	new Notification(title, {
-		body,
-		// icon
-	})
+	new Notification(title, { body })
 }
 
 export function useNotifications() {
 	const prefs = useNotificationStore((s) => s.prefs)
 	const loadPrefs = useNotificationStore((s) => s.loadPrefs)
+	const addNotification = useNotificationStore((s) => s.addNotification)
 	const accounts = useAccountStore((s) => s.accounts)
 
-	// Load prefs once on mount
 	useEffect(() => {
 		loadPrefs()
 	}, [loadPrefs])
 
-	// Request OS permission once notifications are enabled
 	useEffect(() => {
-		if (prefs.enabled) {
-			requestPermission()
-		}
+		if (prefs.enabled) ensureOsPermission()
 	}, [prefs.enabled])
 
-	// Listen for new mail events from backend
+	// ── New mail ────────────────────────────────────────────────────
 	useEffect(() => {
-		if (!prefs.enabled) return
-
 		const unlisten = listen<NewMessagesPayload>('sync:new_messages', (event) => {
 			const { accountId, mailbox, count } = event.payload
-
-			// importantOnly filter: for now skip non-INBOX mailboxes when enabled
 			if (prefs.importantOnly && mailbox.toUpperCase() !== 'INBOX') return
 
 			const account = accounts.find((a) => a.id === accountId)
-			const accountLabel = account?.email ?? accountId
+			const accountEmail = account?.email ?? accountId
 
 			const title =
 				count === 1
-					? `New message — ${accountLabel}`
-					: `${count} new messages — ${accountLabel}`
-
+					? `New message — ${accountEmail}`
+					: `${count} new messages — ${accountEmail}`
 			const body =
 				mailbox.toUpperCase() === 'INBOX'
-					? 'You have new mail in your inbox.'
-					: `You have new mail in ${mailbox}.`
+					? 'New mail in your inbox.'
+					: `New mail in ${mailbox}.`
 
-			sendNotification(title, body)
+			// Always push to in-app center
+			addNotification({
+				type: 'new_mail',
+				title,
+				body,
+				accountId,
+				accountEmail,
+				mailbox,
+				count,
+			})
+
+			// OS notification only if enabled
+			if (prefs.enabled) fireOsNotification(title, body)
 		})
 
 		return () => {
 			unlisten.then((fn) => fn())
 		}
-	}, [prefs.enabled, prefs.importantOnly, accounts])
+	}, [prefs.enabled, prefs.importantOnly, accounts, addNotification])
+
+	// ── Sync errors ─────────────────────────────────────────────────
+	useEffect(() => {
+		const unlisten = listen<SyncErrorPayload>('sync:error', (event) => {
+			const { accountId, error } = event.payload
+			const account = accounts.find((a) => a.id === accountId)
+			const accountEmail = account?.email ?? accountId
+
+			addNotification({
+				type: 'sync_error',
+				title: `Sync failed — ${accountEmail}`,
+				body: error,
+				accountId,
+				accountEmail,
+			})
+		})
+
+		return () => {
+			unlisten.then((fn) => fn())
+		}
+	}, [accounts, addNotification])
 }
