@@ -153,30 +153,62 @@
 	},
 	"notifications": {
 		"title": "Notifications",
-		"subtitle": "Control how you're notified about new mail.",
-		"alerts": {
-			"title": "Alerts",
+		"subtitle": "Control how and when you're notified about new mail.",
+		"allOffHint": "All notifications are off. Enable desktop notifications or the in-app center to receive alerts.",
+		"delivery": {
+			"title": "Delivery",
 			"desktop": {
 				"label": "Desktop Notifications",
-				"description": "Show system notifications for new emails."
+				"description": "Show OS-level system notifications for new emails."
+			},
+			"showInCenter": {
+				"label": "Show in Notification Center",
+				"description": "Always log notifications to the in-app bell panel, even without OS alerts."
 			},
 			"sound": {
-				"label": "Sound Alerts",
-				"description": "Play a sound when new email arrives."
-			}
-		},
-		"badge": {
-			"title": "Badge",
-			"count": {
-				"label": "Badge Count",
-				"description": "Show unread count in dock or taskbar."
+				"label": "Sound Alert",
+				"description": "Play a sound when a new email arrives."
 			}
 		},
 		"filters": {
 			"title": "Filters",
+			"inboxOnly": {
+				"label": "INBOX Only",
+				"description": "Only notify for mail arriving in your main INBOX. Overrides all folder-based filters."
+			},
 			"importantOnly": {
-				"label": "Important Only",
-				"description": "Only notify for emails from starred contacts or marked as important."
+				"label": "Important Folders Only",
+				"description": "Limit notifications to your inbox and folders marked as important."
+			},
+			"showForSent": {
+				"label": "Notify for Sent Mail",
+				"description": "Also notify when mail appears in your Sent folder (useful for send-on-behalf detection)."
+			},
+			"syncErrors": {
+				"label": "Sync Error Alerts",
+				"description": "Show a notification when syncing an account fails."
+			}
+		},
+		"preview": {
+			"title": "Content Preview",
+			"previewSender": {
+				"label": "Show Sender",
+				"description": "Display the sender's address in the notification body."
+			},
+			"previewSubject": {
+				"label": "Show Subject",
+				"description": "Display the email subject line in the notification body."
+			}
+		},
+		"grouping": {
+			"title": "Grouping",
+			"bundle": {
+				"label": "Bundle Multiple Messages",
+				"description": "Combine several new-mail events into one notification instead of firing separately."
+			},
+			"minCount": {
+				"label": "Minimum Messages to Notify",
+				"description": "Only trigger a notification when at least this many new messages arrive."
 			}
 		},
 		"center": {

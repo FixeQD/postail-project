@@ -46,6 +46,10 @@ pub enum SyncEvent {
         count: u32,
         #[serde(rename = "newHighestUid")]
         new_highest_uid: u32,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        subject: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        sender: Option<String>,
     },
 }
 
@@ -120,12 +124,16 @@ impl SyncStatusManager {
         mailbox: &str,
         count: u32,
         new_highest_uid: u32,
+        subject: Option<String>,
+        sender: Option<String>,
     ) {
         self.emit_event(SyncEvent::NewMessages {
             account_id: account_id.to_string(),
             mailbox: mailbox.to_string(),
             count,
             new_highest_uid,
+            subject,
+            sender,
         });
     }
 

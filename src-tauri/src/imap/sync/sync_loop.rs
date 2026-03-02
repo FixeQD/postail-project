@@ -307,13 +307,10 @@ impl crate::imap::ImapManager {
             };
 
             tracing::info!(target: "postail", "[IMAP] Catching up {}@{} (local: {}, remote: {}, fetch_start: {})", mailbox_name, account_id, last_uid, highest_uid, start);
-            self.fetch_missing_messages(account_id, mailbox_name, start, highest_uid)
+            // Startup catch-up: silent, no notification emitted
+            let _ = self
+                .fetch_missing_messages(account_id, mailbox_name, start, highest_uid)
                 .await?;
-
-            let new_count = highest_uid.saturating_sub(last_uid);
-            SYNC_STATUS_MANAGER
-                .emit_new_messages(account_id, mailbox_name, new_count, highest_uid)
-                .await;
         }
 
         if let Err(e) = self
@@ -347,19 +344,17 @@ impl crate::imap::ImapManager {
         let mut last_uid = self.get_last_synced_uid(account_id, mailbox_name).await?;
 
         if highest_uid > last_uid {
-            self.fetch_missing_messages(
-                account_id,
-                mailbox_name,
-                last_uid.saturating_add(1),
-                highest_uid,
-            )
-            .await?;
-            let new_count = highest_uid.saturating_sub(last_uid);
+            // Startup catch-up before IDLE: silent, no notification emitted
+            let _ = self
+                .fetch_missing_messages(
+                    account_id,
+                    mailbox_name,
+                    last_uid.saturating_add(1),
+                    highest_uid,
+                )
+                .await?;
             last_uid = highest_uid;
             mark_sync_complete(account_id).await;
-            SYNC_STATUS_MANAGER
-                .emit_new_messages(account_id, mailbox_name, new_count, last_uid)
-                .await;
         }
 
         tracing::info!(target: "postail", "[IMAP] Starting IDLE for {}@{}", mailbox_name, account_id);
@@ -425,17 +420,25 @@ impl crate::imap::ImapManager {
                         mailbox.uid_next.map(|u| u.saturating_sub(1)).unwrap_or(0);
                     if new_highest_uid > *last_uid {
                         let new_count = new_highest_uid - *last_uid;
-                        self.fetch_missing_messages(
-                            account_id,
-                            mailbox_name,
-                            last_uid.saturating_add(1),
-                            new_highest_uid,
-                        )
-                        .await?;
+                        let (subject, sender) = self
+                            .fetch_missing_messages(
+                                account_id,
+                                mailbox_name,
+                                last_uid.saturating_add(1),
+                                new_highest_uid,
+                            )
+                            .await?;
                         *last_uid = new_highest_uid;
                         mark_sync_complete(account_id).await;
                         SYNC_STATUS_MANAGER
-                            .emit_new_messages(account_id, mailbox_name, new_count, new_highest_uid)
+                            .emit_new_messages(
+                                account_id,
+                                mailbox_name,
+                                new_count,
+                                new_highest_uid,
+                                subject,
+                                sender,
+                            )
                             .await;
                     } else {
                         tracing::debug!(target: "postail",
@@ -536,17 +539,25 @@ impl crate::imap::ImapManager {
                         mailbox.uid_next.map(|u| u.saturating_sub(1)).unwrap_or(0);
                     if new_highest_uid > *last_uid {
                         let new_count = new_highest_uid - *last_uid;
-                        self.fetch_missing_messages(
-                            account_id,
-                            mailbox_name,
-                            last_uid.saturating_add(1),
-                            new_highest_uid,
-                        )
-                        .await?;
+                        let (subject, sender) = self
+                            .fetch_missing_messages(
+                                account_id,
+                                mailbox_name,
+                                last_uid.saturating_add(1),
+                                new_highest_uid,
+                            )
+                            .await?;
                         *last_uid = new_highest_uid;
                         mark_sync_complete(account_id).await;
                         SYNC_STATUS_MANAGER
-                            .emit_new_messages(account_id, mailbox_name, new_count, new_highest_uid)
+                            .emit_new_messages(
+                                account_id,
+                                mailbox_name,
+                                new_count,
+                                new_highest_uid,
+                                subject,
+                                sender,
+                            )
                             .await;
                     } else if let Err(e) = self
                         .sync_flags_from_server(account_id, mailbox_name, None)
@@ -594,9 +605,9 @@ impl crate::imap::ImapManager {
         mailbox_name: &str,
         start_uid: u32,
         end_uid: u32,
-    ) -> Result<(), AppError> {
+    ) -> Result<(Option<String>, Option<String>), AppError> {
         if start_uid > end_uid {
-            return Ok(());
+            return Ok((None, None));
         }
 
         let total = end_uid.saturating_sub(start_uid).saturating_add(1);
@@ -604,6 +615,8 @@ impl crate::imap::ImapManager {
         let mut anchor = start_uid;
         let mut latest_uid = start_uid;
         let mut processed = 0u32;
+        let mut newest_subject: Option<String> = None;
+        let mut newest_sender: Option<String> = None;
 
         while anchor <= end_uid {
             update_sync_status(account_id, mailbox_name, processed, total).await;
@@ -618,6 +631,8 @@ impl crate::imap::ImapManager {
 
             if let Some(h) = headers.last() {
                 latest_uid = h.uid;
+                newest_subject = h.subject.clone();
+                newest_sender = h.from.first().cloned();
             }
 
             processed += headers.len() as u32;
@@ -644,6 +659,6 @@ impl crate::imap::ImapManager {
         ])
         .map_err(|e| AppError::from(e.to_string()))?;
 
-        Ok(())
+        Ok((newest_subject, newest_sender))
     }
 }

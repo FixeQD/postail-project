@@ -1,32 +1,79 @@
 import { create } from 'zustand'
 import { invoke } from '@tauri-apps/api/core'
 
-// ── Prefs ─────────────────────────────────────────────────────────
+// ── Prefs ──────────────────────────────────────────────────────────
 
 export interface NotificationPrefs {
-	enabled: boolean
+	// Master switches
+	enabled: boolean // OS desktop notifications
+	showInCenter: boolean // Always log to in-app center
+
+	// Sound
 	sound: boolean
-	importantOnly: boolean
+
+	// Folder filters
+	inboxOnly: boolean // INBOX only — overrides importantOnly
+	importantOnly: boolean // starred/important folders only
+	showForSent: boolean // include Sent folder (off by default)
+
+	// Error alerts
+	syncErrors: boolean
+
+	// Content preview (shown in notification body)
+	previewSender: boolean
+	previewSubject: boolean
+
+	// Grouping
+	bundleMultiple: boolean // bundle N msgs into 1 notif
+	minCountToNotify: number // 1 | 2 | 5 | 10
 }
 
-const PREF_DEFAULTS: NotificationPrefs = {
+export const MIN_COUNT_OPTIONS = [1, 2, 5, 10] as const
+export type MinCountOption = (typeof MIN_COUNT_OPTIONS)[number]
+
+const D: NotificationPrefs = {
 	enabled: true,
+	showInCenter: true,
 	sound: false,
+	inboxOnly: false,
 	importantOnly: false,
+	showForSent: false,
+	syncErrors: true,
+	previewSender: true,
+	previewSubject: true,
+	bundleMultiple: false,
+	minCountToNotify: 1,
 }
 
-const PREF_KEYS: Record<keyof NotificationPrefs, string> = {
+const KEYS: Record<keyof NotificationPrefs, string> = {
 	enabled: 'notifications.enabled',
+	showInCenter: 'notifications.showInCenter',
 	sound: 'notifications.sound',
+	inboxOnly: 'notifications.inboxOnly',
 	importantOnly: 'notifications.importantOnly',
+	showForSent: 'notifications.showForSent',
+	syncErrors: 'notifications.syncErrors',
+	previewSender: 'notifications.previewSender',
+	previewSubject: 'notifications.previewSubject',
+	bundleMultiple: 'notifications.bundleMultiple',
+	minCountToNotify: 'notifications.minCountToNotify',
+}
+
+function parseBool(v: string | undefined, def: boolean) {
+	if (v === undefined) return def
+	return v !== 'false' && v !== '0'
+}
+function parseNum(v: string | undefined, def: number) {
+	if (v === undefined) return def
+	const n = parseInt(v, 10)
+	return isNaN(n) ? def : n
 }
 
 // ── UID baseline ───────────────────────────────────────────────────
-// Key: `${accountId}:${mailbox}` → highest UID seen at startup.
-// Any new mail event with newHighestUid > baseline[key] is "new since start".
+
 export type UidBaseline = Record<string, number>
 
-function baselineKey(accountId: string, mailbox: string): string {
+function bKey(accountId: string, mailbox: string) {
 	return `${accountId}:${mailbox}`
 }
 
@@ -53,7 +100,6 @@ interface NotificationState {
 	prefs: NotificationPrefs
 	isLoadingPrefs: boolean
 
-	// Baseline UIDs loaded at startup
 	baseline: UidBaseline
 	baselineReady: boolean
 
@@ -61,24 +107,20 @@ interface NotificationState {
 	unreadCount: number
 	centerOpen: boolean
 
-	// Prefs
 	loadPrefs: () => Promise<void>
 	setPref: <K extends keyof NotificationPrefs>(
 		key: K,
 		value: NotificationPrefs[K]
 	) => Promise<void>
 
-	// Baseline
 	loadBaseline: () => Promise<void>
 	isNewMail: (accountId: string, mailbox: string, newHighestUid: number) => boolean
 	updateBaseline: (accountId: string, mailbox: string, uid: number) => void
 
-	// Center
 	openCenter: () => void
 	closeCenter: () => void
 	toggleCenter: () => void
 
-	// Items
 	addNotification: (notif: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => void
 	markRead: (id: string) => void
 	markAllRead: () => void
@@ -89,7 +131,7 @@ interface NotificationState {
 const MAX_ITEMS = 50
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
-	prefs: PREF_DEFAULTS,
+	prefs: D,
 	isLoadingPrefs: false,
 	baseline: {},
 	baselineReady: false,
@@ -103,13 +145,20 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 		set({ isLoadingPrefs: true })
 		try {
 			const all = await invoke<Record<string, string>>('get_all_settings')
-			const prefs = { ...PREF_DEFAULTS }
-			if (all[PREF_KEYS.enabled] !== undefined)
-				prefs.enabled = all[PREF_KEYS.enabled] !== 'false'
-			if (all[PREF_KEYS.sound] !== undefined) prefs.sound = all[PREF_KEYS.sound] === 'true'
-			if (all[PREF_KEYS.importantOnly] !== undefined)
-				prefs.importantOnly = all[PREF_KEYS.importantOnly] === 'true'
-			set({ prefs })
+			const p: NotificationPrefs = {
+				enabled: parseBool(all[KEYS.enabled], D.enabled),
+				showInCenter: parseBool(all[KEYS.showInCenter], D.showInCenter),
+				sound: parseBool(all[KEYS.sound], D.sound),
+				inboxOnly: parseBool(all[KEYS.inboxOnly], D.inboxOnly),
+				importantOnly: parseBool(all[KEYS.importantOnly], D.importantOnly),
+				showForSent: parseBool(all[KEYS.showForSent], D.showForSent),
+				syncErrors: parseBool(all[KEYS.syncErrors], D.syncErrors),
+				previewSender: parseBool(all[KEYS.previewSender], D.previewSender),
+				previewSubject: parseBool(all[KEYS.previewSubject], D.previewSubject),
+				bundleMultiple: parseBool(all[KEYS.bundleMultiple], D.bundleMultiple),
+				minCountToNotify: parseNum(all[KEYS.minCountToNotify], D.minCountToNotify),
+			}
+			set({ prefs: p })
 		} catch (e) {
 			console.error('[Notifications] Failed to load prefs:', e)
 		} finally {
@@ -120,7 +169,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 	setPref: async (key, value) => {
 		try {
 			await invoke('set_setting', {
-				key: PREF_KEYS[key as keyof NotificationPrefs],
+				key: KEYS[key as keyof NotificationPrefs],
 				value: String(value),
 			})
 			set((s) => ({ prefs: { ...s.prefs, [key]: value } }))
@@ -138,29 +187,22 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 					'get_inbox_baseline_uids'
 				)
 			const baseline: UidBaseline = {}
-			for (const row of rows) {
-				baseline[baselineKey(row.accountId, row.mailbox)] = row.uid
-			}
+			for (const row of rows) baseline[bKey(row.accountId, row.mailbox)] = row.uid
 			set({ baseline, baselineReady: true })
 		} catch (e) {
 			console.error('[Notifications] Failed to load baseline UIDs:', e)
-			set({ baselineReady: true }) // don't block forever
+			set({ baselineReady: true })
 		}
 	},
 
 	isNewMail: (accountId, mailbox, newHighestUid) => {
 		const { baseline, baselineReady } = get()
 		if (!baselineReady) return false
-		const key = baselineKey(accountId, mailbox)
-		const known = baseline[key] ?? 0
-		return newHighestUid > known
+		return newHighestUid > (baseline[bKey(accountId, mailbox)] ?? 0)
 	},
 
-	updateBaseline: (accountId, mailbox, uid) => {
-		set((s) => ({
-			baseline: { ...s.baseline, [baselineKey(accountId, mailbox)]: uid },
-		}))
-	},
+	updateBaseline: (accountId, mailbox, uid) =>
+		set((s) => ({ baseline: { ...s.baseline, [bKey(accountId, mailbox)]: uid } })),
 
 	// ── Center ─────────────────────────────────────────────────────
 
@@ -185,22 +227,20 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 		})
 	},
 
-	markRead: (id) => {
+	markRead: (id) =>
 		set((s) => {
 			const items = s.items.map((n) => (n.id === id ? { ...n, read: true } : n))
 			return { items, unreadCount: items.filter((n) => !n.read).length }
-		})
-	},
+		}),
 
 	markAllRead: () =>
 		set((s) => ({ items: s.items.map((n) => ({ ...n, read: true })), unreadCount: 0 })),
 
-	dismiss: (id) => {
+	dismiss: (id) =>
 		set((s) => {
 			const items = s.items.filter((n) => n.id !== id)
 			return { items, unreadCount: items.filter((n) => !n.read).length }
-		})
-	},
+		}),
 
 	clearAll: () => set({ items: [], unreadCount: 0 }),
 }))
