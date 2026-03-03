@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { invoke } from '@tauri-apps/api/core'
 import {
 	Inbox,
@@ -41,13 +42,24 @@ function RoleIcon({ role, className }: { role: string; className?: string }) {
 function RoleSelect({ value, onChange }: { value: Role; onChange: (role: Role) => void }) {
 	const { t } = useSettingsTranslation()
 	const [open, setOpen] = useState(false)
+	const [coords, setCoords] = useState({ top: 0, right: 0 })
+	const buttonRef = useRef<HTMLButtonElement>(null)
 	const roles = Object.keys(ROLE_ICONS) as Role[]
+
+	const handleOpen = () => {
+		if (buttonRef.current) {
+			const rect = buttonRef.current.getBoundingClientRect()
+			setCoords({ top: rect.bottom + 6, right: window.innerWidth - rect.right })
+		}
+		setOpen((o) => !o)
+	}
 
 	return (
 		<div className='relative'>
 			<button
+				ref={buttonRef}
 				type='button'
-				onClick={() => setOpen((o) => !o)}
+				onClick={handleOpen}
 				className='flex items-center gap-2 rounded-lg border border-white/[0.08] bg-slate-800/60 px-3 py-1.5 text-sm text-slate-200 transition-colors hover:border-white/[0.14] hover:bg-slate-700/60'>
 				<RoleIcon role={value} className='h-3.5 w-3.5 text-slate-400' />
 				<span>{t(`settings:mailboxRoles.roles.${value}`)}</span>
@@ -56,34 +68,38 @@ function RoleSelect({ value, onChange }: { value: Role; onChange: (role: Role) =
 				/>
 			</button>
 
-			{open && (
-				<>
-					<div className='fixed inset-0 z-10' onClick={() => setOpen(false)} />
-					<div className='absolute right-0 z-20 mt-1.5 w-44 overflow-hidden rounded-xl border border-white/[0.08] bg-slate-900 shadow-2xl'>
-						{roles.map((role) => {
-							const Icon = ROLE_ICONS[role]
-							return (
-								<button
-									key={role}
-									type='button'
-									onClick={() => {
-										onChange(role)
-										setOpen(false)
-									}}
-									className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-white/[0.06] ${
-										role === value ? 'text-slate-100' : 'text-slate-400'
-									}`}>
-									<Icon className='h-3.5 w-3.5 shrink-0' />
-									<span>{t(`settings:mailboxRoles.roles.${role}`)}</span>
-									{role === value && (
-										<Check className='ml-auto h-3.5 w-3.5 text-green-400' />
-									)}
-								</button>
-							)
-						})}
-					</div>
-				</>
-			)}
+			{open &&
+				createPortal(
+					<>
+						<div className='fixed inset-0 z-50' onClick={() => setOpen(false)} />
+						<div
+							className='fixed z-50 w-44 overflow-hidden rounded-xl border border-white/[0.08] bg-slate-900 shadow-2xl'
+							style={{ top: coords.top, right: coords.right }}>
+							{roles.map((role) => {
+								const Icon = ROLE_ICONS[role]
+								return (
+									<button
+										key={role}
+										type='button'
+										onClick={() => {
+											onChange(role)
+											setOpen(false)
+										}}
+										className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-white/[0.06] ${
+											role === value ? 'text-slate-100' : 'text-slate-400'
+										}`}>
+										<Icon className='h-3.5 w-3.5 shrink-0' />
+										<span>{t(`settings:mailboxRoles.roles.${role}`)}</span>
+										{role === value && (
+											<Check className='ml-auto h-3.5 w-3.5 text-green-400' />
+										)}
+									</button>
+								)
+							})}
+						</div>
+					</>,
+					document.body
+				)}
 		</div>
 	)
 }
@@ -155,41 +171,43 @@ export function MailboxRoleStep({ accountId, onDone }: MailboxRoleStepProps) {
 					</p>
 				</div>
 
-				<div className='flex flex-col gap-1.5'>
-					{loading ? (
-						<div className='flex items-center justify-center py-10'>
-							<Loader2 className='h-5 w-5 animate-spin text-slate-500' />
-						</div>
-					) : mailboxes.length === 0 ? (
-						<p className='py-6 text-center text-sm text-slate-500'>
-							{t('settings:mailboxRoles.noMailboxes')}
-						</p>
-					) : (
-						mailboxes.map((mb) => (
-							<div
-								key={mb.name}
-								className='flex items-center justify-between gap-3 rounded-xl border border-white/[0.05] bg-white/[0.03] px-4 py-2.5'>
-								<div className='flex min-w-0 items-center gap-3'>
-									<RoleIcon
-										role={roles[mb.name] ?? mb.role}
-										className='h-4 w-4 shrink-0 text-slate-400'
-									/>
-									<span
-										className='truncate text-sm text-slate-200'
-										title={mb.display_name || mb.name}>
-										{mb.display_name || mb.name}
-									</span>
-								</div>
-								<RoleSelect
-									value={(roles[mb.name] as Role) ?? 'other'}
-									onChange={(role) => handleRoleChange(mb.name, role)}
-								/>
+				<div className='max-h-[360px] overflow-y-auto'>
+					<div className='flex flex-col gap-1.5'>
+						{loading ? (
+							<div className='flex items-center justify-center py-10'>
+								<Loader2 className='h-5 w-5 animate-spin text-slate-500' />
 							</div>
-						))
-					)}
+						) : mailboxes.length === 0 ? (
+							<p className='py-6 text-center text-sm text-slate-500'>
+								{t('settings:mailboxRoles.noMailboxes')}
+							</p>
+						) : (
+							mailboxes.map((mb) => (
+								<div
+									key={mb.name}
+									className='flex items-center justify-between gap-3 rounded-xl border border-white/[0.05] bg-white/[0.03] px-4 py-2.5'>
+									<div className='flex min-w-0 items-center gap-3'>
+										<RoleIcon
+											role={roles[mb.name] ?? mb.role}
+											className='h-4 w-4 shrink-0 text-slate-400'
+										/>
+										<span
+											className='truncate text-sm text-slate-200'
+											title={mb.display_name || mb.name}>
+											{mb.display_name || mb.name}
+										</span>
+									</div>
+									<RoleSelect
+										value={(roles[mb.name] as Role) ?? 'other'}
+										onChange={(role) => handleRoleChange(mb.name, role)}
+									/>
+								</div>
+							))
+						)}
+					</div>
 				</div>
 
-				<div className='flex gap-3 pt-1'>
+				<div className='flex gap-3 border-t border-white/[0.06] pt-4'>
 					<Button
 						type='button'
 						variant='outline'
