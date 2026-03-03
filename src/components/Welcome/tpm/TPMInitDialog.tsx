@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { Shield, Lock, AlertCircle, Loader2, CheckCircle, XCircle } from 'lucide-react'
 import {
@@ -47,6 +47,7 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 	const [showRecoveryStep, setShowRecoveryStep] = useState(false)
 	const [showRecoveryVerify, setShowRecoveryVerify] = useState(false)
 	const { shellScope, contentScope, transition, reset } = useShellTransition()
+	const recoveryCompleted = useRef(false)
 
 	const checkTpmAvailability = useCallback(async () => {
 		if (requiresElevation !== undefined) {
@@ -107,6 +108,7 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 	}, [])
 
 	const handleRecoveryVerified = useCallback(() => {
+		recoveryCompleted.current = true
 		setShowRecoveryVerify(false)
 		onSuccess()
 		onClose()
@@ -115,13 +117,19 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 	const handleOpenChange = useCallback(
 		(o: boolean) => {
 			if (!o) {
+				if (showRecoveryStep && !recoveryCompleted.current) {
+					invoke('reset_security_setup').catch((e) =>
+						console.error('[TPMInitDialog] Failed to roll back security setup:', e)
+					)
+				}
+				recoveryCompleted.current = false
 				onClose()
 				setShowRecoveryStep(false)
 				setShowRecoveryVerify(false)
 				reset()
 			}
 		},
-		[onClose, reset]
+		[onClose, reset, showRecoveryStep]
 	)
 
 	// Go back to the elevation prompt so user can try authenticating again

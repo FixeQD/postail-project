@@ -87,6 +87,7 @@ pub fn run() {
             cmd::security::is_lock_configured,
             cmd::security::get_security_method,
             cmd::security::change_security_method,
+            cmd::security::reset_security_setup,
             cmd::security::generate_recovery_phrase,
             cmd::security::unlock_with_recovery_phrase,
             cmd::security::verify_recovery_words,

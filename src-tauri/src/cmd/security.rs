@@ -576,6 +576,75 @@ pub async fn change_security_method(
 }
 
 #[command]
+pub async fn reset_security_setup() -> Result<(), String> {
+    use std::fs;
+
+    // Safety: refuse if accounts already exist - this is only for initial setup rollback
+    {
+        let conn_guard = DB_CONN.lock().await;
+        if let Some(conn) = conn_guard.as_ref() {
+            let count: i64 = conn
+                .query_row("SELECT COUNT(*) FROM accounts", [], |r| r.get(0))
+                .unwrap_or(0);
+            if count > 0 {
+                return Err("Cannot reset: accounts already exist.".to_string());
+            }
+        }
+    }
+
+    // 1. Drop the DB connection
+    {
+        let mut db_guard = DB_CONN.lock().await;
+        *db_guard = None;
+    }
+
+    // 2. Reset the security manager to an uninitialized state
+    {
+        let mut security_guard = SECURITY.lock().await;
+        if let Some(tpm_store) = crate::security::stores::tpm::get_tpm_store() {
+            *security_guard = SecurityManager::with_store(tpm_store.into(), StorageTier::Tpm);
+        } else if let Ok(keyring) = KeyringStore::new() {
+            *security_guard = SecurityManager::with_store(Arc::new(keyring), StorageTier::Keyring);
+        }
+        // master_key is None, so the manager is effectively locked/empty
+    }
+
+    let data_dir = crate::utils::config::get_data_dir();
+
+    // 3. Delete the database file
+    let db_path = data_dir.join("postail.db");
+    if db_path.exists() {
+        fs::remove_file(&db_path).map_err(|e| format!("Failed to delete database: {}", e))?;
+    }
+
+    // 4. Delete the security directory (argon2 sealed key, recovery.sealed, etc.)
+    let security_path = data_dir.join("security");
+    if security_path.exists() {
+        fs::remove_dir_all(&security_path)
+            .map_err(|e| format!("Failed to delete security data: {}", e))?;
+    }
+
+    // 5. Delete any encrypted credentials (none should exist, but clean up just in case)
+    let creds_path = data_dir.join("creds");
+    if creds_path.exists() {
+        let _ = fs::remove_dir_all(&creds_path);
+    }
+
+    // 6. Remove security_method from config, keep theme
+    let existing_theme = crate::utils::config::load_config().and_then(|c| c.theme);
+    save_config(&AppConfig {
+        security_method: String::new(),
+        theme: existing_theme,
+    })?;
+
+    // 7. Clear any pending recovery phrase
+    crate::security::recovery::clear_pending_phrase();
+
+    tracing::info!(target: "postail", "[Security] Setup rolled back - clean slate for re-setup");
+    Ok(())
+}
+
+#[command]
 pub fn generate_recovery_phrase() -> String {
     let phrase = crate::security::recovery::generate_phrase();
     crate::security::recovery::store_pending_phrase(phrase.clone());
