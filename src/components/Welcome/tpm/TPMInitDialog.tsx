@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { Shield, Lock, AlertCircle, Loader2, CheckCircle, XCircle } from 'lucide-react'
 import {
@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useSecurityTranslation } from '@/hooks/useTypedTranslation'
-import { useAnimate } from 'framer-motion'
+import { useShellTransition } from '@/hooks/useShellTransition'
 import { cn } from '@/lib/utils'
 import { RecoveryStep } from '@/components/Welcome/recovery/RecoveryStep'
 import { RecoveryVerifyDialog } from '@/components/Welcome/recovery/RecoveryVerifyDialog'
@@ -46,9 +46,7 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 	const [error, setError] = useState<string | null>(null)
 	const [showRecoveryStep, setShowRecoveryStep] = useState(false)
 	const [showRecoveryVerify, setShowRecoveryVerify] = useState(false)
-	const transitioning = useRef(false)
-	const [shellScope, animateShell] = useAnimate()
-	const [contentScope, animateContent] = useAnimate()
+	const { shellScope, contentScope, transition, reset } = useShellTransition()
 
 	const checkTpmAvailability = useCallback(async () => {
 		if (requiresElevation !== undefined) {
@@ -82,38 +80,9 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 		}
 	}, [open, checkTpmAvailability])
 
-	const switchToRecovery = useCallback(async () => {
-		if (transitioning.current) return
-		transitioning.current = true
-
-		const shell = shellScope.current as HTMLDivElement | null
-		const content = contentScope.current as HTMLDivElement | null
-		if (!shell || !content) {
-			transitioning.current = false
-			return
-		}
-
-		await animateContent(content, { opacity: 0 }, { duration: 0.15, ease: 'easeInOut' })
-
-		shell.style.height = shell.offsetHeight + 'px'
-		shell.style.overflow = 'hidden'
-
-		setShowRecoveryStep(true)
-
-		await new Promise<void>((r) =>
-			requestAnimationFrame(() => requestAnimationFrame(() => r()))
-		)
-
-		const newH = content.scrollHeight
-		await animateShell(shell, { height: newH }, { duration: 0.36, ease: [0.16, 1, 0.3, 1] })
-
-		shell.style.height = 'auto'
-		shell.style.overflow = ''
-
-		await animateContent(content, { opacity: 1 }, { duration: 0.15, ease: 'easeInOut' })
-
-		transitioning.current = false
-	}, [animateShell, animateContent, shellScope, contentScope])
+	const switchToRecovery = useCallback(() => {
+		transition(() => setShowRecoveryStep(true))
+	}, [transition])
 
 	const handleInitialize = useCallback(async () => {
 		setStatus('initializing')
@@ -149,15 +118,10 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 				onClose()
 				setShowRecoveryStep(false)
 				setShowRecoveryVerify(false)
-				transitioning.current = false
-				const shell = shellScope.current as HTMLDivElement | null
-				if (shell) {
-					shell.style.height = 'auto'
-					shell.style.overflow = ''
-				}
+				reset()
 			}
 		},
-		[onClose, shellScope]
+		[onClose, reset]
 	)
 
 	// Go back to the elevation prompt so user can try authenticating again
