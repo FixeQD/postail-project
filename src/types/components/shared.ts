@@ -119,7 +119,7 @@ export interface SettingCardProps {
 }
 
 export interface AddAccountDialogProps {
-	onAccountAdded?: () => void
+	onAccountAdded?: (accountId?: string) => void
 	children?: React.ReactNode
 }
 
@@ -130,7 +130,7 @@ export interface EditAccountDialogProps {
 }
 
 export interface ManualAccountFormProps {
-	onSuccess: () => void
+	onSuccess: (accountId: string) => void
 	onCancel: () => void
 	editAccount?: AccountMeta
 }

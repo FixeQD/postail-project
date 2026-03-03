@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import * as opener from '@tauri-apps/plugin-opener'
 import { useAccountsTranslation } from '@/hooks/useTypedTranslation'
 import { Plus, Mail, Loader2, ArrowRight, Settings } from 'lucide-react'
+import { MailboxRoleStep } from './MailboxRoleStep'
 import {
 	Dialog,
 	DialogContent,
@@ -15,9 +16,11 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { ManualAccountForm } from './ManualAccountForm'
 import { useAccountStore } from '@/stores/accountStore'
-import { useAnimate } from 'framer-motion'
+import { useShellTransition } from '@/hooks/useShellTransition'
 import type { ComponentType } from 'react'
 import type { AddAccountDialogProps } from '@/types/components/shared'
+
+type DialogView = 'providers' | 'manual' | 'mailbox-roles'
 
 const ProviderOption = ({
 	title,
@@ -71,14 +74,10 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 	const fetchAccounts = useAccountStore((s) => s.fetchAccounts)
 	const [loading, setLoading] = useState<string | null>(null)
 	const [open, setOpen] = useState(false)
-	const [showManualForm, setShowManualForm] = useState(false)
+	const [view, setView] = useState<DialogView>('providers')
+	const [newAccountId, setNewAccountId] = useState<string | null>(null)
 	const [availableProviders, setAvailableProviders] = useState<string[]>([])
-	const transitioning = useRef(false)
-
-	// shellScope  → the outer div we animate height on
-	// contentScope → the inner div we fade
-	const [shellScope, animateShell] = useAnimate()
-	const [contentScope, animateContent] = useAnimate()
+	const { shellScope, contentScope, transition, reset } = useShellTransition()
 
 	useEffect(() => {
 		if (open) {
@@ -88,47 +87,7 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 		}
 	}, [open])
 
-	const switchTo = async (next: boolean) => {
-		if (transitioning.current) return
-		transitioning.current = true
-
-		const shell = shellScope.current as HTMLDivElement | null
-		const content = contentScope.current as HTMLDivElement | null
-		if (!shell || !content) {
-			transitioning.current = false
-			return
-		}
-
-		// 1. Fade out current content
-		await animateContent(content, { opacity: 0 }, { duration: 0.15, ease: 'easeInOut' })
-
-		// 2. Lock shell at current pixel height so it doesn't jump
-		shell.style.height = shell.offsetHeight + 'px'
-		shell.style.overflow = 'hidden'
-
-		// 3. Swap content
-		setShowManualForm(next)
-
-		// 4. Wait two frames so the browser has painted the new content
-		await new Promise<void>((r) =>
-			requestAnimationFrame(() => requestAnimationFrame(() => r()))
-		)
-
-		// 5. Read the new natural height
-		const newH = content.scrollHeight
-
-		// 6. Animate shell height to new value
-		await animateShell(shell, { height: newH }, { duration: 0.36, ease: [0.16, 1, 0.3, 1] })
-
-		// 7. Release fixed height so content can reflow freely (e.g. checkbox expanding)
-		shell.style.height = 'auto'
-		shell.style.overflow = ''
-
-		// 8. Fade in new content
-		await animateContent(content, { opacity: 1 }, { duration: 0.15, ease: 'easeInOut' })
-
-		transitioning.current = false
-	}
+	const switchTo = (next: DialogView) => transition(() => setView(next))
 
 	const handleProviderClick = async (provider: 'gmail' | 'outlook') => {
 		setLoading(provider)
@@ -143,22 +102,23 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 		}
 	}
 
-	const handleManualSuccess = () => {
-		setShowManualForm(false)
+	const handleManualSuccess = (accountId: string) => {
+		setNewAccountId(accountId)
+		transition(() => setView('mailbox-roles'))
+	}
+
+	const handleMailboxRolesDone = () => {
 		setOpen(false)
-		onAccountAdded ? onAccountAdded() : fetchAccounts()
+		onAccountAdded ? onAccountAdded(newAccountId ?? undefined) : fetchAccounts()
 	}
 
 	const handleOpenChange = (newOpen: boolean) => {
 		setOpen(newOpen)
 		if (!newOpen) {
-			setShowManualForm(false)
+			setView('providers')
+			setNewAccountId(null)
 			setLoading(null)
-			transitioning.current = false
-			if (shellScope.current) {
-				;(shellScope.current as HTMLDivElement).style.height = 'auto'
-				;(shellScope.current as HTMLDivElement).style.overflow = ''
-			}
+			reset()
 		}
 	}
 
@@ -178,59 +138,70 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 				<div ref={shellScope} className='w-full'>
 					{/* Content wrapper: we fade this independently */}
 					<div ref={contentScope} className='p-6'>
-						<DialogHeader className='mb-2'>
-							<DialogTitle className='text-xl font-bold'>
-								{t('settings:accounts.title')}
-							</DialogTitle>
-							<DialogDescription className='text-slate-400'>
-								{t('settings:accounts.subtitle')}
-							</DialogDescription>
-						</DialogHeader>
-
-						{!showManualForm ? (
-							<div className='grid gap-3 py-4'>
-								<ProviderOption
-									title={t('settings:accounts.providers.gmail.title')}
-									icon={Mail}
-									brandColor={
-										availableProviders.includes('gmail')
-											? 'from-red-500 to-orange-500'
-											: 'from-slate-500 to-slate-400'
-									}
-									onClick={() => handleProviderClick('gmail')}
-									isLoading={loading === 'gmail'}
-									disabled={
-										!availableProviders.includes('gmail') || loading !== null
-									}
-								/>
-								<ProviderOption
-									title={t('settings:accounts.providers.outlook.title')}
-									icon={Mail}
-									brandColor={
-										availableProviders.includes('outlook')
-											? 'from-blue-500 to-cyan-500'
-											: 'from-slate-500 to-slate-400'
-									}
-									onClick={() => handleProviderClick('outlook')}
-									isLoading={loading === 'outlook'}
-									disabled={
-										!availableProviders.includes('outlook') || loading !== null
-									}
-								/>
-								<ProviderOption
-									title={t('settings:accounts.providers.imap.title')}
-									icon={Settings}
-									brandColor='from-slate-500 to-slate-400'
-									onClick={() => switchTo(true)}
-									isLoading={false}
-									disabled={loading !== null}
-								/>
-							</div>
-						) : (
-							<ManualAccountForm
-								onSuccess={handleManualSuccess}
-								onCancel={() => switchTo(false)}
+						{view === 'mailbox-roles' && newAccountId ? (
+							<MailboxRoleStep
+								accountId={newAccountId}
+								onDone={handleMailboxRolesDone}
 							/>
+						) : (
+							<>
+								<DialogHeader className='mb-2'>
+									<DialogTitle className='text-xl font-bold'>
+										{t('settings:accounts.title')}
+									</DialogTitle>
+									<DialogDescription className='text-slate-400'>
+										{t('settings:accounts.subtitle')}
+									</DialogDescription>
+								</DialogHeader>
+
+								{view === 'providers' ? (
+									<div className='grid gap-3 py-4'>
+										<ProviderOption
+											title={t('settings:accounts.providers.gmail.title')}
+											icon={Mail}
+											brandColor={
+												availableProviders.includes('gmail')
+													? 'from-red-500 to-orange-500'
+													: 'from-slate-500 to-slate-400'
+											}
+											onClick={() => handleProviderClick('gmail')}
+											isLoading={loading === 'gmail'}
+											disabled={
+												!availableProviders.includes('gmail') ||
+												loading !== null
+											}
+										/>
+										<ProviderOption
+											title={t('settings:accounts.providers.outlook.title')}
+											icon={Mail}
+											brandColor={
+												availableProviders.includes('outlook')
+													? 'from-blue-500 to-cyan-500'
+													: 'from-slate-500 to-slate-400'
+											}
+											onClick={() => handleProviderClick('outlook')}
+											isLoading={loading === 'outlook'}
+											disabled={
+												!availableProviders.includes('outlook') ||
+												loading !== null
+											}
+										/>
+										<ProviderOption
+											title={t('settings:accounts.providers.imap.title')}
+											icon={Settings}
+											brandColor='from-slate-500 to-slate-400'
+											onClick={() => switchTo('manual')}
+											isLoading={false}
+											disabled={loading !== null}
+										/>
+									</div>
+								) : (
+									<ManualAccountForm
+										onSuccess={handleManualSuccess}
+										onCancel={() => switchTo('providers')}
+									/>
+								)}
+							</>
 						)}
 					</div>
 				</div>

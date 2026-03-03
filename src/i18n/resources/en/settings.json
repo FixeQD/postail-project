@@ -257,6 +257,27 @@
 			}
 		}
 	},
+	"mailboxRoles": {
+		"title": "Review mailbox roles",
+		"subtitle": "These roles were detected automatically. Change any that look wrong - roles control how the app treats each folder.",
+		"noMailboxes": "No mailboxes found for this account.",
+		"skip": "Skip",
+		"confirm": "Confirm roles",
+		"saving": "Saving...",
+		"dialogTitle": "Review mailbox roles",
+		"dialogDescription": "Check and adjust the detected role for each folder.",
+		"roles": {
+			"inbox": "Inbox",
+			"sent": "Sent",
+			"drafts": "Drafts",
+			"trash": "Trash",
+			"archive": "Archive",
+			"junk": "Junk / Spam",
+			"flagged": "Flagged",
+			"all": "All Mail",
+			"other": "Other"
+		}
+	},
 	"accounts": {
 		"title": "Add Email Account",
 		"subtitle": "Connect your email provider to get started",

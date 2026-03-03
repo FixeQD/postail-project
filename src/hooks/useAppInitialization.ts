@@ -39,6 +39,9 @@ export function useAppInitialization() {
 	const [isRecoveryReencrypt, setIsRecoveryReencrypt] = useState(false)
 	const [showRecoveryVerify, setShowRecoveryVerify] = useState(false)
 	const [recoveryReencryptSource, setRecoveryReencryptSource] = useState<AppState | null>(null)
+	const [pendingMailboxRoleAccountId, setPendingMailboxRoleAccountId] = useState<string | null>(
+		null
+	)
 	// Guard against double-init from React StrictMode or dependency re-fires
 	const isInitializingRef = useRef(false)
 	const hasInitializedRef = useRef(false)
@@ -240,14 +243,14 @@ export function useAppInitialization() {
 						setPendingReauthAccountId(null)
 						toast.success(t('app.reauthSuccess', 'Re-authenticated successfully'))
 					} else {
-						await invoke('complete_oauth_flow', {
+						const newAccount = await invoke<AccountMeta>('complete_oauth_flow', {
 							code: event.payload.code,
 							state: event.payload.state,
 							codeVerifier: event.payload.code_verifier,
 							providerType: event.payload.provider_type,
 						})
 
-						handleAccountAdded()
+						setPendingMailboxRoleAccountId(newAccount.id)
 					}
 					await getCurrentWindow().maximize()
 				} catch (error) {
@@ -272,6 +275,12 @@ export function useAppInitialization() {
 		setCurrentState('init')
 	}, [])
 
+	const handleMailboxRolesDone = useCallback(async () => {
+		setPendingMailboxRoleAccountId(null)
+		await getCurrentWindow().maximize()
+		await handleAccountAdded()
+	}, [handleAccountAdded])
+
 	return {
 		currentState,
 		setCurrentState,
@@ -292,5 +301,7 @@ export function useAppInitialization() {
 		isRecoveryReencrypt,
 		setIsRecoveryReencrypt,
 		recoveryReencryptSource,
+		pendingMailboxRoleAccountId,
+		handleMailboxRolesDone,
 	}
 }

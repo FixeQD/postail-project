@@ -23,6 +23,7 @@ import { useThemeStore } from './stores/themeStore'
 import { useAnimationsEnabled } from './hooks/useMotion'
 import { useAppInitialization } from './hooks/useAppInitialization'
 import { useAccountStore } from '@/stores/accountStore'
+import { MailboxRoleDialog } from './components/Settings/Sections/Account/MailboxRoleDialog'
 import icon from './assets/icon.png'
 import './i18n'
 
@@ -48,6 +49,8 @@ function App() {
 		handleRecoveryPhraseVerified,
 		handleRecoveryReencrypt,
 		recoveryReencryptSource,
+		pendingMailboxRoleAccountId,
+		handleMailboxRolesDone,
 	} = useAppInitialization()
 
 	useEffect(() => {
@@ -268,6 +271,10 @@ function App() {
 				)}
 			</main>
 			{currentState === 'dashboard' && <StatusBar onOpenOutbox={() => setOutboxOpen(true)} />}
+			<MailboxRoleDialog
+				accountId={pendingMailboxRoleAccountId}
+				onDone={handleMailboxRolesDone}
+			/>
 			<Toaster />
 			<LockScreen
 				isLocked={isLocked}

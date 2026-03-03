@@ -91,6 +91,7 @@ pub fn run() {
             cmd::security::unlock_with_recovery_phrase,
             cmd::security::verify_recovery_words,
             cmd::mail::listing::fetch_mailboxes,
+            cmd::mail::listing::update_mailbox_role,
             cmd::mail::listing::fetch_headers,
             cmd::mail::listing::fetch_message_full,
             cmd::mail::listing::save_attachment,

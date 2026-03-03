@@ -1,6 +1,7 @@
 use crate::db::{AttachmentMeta, MailHeader, Mailbox, MessageFull};
 use crate::globals::{DB_CONN, IMAP_MANAGER};
 use crate::oauth;
+use rusqlite::params;
 use tauri::command;
 
 #[command]
@@ -94,6 +95,31 @@ pub async fn fetch_mailboxes(account_id: String) -> Result<Vec<Mailbox>, String>
     });
 
     Ok(mailboxes)
+}
+
+#[command]
+pub async fn update_mailbox_role(
+    account_id: String,
+    mailbox_name: String,
+    role: String,
+) -> Result<(), String> {
+    let valid_roles = [
+        "inbox", "sent", "drafts", "trash", "archive", "junk", "flagged", "all", "other",
+    ];
+    if !valid_roles.contains(&role.as_str()) {
+        return Err(format!("Invalid role: {}", role));
+    }
+
+    let conn_guard = DB_CONN.lock().await;
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+
+    conn.execute(
+        "UPDATE mailboxes SET role = ? WHERE account_id = ? AND name = ?",
+        params![role, account_id, mailbox_name],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 #[command]

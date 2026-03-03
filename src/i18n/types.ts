@@ -199,6 +199,27 @@ export interface SettingsTranslations {
 			removeConfirm: string
 		}
 	}
+	mailboxRoles: {
+		title: string
+		subtitle: string
+		noMailboxes: string
+		skip: string
+		confirm: string
+		saving: string
+		dialogTitle: string
+		dialogDescription: string
+		roles: {
+			inbox: string
+			sent: string
+			drafts: string
+			trash: string
+			archive: string
+			junk: string
+			flagged: string
+			all: string
+			other: string
+		}
+	}
 }
 
 export interface ValidationTranslations {

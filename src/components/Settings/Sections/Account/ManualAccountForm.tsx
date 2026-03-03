@@ -68,11 +68,11 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 					config,
 				})
 				updateAccount(result)
+				onSuccess(editAccount.id)
 			} else {
-				await invoke('add_custom_account', { config })
+				const account = await invoke<AccountMeta>('add_custom_account', { config })
+				onSuccess(account.id)
 			}
-
-			onSuccess()
 		} catch (err) {
 			const action = editAccount ? 'update' : 'add'
 			console.error(`Failed to ${action} account:`, err)
