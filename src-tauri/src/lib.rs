@@ -16,6 +16,7 @@ use crate::imap::pool::init_pool;
 use crate::imap::sync_status::set_sync_status_app_handle;
 
 /// TPM helper mode: Initialize TPM with elevated privileges (Linux only)
+#[cfg(all(target_os = "linux", feature = "tpm"))]
 pub fn tpm_helper_init() -> Result<(), String> {
     crate::security::tpm_helper::tpm_helper_init()
 }
@@ -74,6 +75,7 @@ pub fn run() {
             cmd::account::remove_account,
             cmd::account::get_available_providers,
             cmd::security::check_security_options,
+            #[cfg(all(target_os = "linux", feature = "tpm"))]
             cmd::security::check_tpm_availability,
             cmd::security::initialize_security,
             cmd::security::record_lock_activity,

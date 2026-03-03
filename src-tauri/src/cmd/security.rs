@@ -13,6 +13,7 @@ use tauri::command;
 use tokio::task::spawn_blocking;
 use tokio::time::timeout;
 
+#[cfg(all(target_os = "linux", feature = "tpm"))]
 #[derive(Serialize, Debug, Clone, Copy)]
 #[serde(rename_all = "camelCase")]
 pub enum TpmErrorType {
@@ -24,18 +25,21 @@ pub enum TpmErrorType {
     Other,
 }
 
+#[cfg(all(target_os = "linux", feature = "tpm"))]
 #[derive(Serialize, Debug, Clone)]
 pub struct TpmInitError {
     pub error_type: TpmErrorType,
     pub message: String,
 }
 
+#[cfg(all(target_os = "linux", feature = "tpm"))]
 impl std::fmt::Display for TpmInitError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}: {}", self.error_type, self.message)
     }
 }
 
+#[cfg(all(target_os = "linux", feature = "tpm"))]
 impl From<TpmInitError> for String {
     fn from(err: TpmInitError) -> Self {
         serde_json::to_string(&err).unwrap_or(err.message)
@@ -44,7 +48,9 @@ impl From<TpmInitError> for String {
 
 #[derive(Serialize)]
 pub struct SecurityOptions {
+    #[cfg(all(target_os = "linux", feature = "tpm"))]
     pub tpm_available: bool,
+    #[cfg(all(target_os = "linux", feature = "tpm"))]
     pub tpm_requires_elevation: bool,
     pub keyring_available: bool,
     pub argon2_available: bool,
@@ -52,6 +58,7 @@ pub struct SecurityOptions {
 
 #[command]
 pub async fn check_security_options() -> Result<SecurityOptions, String> {
+    #[cfg(all(target_os = "linux", feature = "tpm"))]
     let (tpm_available, tpm_requires_elevation) = timeout(
         Duration::from_secs(3),
         spawn_blocking(|| {
@@ -74,13 +81,16 @@ pub async fn check_security_options() -> Result<SecurityOptions, String> {
         .unwrap_or(false);
 
     Ok(SecurityOptions {
+        #[cfg(all(target_os = "linux", feature = "tpm"))]
         tpm_available,
+        #[cfg(all(target_os = "linux", feature = "tpm"))]
         tpm_requires_elevation,
         keyring_available,
         argon2_available: true,
     })
 }
 
+#[cfg(all(target_os = "linux", feature = "tpm"))]
 #[derive(Serialize)]
 pub enum TpmStatus {
     Available,
@@ -88,6 +98,7 @@ pub enum TpmStatus {
     NotAvailable,
 }
 
+#[cfg(all(target_os = "linux", feature = "tpm"))]
 #[command]
 pub async fn check_tpm_availability() -> Result<TpmStatus, String> {
     use crate::security::TpmAvailability;
@@ -132,6 +143,7 @@ pub fn get_app_initialization_status() -> InitStatus {
     InitStatus { status, method }
 }
 
+#[cfg(all(target_os = "linux", feature = "tpm"))]
 fn get_executable_path() -> std::io::Result<std::path::PathBuf> {
     if let Ok(appimage) = std::env::var("APPIMAGE") {
         return Ok(std::path::PathBuf::from(appimage));
@@ -252,7 +264,7 @@ pub async fn initialize_security_and_database(
 }
 
 /// Initialize TPM with elevated privileges if needed (Linux only)
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "tpm"))]
 async fn initialize_tpm_elevated() -> Result<(), TpmInitError> {
     use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
     use std::os::unix::io::{AsRawFd, RawFd};
@@ -466,7 +478,7 @@ pub async fn initialize_security(
     }
 
     // Check if TPM requires elevation (Linux only)
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", feature = "tpm"))]
     if method == "tpm" {
         let availability =
             spawn_blocking(|| crate::security::TpmInitializer::new().check_availability())
@@ -504,7 +516,7 @@ pub async fn change_security_method(
     let mut new_security = match method.as_str() {
         "tpm" => {
             // TPM may need elevation
-            #[cfg(target_os = "linux")]
+            #[cfg(all(target_os = "linux", feature = "tpm"))]
             {
                 let availability =
                     spawn_blocking(|| crate::security::TpmInitializer::new().check_availability())

@@ -6,8 +6,11 @@ pub mod manager;
 pub mod master_key;
 pub mod recovery;
 pub mod stores;
+#[cfg(all(target_os = "linux", feature = "tpm"))]
 pub mod tpm_helper;
+#[cfg(all(target_os = "linux", feature = "tpm"))]
 pub mod tpm_init;
+#[cfg(all(target_os = "linux", feature = "tpm"))]
 pub mod tpm_protocol;
 pub mod zeroize_helpers;
 
@@ -22,5 +25,6 @@ pub use lock_timer::{start_lock_timer, stop_lock_timer};
 pub use manager::{PassphraseSecurityBuilder, SecurityManager};
 pub use master_key::{MasterKey, MASTER_KEY_LENGTH};
 pub use stores::{SecretStore, StorageTier};
+#[cfg(all(target_os = "linux", feature = "tpm"))]
 pub use tpm_init::{TpmAvailability, TpmInitializer};
 pub use zeroize_helpers::{secure_zeroize, secure_zeroize_vec, ZeroizingBytes};

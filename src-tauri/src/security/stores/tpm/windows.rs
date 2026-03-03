@@ -119,7 +119,7 @@ impl WindowsTpmStore {
                 None,
                 OPEN_EXISTING,
                 FILE_ATTRIBUTE_NORMAL,
-                HANDLE::default(),
+                Some(HANDLE::default()),
             );
 
             match handle {

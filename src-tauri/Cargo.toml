@@ -86,6 +86,7 @@ windows = { version = "0.62", features = [
     "Win32_Security_Cryptography",
     "Win32_Foundation",
     "Win32_System_Memory",
+    "Win32_Storage_FileSystem",
 ], optional = true }
 tauri-plugin-notification = { version = "2.3.3", features = ["windows-version"] }
 
