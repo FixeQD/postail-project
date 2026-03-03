@@ -7,7 +7,7 @@ export function useShellTransition() {
 	const [contentScope, animateContent] = useAnimate()
 
 	const transition = useCallback(
-		async (swap: () => void) => {
+		async (swap: () => void | Promise<void>) => {
 			if (transitioning.current) return
 			transitioning.current = true
 
@@ -23,7 +23,7 @@ export function useShellTransition() {
 			shell.style.height = shell.offsetHeight + 'px'
 			shell.style.overflow = 'hidden'
 
-			swap()
+			await swap()
 
 			await new Promise<void>((r) =>
 				requestAnimationFrame(() => requestAnimationFrame(() => r()))
