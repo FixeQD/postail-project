@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import type { Mailbox } from '@/types/mail'
 import * as opener from '@tauri-apps/plugin-opener'
 import { useAccountsTranslation } from '@/hooks/useTypedTranslation'
-import { RefreshCw, Loader2, Save, AlertCircle } from 'lucide-react'
+import { RefreshCw, Loader2, Save, AlertCircle, FolderCog } from 'lucide-react'
 import {
 	Dialog,
 	DialogContent,
@@ -14,28 +15,57 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ManualAccountForm } from './ManualAccountForm'
+import { MailboxRoleStep } from './MailboxRoleStep'
 import { useAccountStore } from '@/stores/accountStore'
+import { useShellTransition } from '@/hooks/useShellTransition'
 import { toast } from '@/components/ui/custom/Toaster'
 import type { EditAccountDialogProps } from '@/types/components/shared'
+
+type EditView = 'main' | 'mailbox-roles'
 
 export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDialogProps) {
 	const { t } = useAccountsTranslation()
 	const { updateAccount, setPendingReauthAccountId, pendingReauthAccountId } = useAccountStore()
 	const [isLoading, setIsLoading] = useState(false)
 	const [newName, setNewName] = useState(account.name)
+	const [view, setView] = useState<EditView>('main')
+	const [preloadedMailboxes, setPreloadedMailboxes] = useState<Mailbox[] | null>(null)
 	const prevPendingRef = useRef(pendingReauthAccountId)
+	const { shellScope, contentScope, transition, reset } = useShellTransition()
 
 	const isReauthing = pendingReauthAccountId === account.id
+	const isOAuth = account.auth_type === 'oauth2'
 
 	useEffect(() => {
-		// If we were reauthing and it became null, it means it's done
+		// reauth done when pending clears
 		if (prevPendingRef.current === account.id && pendingReauthAccountId === null) {
 			onOpenChange(false)
 		}
 		prevPendingRef.current = pendingReauthAccountId
 	}, [pendingReauthAccountId, account.id, onOpenChange])
 
-	const isOAuth = account.auth_type === 'oauth2'
+	const handleOpenChange = (o: boolean) => {
+		if (!o) {
+			setView('main')
+			setPreloadedMailboxes(null)
+			reset()
+		}
+		onOpenChange(o)
+	}
+
+	const handleOpenMailboxRoles = () =>
+		transition(async () => {
+			const mbs = await invoke<Mailbox[]>('fetch_mailboxes', { accountId: account.id }).catch(
+				() => []
+			)
+			setPreloadedMailboxes(mbs)
+			setView('mailbox-roles')
+		})
+
+	const handleBackToMain = () => {
+		setPreloadedMailboxes(null)
+		transition(() => setView('main'))
+	}
 
 	const handleSaveName = async () => {
 		setIsLoading(true)
@@ -59,7 +89,6 @@ export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDi
 				provider: account.provider_type,
 			})
 			await opener.openUrl(url)
-			// Don't close immediately anymore - wait for the callback
 		} catch (error) {
 			console.error('Failed to start re-auth:', error)
 			setPendingReauthAccountId(null)
@@ -70,115 +99,147 @@ export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDi
 	}
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className='border-slate-800 bg-slate-900/95 text-slate-100 backdrop-blur-xl sm:max-w-md'>
-				<DialogHeader>
-					<DialogTitle className='text-xl font-bold'>
-						{t('settings:accounts.list.edit', 'Edit Account')}
-					</DialogTitle>
-					<DialogDescription className='text-slate-400'>
-						{isOAuth
-							? t(
-									'settings:accounts.list.editOAuthDesc',
-									'Update name or re-connect your account.'
-								)
-							: t(
-									'settings:accounts.list.editManualDesc',
-									'Update your account settings and credentials.'
-								)}
-					</DialogDescription>
-				</DialogHeader>
+		<Dialog open={open} onOpenChange={handleOpenChange}>
+			<DialogContent className='overflow-hidden border-slate-800 bg-slate-900/95 p-0 text-slate-100 backdrop-blur-xl sm:max-w-md'>
+				<div ref={shellScope} className='w-full'>
+					<div ref={contentScope} className='p-6'>
+						{view === 'mailbox-roles' ? (
+							<MailboxRoleStep
+								accountId={account.id}
+								onDone={handleBackToMain}
+								initialMailboxes={preloadedMailboxes ?? undefined}
+							/>
+						) : (
+							<>
+								<DialogHeader className='mb-4'>
+									<DialogTitle className='text-xl font-bold'>
+										{t('settings:accounts.list.edit', 'Edit Account')}
+									</DialogTitle>
+									<DialogDescription className='text-slate-400'>
+										{isOAuth
+											? t(
+													'settings:accounts.list.editOAuthDesc',
+													'Update name or re-connect your account.'
+												)
+											: t(
+													'settings:accounts.list.editManualDesc',
+													'Update your account settings and credentials.'
+												)}
+									</DialogDescription>
+								</DialogHeader>
 
-				<div className='py-4'>
-					{isOAuth ? (
-						<div className='space-y-6'>
-							<div className='space-y-2'>
-								<Label htmlFor='newName'>
-									{t('settings:accounts.form.name', 'Account Name')}
-								</Label>
-								<div className='flex gap-2'>
-									<Input
-										id='newName'
-										value={newName}
-										onChange={(e) => setNewName(e.target.value)}
-										className='border-slate-700 bg-slate-800/50'
-									/>
-									<Button
-										size='icon'
-										onClick={handleSaveName}
-										disabled={isLoading || newName === account.name}
-										className='shrink-0 bg-blue-600 hover:bg-blue-500'>
-										{isLoading ? (
-											<Loader2 className='h-4 w-4 animate-spin' />
-										) : (
-											<Save className='h-4 w-4' />
-										)}
-									</Button>
-								</div>
-							</div>
+								<div className='space-y-4'>
+									{isOAuth ? (
+										<div className='space-y-6'>
+											<div className='space-y-2'>
+												<Label htmlFor='newName'>
+													{t(
+														'settings:accounts.form.name',
+														'Account Name'
+													)}
+												</Label>
+												<div className='flex gap-2'>
+													<Input
+														id='newName'
+														value={newName}
+														onChange={(e) => setNewName(e.target.value)}
+														className='border-slate-700 bg-slate-800/50'
+													/>
+													<Button
+														size='icon'
+														onClick={handleSaveName}
+														disabled={
+															isLoading || newName === account.name
+														}
+														className='shrink-0 bg-blue-600 hover:bg-blue-500'>
+														{isLoading ? (
+															<Loader2 className='h-4 w-4 animate-spin' />
+														) : (
+															<Save className='h-4 w-4' />
+														)}
+													</Button>
+												</div>
+											</div>
 
-							<div className='rounded-xl border border-blue-500/20 bg-blue-500/5 p-4'>
-								<div className='mb-3 flex items-start gap-3'>
-									<RefreshCw className='mt-0.5 h-5 w-5 text-blue-400' />
-									<div>
-										<h4 className='text-sm font-semibold text-blue-100'>
-											{t(
-												'settings:accounts.reauth.title',
-												'Re-authentication Required?'
-											)}
-										</h4>
-										<p className='mt-1 text-xs leading-relaxed text-blue-300/80'>
-											{t(
-												'settings:accounts.reauth.description',
-												"If you're having connection issues or your session expired, you can re-link your account."
-											)}
-										</p>
-									</div>
-								</div>
-								<Button
-									onClick={handleReauth}
-									disabled={isLoading || isReauthing}
-									className='w-full bg-blue-600 hover:bg-blue-500'>
-									{isReauthing ? (
-										<>
-											<Loader2 className='mr-2 h-4 w-4 animate-spin' />
-											{t(
-												'settings:accounts.reauth.waiting',
-												'Waiting for browser...'
-											)}
-										</>
+											<div className='rounded-xl border border-blue-500/20 bg-blue-500/5 p-4'>
+												<div className='mb-3 flex items-start gap-3'>
+													<RefreshCw className='mt-0.5 h-5 w-5 text-blue-400' />
+													<div>
+														<h4 className='text-sm font-semibold text-blue-100'>
+															{t(
+																'settings:accounts.reauth.title',
+																'Re-authentication Required?'
+															)}
+														</h4>
+														<p className='mt-1 text-xs leading-relaxed text-blue-300/80'>
+															{t(
+																'settings:accounts.reauth.description',
+																"If you're having connection issues or your session expired, you can re-link your account."
+															)}
+														</p>
+													</div>
+												</div>
+												<Button
+													onClick={handleReauth}
+													disabled={isLoading || isReauthing}
+													className='w-full bg-blue-600 hover:bg-blue-500'>
+													{isReauthing ? (
+														<>
+															<Loader2 className='mr-2 h-4 w-4 animate-spin' />
+															{t(
+																'settings:accounts.reauth.waiting',
+																'Waiting for browser...'
+															)}
+														</>
+													) : (
+														<>
+															{isLoading && (
+																<Loader2 className='mr-2 h-4 w-4 animate-spin' />
+															)}
+															{t(
+																'settings:accounts.reauth.button',
+																'Re-authenticate'
+															)}
+														</>
+													)}
+												</Button>
+											</div>
+
+											<div className='flex items-center gap-2 rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-3 text-[11px] text-yellow-200/70'>
+												<AlertCircle className='h-4 w-4 shrink-0 text-yellow-500/70' />
+												<span>
+													{t(
+														'settings:accounts.reauth.notice',
+														'Ensure you log in with the same email address: '
+													)}
+													<strong className='text-yellow-200'>
+														{account.email}
+													</strong>
+												</span>
+											</div>
+										</div>
 									) : (
-										<>
-											{isLoading && (
-												<Loader2 className='mr-2 h-4 w-4 animate-spin' />
-											)}
-											{t(
-												'settings:accounts.reauth.button',
-												'Re-authenticate'
-											)}
-										</>
+										<ManualAccountForm
+											editAccount={account}
+											onSuccess={() => onOpenChange(false)}
+											onCancel={() => onOpenChange(false)}
+										/>
 									)}
-								</Button>
-							</div>
 
-							<div className='flex items-center gap-2 rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-3 text-[11px] text-yellow-200/70'>
-								<AlertCircle className='h-4 w-4 shrink-0 text-yellow-500/70' />
-								<span>
-									{t(
-										'settings:accounts.reauth.notice',
-										'Ensure you log in with the same email address: '
-									)}
-									<strong className='text-yellow-200'>{account.email}</strong>
-								</span>
-							</div>
-						</div>
-					) : (
-						<ManualAccountForm
-							editAccount={account}
-							onSuccess={() => onOpenChange(false)}
-							onCancel={() => onOpenChange(false)}
-						/>
-					)}
+									<button
+										type='button'
+										onClick={handleOpenMailboxRoles}
+										className='flex w-full items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 text-sm text-slate-400 transition-colors hover:border-white/[0.10] hover:bg-white/[0.06] hover:text-slate-200'>
+										<FolderCog className='h-4 w-4 shrink-0' />
+										{t(
+											'settings:accounts.list.manageRoles',
+											'Manage mailbox roles'
+										)}
+									</button>
+								</div>
+							</>
+						)}
+					</div>
 				</div>
 			</DialogContent>
 		</Dialog>

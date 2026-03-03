@@ -107,32 +107,40 @@ function RoleSelect({ value, onChange }: { value: Role; onChange: (role: Role) =
 interface MailboxRoleStepProps {
 	accountId: string
 	onDone: () => void
+	initialMailboxes?: Mailbox[]
 }
 
-export function MailboxRoleStep({ accountId, onDone }: MailboxRoleStepProps) {
+function buildRoles(mbs: Mailbox[]): Record<string, Role> {
+	const initial: Record<string, Role> = {}
+	for (const mb of mbs) {
+		initial[mb.name] = (mb.role as Role) || 'other'
+	}
+	return initial
+}
+
+export function MailboxRoleStep({ accountId, onDone, initialMailboxes }: MailboxRoleStepProps) {
 	const { t } = useSettingsTranslation()
-	const [mailboxes, setMailboxes] = useState<Mailbox[]>([])
-	const [roles, setRoles] = useState<Record<string, Role>>({})
-	const [loading, setLoading] = useState(true)
+	const [mailboxes, setMailboxes] = useState<Mailbox[]>(initialMailboxes ?? [])
+	const [roles, setRoles] = useState<Record<string, Role>>(
+		initialMailboxes ? buildRoles(initialMailboxes) : {}
+	)
+	const [loading, setLoading] = useState(!initialMailboxes)
 	const [saving, setSaving] = useState(false)
 
 	const { shellScope, contentScope, transition } = useShellTransition()
 
 	useEffect(() => {
+		if (initialMailboxes) return
 		invoke<Mailbox[]>('fetch_mailboxes', { accountId })
 			.then((mbs) => {
 				setMailboxes(mbs)
-				const initial: Record<string, Role> = {}
-				for (const mb of mbs) {
-					initial[mb.name] = (mb.role as Role) || 'other'
-				}
-				setRoles(initial)
+				setRoles(buildRoles(mbs))
 			})
 			.catch(console.error)
 			.finally(() => {
 				transition(() => setLoading(false))
 			})
-	}, [accountId, transition])
+	}, [accountId, transition, initialMailboxes])
 
 	const handleRoleChange = (mailboxName: string, role: Role) => {
 		setRoles((prev) => ({ ...prev, [mailboxName]: role }))
@@ -171,7 +179,9 @@ export function MailboxRoleStep({ accountId, onDone }: MailboxRoleStepProps) {
 					</p>
 				</div>
 
-				<div className='max-h-[360px] overflow-y-auto'>
+				<div
+					className='max-h-[360px] overflow-y-auto pr-3'
+					style={{ scrollbarGutter: 'stable' }}>
 					<div className='flex flex-col gap-1.5'>
 						{loading ? (
 							<div className='flex items-center justify-center py-10'>

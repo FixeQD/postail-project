@@ -21,7 +21,6 @@ export function useShellTransition() {
 			await animateContent(content, { opacity: 0 }, { duration: 0.15, ease: 'easeInOut' })
 
 			shell.style.height = shell.offsetHeight + 'px'
-			shell.style.overflow = 'hidden'
 
 			await swap()
 
@@ -33,7 +32,6 @@ export function useShellTransition() {
 			await animateShell(shell, { height: newH }, { duration: 0.36, ease: [0.16, 1, 0.3, 1] })
 
 			shell.style.height = 'auto'
-			shell.style.overflow = ''
 
 			await animateContent(content, { opacity: 1 }, { duration: 0.15, ease: 'easeInOut' })
 
@@ -47,7 +45,6 @@ export function useShellTransition() {
 		const shell = shellScope.current as HTMLDivElement | null
 		if (shell) {
 			shell.style.height = 'auto'
-			shell.style.overflow = ''
 		}
 	}, [shellScope])
 
