@@ -1,8 +1,10 @@
 use futures::StreamExt;
+use std::path::PathBuf;
 
 use crate::db;
 use crate::db::eml_cache::{self, CachedBody};
 use crate::db::messages::sync_message_attachments_flag;
+use crate::security::SecurityManager;
 
 impl crate::imap::ImapManager {
     /// Returns the full message from DB header + file-based body cache.
@@ -87,6 +89,18 @@ impl crate::imap::ImapManager {
                 .map_err(|e| e.to_string())?;
         }
 
+        // ── Step 4b: extract and cache inline images ─────────────────────────
+        {
+            let security = self.security.lock().await;
+            let conn_guard = self.conn.lock().await;
+            if let Some(conn) = conn_guard.as_ref() {
+                if let Ok(Some(table_id)) = db::get_message_table_id(conn, account_id, mailbox, uid)
+                {
+                    save_attachments_from_eml(conn, &security, table_id, &raw_eml);
+                }
+            }
+        }
+
         // ── Step 5: return full assembled message ──────────────────────────
         let conn_guard = self.conn.lock().await;
         let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
@@ -139,7 +153,23 @@ impl crate::imap::ImapManager {
 }
 
 /// Parses raw EML and saves attachment metadata (small rows, no BLOBs) to DB.
-fn save_attachments_from_eml(conn: &rusqlite::Connection, message_table_id: i64, raw_eml: &[u8]) {
+fn inline_image_cache_path(message_table_id: i64, part_id: &str) -> PathBuf {
+    let hash = format!("inline{}{}", message_table_id, part_id);
+    let prefix = &hash[0..2];
+    dirs::data_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("postail")
+        .join("attachments")
+        .join(prefix)
+        .join(format!("{}.enc", hash))
+}
+
+fn save_attachments_from_eml(
+    conn: &rusqlite::Connection,
+    security: &SecurityManager,
+    message_table_id: i64,
+    raw_eml: &[u8],
+) {
     use mailparse::MailHeaderMap;
     use mailparse::{parse_mail, ParsedMail};
 
@@ -149,6 +179,7 @@ fn save_attachments_from_eml(conn: &rusqlite::Connection, message_table_id: i64,
 
     fn walk_parts(
         conn: &rusqlite::Connection,
+        security: &SecurityManager,
         message_table_id: i64,
         part: &ParsedMail,
         counter: &mut u32,
@@ -156,7 +187,7 @@ fn save_attachments_from_eml(conn: &rusqlite::Connection, message_table_id: i64,
         let mime_type = part.ctype.mimetype.to_lowercase();
         if mime_type.starts_with("multipart/") {
             for sub in &part.subparts {
-                walk_parts(conn, message_table_id, sub, counter);
+                walk_parts(conn, security, message_table_id, sub, counter);
             }
             return;
         }
@@ -201,10 +232,24 @@ fn save_attachments_from_eml(conn: &rusqlite::Connection, message_table_id: i64,
         let part_id = format!("{}", *counter);
         *counter += 1;
 
+        let cached_path: Option<String> = if is_inline && cid.is_some() {
+            part.get_body_raw().ok().and_then(|raw| {
+                let cache_path = inline_image_cache_path(message_table_id, &part_id);
+                if let Some(parent) = cache_path.parent() {
+                    std::fs::create_dir_all(parent).ok()?;
+                }
+                let encrypted = security.encrypt(&raw).ok()?;
+                std::fs::write(&cache_path, encrypted).ok()?;
+                Some(cache_path.to_string_lossy().into_owned())
+            })
+        } else {
+            None
+        };
+
         let _ = conn.execute(
             "INSERT OR IGNORE INTO attachments
-             (message_table_id, part_id, filename, mime_type, size, is_inline, cid)
-             VALUES (?, ?, ?, ?, ?, ?, ?)",
+             (message_table_id, part_id, filename, mime_type, size, is_inline, cid, cached_path)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             rusqlite::params![
                 message_table_id,
                 part_id,
@@ -213,11 +258,12 @@ fn save_attachments_from_eml(conn: &rusqlite::Connection, message_table_id: i64,
                 size,
                 if is_inline { 1i64 } else { 0i64 },
                 cid,
+                cached_path,
             ],
         );
     }
 
     let mut counter = 0u32;
-    walk_parts(conn, message_table_id, &mail, &mut counter);
+    walk_parts(conn, security, message_table_id, &mail, &mut counter);
     let _ = sync_message_attachments_flag(message_table_id, conn);
 }

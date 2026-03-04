@@ -64,10 +64,10 @@ fn serve_email<R: Runtime>(context: &UriSchemeContext<R>) -> Response<Cow<'stati
 
     let csp = if allow_external {
         "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; \
-         img-src * data: asset:; font-src * data: asset:; connect-src 'none';"
+         img-src * data: cid: asset:; font-src * data: asset:; connect-src 'none';"
     } else {
         "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; \
-         img-src data: asset:; font-src data: asset:; connect-src 'none';"
+         img-src data: cid: asset:; font-src data: asset:; connect-src 'none';"
     };
 
     Response::builder()
