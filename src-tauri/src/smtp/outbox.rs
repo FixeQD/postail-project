@@ -2,6 +2,7 @@ use std::fs;
 
 use uuid::Uuid;
 
+use crate::db::compose::outbox_db::extract_headers_from_raw;
 use crate::db::{enqueue_message, list_outbox, OutboxItem};
 
 impl super::SmtpManager {
@@ -40,7 +41,14 @@ impl super::SmtpManager {
             .as_ref()
             .ok_or("Database not initialized".to_string())?;
 
-        match enqueue_message(conn, account_id, &eml_path.to_string_lossy()) {
+        let (subject, recipient) = extract_headers_from_raw(raw_eml);
+        match enqueue_message(
+            conn,
+            account_id,
+            &eml_path.to_string_lossy(),
+            subject.as_deref(),
+            &recipient,
+        ) {
             Ok(id) => {
                 tracing::info!(target: "postail", "[Outbox] Message enqueued successfully with ID: {}", id);
                 Ok(id)

@@ -2,30 +2,10 @@ use crate::db::mail::messages::sync_message_attachments_flag;
 use crate::error::DBError;
 use crate::security::SecurityManager;
 use chrono::Utc;
-use mailparse::{parse_mail, MailHeaderMap};
 use rusqlite::{params, Connection};
 use std::fs;
 use std::path::PathBuf;
 use tracing;
-
-pub fn extract_headers_from_eml(eml_path: &str) -> Result<(Option<String>, String), DBError> {
-    let eml_bytes = fs::read(eml_path).map_err(DBError::Io)?;
-    let mail = parse_mail(&eml_bytes)
-        .map_err(|e| DBError::Sqlite(rusqlite::Error::ToSqlConversionFailure(Box::new(e))))?;
-
-    let subject = mail
-        .get_headers()
-        .get_first_header("Subject")
-        .map(|s| s.get_value());
-
-    let recipient = mail
-        .get_headers()
-        .get_first_header("To")
-        .map(|s| s.get_value())
-        .unwrap_or_default();
-
-    Ok((subject, recipient))
-}
 
 pub fn update_outbox_status(
     conn: &Connection,

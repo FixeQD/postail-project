@@ -209,12 +209,13 @@ pub struct MessageFull {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OutboxItem {
     pub id: String,
     pub subject: Option<String>,
     pub recipient: String,
     pub status: String,
-    pub error_log: Option<String>,
+    pub last_error: Option<String>,
     pub attempts: u32,
 }
 

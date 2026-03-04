@@ -143,7 +143,7 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 								}
 							: {})}
 						onClick={(e) => e.stopPropagation()}>
-						<Card className='flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden border-white/[0.06] bg-slate-950/95 shadow-2xl ring-1 shadow-black/40 ring-white/[0.08] backdrop-blur-xl'>
+						<Card className='flex max-h-[80vh] w-full max-w-4xl min-w-[640px] flex-col overflow-hidden border-white/[0.06] bg-slate-950/95 shadow-2xl ring-1 shadow-black/40 ring-white/[0.08] backdrop-blur-xl'>
 							<CardHeader className='flex-shrink-0 border-b border-white/[0.06] px-5 py-4'>
 								<div className='flex items-center justify-between'>
 									<div className='flex items-center gap-3'>
