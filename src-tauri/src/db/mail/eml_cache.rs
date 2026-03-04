@@ -4,13 +4,10 @@ use std::path::{Path, PathBuf};
 use crate::error::DBError;
 use crate::security::SecurityManager;
 
-/// Returns the base cache directory for encrypted EML/body files.
-/// Structure: <data_dir>/eml_cache/<account_id>/<mailbox_safe>/
 pub fn get_eml_cache_dir() -> PathBuf {
     crate::utils::config::get_data_dir().join("eml_cache")
 }
 
-/// Sanitizes a mailbox name for use as a directory component.
 fn sanitize_path_component(s: &str) -> String {
     s.chars()
         .map(|c| {
@@ -23,35 +20,36 @@ fn sanitize_path_component(s: &str) -> String {
         .collect()
 }
 
-fn account_mailbox_dir(account_id: &str, mailbox: &str) -> PathBuf {
+fn message_dir(account_id: &str, mailbox: &str, uid: u32) -> PathBuf {
     get_eml_cache_dir()
         .join(sanitize_path_component(account_id))
         .join(sanitize_path_component(mailbox))
+        .join(uid.to_string())
 }
 
-/// Returns the full path to the encrypted EML file for a given message.
 pub fn eml_cache_path(account_id: &str, mailbox: &str, uid: u32) -> PathBuf {
-    account_mailbox_dir(account_id, mailbox).join(format!("{}.eml.enc", uid))
+    message_dir(account_id, mailbox, uid).join("eml.enc")
 }
 
-/// Returns the full path to the encrypted parsed-body JSON file.
 pub fn body_cache_path(account_id: &str, mailbox: &str, uid: u32) -> PathBuf {
-    account_mailbox_dir(account_id, mailbox).join(format!("{}.body.json.enc", uid))
+    message_dir(account_id, mailbox, uid).join("body.json.enc")
 }
 
-/// Returns true if an encrypted EML file exists for this message.
+pub fn inline_image_path(account_id: &str, mailbox: &str, uid: u32, part_id: &str) -> PathBuf {
+    message_dir(account_id, mailbox, uid)
+        .join(format!("img_{}.enc", sanitize_path_component(part_id)))
+}
+
 pub fn has_cached_eml(account_id: &str, mailbox: &str, uid: u32) -> bool {
     eml_cache_path(account_id, mailbox, uid).exists()
 }
 
-/// Returns true if a parsed body file exists for this message.
 pub fn has_cached_body_file(account_id: &str, mailbox: &str, uid: u32) -> bool {
     body_cache_path(account_id, mailbox, uid).exists()
 }
 
 // ── EML ────────────────────────────────────────────────────────────────────
 
-/// Encrypts and saves raw EML bytes to disk.
 pub fn save_eml(
     security: &SecurityManager,
     account_id: &str,
@@ -75,7 +73,6 @@ pub fn save_eml(
     Ok(path)
 }
 
-/// Reads and decrypts an EML file from disk. Returns None if file doesn't exist.
 pub fn load_eml(
     security: &SecurityManager,
     account_id: &str,
@@ -91,7 +88,6 @@ pub fn load_eml(
     Ok(Some(decrypt(security, &encrypted)?))
 }
 
-/// Deletes the cached EML file for a message.
 pub fn delete_eml(account_id: &str, mailbox: &str, uid: u32) -> Result<(), DBError> {
     let path = eml_cache_path(account_id, mailbox, uid);
     if path.exists() {
@@ -109,7 +105,6 @@ pub struct CachedBody {
     pub body_plain: String,
 }
 
-/// Encrypts and saves parsed body (html + plain) as a JSON file on disk.
 pub fn save_body(
     security: &SecurityManager,
     account_id: &str,
@@ -136,7 +131,6 @@ pub fn save_body(
     Ok(())
 }
 
-/// Reads and decrypts the parsed body file. Returns None if it doesn't exist.
 pub fn load_body(
     security: &SecurityManager,
     account_id: &str,
@@ -158,7 +152,6 @@ pub fn load_body(
     Ok(Some(body))
 }
 
-/// Deletes the cached body file for a message.
 pub fn delete_body(account_id: &str, mailbox: &str, uid: u32) -> Result<(), DBError> {
     let path = body_cache_path(account_id, mailbox, uid);
     if path.exists() {
@@ -168,9 +161,57 @@ pub fn delete_body(account_id: &str, mailbox: &str, uid: u32) -> Result<(), DBEr
     Ok(())
 }
 
-// ── Account-level cleanup ──────────────────────────────────────────────────
+// ── Inline images ──────────────────────────────────────────────────────────
 
-/// Deletes all cached EML and body files for a given account.
+/// Encrypts and saves inline image bytes. Returns the path for storing in DB.
+pub fn save_inline_image(
+    security: &SecurityManager,
+    account_id: &str,
+    mailbox: &str,
+    uid: u32,
+    part_id: &str,
+    data: &[u8],
+) -> Result<PathBuf, DBError> {
+    let path = inline_image_path(account_id, mailbox, uid, part_id);
+    ensure_parent(&path)?;
+
+    let encrypted = encrypt(security, data)?;
+    fs::write(&path, encrypted)
+        .map_err(|e| DBError::Cache(format!("Failed to write inline image: {}", e)))?;
+
+    Ok(path)
+}
+
+/// Decrypts and returns inline image bytes, or None if not cached.
+pub fn load_inline_image(
+    security: &SecurityManager,
+    account_id: &str,
+    mailbox: &str,
+    uid: u32,
+    part_id: &str,
+) -> Result<Option<Vec<u8>>, DBError> {
+    let path = inline_image_path(account_id, mailbox, uid, part_id);
+    if !path.exists() {
+        return Ok(None);
+    }
+    let encrypted = fs::read(&path)
+        .map_err(|e| DBError::Cache(format!("Failed to read inline image: {}", e)))?;
+    Ok(Some(decrypt(security, &encrypted)?))
+}
+
+// ── Cleanup ────────────────────────────────────────────────────────────────
+
+/// Deletes all cached files for a single message (eml, body, inline images).
+pub fn delete_message_cache(account_id: &str, mailbox: &str, uid: u32) -> Result<(), DBError> {
+    let dir = message_dir(account_id, mailbox, uid);
+    if dir.exists() {
+        fs::remove_dir_all(&dir)
+            .map_err(|e| DBError::Cache(format!("Failed to delete message cache dir: {}", e)))?;
+    }
+    Ok(())
+}
+
+/// Deletes all cached files for a given account.
 pub fn delete_account_eml_cache(account_id: &str) -> Result<(), DBError> {
     let dir = get_eml_cache_dir().join(sanitize_path_component(account_id));
     if dir.exists() {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { invoke, convertFileSrc } from '@tauri-apps/api/core'
+import { invoke } from '@tauri-apps/api/core'
 import { useThemeStore } from '@/stores/themeStore'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import {
@@ -48,19 +48,6 @@ export const MessageViewBody = ({
 		const iframeBg = hasDarkModeSupport ? 'transparent' : '#ffffff'
 		const iframeTextColor = hasDarkModeSupport ? 'inherit' : '#1a1a1a'
 
-		let processedHtml = htmlContent
-		for (const img of inline_images) {
-			if (img.cid && img.cached_path) {
-				const rawCid = img.cid.replace(/[<>]/g, '')
-				const localUrl = convertFileSrc(img.cached_path)
-				const cidRegex = new RegExp(
-					`cid:${rawCid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
-					'gi'
-				)
-				processedHtml = processedHtml.replace(cidRegex, localUrl)
-			}
-		}
-
 		const html = `<!DOCTYPE html>
 <html>
   <head>
@@ -93,7 +80,7 @@ export const MessageViewBody = ({
     </style>
   </head>
   <body>
-    <div class="email-wrapper">${processedHtml}</div>
+    <div class="email-wrapper">${htmlContent}</div>
     <script>
       let naturalWidth = 0;
 
@@ -174,6 +161,13 @@ export const MessageViewBody = ({
 		const src = `${baseUrl}/message/current?v=${Date.now()}`
 		invoke('set_email_view_content', {
 			html,
+			inlineImages: inline_images
+				.filter((img) => img.cid && img.cached_path)
+				.map((img) => ({
+					cid: img.cid!,
+					cachedPath: img.cached_path!,
+					mimeType: img.mime_type,
+				})),
 			allowExternal: allowExternalResources,
 		}).then(() => {
 			setIframeSrc(src)

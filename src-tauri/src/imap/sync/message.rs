@@ -1,5 +1,4 @@
 use futures::StreamExt;
-use std::path::PathBuf;
 
 use crate::db;
 use crate::db::eml_cache::{self, CachedBody};
@@ -96,7 +95,9 @@ impl crate::imap::ImapManager {
             if let Some(conn) = conn_guard.as_ref() {
                 if let Ok(Some(table_id)) = db::get_message_table_id(conn, account_id, mailbox, uid)
                 {
-                    save_attachments_from_eml(conn, &security, table_id, &raw_eml);
+                    save_attachments_from_eml(
+                        conn, &security, account_id, mailbox, uid, table_id, &raw_eml,
+                    );
                 }
             }
         }
@@ -153,20 +154,13 @@ impl crate::imap::ImapManager {
 }
 
 /// Parses raw EML and saves attachment metadata (small rows, no BLOBs) to DB.
-fn inline_image_cache_path(message_table_id: i64, part_id: &str) -> PathBuf {
-    let hash = format!("inline{}{}", message_table_id, part_id);
-    let prefix = &hash[0..2];
-    dirs::data_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("postail")
-        .join("attachments")
-        .join(prefix)
-        .join(format!("{}.enc", hash))
-}
 
 fn save_attachments_from_eml(
     conn: &rusqlite::Connection,
     security: &SecurityManager,
+    account_id: &str,
+    mailbox: &str,
+    uid: u32,
     message_table_id: i64,
     raw_eml: &[u8],
 ) {
@@ -180,6 +174,9 @@ fn save_attachments_from_eml(
     fn walk_parts(
         conn: &rusqlite::Connection,
         security: &SecurityManager,
+        account_id: &str,
+        mailbox: &str,
+        uid: u32,
         message_table_id: i64,
         part: &ParsedMail,
         counter: &mut u32,
@@ -187,7 +184,16 @@ fn save_attachments_from_eml(
         let mime_type = part.ctype.mimetype.to_lowercase();
         if mime_type.starts_with("multipart/") {
             for sub in &part.subparts {
-                walk_parts(conn, security, message_table_id, sub, counter);
+                walk_parts(
+                    conn,
+                    security,
+                    account_id,
+                    mailbox,
+                    uid,
+                    message_table_id,
+                    sub,
+                    counter,
+                );
             }
             return;
         }
@@ -232,15 +238,12 @@ fn save_attachments_from_eml(
         let part_id = format!("{}", *counter);
         *counter += 1;
 
+        // For inline images with a CID, extract binary and cache to disk.
         let cached_path: Option<String> = if is_inline && cid.is_some() {
             part.get_body_raw().ok().and_then(|raw| {
-                let cache_path = inline_image_cache_path(message_table_id, &part_id);
-                if let Some(parent) = cache_path.parent() {
-                    std::fs::create_dir_all(parent).ok()?;
-                }
-                let encrypted = security.encrypt(&raw).ok()?;
-                std::fs::write(&cache_path, encrypted).ok()?;
-                Some(cache_path.to_string_lossy().into_owned())
+                eml_cache::save_inline_image(security, account_id, mailbox, uid, &part_id, &raw)
+                    .ok()
+                    .map(|p| p.to_string_lossy().into_owned())
             })
         } else {
             None
@@ -264,6 +267,15 @@ fn save_attachments_from_eml(
     }
 
     let mut counter = 0u32;
-    walk_parts(conn, security, message_table_id, &mail, &mut counter);
+    walk_parts(
+        conn,
+        security,
+        account_id,
+        mailbox,
+        uid,
+        message_table_id,
+        &mail,
+        &mut counter,
+    );
     let _ = sync_message_attachments_flag(message_table_id, conn);
 }
