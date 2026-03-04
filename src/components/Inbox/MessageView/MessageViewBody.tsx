@@ -122,13 +122,30 @@ export const MessageViewBody = ({
         window.addEventListener('load', init);
       }
 
-      document.addEventListener('click', function(e) {
-        const a = e.target.closest('a');
-        if (a && a.href) {
+
+      window.open = function(url) {
+        if (url) window.parent.postMessage({ type: 'open-link', url: String(url) }, '*');
+        return null;
+      };
+
+      if (window.navigation) {
+        // Navigation API catches everything: clicks, JS navigation, meta refresh
+        window.navigation.addEventListener('navigate', (e) => {
+          const dest = e.destination.url;
+          if (dest === location.href) return;
           e.preventDefault();
-          window.parent.postMessage({ type: 'open-link', url: a.href }, '*');
-        }
-      });
+          window.parent.postMessage({ type: 'open-link', url: dest }, '*');
+        });
+      } else {
+        // Fallback for older WebViews
+        document.addEventListener('click', function(e) {
+          const a = e.target.closest('a');
+          if (a && a.href) {
+            e.preventDefault();
+            window.parent.postMessage({ type: 'open-link', url: a.href }, '*');
+          }
+        });
+      }
 
       document.addEventListener('securitypolicyviolation', function(e) {
         if (e.blockedURI && e.blockedURI !== 'inline' && e.blockedURI !== 'eval') {
@@ -152,8 +169,8 @@ export const MessageViewBody = ({
 		setIframeSrc(null)
 
 		const isWindows = navigator.userAgent.includes('Windows')
-    const baseUrl = isWindows ? 'http://postail.localhost' : 'postail://localhost'
-		
+		const baseUrl = isWindows ? 'http://postail.localhost' : 'postail://localhost'
+
 		const src = `${baseUrl}/message/current?v=${Date.now()}`
 		invoke('set_email_view_content', {
 			html,
@@ -226,7 +243,7 @@ export const MessageViewBody = ({
 							ref={iframeRef}
 							title='Message Content'
 							src={iframeSrc}
-							sandbox='allow-scripts allow-popups allow-popups-to-escape-sandbox'
+							sandbox='allow-scripts'
 							className='message-view-iframe block w-full border-none'
 							style={{ minHeight: iframeReady ? undefined : '0px' }}
 						/>
