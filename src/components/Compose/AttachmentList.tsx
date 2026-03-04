@@ -1,24 +1,10 @@
-import { X, File, FileImage, FileText } from 'lucide-react'
+import { X } from 'lucide-react'
 import { memo } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTranslation } from 'react-i18next'
+import { getFileIcon } from '@/lib/fileUtils'
+import { formatFileSize } from '@/lib/formatFileSize'
 import type { AttachmentListProps } from '@/types/components/compose'
-
-function getFileIcon(contentType: string | undefined) {
-	if (!contentType) return File
-	if (contentType.startsWith('image/')) return FileImage
-	if (contentType.startsWith('text/')) return FileText
-	return File
-}
-
-function formatBytes(bytes: number, decimals = 0) {
-	if (!+bytes) return '0 B'
-	const k = 1024
-	const dm = decimals < 0 ? 0 : decimals
-	const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-	const i = Math.floor(Math.log(bytes) / Math.log(k))
-	return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`
-}
 
 export const AttachmentList = memo(({ attachments, onRemove }: AttachmentListProps) => {
 	const { t } = useTranslation()
@@ -38,7 +24,7 @@ export const AttachmentList = memo(({ attachments, onRemove }: AttachmentListPro
 										{file.filename}
 									</span>
 									<span className='text-[10px] text-zinc-500'>
-										{formatBytes(file.size)}
+										{formatFileSize(file.size, 0)}
 									</span>
 								</div>
 								<button

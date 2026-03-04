@@ -3,6 +3,9 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { $getSelection, $isRangeSelection, $createParagraphNode, $getRoot } from 'lexical'
 import { useDraftStore } from '@/stores/draftStore'
 import { invoke, convertFileSrc } from '@tauri-apps/api/core'
+import { fileToBytes } from '@/lib/fileUtils'
+import { processFileAsAttachment } from '@/lib/attachmentUtils'
+import { useAsyncState } from '@/hooks/useAsyncState'
 import { $createImageNode } from '../Nodes/ImageNode'
 import type { EmailAttachment } from '@/types/compose'
 import { UploadCloud, Image as ImageIcon, Paperclip } from 'lucide-react'
@@ -11,7 +14,7 @@ export default function DragDropPlugin(): React.ReactNode {
 	const [editor] = useLexicalComposerContext()
 	const { addAttachment } = useDraftStore()
 	const [isDragging, setIsDragging] = useState(false)
-	const [isProcessing, setIsProcessing] = useState(false)
+	const { isLoading: isProcessing, run: runProcessing } = useAsyncState()
 	const [dragType, setDragType] = useState<'media' | 'file'>('file')
 	const [activeZone, setActiveZone] = useState<'inline' | 'attachment' | null>(null)
 
@@ -33,7 +36,6 @@ export default function DragDropPlugin(): React.ReactNode {
 	}, [])
 
 	useEffect(() => {
-
 		const handleDragEnter = (e: DragEvent) => {
 			e.preventDefault()
 			e.stopPropagation()
@@ -145,26 +147,17 @@ export default function DragDropPlugin(): React.ReactNode {
 
 	const handleFileProcessing = useCallback(
 		async (files: File[], uris: string[], mode: 'inline' | 'attachment') => {
-			setIsProcessing(true)
-
-			try {
+			await runProcessing(async () => {
 				for (const file of files) {
-					const buffer = await file.arrayBuffer()
-					const bytes = new Uint8Array(buffer)
-
-					const isInlineImage = mode === 'inline' && file.type.startsWith('image/')
-
-					const attachment = await invoke<EmailAttachment>(
-						isInlineImage ? 'add_inline_attachment' : 'add_attachment_bytes',
-						{
-							bytes,
-							filename: file.name,
-							contentType: file.type,
-						}
+					const bytes = await fileToBytes(file)
+					const attachment = await processFileAsAttachment(
+						bytes,
+						file.name,
+						file.type,
+						mode
 					)
-
 					addAttachment(attachment)
-					if (isInlineImage) {
+					if (mode === 'inline' && file.type.startsWith('image/')) {
 						insertInlineImage(attachment)
 					}
 				}
@@ -173,37 +166,30 @@ export default function DragDropPlugin(): React.ReactNode {
 					const path = uri.startsWith('file://') ? decodeURIComponent(uri.slice(7)) : uri
 					if (!path) continue
 
-					let attachment: EmailAttachment
-
 					if (mode === 'inline') {
 						const response = await fetch(uri)
-						const buffer = await response.arrayBuffer()
-						const bytes = new Uint8Array(buffer)
+						const bytes = new Uint8Array(await response.arrayBuffer())
 						const contentType =
 							response.headers.get('content-type') || 'application/octet-stream'
 						const filename = path.split('/').pop() || 'attachment'
-
-						const isInlineImage = contentType.startsWith('image/')
-						attachment = await invoke<EmailAttachment>(
-							isInlineImage ? 'add_inline_attachment' : 'add_attachment_bytes',
-							{ bytes, filename, contentType }
+						const attachment = await processFileAsAttachment(
+							bytes,
+							filename,
+							contentType,
+							mode
 						)
 						addAttachment(attachment)
-						if (isInlineImage) {
+						if (contentType.startsWith('image/')) {
 							insertInlineImage(attachment)
 						}
 					} else {
-						attachment = await invoke<EmailAttachment>('add_attachment', { path })
+						const attachment = await invoke<EmailAttachment>('add_attachment', { path })
 						addAttachment(attachment)
 					}
 				}
-			} catch (err) {
-				console.error('[DragDrop] Processing failure:', err)
-			} finally {
-				setIsProcessing(false)
-			}
+			}).catch((err) => console.error('[DragDrop] Processing failure:', err))
 		},
-		[addAttachment, insertInlineImage]
+		[addAttachment, insertInlineImage, runProcessing]
 	)
 	handleFileProcessingRef.current = handleFileProcessing
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
+import { invokeWithErrorLog } from '@/lib/tauri'
 import { AlertCircle, Mail } from 'lucide-react'
 import {
 	Dialog,
@@ -59,12 +60,11 @@ export const MessageView = ({
 		if (!data) return
 		const isUnread = !data.header.flags.includes('\\Seen')
 		if (isUnread) {
-			invoke('mark_read', {
-				accountId,
-				mailbox,
-				uids: [uid],
-				read: true,
-			}).catch((err) => console.error('Failed to mark as read:', err))
+			invokeWithErrorLog(
+				'mark_read',
+				{ accountId, mailbox, uids: [uid], read: true },
+				'mark_read'
+			)
 
 			queryClient.invalidateQueries({
 				queryKey: ['messages', accountId, mailbox],
@@ -74,26 +74,28 @@ export const MessageView = ({
 
 	const isNoReply = (email: string) => /^no-reply@/i.test(email) || /^noreply@/i.test(email)
 
-	const doReply = () => {
-		if (!data) return
-		const { startReply, isComposing } = useDraftStore.getState()
-		if (isComposing) {
+	const guardComposing = (fn: () => void) => {
+		if (useDraftStore.getState().isComposing) {
 			toast.info('Please finish or discard current draft first')
 			return
 		}
-		startReply(accountId, data)
-		window.dispatchEvent(new CustomEvent('compose:reply'))
+		fn()
+	}
+
+	const doReply = () => {
+		if (!data) return
+		guardComposing(() => {
+			useDraftStore.getState().startReply(accountId, data)
+			window.dispatchEvent(new CustomEvent('compose:reply'))
+		})
 	}
 
 	const doReplyAll = () => {
 		if (!data) return
-		const { startReplyAll, isComposing } = useDraftStore.getState()
-		if (isComposing) {
-			toast.info('Please finish or discard current draft first')
-			return
-		}
-		startReplyAll(accountId, data)
-		window.dispatchEvent(new CustomEvent('compose:reply'))
+		guardComposing(() => {
+			useDraftStore.getState().startReplyAll(accountId, data)
+			window.dispatchEvent(new CustomEvent('compose:reply'))
+		})
 	}
 
 	const handleReply = () => {
@@ -118,13 +120,10 @@ export const MessageView = ({
 
 	const handleForward = () => {
 		if (!data) return
-		const { startForward, isComposing } = useDraftStore.getState()
-		if (isComposing) {
-			toast.info('Please finish or discard current draft first')
-			return
-		}
-		startForward(accountId, data)
-		window.dispatchEvent(new CustomEvent('compose:forward'))
+		guardComposing(() => {
+			useDraftStore.getState().startForward(accountId, data)
+			window.dispatchEvent(new CustomEvent('compose:forward'))
+		})
 	}
 
 	const handleDelete = async () => {
@@ -132,37 +131,34 @@ export const MessageView = ({
 		onBack()
 
 		try {
-			await invoke('delete_messages', {
-				accountId,
-				mailbox,
-				uids: [uid],
-			})
+			await invokeWithErrorLog(
+				'delete_messages',
+				{ accountId, mailbox, uids: [uid] },
+				'delete_messages'
+			)
 			queryClient.invalidateQueries({
 				queryKey: ['messages', accountId, mailbox],
 			})
 			toast.success(t('inbox:messageView.deleted'))
 		} catch (error) {
-			console.error('Failed to delete message:', error)
 			toast.error(t('inbox:messageView.deleteError'))
 		}
 	}
 
 	const handleMarkUnread = async () => {
-		try {
-			await invoke('mark_read', {
-				accountId,
-				mailbox,
-				uids: [uid],
-				read: false,
-			})
-			queryClient.invalidateQueries({
-				queryKey: ['messages', accountId, mailbox],
-			})
-			onBack()
-		} catch (error) {
-			console.error('Failed to mark as unread:', error)
+		const result = await invokeWithErrorLog(
+			'mark_read',
+			{ accountId, mailbox, uids: [uid], read: false },
+			'mark_unread'
+		)
+		if (result === null) {
 			toast.error(t('inbox:messageView.markUnreadError'))
+			return
 		}
+		queryClient.invalidateQueries({
+			queryKey: ['messages', accountId, mailbox],
+		})
+		onBack()
 	}
 
 	useEffect(() => {

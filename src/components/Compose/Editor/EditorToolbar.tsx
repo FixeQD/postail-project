@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef, memo } from 'react'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { open } from '@tauri-apps/plugin-dialog'
-import { invoke } from '@tauri-apps/api/core'
+import { invokeWithErrorLog } from '@/lib/tauri'
 import { useTranslation } from 'react-i18next'
 import type { EmailAttachment } from '@/types/compose'
 import type { LinkPopoverProps } from '@/types/components/compose'
@@ -209,22 +209,23 @@ export function EditorToolbar() {
 
 			for (const path of paths) {
 				if (!path) continue
-				try {
-					const attachment = await invoke<EmailAttachment>('add_attachment', { path })
-					const isDuplicate = currentDraft?.attachments?.some(
-						(a) => a.hash === attachment.hash
-					)
+				const attachment = await invokeWithErrorLog<EmailAttachment>(
+					'add_attachment',
+					{ path },
+					'add_attachment'
+				)
+				if (!attachment) continue
 
-					if (isDuplicate) {
-						setPendingAttachment({ attachment, path })
-						setDialogOpen(true)
+				const isDuplicate = currentDraft?.attachments?.some(
+					(a) => a.hash === attachment.hash
+				)
 
-						break
-					} else {
-						addAttachment({ ...attachment, path })
-					}
-				} catch (err) {
-					console.error('Failed to add attachment:', err)
+				if (isDuplicate) {
+					setPendingAttachment({ attachment, path })
+					setDialogOpen(true)
+					break
+				} else {
+					addAttachment({ ...attachment, path })
 				}
 			}
 		} catch (err) {

@@ -1,10 +1,9 @@
-export function formatFileSize(bytes: number): string {
+export function formatFileSize(bytes: number, decimals = 1): string {
 	if (bytes === 0) return '0 B'
 
 	const units = ['B', 'KB', 'MB', 'GB']
-	// log math is scary :O
 	const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
 	const size = bytes / Math.pow(1024, i)
 
-	return `${size.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
+	return `${size.toFixed(i === 0 ? 0 : decimals)} ${units[i]}`
 }

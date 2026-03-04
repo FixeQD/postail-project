@@ -7,9 +7,11 @@ import {
 } from 'lexical'
 import { useEffect } from 'react'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
-import { invoke, convertFileSrc } from '@tauri-apps/api/core'
+import { convertFileSrc } from '@tauri-apps/api/core'
 import { useDraftStore } from '@/stores/draftStore'
 import { $createImageNode } from '../Nodes/ImageNode'
+import { fileToBytes } from '@/lib/fileUtils'
+import { processFileAsAttachment } from '@/lib/attachmentUtils'
 import type { EmailAttachment } from '@/types/compose'
 
 export default function PastePlugin(): null {
@@ -102,44 +104,43 @@ export default function PastePlugin(): null {
 
 	const handleImagePaste = async (file: File) => {
 		try {
-			const buffer = await file.arrayBuffer()
-			const bytes = new Uint8Array(buffer)
+			const bytes = await fileToBytes(file)
 
 			const filename =
 				file.name && file.name !== 'image.png'
 					? file.name
 					: `pasted_image_${Date.now()}.${file.type.split('/')[1] || 'png'}`
 
-			const attachment = await invoke<EmailAttachment>('add_inline_attachment', {
-				bytes,
-				filename,
-				contentType: file.type,
-			})
+			const attachment = await processFileAsAttachment(bytes, filename, file.type, 'inline')
 
 			addAttachment(attachment)
 
-			editor.update(() => {
-				let selection = $getSelection()
-				if (!$isRangeSelection(selection)) {
-					const root = $getRoot()
-					root.selectEnd()
-					selection = $getSelection()
-				}
-
-				if ($isRangeSelection(selection)) {
-					const assetUrl = convertFileSrc(attachment.path!)
-					const node = $createImageNode({
-						altText: 'Pasted image',
-						attachmentId: attachment.id,
-						cid: attachment.cid,
-						src: assetUrl,
-					})
-					selection.insertNodes([node])
-				}
-			})
+			insertInlineImage(attachment)
 		} catch (err) {
 			console.error('Failed to process pasted image:', err)
 		}
+	}
+
+	const insertInlineImage = (attachment: EmailAttachment) => {
+		editor.update(() => {
+			let selection = $getSelection()
+			if (!$isRangeSelection(selection)) {
+				const root = $getRoot()
+				root.selectEnd()
+				selection = $getSelection()
+			}
+
+			if ($isRangeSelection(selection)) {
+				const assetUrl = convertFileSrc(attachment.path!)
+				const node = $createImageNode({
+					altText: 'Pasted image',
+					attachmentId: attachment.id,
+					cid: attachment.cid,
+					src: assetUrl,
+				})
+				selection.insertNodes([node])
+			}
+		})
 	}
 
 	return null
