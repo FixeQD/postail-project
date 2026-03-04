@@ -151,7 +151,10 @@ export const MessageViewBody = ({
 		setIframeWidth('100%')
 		setIframeSrc(null)
 
-		const src = `postail://localhost/message/current?v=${Date.now()}`
+		const isWindows = navigator.userAgent.includes('Windows')
+    const baseUrl = isWindows ? 'http://postail.localhost' : 'postail://localhost'
+		
+		const src = `${baseUrl}/message/current?v=${Date.now()}`
 		invoke('set_email_view_content', {
 			html,
 			allowExternal: allowExternalResources,
