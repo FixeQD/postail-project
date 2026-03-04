@@ -56,6 +56,7 @@ impl super::ImapManager {
                 .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
             path
         };
+        let creds_path = crate::db::resolve_creds_path(&creds_path);
 
         let security = self.security.lock().await;
         let encrypted =
@@ -126,6 +127,7 @@ impl super::ImapManager {
                             stmt.query_row([account_id], |row| row.get::<_, String>(0))
                                 .map_err(|e| ImapError::CredentialsFetch(e.to_string()))
                         }?;
+                        let creds_path = crate::db::resolve_creds_path(&creds_path);
 
                         let creds_json = creds.to_string();
                         let encrypted = security

@@ -314,5 +314,16 @@ fn save_creds_blob(id: &str, data: &[u8]) -> Result<String, DBError> {
     fs::create_dir_all(&dir)?;
     let path = dir.join(format!("{}.enc", id));
     fs::write(&path, data)?;
-    Ok(path.to_string_lossy().to_string())
+    // Store only the relative path so it survives data-dir migrations
+    Ok(format!("creds/{}.enc", id))
+}
+
+/// Resolve a creds_blob_path from the DB to an absolute filesystem path
+pub fn resolve_creds_path(stored: &str) -> std::path::PathBuf {
+    let p = std::path::Path::new(stored);
+    if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        crate::utils::config::get_data_dir().join(stored)
+    }
 }

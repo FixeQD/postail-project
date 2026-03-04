@@ -36,6 +36,7 @@ impl super::SmtpManager {
                 .map_err(|e| e.to_string())?;
             path
         };
+        let creds_path = crate::db::resolve_creds_path(&creds_path);
 
         let security = self.security.lock().await;
         let encrypted = std::fs::read(&creds_path).map_err(|e| e.to_string())?;

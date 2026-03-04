@@ -47,7 +47,7 @@ export function GeneralSettings() {
 		invoke<string>('get_default_data_dir').then(setDefaultPath)
 	}, [])
 
-	const isDefaultPath = settings['data-path'] === defaultPath
+	const isDefaultPath = !settings['data-path'] || settings['data-path'] === defaultPath
 
 	const handlePathSelect = async () => {
 		const selected = await open({

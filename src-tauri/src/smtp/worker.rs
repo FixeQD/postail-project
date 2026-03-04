@@ -282,6 +282,7 @@ impl SmtpManager {
                             stmt.query_row([account_id], |row| row.get::<_, String>(0))
                                 .map_err(|e| e.to_string())
                         }?;
+                        let creds_path = crate::db::resolve_creds_path(&creds_path);
 
                         let creds_json = creds.to_string();
                         let security = self.security.lock().await;
