@@ -13,8 +13,7 @@
 		"windows": [
 			{
 				"title": "postail-project",
-				"width": 800,
-				"height": 600,
+				"maximized": true,
 				"decorations": false,
 				"transparent": true
 			}
