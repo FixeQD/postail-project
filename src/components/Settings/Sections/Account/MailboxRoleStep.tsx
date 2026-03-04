@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { invoke } from '@tauri-apps/api/core'
 import {
@@ -44,6 +44,7 @@ function RoleSelect({ value, onChange }: { value: Role; onChange: (role: Role) =
 	const [open, setOpen] = useState(false)
 	const [coords, setCoords] = useState({ top: 0, right: 0 })
 	const buttonRef = useRef<HTMLButtonElement>(null)
+	const dropdownRef = useRef<HTMLDivElement>(null)
 	const roles = Object.keys(ROLE_ICONS) as Role[]
 
 	const handleOpen = () => {
@@ -53,6 +54,22 @@ function RoleSelect({ value, onChange }: { value: Role; onChange: (role: Role) =
 		}
 		setOpen((o) => !o)
 	}
+
+	const handleOutsideClick = useCallback((e: MouseEvent) => {
+		if (
+			dropdownRef.current &&
+			!dropdownRef.current.contains(e.target as Node) &&
+			!buttonRef.current?.contains(e.target as Node)
+		) {
+			setOpen(false)
+		}
+	}, [])
+
+	useEffect(() => {
+		if (!open) return
+		document.addEventListener('mousedown', handleOutsideClick)
+		return () => document.removeEventListener('mousedown', handleOutsideClick)
+	}, [open, handleOutsideClick])
 
 	return (
 		<div className='relative'>
@@ -70,34 +87,32 @@ function RoleSelect({ value, onChange }: { value: Role; onChange: (role: Role) =
 
 			{open &&
 				createPortal(
-					<>
-						<div className='fixed inset-0 z-50' onClick={() => setOpen(false)} />
-						<div
-							className='fixed z-50 w-44 overflow-hidden rounded-xl border border-white/[0.08] bg-slate-900 shadow-2xl'
-							style={{ top: coords.top, right: coords.right }}>
-							{roles.map((role) => {
-								const Icon = ROLE_ICONS[role]
-								return (
-									<button
-										key={role}
-										type='button'
-										onClick={() => {
-											onChange(role)
-											setOpen(false)
-										}}
-										className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-white/[0.06] ${
-											role === value ? 'text-slate-100' : 'text-slate-400'
-										}`}>
-										<Icon className='h-3.5 w-3.5 shrink-0' />
-										<span>{t(`settings:mailboxRoles.roles.${role}`)}</span>
-										{role === value && (
-											<Check className='ml-auto h-3.5 w-3.5 text-green-400' />
-										)}
-									</button>
-								)
-							})}
-						</div>
-					</>,
+					<div
+						ref={dropdownRef}
+						className='fixed z-[201] w-44 overflow-hidden rounded-xl border border-white/[0.08] bg-slate-900 shadow-2xl'
+						style={{ top: coords.top, right: coords.right, pointerEvents: 'auto' }}>
+						{roles.map((role) => {
+							const Icon = ROLE_ICONS[role]
+							return (
+								<button
+									key={role}
+									type='button'
+									onClick={() => {
+										onChange(role)
+										setOpen(false)
+									}}
+									className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-white/[0.06] ${
+										role === value ? 'text-slate-100' : 'text-slate-400'
+									}`}>
+									<Icon className='h-3.5 w-3.5 shrink-0' />
+									<span>{t(`settings:mailboxRoles.roles.${role}`)}</span>
+									{role === value && (
+										<Check className='ml-auto h-3.5 w-3.5 text-green-400' />
+									)}
+								</button>
+							)
+						})}
+					</div>,
 					document.body
 				)}
 		</div>
