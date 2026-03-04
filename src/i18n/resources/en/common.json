@@ -2,7 +2,8 @@
 	"app": {
 		"name": "Postail",
 		"tagline": "Secure email client for the modern era",
-		"languageCode": "en-US"
+		"languageCode": "en-US",
+		"accountUpdated": "Account updated successfully"
 	},
 	"actions": {
 		"start": "Get Started",
@@ -50,7 +51,18 @@
 			"description": "This draft will be permanently deleted. This action cannot be undone.",
 			"confirm": "Discard",
 			"cancel": "Keep Draft"
-		}
+		},
+		"sendingIn": "Sending…",
+		"sendCancelled": "Send cancelled",
+		"sendSuccess": "Message sent successfully",
+		"sendError": "Failed to send message",
+		"cancelSendAndClose": "Cancel send & close",
+		"countdown": {
+			"label": "Sending in",
+			"seconds": "s…",
+			"undo": "Undo"
+		},
+		"applyLink": "Apply"
 	},
 	"outbox": {
 		"title": "Outbox",
@@ -73,6 +85,17 @@
 		"clickToView": "Click to view outbox",
 		"noMessages": "No messages in outbox",
 		"syncingAccounts": "Syncing {{count}}...",
-		"syncingMailbox": "Syncing {{mailbox}}"
+		"syncingMailbox": "Syncing {{mailbox}}",
+		"syncing": "Syncing...",
+		"syncFailed": "Sync failed",
+		"noAccounts": "No accounts added",
+		"syncError": "{{count}} errors"
+	},
+	"notifications": {
+		"center": {
+			"title": "Notifications",
+			"empty": "No notifications",
+			"emptyDescription": "You're all caught up"
+		}
 	}
 }

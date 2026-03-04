@@ -337,14 +337,18 @@ export function SecuritySettings() {
 												type='password'
 												value={pin}
 												onChange={(e) => setPin(e.target.value)}
-												placeholder='New PIN'
+												placeholder={t(
+													'settings:security.session.autoLock.setupPin.newPinPlaceholder'
+												)}
 												className='w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-slate-500'
 											/>
 											<input
 												type='password'
 												value={confirmPin}
 												onChange={(e) => setConfirmPin(e.target.value)}
-												placeholder='Confirm new PIN'
+												placeholder={t(
+													'settings:security.session.autoLock.setupPin.confirmPinPlaceholder'
+												)}
 												className='w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-slate-500'
 											/>
 										</>

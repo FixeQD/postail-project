@@ -29,5 +29,8 @@
 		"description": "Your email has {{count}} compatibility issue(s) that may cause rendering problems in Gmail/Outlook.",
 		"confirm": "Send Anyway",
 		"cancel": "Review Issues"
+	},
+	"aria": {
+		"resizePanel": "Resize panel"
 	}
 }

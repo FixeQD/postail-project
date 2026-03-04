@@ -72,10 +72,10 @@ export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDi
 		try {
 			await invoke('update_account_name', { id: account.id, name: newName })
 			updateAccount({ ...account, name: newName })
-			toast.success(t('app.accountUpdated', 'Account updated successfully'))
+			toast.success(t('app.accountUpdated'))
 		} catch (error) {
 			console.error('Failed to update account name:', error)
-			toast.error(t('errors.updateFailed', 'Failed to update account'))
+			toast.error(t('errors.updateFailed'))
 		} finally {
 			setIsLoading(false)
 		}
@@ -92,7 +92,7 @@ export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDi
 		} catch (error) {
 			console.error('Failed to start re-auth:', error)
 			setPendingReauthAccountId(null)
-			toast.error(t('errors.reauthFailed', 'Failed to start re-authentication'))
+			toast.error(t('errors.reauthFailed'))
 		} finally {
 			setIsLoading(false)
 		}
@@ -113,7 +113,7 @@ export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDi
 							<>
 								<DialogHeader className='mb-4'>
 									<DialogTitle className='text-xl font-bold'>
-										{t('settings:accounts.list.edit', 'Edit Account')}
+										{t('settings:accounts.list.edit')}
 									</DialogTitle>
 									<DialogDescription className='text-slate-400'>
 										{isOAuth

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { Loader2, AlertCircle, Check } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -24,6 +25,7 @@ interface FormData {
 }
 
 export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAccountFormProps) {
+	const { t } = useTranslation()
 	useAccountsTranslation()
 	const updateAccount = useAccountStore((state) => state.updateAccount)
 	const [isLoading, setIsLoading] = useState(false)
@@ -97,11 +99,11 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 
 			<div className='space-y-4'>
 				<div className='space-y-2'>
-					<Label htmlFor='accountName'>Account Name</Label>
+					<Label htmlFor='accountName'>{t('settings:accounts.manual.accountName')}</Label>
 					<Input
 						id='accountName'
 						type='text'
-						placeholder='My Email Account'
+						placeholder={t('settings:accounts.manual.placeholders.accountName')}
 						value={formData.accountName}
 						onChange={(e) => handleChange('accountName', e.target.value)}
 						required
@@ -110,11 +112,11 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 				</div>
 
 				<div className='space-y-2'>
-					<Label htmlFor='email'>Email Address</Label>
+					<Label htmlFor='email'>{t('settings:accounts.manual.emailAddress')}</Label>
 					<Input
 						id='email'
 						type='email'
-						placeholder='user@example.com'
+						placeholder={t('settings:accounts.manual.placeholders.email')}
 						value={formData.email}
 						onChange={(e) => handleChange('email', e.target.value)}
 						required
@@ -139,11 +141,11 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 
 				{formData.useSeparateUsername && (
 					<div className='space-y-2'>
-						<Label htmlFor='username'>Username</Label>
+						<Label htmlFor='username'>{t('settings:accounts.manual.username')}</Label>
 						<Input
 							id='username'
 							type='text'
-							placeholder='domain\\username or user@domain.com'
+							placeholder={t('settings:accounts.manual.placeholders.username')}
 							value={formData.username}
 							onChange={(e) => handleChange('username', e.target.value)}
 							required={formData.useSeparateUsername}
@@ -159,7 +161,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 					<Input
 						id='password'
 						type='password'
-						placeholder='••••••••'
+						placeholder={t('settings:accounts.manual.placeholders.password')}
 						value={formData.password}
 						onChange={(e) => handleChange('password', e.target.value)}
 						required
@@ -171,11 +173,11 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 					<h3 className='mb-4 text-sm font-semibold text-slate-300'>IMAP Settings</h3>
 					<div className='grid gap-4 sm:grid-cols-2'>
 						<div className='space-y-2 sm:col-span-2'>
-							<Label htmlFor='imapHost'>Server</Label>
+							<Label htmlFor='imapHost'>{t('settings:accounts.manual.server')}</Label>
 							<Input
 								id='imapHost'
 								type='text'
-								placeholder='imap.example.com'
+								placeholder={t('settings:accounts.manual.placeholders.imapHost')}
 								value={formData.imapHost}
 								onChange={(e) => handleChange('imapHost', e.target.value)}
 								required
@@ -183,11 +185,11 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 							/>
 						</div>
 						<div className='space-y-2'>
-							<Label htmlFor='imapPort'>Port</Label>
+							<Label htmlFor='imapPort'>{t('settings:accounts.manual.port')}</Label>
 							<Input
 								id='imapPort'
 								type='number'
-								placeholder='993'
+								placeholder={t('settings:accounts.manual.placeholders.imapPort')}
 								value={formData.imapPort}
 								onChange={(e) => handleChange('imapPort', e.target.value)}
 								required
@@ -215,11 +217,11 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 					<h3 className='mb-4 text-sm font-semibold text-slate-300'>SMTP Settings</h3>
 					<div className='grid gap-4 sm:grid-cols-2'>
 						<div className='space-y-2 sm:col-span-2'>
-							<Label htmlFor='smtpHost'>Server</Label>
+							<Label htmlFor='smtpHost'>{t('settings:accounts.manual.server')}</Label>
 							<Input
 								id='smtpHost'
 								type='text'
-								placeholder='smtp.example.com'
+								placeholder={t('settings:accounts.manual.placeholders.smtpHost')}
 								value={formData.smtpHost}
 								onChange={(e) => handleChange('smtpHost', e.target.value)}
 								required
@@ -227,11 +229,11 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 							/>
 						</div>
 						<div className='space-y-2'>
-							<Label htmlFor='smtpPort'>Port</Label>
+							<Label htmlFor='smtpPort'>{t('settings:accounts.manual.port')}</Label>
 							<Input
 								id='smtpPort'
 								type='number'
-								placeholder='587'
+								placeholder={t('settings:accounts.manual.placeholders.smtpPort')}
 								value={formData.smtpPort}
 								onChange={(e) => handleChange('smtpPort', e.target.value)}
 								required

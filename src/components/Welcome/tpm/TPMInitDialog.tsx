@@ -165,7 +165,7 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 						</div>
 						<div className='flex gap-3'>
 							<Button variant='outline' onClick={onClose} className='flex-1'>
-								{t('common:cancel', 'Cancel')}
+								{t('actions.cancel')}
 							</Button>
 							<Button
 								onClick={handleInitialize}
@@ -194,7 +194,7 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 						</div>
 						<div className='flex gap-3'>
 							<Button variant='outline' onClick={onClose} className='flex-1'>
-								{t('common:cancel', 'Cancel')}
+								{t('actions.cancel')}
 							</Button>
 							<Button
 								onClick={handleInitialize}

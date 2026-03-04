@@ -17,5 +17,7 @@
 	"unknown": {
 		"title": "Unexpected Error",
 		"description": "An unknown error occurred. Please try again"
-	}
+	},
+	"updateFailed": "Failed to update account",
+	"reauthFailed": "Failed to start re-authentication"
 }

@@ -61,7 +61,7 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 						</div>
 						<div>
 							<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
-								{t('welcome:customize.title', 'Make it yours')}
+								{t('welcome:customize.title')}
 							</h1>
 							<p className='mt-1 text-sm text-slate-400'>
 								{t(
@@ -83,7 +83,7 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ delay: 0.1, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>
 						<h2 className='mb-1 text-sm font-bold tracking-widest text-slate-500 uppercase'>
-							{t('welcome:customize.accentColor', 'Accent Color')}
+							{t('welcome:customize.accentColor')}
 						</h2>
 						<p className='mb-5 text-xs text-slate-600'>
 							{t(
@@ -260,7 +260,7 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ delay: 0.25, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>
 						<h2 className='mb-1 text-sm font-bold tracking-widest text-slate-500 uppercase'>
-							{t('welcome:customize.background', 'Background')}
+							{t('welcome:customize.background')}
 						</h2>
 						<p className='mb-5 text-xs text-slate-600'>
 							{t(
@@ -326,7 +326,7 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ delay: 0.4, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>
 						<h2 className='mb-4 text-sm font-bold tracking-widest text-slate-500 uppercase'>
-							{t('welcome:customize.preview', 'Preview')}
+							{t('welcome:customize.preview')}
 						</h2>
 						<div
 							className='overflow-hidden rounded-2xl ring-1 ring-white/[0.06]'
@@ -429,7 +429,7 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 							background: `linear-gradient(to right, ${accentColor}, ${accentColor}dd)`,
 							boxShadow: `0 8px 24px -4px ${accentColor}30`,
 						}}>
-						{t('welcome:customize.continue', 'Continue')}
+						{t('welcome:customize.continue')}
 						<ArrowRight className='h-4 w-4' />
 					</motion.button>
 				</div>

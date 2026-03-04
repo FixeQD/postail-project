@@ -159,7 +159,7 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 											/>
 										</div>
 										<CardTitle className='text-lg font-semibold text-slate-200'>
-											{t('outbox.title', 'Outbox')}
+											{t('outbox.title')}
 											{activeItems.length > 0 && (
 												<Badge
 													variant='outline'
@@ -206,7 +206,7 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 												/>
 											</div>
 											<span className='text-sm text-slate-500'>
-												{t('outbox.loading', 'Loading...')}
+												{t('outbox.loading')}
 											</span>
 										</div>
 									</div>
@@ -224,7 +224,7 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 											<CheckCircle className='h-6 w-6 text-green-400/70' />
 										</div>
 										<p className='text-sm font-medium text-slate-400'>
-											{t('outbox.empty', 'Outbox is empty')}
+											{t('outbox.empty')}
 										</p>
 										<p className='mt-1 text-xs text-slate-600'>
 											{t(
@@ -239,7 +239,7 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 										{activeItems.length > 0 && (
 											<div className='space-y-2'>
 												<h3 className='ml-1 text-xs font-semibold tracking-wider text-slate-500 uppercase'>
-													{t('outbox.activeMessages', 'Active Messages')}
+													{t('outbox.activeMessages')}
 												</h3>
 												{activeItems.map((item, index) => (
 													<motion.div
@@ -270,7 +270,7 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 										{sentItems.length > 0 && (
 											<div className='space-y-2 border-t border-white/[0.06] pt-4'>
 												<h3 className='ml-1 text-xs font-semibold tracking-wider text-slate-500 uppercase'>
-													{t('outbox.recentlySent', 'Recently Sent')}
+													{t('outbox.recentlySent')}
 												</h3>
 												{sentItems.slice(0, 5).map((item, index) => (
 													<motion.div

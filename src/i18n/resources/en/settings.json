@@ -100,7 +100,9 @@
 					"description": "Create a PIN to unlock the app when auto-lock is enabled.",
 					"pinPlaceholder": "Enter PIN",
 					"confirmPlaceholder": "Confirm PIN",
-					"usePassword": "Use encryption password instead"
+					"usePassword": "Use encryption password instead",
+					"newPinPlaceholder": "New PIN",
+					"confirmPinPlaceholder": "Confirm new PIN"
 				}
 			}
 		},
@@ -314,7 +316,36 @@
 			"add_another": "Add Another Account",
 			"add": "Add account",
 			"remove": "Remove Account",
-			"removeConfirm": "Are you sure you want to remove this account?"
+			"removeConfirm": "Are you sure you want to remove this account?",
+			"edit": "Edit Account",
+			"editOAuthDesc": "Update name or re-connect your account.",
+			"manageRoles": "Manage mailbox roles"
+		},
+		"manual": {
+			"accountName": "Account Name",
+			"emailAddress": "Email Address",
+			"username": "Username",
+			"server": "Server",
+			"port": "Port",
+			"placeholders": {
+				"accountName": "My Email Account",
+				"email": "user@example.com",
+				"username": "domain\\username or user@domain.com",
+				"password": "••••••••",
+				"imapHost": "imap.example.com",
+				"imapPort": "993",
+				"smtpHost": "smtp.example.com",
+				"smtpPort": "587"
+			}
+		},
+		"form": {
+			"name": "Account Name"
+		},
+		"reauth": {
+			"title": "Re-authentication Required?",
+			"description": "If you're having connection issues or your session expired, you can re-link your account.",
+			"button": "Re-authenticate",
+			"notice": "Ensure you log in with the same email address: "
 		}
 	}
 }

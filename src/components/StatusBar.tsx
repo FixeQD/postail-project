@@ -102,14 +102,11 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 	}, [sendingCount, failedCount, pendingCount, showSuccess])
 
 	const getOutboxStatusText = useCallback(() => {
-		if (showSuccess) return t('statusBar.sent', 'Message sent!')
-		if (sendingCount > 0)
-			return t('statusBar.sending', 'Sending {{count}}...', { count: sendingCount })
-		if (failedCount > 0)
-			return t('statusBar.failed', '{{count}} failed', { count: failedCount })
-		if (pendingCount > 0)
-			return t('statusBar.pending', '{{count}} pending', { count: pendingCount })
-		return t('statusBar.ready', 'Ready')
+		if (showSuccess) return t('statusBar.sent')
+		if (sendingCount > 0) return t('statusBar.sending', { count: sendingCount })
+		if (failedCount > 0) return t('statusBar.failed', { count: failedCount })
+		if (pendingCount > 0) return t('statusBar.pending', { count: pendingCount })
+		return t('statusBar.ready')
 	}, [sendingCount, failedCount, pendingCount, showSuccess, t])
 
 	const getGlobalSyncStatus = useCallback(() => {
@@ -146,13 +143,13 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 		const globalStatus = getGlobalSyncStatus()
 		switch (globalStatus.status) {
 			case 'syncing':
-				return t('statusBar.syncingAccounts', 'Syncing {{count}}...', {
+				return t('statusBar.syncingAccounts', {
 					count: globalStatus.count,
 				})
 			case 'error':
-				return t('statusBar.syncError', '{{count}} errors', { count: globalStatus.count })
+				return t('statusBar.syncError', { count: globalStatus.count })
 			default:
-				return t('statusBar.allSynced', 'All synced')
+				return t('statusBar.allSynced')
 		}
 	}, [getGlobalSyncStatus, t])
 
@@ -183,10 +180,10 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 						<Loader2 className='h-3 w-3 animate-spin text-blue-400' />
 						<span className='text-slate-300'>
 							{status.mailbox
-								? t('statusBar.syncingMailbox', 'Syncing {{mailbox}}', {
+								? t('statusBar.syncingMailbox', {
 										mailbox: status.mailbox,
 									})
-								: t('statusBar.syncing', 'Syncing...')}
+								: t('statusBar.syncing')}
 							{mailboxCounter && ` (${mailboxCounter})`}
 						</span>
 						<Button
@@ -204,7 +201,7 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 					<div className='flex items-center gap-2'>
 						<AlertCircle className='h-3 w-3 text-red-400' />
 						<span className='max-w-[150px] truncate text-red-400' title={status.error}>
-							{status.error || t('statusBar.syncFailed', 'Sync failed')}
+							{status.error || t('statusBar.syncFailed')}
 						</span>
 						<Button
 							variant='ghost'
@@ -220,7 +217,7 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 					<div className='flex items-center gap-2'>
 						<CheckCircle className='h-3 w-3 text-green-500/70' />
 						<span className='text-slate-600'>
-							{t('statusBar.lastSynced', 'Last synced {{time}}', {
+							{t('statusBar.lastSynced', {
 								time: useSyncStore.getState().getFormattedLastSync(accountId),
 							})}
 						</span>
@@ -260,12 +257,12 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 						align='start'
 						className='w-72 border-white/[0.06] bg-slate-900/95 backdrop-blur-xl'>
 						<DropdownMenuLabel className='text-slate-400'>
-							{t('statusBar.syncStatus', 'Sync Status')}
+							{t('statusBar.syncStatus')}
 						</DropdownMenuLabel>
 						<DropdownMenuSeparator className='bg-white/[0.06]' />
 						{accounts.length === 0 ? (
 							<DropdownMenuItem disabled className='text-slate-600'>
-								{t('statusBar.noAccounts', 'No accounts added')}
+								{t('statusBar.noAccounts')}
 							</DropdownMenuItem>
 						) : (
 							accounts.map((account) => (
@@ -329,8 +326,8 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 							className='border-white/[0.06] bg-slate-900 text-slate-300'>
 							<p>
 								{hasActivity
-									? t('statusBar.clickToView', 'Click to view outbox')
-									: t('statusBar.noMessages', 'No messages in outbox')}
+									? t('statusBar.clickToView')
+									: t('statusBar.noMessages')}
 							</p>
 						</TooltipContent>
 					</Tooltip>

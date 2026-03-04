@@ -84,6 +84,7 @@ const useEditorFormats = (editor: LexicalEditor, linkPopoverOpen: boolean) => {
 }
 
 const LinkPopover = memo(({ editor, formats, linkData }: LinkPopoverProps) => {
+	const { t } = useTranslation()
 	const [open, setOpen] = useState(false)
 	const [localText, setLocalText] = useState('')
 	const [localUrl, setLocalUrl] = useState('')
@@ -162,7 +163,7 @@ const LinkPopover = memo(({ editor, formats, linkData }: LinkPopoverProps) => {
 						onKeyDown={(e) => e.key === 'Enter' && applyLink()}
 					/>
 					<div className='mt-2 flex justify-end gap-2'>
-						<Button onClick={applyLink}>Apply</Button>
+						<Button onClick={applyLink}>{t('compose.applyLink')}</Button>
 						<Button
 							variant='ghost'
 							onClick={() => {
