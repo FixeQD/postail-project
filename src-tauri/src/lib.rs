@@ -1,6 +1,7 @@
 pub mod build_info;
 pub mod cmd;
 pub mod db;
+pub mod email_view;
 pub mod error;
 pub mod globals;
 pub mod imap;
@@ -33,6 +34,7 @@ pub fn run() {
         .init();
 
     tauri::Builder::default()
+        .manage(email_view::EmailViewState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init())
@@ -130,6 +132,7 @@ pub fn run() {
             cmd::utils::process_email_content,
             cmd::utils::show_notification,
             cmd::utils::auto_fix_email_html,
+            cmd::utils::set_email_view_content,
             cmd::settings::get_all_settings,
             cmd::settings::get_setting,
             cmd::settings::set_setting,
