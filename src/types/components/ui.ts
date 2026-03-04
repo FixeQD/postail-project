@@ -15,6 +15,8 @@ export interface ConfirmationDialogProps {
 	confirmLabel: string
 	cancelLabel: string
 	onConfirm: () => void
+	children?: React.ReactNode
+	confirmClassName?: string
 }
 
 export interface HSV {

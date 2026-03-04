@@ -7,15 +7,7 @@ import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 import { open } from '@tauri-apps/plugin-dialog'
 import { toast } from '../../ui/custom/Toaster'
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-	DialogFooter,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 import { ToggleSetting } from '@/components/ui/toggle-setting'
 import type { SettingCardProps } from '@/types/components/shared'
 
@@ -178,35 +170,20 @@ export function GeneralSettings() {
 				</section>
 			</div>
 
-			<Dialog open={isMigrationDialogOpen} onOpenChange={setIsMigrationDialogOpen}>
-				<DialogContent className='border-slate-800 bg-slate-900 text-slate-100'>
-					<DialogHeader>
-						<DialogTitle>
-							{t('settings:general.storage.migration.confirmTitle')}
-						</DialogTitle>
-						<DialogDescription className='text-slate-400'>
-							{t('settings:general.storage.migration.confirmDescription')}
-							<div className='mt-4 rounded-lg border border-blue-500/20 bg-blue-500/10 p-3 text-xs text-blue-400 italic'>
-								{t('settings:general.storage.migration.newPath')}: <br />
-								<span className='font-mono font-bold break-all'>{pendingPath}</span>
-							</div>
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter>
-						<Button
-							variant='outline'
-							onClick={() => setIsMigrationDialogOpen(false)}
-							className='border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'>
-							{t('common:actions.cancel')}
-						</Button>
-						<Button
-							onClick={handleConfirmMigration}
-							className='bg-blue-600 font-bold text-white hover:bg-blue-500'>
-							{t('settings:general.storage.migration.start')}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			<ConfirmationDialog
+				open={isMigrationDialogOpen}
+				onOpenChange={setIsMigrationDialogOpen}
+				title={t('settings:general.storage.migration.confirmTitle')}
+				description={t('settings:general.storage.migration.confirmDescription')}
+				cancelLabel={t('common:actions.cancel')}
+				confirmLabel={t('settings:general.storage.migration.start')}
+				onConfirm={handleConfirmMigration}
+				confirmClassName='w-full border-0 font-bold shadow-lg bg-blue-600 text-white hover:bg-blue-500'>
+				<div className='mt-4 rounded-lg border border-blue-500/20 bg-blue-500/10 p-3 text-xs text-blue-400 italic'>
+					{t('settings:general.storage.migration.newPath')}: <br />
+					<span className='font-mono font-bold break-all'>{pendingPath}</span>
+				</div>
+			</ConfirmationDialog>
 		</div>
 	)
 }

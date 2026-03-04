@@ -2,15 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useThemeStore } from '@/stores/themeStore'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
 
 import type { MessageViewBodyProps } from '@/types/components/shared'
@@ -245,33 +237,22 @@ export const MessageViewBody = ({
 				</div>
 			</div>
 
-			<Dialog open={warningOpen} onOpenChange={setWarningOpen}>
-				<DialogContent className='sm:max-w-[425px]'>
-					<DialogHeader>
-						<DialogTitle>{t('security:externalLink.title')}</DialogTitle>
-						<DialogDescription>
-							{t('security:externalLink.description')}
-						</DialogDescription>
-					</DialogHeader>
-					<div className='flex flex-col gap-1.5 rounded-lg border border-white/[0.06] bg-slate-950/50 p-3'>
-						<p className='text-[10px] font-bold tracking-wider text-slate-500 uppercase'>
-							Target URL
-						</p>
-						<p className='font-mono text-xs break-all text-slate-300'>{pendingUrl}</p>
-					</div>
-					<DialogFooter>
-						<Button variant='ghost' onClick={() => setWarningOpen(false)}>
-							{t('security:externalLink.cancel')}
-						</Button>
-						<Button
-							variant='default'
-							onClick={handleConfirmOpenLink}
-							className='bg-sky-500 font-semibold text-white hover:bg-sky-600 dark:bg-sky-600 dark:hover:bg-sky-700'>
-							{t('security:externalLink.open')}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			<ConfirmationDialog
+				open={warningOpen}
+				onOpenChange={setWarningOpen}
+				title={t('security:externalLink.title')}
+				description={t('security:externalLink.description')}
+				cancelLabel={t('security:externalLink.cancel')}
+				confirmLabel={t('security:externalLink.open')}
+				onConfirm={handleConfirmOpenLink}
+				confirmClassName='w-full border-0 font-semibold shadow-lg bg-sky-500 text-white hover:bg-sky-600'>
+				<div className='flex flex-col gap-1.5 rounded-lg border border-white/[0.06] bg-slate-950/50 p-3'>
+					<p className='text-[10px] font-bold tracking-wider text-slate-500 uppercase'>
+						Target URL
+					</p>
+					<p className='font-mono text-xs break-all text-slate-300'>{pendingUrl}</p>
+				</div>
+			</ConfirmationDialog>
 		</>
 	)
 }
