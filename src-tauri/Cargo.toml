@@ -1,5 +1,5 @@
 [package]
-name = "postail-project"
+name = "postail"
 version = "0.1.0"
 description = "Secure Tauri backend for Postail"
 authors = ["FixeQD"]

@@ -1,8 +1,8 @@
 {
 	"$schema": "https://schema.tauri.app/config/2",
-	"productName": "postail-project",
+	"productName": "postail",
 	"version": "0.1.0",
-	"identifier": "com.fixeq.postail-project",
+	"identifier": "com.fixeq.postail",
 	"build": {
 		"beforeDevCommand": "bun run dev",
 		"devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
 	"app": {
 		"windows": [
 			{
-				"title": "postail-project",
+				"title": "Postail",
 				"maximized": true,
 				"decorations": false,
 				"transparent": true

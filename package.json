@@ -1,5 +1,5 @@
 {
-	"name": "postail-project",
+	"name": "postail",
 	"private": true,
 	"license": "MIT",
 	"description": "Modern, privacy-focused multiplatform mail client built with Tauri and React.",

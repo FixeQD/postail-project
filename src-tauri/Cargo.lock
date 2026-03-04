@@ -3926,7 +3926,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "postail-project"
+name = "postail"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
