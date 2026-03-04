@@ -7,9 +7,11 @@ import { ListNode, ListItemNode } from '@lexical/list'
 import { LinkNode } from '@lexical/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from '../ui/custom/Toaster'
+import { useToastStore } from '@/stores/toastStore'
 
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useDraftStore } from '@/stores/draftStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { useComposeShortcuts } from '@/hooks/useComposeShortcuts'
 import { useDragging, useLinkTooltip } from './useCompose'
 import EditorContent from './Editor/EditorContent'
@@ -66,6 +68,8 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	const [showDiscardDialog, setShowDiscardDialog] = useState(false)
 	const [isFixing, setIsFixing] = useState(false)
 	const [isFlying, setIsFlying] = useState(false)
+	const [isCountingDown, setIsCountingDown] = useState(false)
+	const closedDuringCountdownRef = useRef(false)
 	const [frozenLayout, setFrozenLayout] = useState<{
 		position: { x: number; y: number }
 		size: { width: number; height: number }
@@ -88,6 +92,11 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	)
 
 	const handleClose = useCallback(() => {
+		if (isCountingDown) {
+			closedDuringCountdownRef.current = true
+			onOpenChange(false)
+			return
+		}
 		if (isDirty) {
 			setShowDiscardDialog(true)
 		} else {
@@ -95,9 +104,46 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 			onOpenChange(false)
 			stopComposing()
 		}
-	}, [isDirty, saveDraft, onOpenChange, stopComposing])
+	}, [isCountingDown, isDirty, saveDraft, onOpenChange, stopComposing])
+
+	const { settings } = useSettingsStore()
 
 	const handleSend = useCallback(async () => {
+		const delaySeconds = settings['undo-send-delay'] ?? 0
+
+		// ── Strategic Delay ────────────────────────────────────────────────────
+		if (delaySeconds > 0) {
+			const TOAST_ID = 'send-countdown'
+			const delayMs = delaySeconds * 1000
+
+			closedDuringCountdownRef.current = false
+			setIsCountingDown(true)
+
+			const cancelled = await new Promise<boolean>((resolve) => {
+				toast.loading(t('compose.sendingIn', 'Sending…'), {
+					id: TOAST_ID,
+					duration: delayMs,
+					withCountdown: true,
+					cancelFn: () => resolve(true),
+				})
+				setTimeout(() => resolve(false), delayMs)
+			})
+
+			setIsCountingDown(false)
+			useToastStore.getState().removeToast(TOAST_ID)
+
+			if (cancelled) {
+				// If user closed compose during countdown, reopen it with draft intact
+				if (closedDuringCountdownRef.current) {
+					closedDuringCountdownRef.current = false
+					onOpenChange(true)
+				}
+				toast.info(t('compose.sendCancelled', 'Send cancelled'), { duration: 2500 })
+				return
+			}
+		}
+
+		// ── Proceed with actual send ───────────────────────────────────────────
 		try {
 			const target = calculateFlyTarget(position, size)
 			setFrozenLayout({ position, size, target })
@@ -112,12 +158,13 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 			console.error('Send failed', error)
 			toast.error(t('compose.sendError', 'Failed to send message'))
 		}
-	}, [sendDraft, onOpenChange, t, position, size, calculateFlyTarget])
+	}, [sendDraft, onOpenChange, t, position, size, calculateFlyTarget, settings])
 
 	useEffect(() => {
 		if (open) {
 			setIsFlying(false)
 			setFrozenLayout(null)
+			setIsCountingDown(false)
 		}
 	}, [open])
 
@@ -281,7 +328,15 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 												y: activeTarget.y,
 												transition: { duration: 0.5, ease: 'easeInOut' },
 											}
-										: { opacity: 1, y: 0, scale: 1, x: 0 },
+										: isCountingDown
+											? {
+													opacity: 0.58,
+													y: 0,
+													scale: 1,
+													x: 0,
+													transition: { duration: 0.35, ease: 'easeOut' },
+												}
+											: { opacity: 1, y: 0, scale: 1, x: 0 },
 								exit: isFlying
 									? {
 											opacity: 0,
@@ -299,7 +354,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 								transition: { type: 'spring', duration: 0.4, bounce: 0.3 },
 							}
 						: {})}
-					className={`compose-drag-root fixed z-50 flex flex-col rounded-t-xl bg-zinc-950 text-zinc-100 shadow-2xl ring-1 ring-zinc-800 ${isDragging ? 'shadow-blue-900/20' : ''}`}
+					className={`compose-drag-root fixed z-50 flex flex-col rounded-t-xl bg-zinc-950 text-zinc-100 shadow-2xl ring-1 ${isCountingDown ? 'ring-blue-500/30' : 'ring-zinc-800'} ${isDragging ? 'shadow-blue-900/20' : ''}`}
 					style={{
 						left: `${activePosition.x}px`,
 						top: `${activePosition.y}px`,
@@ -307,7 +362,21 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 						height: `${activeSize.height}px`,
 						cursor: isDragging ? 'grabbing' : 'auto',
 						pointerEvents: 'auto',
+						boxShadow: isCountingDown
+							? '0 0 0 1px rgba(59,130,246,0.25), 0 25px 60px rgba(0,0,0,0.7)'
+							: undefined,
 					}}>
+					{/* Countdown overlay - blocks all interaction */}
+					{isCountingDown && (
+						<div
+							className='absolute inset-0 z-20 rounded-t-xl'
+							style={{
+								background:
+									'linear-gradient(135deg, rgba(59,130,246,0.06) 0%, rgba(139,92,246,0.04) 60%, transparent 100%)',
+								cursor: 'not-allowed',
+							}}
+						/>
+					)}
 					{/* Drag/resize interaction shield */}
 					{(isDragging || isResizing) && (
 						<div className='absolute inset-0 z-[9999] cursor-grabbing' />
@@ -316,6 +385,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 						isDragging={isDragging}
 						onMouseDown={startDrag}
 						onClose={handleClose}
+						isCountingDown={isCountingDown}
 					/>
 
 					<ComposeInputs

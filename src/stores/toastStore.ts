@@ -8,12 +8,16 @@ export interface Toast {
 	description?: string
 	type: ToastType
 	duration?: number
+	withCountdown?: boolean
+	cancelFn?: () => void
 }
 
 interface ToastOptions {
 	id?: string
 	description?: string
 	duration?: number
+	withCountdown?: boolean
+	cancelFn?: () => void
 }
 
 interface ToastStore {
@@ -45,7 +49,15 @@ export const useToastStore = create<ToastStore>((set) => ({
 		set((state) => ({
 			toasts: [
 				...state.toasts.filter((t) => t.id !== id),
-				{ id, message, description: options?.description, type, duration },
+				{
+					id,
+					message,
+					description: options?.description,
+					type,
+					duration,
+					withCountdown: options?.withCountdown,
+					cancelFn: options?.cancelFn,
+				},
 			],
 		}))
 

@@ -100,6 +100,7 @@ export interface ComposeHeaderProps {
 	isDragging: boolean
 	onMouseDown: (e: React.MouseEvent) => void
 	onClose: () => void
+	isCountingDown?: boolean
 }
 
 export interface ComposeFooterProps {
