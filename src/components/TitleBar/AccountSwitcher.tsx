@@ -40,6 +40,7 @@ export function AccountSwitcher({ onOpenSettings }: AccountSwitcherProps) {
 					e.stopPropagation()
 					setIsOpen(!isOpen)
 				}}
+				onMouseDown={(e) => e.stopPropagation()}
 				className='group flex items-center gap-2 rounded-full ring-offset-slate-900 transition-all focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:outline-none'>
 				<div
 					className='flex h-8 w-8 items-center justify-center overflow-hidden rounded-full ring-2 ring-slate-950 ring-offset-1 ring-offset-slate-800/50 transition-transform group-hover:scale-105'
@@ -68,6 +69,7 @@ export function AccountSwitcher({ onOpenSettings }: AccountSwitcherProps) {
 										transition: { duration: 0.15, ease: 'easeOut' },
 									}
 								: {})}
+							onMouseDown={(e) => e.stopPropagation()}
 							className='absolute top-[calc(100%+8px)] right-0 z-50 w-56 overflow-hidden rounded-xl border border-white/[0.06] bg-slate-900/95 p-1 text-slate-200 shadow-xl backdrop-blur-xl'
 							style={{ transformOrigin: 'top right' }}>
 							<div className='px-2 py-1.5'>
