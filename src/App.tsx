@@ -54,9 +54,23 @@ function App() {
 	} = useAppInitialization()
 
 	useEffect(() => {
-		loadSettings()
 		loadTheme()
-	}, [loadSettings, loadTheme])
+	}, [loadTheme])
+
+	useEffect(() => {
+		// only call the DB when it's actually initialized
+		const dbReady =
+			currentState !== 'init' &&
+			currentState !== 'argon2-unlock' &&
+			currentState !== 'welcome' &&
+			currentState !== 'security' &&
+			currentState !== 'argon2-setup' &&
+			currentState !== 'tpm-unlock-failed' &&
+			!isLocked
+		if (dbReady) {
+			loadSettings()
+		}
+	}, [loadSettings, currentState, isLocked])
 
 	useEffect(() => {
 		document.documentElement.setAttribute('data-animations', animationsEnabled ? 'on' : 'off')
