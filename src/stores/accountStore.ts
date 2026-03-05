@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import type { AccountMeta } from '../types/accounts'
 import type { AccountState } from '../types/stores'
 import { useMessageViewStore } from './messageViewStore'
+import { useNotificationStore } from './notificationStore'
 
 export const useAccountStore = create<AccountState>((set, get) => ({
 	accounts: [],
@@ -84,9 +85,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 			}
 
 			try {
-				const { loadBaseline } = await import('@/stores/notificationStore').then((m) =>
-					m.useNotificationStore.getState()
-				)
+				const { loadBaseline } = useNotificationStore.getState()
 				await loadBaseline()
 			} catch (e) {
 				console.warn('[AccountStore] Failed to load notification baseline:', e)
