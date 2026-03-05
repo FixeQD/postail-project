@@ -4,7 +4,10 @@ pub mod linux;
 #[cfg(target_os = "windows")]
 pub mod windows;
 
-#[cfg(all(target_os = "linux", feature = "tpm"))]
+#[cfg(feature = "tpm")]
+pub mod common;
+
+#[cfg(feature = "tpm")]
 pub mod pcr;
 
 use crate::error::{Result, SecurityError};
