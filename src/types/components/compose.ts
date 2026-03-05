@@ -1,4 +1,5 @@
 import type { LexicalEditor, EditorState } from 'lexical'
+import type { OnMount } from '@monaco-editor/react/dist/index'
 import type { EmailAttachment } from '../compose'
 
 export interface ComposeScreenProps {
@@ -54,7 +55,7 @@ export interface SourceEditorProps {
 	htmlRef: React.MutableRefObject<string>
 	onChange?: (value: string | undefined) => void
 	isFixing?: boolean
-	onMount?: () => void
+	onMount?: OnMount
 }
 
 export interface AttachmentListProps {

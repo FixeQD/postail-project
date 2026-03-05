@@ -9,7 +9,7 @@ import 'monaco-editor/esm/vs/basic-languages/html/html.contribution'
 import { loader, Editor } from '@monaco-editor/react'
 import { useDraftStore } from '@/stores/draftStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
-import { memo, useCallback, useEffect } from 'react'
+import { memo, useCallback, useEffect, useRef } from 'react'
 import { html_beautify } from 'js-beautify'
 import { motion } from 'framer-motion'
 import type { MonacoEnvironment, SourceEditorProps } from '@/types/components/compose'
@@ -54,6 +54,7 @@ const formatOptions: import('js-beautify').HTMLBeautifyOptions = {
 
 export const SourceEditor = memo(({ htmlRef, onChange, isFixing, onMount }: SourceEditorProps) => {
 	const { markDirty } = useDraftStore()
+	const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null)
 
 	const handleEditorChange = useCallback(
 		(value: string | undefined) => {
@@ -79,6 +80,23 @@ export const SourceEditor = memo(({ htmlRef, onChange, isFixing, onMount }: Sour
 		onChange(formatted)
 		markDirty()
 	}, [htmlRef, onChange, markDirty])
+
+	// WebView2 fix: automaticLayout uses ResizeObserver internally but doesn't fire reliably in WebView2.
+	const handleEditorMount = useCallback<NonNullable<SourceEditorProps['onMount']>>(
+		(editor, monacoInstance) => {
+			editorRef.current = editor
+
+			const container = editor.getContainerDomNode()
+			const ro = new ResizeObserver(() => editor.layout())
+			ro.observe(container)
+			editor.onDidDispose(() => ro.disconnect())
+
+			editor.layout()
+
+			onMount?.(editor, monacoInstance)
+		},
+		[onMount]
+	)
 
 	const animationsEnabled = useAnimationsEnabled()
 
@@ -117,7 +135,7 @@ export const SourceEditor = memo(({ htmlRef, onChange, isFixing, onMount }: Sour
 					wordWrap: 'on',
 					lineNumbers: 'on',
 					scrollBeyondLastLine: false,
-					automaticLayout: true,
+					automaticLayout: false,
 					padding: { top: 12, bottom: 12 },
 					tabSize: 4,
 					renderLineHighlight: 'all',
@@ -127,7 +145,7 @@ export const SourceEditor = memo(({ htmlRef, onChange, isFixing, onMount }: Sour
 					bracketPairColorization: { enabled: true },
 				}}
 				onChange={handleEditorChange}
-				onMount={onMount}
+				onMount={handleEditorMount}
 			/>
 		</motion.div>
 	)
