@@ -2,6 +2,11 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+#[cfg(target_os = "windows")]
+use dunce::canonicalize;
+#[cfg(not(target_os = "windows"))]
+use std::fs::canonicalize;
+
 pub fn get_default_data_dir() -> PathBuf {
     dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
@@ -28,7 +33,7 @@ pub fn get_data_dir() -> PathBuf {
         }
     }
 
-    if let Ok(canonical) = fs::canonicalize(&data_dir) {
+    if let Ok(canonical) = canonicalize(&data_dir) {
         canonical
     } else {
         std::env::current_dir()

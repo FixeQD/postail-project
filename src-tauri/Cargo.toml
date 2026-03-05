@@ -89,6 +89,7 @@ windows = { version = "0.62", features = [
     "Win32_Storage_FileSystem",
 ], optional = true }
 tauri-plugin-notification = { version = "2.3.3", features = ["windows-version"] }
+dunce = "1.0.5"
 
 [dev-dependencies]
 tempfile = "3"

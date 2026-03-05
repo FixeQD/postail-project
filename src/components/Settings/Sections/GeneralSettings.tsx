@@ -39,7 +39,8 @@ export function GeneralSettings() {
 		invoke<string>('get_default_data_dir').then(setDefaultPath)
 	}, [])
 
-	const isDefaultPath = !settings['data-path'] || settings['data-path'] === defaultPath
+	const currentPath = settings['data-path'] || null
+	const isDefaultPath = !currentPath || currentPath === defaultPath
 
 	const handlePathSelect = async () => {
 		const selected = await open({
@@ -49,7 +50,7 @@ export function GeneralSettings() {
 		})
 
 		if (selected && typeof selected === 'string') {
-			if (selected === settings['data-path']) {
+			if (selected === currentPath) {
 				toast.info(t('settings:general.storage.path.alreadyCurrent'))
 				return
 			}
@@ -60,12 +61,12 @@ export function GeneralSettings() {
 
 	const handleResetPath = async () => {
 		try {
-			const defaultPath = await invoke<string>('get_default_data_dir')
-			if (settings['data-path'] === defaultPath) {
+			const fetchedDefault = await invoke<string>('get_default_data_dir')
+			if (currentPath === fetchedDefault) {
 				toast.info('Already using default data path')
 				return
 			}
-			setPendingPath(defaultPath)
+			setPendingPath(fetchedDefault)
 			setIsMigrationDialogOpen(true)
 		} catch (error) {
 			console.error('Failed to get default path:', error)
@@ -144,7 +145,7 @@ export function GeneralSettings() {
 							description={t('settings:general.storage.path.description')}>
 							<div className='flex items-center gap-2'>
 								<code className='rounded border border-white/5 bg-slate-900 px-2 py-1 text-[10px] text-slate-400'>
-									{settings['data-path'] || 'Default'}
+									{currentPath || 'Default'}
 								</code>
 								<div className='flex items-center gap-1.5'>
 									<button
