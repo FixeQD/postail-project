@@ -1,6 +1,7 @@
 use crate::db::settings;
 use crate::utils::config::{get_default_data_dir as get_default_path, ThemeConfig};
 use std::collections::HashMap;
+use tauri::Emitter;
 
 #[tauri::command]
 pub async fn get_default_data_dir() -> Result<String, String> {
@@ -40,7 +41,8 @@ pub async fn migrate_data_path(
     new_path: String,
 ) -> Result<(), String> {
     crate::utils::migration::perform_migration(&new_path).await?;
-    app_handle.restart();
+    let _ = app_handle.emit("data_path_migrated", ());
+    Ok(())
 }
 
 #[tauri::command]

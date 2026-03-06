@@ -39,9 +39,10 @@
 			},
 			"migration": {
 				"loading": "Migrating your data, please wait...",
+				"success": "Data migrated successfully",
 				"error": "Migration failed",
 				"confirmTitle": "Migrate Data?",
-				"confirmDescription": "This will move all your emails, attachments, and settings to the new location. The application will restart automatically after the migration is complete.",
+				"confirmDescription": "This will move all your emails, attachments, and settings to the new location.",
 				"newPath": "Target location",
 				"start": "Start Migration",
 				"reset": "Reset to Default",

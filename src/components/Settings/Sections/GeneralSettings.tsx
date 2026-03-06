@@ -82,7 +82,7 @@ export function GeneralSettings() {
 		try {
 			toast.loading(t('settings:general.storage.migration.loading'), { id: 'migration' })
 			await invoke('migrate_data_path', { newPath: pendingPath })
-			// App will restart, so we don't need to clear toast
+			toast.success(t('settings:general.storage.migration.success'), { id: 'migration' })
 		} catch (error) {
 			setIsMigrating(false)
 			toast.error(`${t('settings:general.storage.migration.error')}: ${error}`, {

@@ -217,6 +217,16 @@ export function useAppInitialization() {
 	}, [fetchAccounts, currentState, loadSettings])
 
 	useEffect(() => {
+		const unlisten = listen('data_path_migrated', () => {
+			hasInitializedRef.current = false
+			setCurrentState('init')
+		})
+		return () => {
+			unlisten.then((fn) => fn())
+		}
+	}, [])
+
+	useEffect(() => {
 		const unlisten = listen(
 			'oauth_callback',
 			async (
