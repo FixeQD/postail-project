@@ -4,6 +4,12 @@ import { useEffect, useState, useRef } from 'react'
 import { motion } from 'motion/react'
 import type { DecryptedTextProps } from '@/types/components/shared'
 
+const scrambleText = (text: string, chars: string): string =>
+	text
+		.split('')
+		.map((c) => (c === ' ' ? ' ' : chars[Math.floor(Math.random() * chars.length)]))
+		.join('')
+
 export default function DecryptedText({
 	text,
 	speed = 30,
@@ -18,7 +24,9 @@ export default function DecryptedText({
 	animateOn = 'hover',
 	...props
 }: DecryptedTextProps) {
-	const [displayText, setDisplayText] = useState<string>(text)
+	const [displayText, setDisplayText] = useState<string>(() =>
+		animateOn === 'view' || animateOn === 'both' ? scrambleText(text, characters) : text
+	)
 	const [isHovering, setIsHovering] = useState<boolean>(false)
 	const [isScrambling, setIsScrambling] = useState<boolean>(false)
 	const [revealedIndices, setRevealedIndices] = useState<Set<number>>(new Set())
@@ -126,7 +134,9 @@ export default function DecryptedText({
 				})
 			}, speed)
 		} else {
-			setDisplayText(text)
+			if (animateOn !== 'view' || hasAnimated) {
+				setDisplayText(text)
+			}
 			setRevealedIndices(new Set())
 			setIsScrambling(false)
 		}
