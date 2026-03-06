@@ -1,7 +1,33 @@
-use crate::globals::{DB_CONN, IMAP_MANAGER, SMTP_MANAGER};
+use crate::globals::{DB_CONN, IMAP_MANAGER, SECURITY, SMTP_MANAGER};
 use crate::utils::config::{get_data_dir, set_data_dir_override};
 use std::fs;
 use std::path::{Path, PathBuf};
+
+#[cfg(all(target_os = "linux", feature = "tpm"))]
+fn notify_tpm_helper_new_path(new_path: &str) {
+    use crate::security::tpm_protocol::{receive_message, send_message, TpmRequest, TpmResponse};
+    use std::os::unix::net::UnixStream;
+
+    let uid = unsafe { nix::libc::getuid() };
+    let socket_path = PathBuf::from(format!("/run/user/{}/postail-tpm.sock", uid));
+
+    if !socket_path.exists() {
+        return;
+    }
+
+    let Ok(mut stream) = UnixStream::connect(&socket_path) else {
+        return;
+    };
+
+    let req = TpmRequest::UpdateDataDir {
+        path: new_path.to_string(),
+    };
+    if send_message(&mut stream, &req).is_err() {
+        return;
+    }
+
+    let _: Result<TpmResponse, _> = receive_message(&mut stream);
+}
 
 pub async fn perform_migration(new_path: &str) -> Result<(), String> {
     let old_dir = get_data_dir();
@@ -40,11 +66,15 @@ pub async fn perform_migration(new_path: &str) -> Result<(), String> {
     tracing::info!(target: "postail", "[Migration] Stopping maintenance scheduler...");
     crate::maintenance::stop_maintenance_scheduler();
 
-    // 2. Drop DB connection
+    // 2. Drop DB connection and lock security (clear master key from memory)
     tracing::info!(target: "postail", "[Migration] Closing database connection...");
     {
         let mut db_guard = DB_CONN.lock().await;
         *db_guard = None;
+    }
+    {
+        let mut security = SECURITY.lock().await;
+        security.lock();
     }
 
     // 3. Move files
@@ -59,7 +89,11 @@ pub async fn perform_migration(new_path: &str) -> Result<(), String> {
     tracing::info!(target: "postail", "[Migration] Updating data path override...");
     set_data_dir_override(new_path).map_err(|e| e.to_string())?;
 
-    tracing::info!(target: "postail", "[Migration] Migration complete. Requesting restart...");
+    // Notify the running TPM helper (if any) to switch to the new data path
+    #[cfg(all(target_os = "linux", feature = "tpm"))]
+    notify_tpm_helper_new_path(new_path);
+
+    tracing::info!(target: "postail", "[Migration] Migration complete.");
 
     Ok(())
 }

@@ -1,4 +1,3 @@
-use crate::db::eml_cache;
 use crate::email_view::EmailViewState;
 use crate::globals::SECURITY;
 use crate::utils::sanitizer::{

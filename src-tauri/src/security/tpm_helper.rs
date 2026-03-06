@@ -1,4 +1,4 @@
-use crate::security::stores::tpm::get_tpm_store;
+use crate::security::stores::SecretStore;
 use crate::security::tpm_protocol::{
     async_io::{receive_message_async, send_message_async},
     TpmRequest, TpmResponse,
@@ -9,7 +9,9 @@ use std::fs;
 use std::os::fd::{AsFd, FromRawFd, RawFd};
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::net::{UnixListener, UnixStream};
+use tokio::sync::Mutex;
 
 #[cfg(all(target_os = "linux", feature = "tpm"))]
 fn get_executable_path() -> std::io::Result<PathBuf> {
@@ -48,10 +50,15 @@ pub fn tpm_helper_init() -> Result<(), String> {
             start_watchdog(parent_pid)?;
         }
 
+        let storage_path = Arc::new(Mutex::new(
+            crate::security::stores::tpm::common::default_storage_path(),
+        ));
+
         while let Ok((mut stream, _)) = listener.accept().await {
             let target_uid = uid.as_raw();
+            let path = Arc::clone(&storage_path);
             tokio::spawn(async move {
-                if let Err(e) = handle_client(&mut stream, target_uid).await {
+                if let Err(e) = handle_client(&mut stream, target_uid, path).await {
                     tracing::error!("Client error: {}", e);
                 }
             });
@@ -152,7 +159,11 @@ fn read_peer_appimage_env(pid: u32) -> Option<String> {
 }
 
 #[cfg(all(target_os = "linux", feature = "tpm"))]
-async fn handle_client(stream: &mut UnixStream, target_uid: u32) -> Result<(), String> {
+async fn handle_client(
+    stream: &mut UnixStream,
+    target_uid: u32,
+    storage_path: Arc<Mutex<PathBuf>>,
+) -> Result<(), String> {
     let fd = stream.as_fd();
     let creds = getsockopt(&fd, sockopt::PeerCredentials).map_err(|e| e.to_string())?;
 
@@ -175,12 +186,21 @@ async fn handle_client(stream: &mut UnixStream, target_uid: u32) -> Result<(), S
         return Err("Unauthorized: Binary mismatch".to_string());
     }
 
-    let store = get_tpm_store().ok_or_else(|| "TPM store not available".to_string())?;
+    use crate::security::stores::tpm::linux::LinuxTpmStore;
 
     loop {
         let req: TpmRequest = match receive_message_async(stream).await {
             Ok(r) => r,
             Err(_) => break,
+        };
+
+        let current_path = storage_path.lock().await.clone();
+        let store = match LinuxTpmStore::with_storage_path(current_path) {
+            Ok(s) => s,
+            Err(e) => {
+                send_message_async(stream, &TpmResponse::Err(e.to_string())).await?;
+                continue;
+            }
         };
 
         let res = match req {
@@ -208,6 +228,10 @@ async fn handle_client(stream: &mut UnixStream, target_uid: u32) -> Result<(), S
                 Ok(_) => TpmResponse::Ok { key: None },
                 Err(e) => TpmResponse::Err(e.to_string()),
             },
+            TpmRequest::UpdateDataDir { path } => {
+                *storage_path.lock().await = PathBuf::from(&path).join("security");
+                TpmResponse::Ok { key: None }
+            }
         };
 
         send_message_async(stream, &res).await?;

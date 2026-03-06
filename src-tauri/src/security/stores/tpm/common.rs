@@ -32,10 +32,7 @@ pub fn default_storage_path() -> PathBuf {
     if let Ok(dir) = std::env::var("POSTAIL_DATA_DIR") {
         return PathBuf::from(dir).join("security");
     }
-    dirs::data_local_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("postail")
-        .join("security")
+    crate::utils::config::get_data_dir().join("security")
 }
 
 // ── Error helper ───────────────────────────────────────────────────

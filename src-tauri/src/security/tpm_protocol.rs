@@ -7,6 +7,7 @@ pub enum TpmRequest {
     Store { key: Vec<u8> },
     Retrieve,
     Delete,
+    UpdateDataDir { path: String },
 }
 
 #[derive(Serialize, Deserialize, Debug)]
