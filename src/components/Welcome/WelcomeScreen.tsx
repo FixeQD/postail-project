@@ -2,7 +2,13 @@ import { motion } from 'framer-motion'
 import { useWelcomeTranslation } from '@/hooks/useTypedTranslation'
 import icon from '@/assets/icon.png'
 
-export const WelcomeScreen = ({ onGetStarted }: { onGetStarted: () => void }) => {
+export const WelcomeScreen = ({
+	onGetStarted,
+	onExistingData,
+}: {
+	onGetStarted: () => void
+	onExistingData: () => void
+}) => {
 	const { t } = useWelcomeTranslation()
 
 	return (
@@ -75,6 +81,17 @@ export const WelcomeScreen = ({ onGetStarted }: { onGetStarted: () => void }) =>
 				}}
 				title={t('welcome:getStarted')}>
 				{t('welcome:getStarted')}
+			</motion.button>
+
+			{/* Existing data link */}
+			<motion.button
+				type='button'
+				onClick={onExistingData}
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				transition={{ duration: 0.4, delay: 0.65, ease: 'easeOut' }}
+				className='relative z-10 mt-4 text-sm text-slate-600 transition-colors hover:text-slate-400 focus:outline-none'>
+				{t('welcome:existingData')}
 			</motion.button>
 
 			{/* Decorative bottom gradient line */}

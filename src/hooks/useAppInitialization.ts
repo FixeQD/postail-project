@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next'
 export type AppState =
 	| 'init'
 	| 'welcome'
+	| 'data-dir'
 	| 'customize'
 	| 'security'
 	| 'accounts'
@@ -275,6 +276,11 @@ export function useAppInitialization() {
 		setCurrentState('init')
 	}, [])
 
+	const resetInitialization = useCallback(() => {
+		hasInitializedRef.current = false
+		setCurrentState('init')
+	}, [])
+
 	const handleMailboxRolesDone = useCallback(async () => {
 		setPendingMailboxRoleAccountId(null)
 		await getCurrentWindow().maximize()
@@ -296,6 +302,7 @@ export function useAppInitialization() {
 		activeAccount,
 		tpmUnlockError,
 		retryTpmUnlock,
+		resetInitialization,
 		handleRecoveryPhraseVerified,
 		handleRecoveryReencrypt,
 		isRecoveryReencrypt,

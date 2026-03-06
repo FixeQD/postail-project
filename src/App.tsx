@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { TitleBar } from './components/TitleBar'
 import { WelcomeScreen } from './components/Welcome/WelcomeScreen'
 import { AccentColorStep } from './components/Welcome/steps/AccentColorStep'
+import { DataDirStep } from './components/Welcome/steps/DataDirStep'
 import { EncryptionChoice } from './components/Welcome/encryption/EncryptionChoice'
 import { Argon2Setup } from './components/Welcome/encryption/Argon2Setup'
 import { Argon2Unlock } from './components/Welcome/encryption/Argon2Unlock'
@@ -46,6 +47,7 @@ function App() {
 		activeAccount,
 		tpmUnlockError,
 		retryTpmUnlock,
+		resetInitialization,
 		handleRecoveryPhraseVerified,
 		handleRecoveryReencrypt,
 		recoveryReencryptSource,
@@ -122,12 +124,18 @@ function App() {
 		setCurrentState('customize')
 	}
 
+	const handleExistingData = () => {
+		setCurrentState('data-dir')
+	}
+
 	const handleCustomizeDone = () => {
 		setCurrentState('security')
 	}
 
 	const handleBack = () => {
 		if (currentState === 'customize') {
+			setCurrentState('welcome')
+		} else if (currentState === 'data-dir') {
 			setCurrentState('welcome')
 		} else if (currentState === 'security') {
 			setCurrentState('customize')
@@ -169,7 +177,14 @@ function App() {
 					</div>
 				)
 			case 'welcome':
-				return <WelcomeScreen onGetStarted={handleGetStarted} />
+				return (
+					<WelcomeScreen
+						onGetStarted={handleGetStarted}
+						onExistingData={handleExistingData}
+					/>
+				)
+			case 'data-dir':
+				return <DataDirStep onBack={handleBack} onDataDirSet={resetInitialization} />
 			case 'customize':
 				return <AccentColorStep onNext={handleCustomizeDone} onBack={handleBack} />
 			case 'security':

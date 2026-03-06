@@ -1,5 +1,18 @@
 {
 	"title": "Welcome to Postail",
+	"existingData": "Restore from existing data directory",
+	"dataDir": {
+		"title": "Existing Data Directory",
+		"subtitle": "Point Postail to a folder that already contains your data",
+		"select": "Select data directory",
+		"pathLabel": "Data directory",
+		"placeholder": "Click to browse for your data folder...",
+		"defaultHint": "This is the default location",
+		"warning": "Make sure the selected folder contains a valid Postail database.",
+		"confirm": "Load & Continue",
+		"loading": "Applying...",
+		"error": "Failed to set data directory. Check that the path is valid and accessible."
+	},
 	"subtitle": "Secure email client for the modern era",
 	"description": "Choose your preferred encryption method to secure your email accounts",
 	"getStarted": "Get Started",

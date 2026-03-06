@@ -44,6 +44,11 @@ pub async fn migrate_data_path(
 }
 
 #[tauri::command]
+pub async fn set_initial_data_dir(path: String) -> Result<(), String> {
+    crate::utils::config::set_data_dir_override(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn get_theme_config() -> Result<ThemeConfig, String> {
     Ok(crate::utils::config::load_theme_config())
 }
