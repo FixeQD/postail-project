@@ -29,11 +29,18 @@ export const ACCENT_PRESETS: AccentPreset[] = [
 
 export const BACKGROUND_PRESETS: BackgroundPreset[] = [
 	{ id: 'slate', name: 'Slate', bg: '#020617', class: 'bg-slate-950' },
+	{ id: 'pitch', name: 'Pitch Black', bg: '#000000', class: 'bg-black' },
 	{ id: 'dark', name: 'Pure Dark', bg: '#0a0a0a', class: 'bg-neutral-950' },
-	{ id: 'warm', name: 'Warm Dark', bg: '#0c0a09', class: 'bg-stone-950' },
-	{ id: 'navy', name: 'Navy', bg: '#020420', class: 'bg-[#020420]' },
 	{ id: 'charcoal', name: 'Charcoal', bg: '#111111', class: 'bg-[#111111]' },
+	{ id: 'zinc', name: 'Zinc', bg: '#09090b', class: 'bg-zinc-950' },
 	{ id: 'midnight', name: 'Midnight', bg: '#0f172a', class: 'bg-slate-900' },
+	{ id: 'navy', name: 'Navy', bg: '#020420', class: 'bg-[#020420]' },
+	{ id: 'abyss', name: 'Abyss', bg: '#010409', class: 'bg-[#010409]' },
+	{ id: 'warm', name: 'Warm Dark', bg: '#0c0a09', class: 'bg-stone-950' },
+	{ id: 'volcano', name: 'Volcano', bg: '#0d0500', class: 'bg-[#0d0500]' },
+	{ id: 'forest', name: 'Forest', bg: '#020d05', class: 'bg-[#020d05]' },
+	{ id: 'eclipse', name: 'Eclipse', bg: '#0a0514', class: 'bg-[#0a0514]' },
+	{ id: 'rosewood', name: 'Rosewood', bg: '#0d0208', class: 'bg-[#0d0208]' },
 ]
 
 export function accentToBackground(accentHex: string): string {

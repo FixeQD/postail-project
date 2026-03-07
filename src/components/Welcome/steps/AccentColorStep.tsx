@@ -274,7 +274,7 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 							)}
 						</p>
 
-						<div className='grid grid-cols-3 gap-3 sm:grid-cols-6'>
+						<div className='grid grid-cols-4 gap-3 sm:grid-cols-7'>
 							{/* Auto tile */}
 							{(() => {
 								const autoBg = accentToBackground(accentColor)

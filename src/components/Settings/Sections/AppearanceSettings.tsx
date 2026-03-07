@@ -196,7 +196,7 @@ export function AppearanceSettings() {
 					</p>
 
 					<div className='rounded-2xl border border-white/[0.05] bg-white/[0.03] p-5'>
-						<div className='grid grid-cols-3 gap-3 sm:grid-cols-6'>
+						<div className='grid grid-cols-4 gap-3 sm:grid-cols-7'>
 							{/* Auto tile */}
 							{(() => {
 								const autoBg = accentToBackground(accentColor)
