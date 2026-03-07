@@ -4,7 +4,12 @@ import { Moon, Minimize2, UserCircle, Sparkles, Pipette, Check } from 'lucide-re
 import { ColorPicker } from '@/components/ui/custom/ColorPicker'
 import { ToggleSetting } from '@/components/ui/toggle-setting'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
-import { useThemeStore, ACCENT_PRESETS, BACKGROUND_PRESETS } from '@/stores/themeStore'
+import {
+	useThemeStore,
+	ACCENT_PRESETS,
+	BACKGROUND_PRESETS,
+	accentToBackground,
+} from '@/stores/themeStore'
 
 export function AppearanceSettings() {
 	const { t } = useSettingsTranslation()
@@ -192,6 +197,55 @@ export function AppearanceSettings() {
 
 					<div className='rounded-2xl border border-white/[0.05] bg-white/[0.03] p-5'>
 						<div className='grid grid-cols-3 gap-3 sm:grid-cols-6'>
+							{/* Auto tile */}
+							{(() => {
+								const autoBg = accentToBackground(accentColor)
+								const isSelected = backgroundId === 'auto'
+								return (
+									<motion.button
+										key='auto'
+										type='button'
+										onClick={() => handleBackgroundChange('auto')}
+										{...hoverSmall}
+										className='group flex flex-col items-center gap-2'>
+										<div
+											className='relative flex h-14 w-full items-center justify-center overflow-hidden rounded-xl ring-1 transition-all duration-200'
+											style={{
+												backgroundColor: autoBg,
+												boxShadow: isSelected
+													? `0 0 0 2px var(--accent-color, #f97316)`
+													: 'none',
+												borderColor: isSelected
+													? 'transparent'
+													: 'rgba(255,255,255,0.08)',
+											}}>
+											<div
+												className='pointer-events-none absolute inset-0 rounded-xl'
+												style={{
+													background: `radial-gradient(ellipse at 50% 0%, rgba(var(--accent-rgb), 0.18) 0%, transparent 70%)`,
+												}}
+											/>
+											<div className='relative flex items-center gap-1.5'>
+												<div
+													className='h-2 w-2 rounded-full opacity-70'
+													style={{ backgroundColor: accentColor }}
+												/>
+												<div className='h-1.5 w-6 rounded-full bg-white/10' />
+												<div className='h-1.5 w-4 rounded-full bg-white/5' />
+											</div>
+											<Sparkles
+												className='absolute top-1.5 right-1.5 h-2.5 w-2.5'
+												style={{ color: accentColor, opacity: 0.7 }}
+											/>
+										</div>
+										<span
+											className={`text-[10px] font-medium transition-colors ${isSelected ? 'text-slate-200' : 'text-slate-600'}`}>
+											Auto
+										</span>
+									</motion.button>
+								)
+							})()}
+
 							{BACKGROUND_PRESETS.map((preset) => {
 								const isSelected = backgroundId === preset.id
 								return (

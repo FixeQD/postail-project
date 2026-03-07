@@ -2,8 +2,13 @@ import { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ColorPicker } from '@/components/ui/custom/ColorPicker'
 
-import { ArrowLeft, ArrowRight, Palette, Check, Pipette } from 'lucide-react'
-import { useThemeStore, ACCENT_PRESETS, BACKGROUND_PRESETS } from '@/stores/themeStore'
+import { ArrowLeft, ArrowRight, Palette, Check, Pipette, Sparkles } from 'lucide-react'
+import {
+	useThemeStore,
+	ACCENT_PRESETS,
+	BACKGROUND_PRESETS,
+	accentToBackground,
+} from '@/stores/themeStore'
 import { useTranslation } from 'react-i18next'
 import type { AccentColorStepProps } from '@/types/components/welcome'
 
@@ -270,6 +275,64 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 						</p>
 
 						<div className='grid grid-cols-3 gap-3 sm:grid-cols-6'>
+							{/* Auto tile */}
+							{(() => {
+								const autoBg = accentToBackground(accentColor)
+								const isSelected = backgroundId === 'auto'
+								return (
+									<motion.button
+										key='auto'
+										type='button'
+										onClick={() => setBackgroundId('auto')}
+										initial={{ opacity: 0, y: 12 }}
+										animate={{ opacity: 1, y: 0 }}
+										transition={{
+											delay: 0.3,
+											duration: 0.35,
+											ease: [0.16, 1, 0.3, 1],
+										}}
+										whileHover={{ scale: 1.05 }}
+										whileTap={{ scale: 0.95 }}
+										className='group flex flex-col items-center gap-2'>
+										<div
+											className='relative flex h-14 w-full items-center justify-center overflow-hidden rounded-xl ring-1 transition-all duration-200'
+											style={{
+												backgroundColor: autoBg,
+												boxShadow: isSelected
+													? `0 0 0 2px ${accentColor}`
+													: 'none',
+												borderColor: isSelected
+													? 'transparent'
+													: 'rgba(255,255,255,0.08)',
+											}}>
+											{/* Accent tint overlay */}
+											<div
+												className='pointer-events-none absolute inset-0 rounded-xl'
+												style={{
+													background: `radial-gradient(ellipse at 50% 0%, rgba(var(--accent-rgb), 0.18) 0%, transparent 70%)`,
+												}}
+											/>
+											<div className='relative flex items-center gap-1.5'>
+												<div
+													className='h-2 w-2 rounded-full opacity-70'
+													style={{ backgroundColor: accentColor }}
+												/>
+												<div className='h-1.5 w-6 rounded-full bg-white/10' />
+												<div className='h-1.5 w-4 rounded-full bg-white/5' />
+											</div>
+											<Sparkles
+												className='absolute top-1.5 right-1.5 h-2.5 w-2.5'
+												style={{ color: accentColor, opacity: 0.7 }}
+											/>
+										</div>
+										<span
+											className={`text-[10px] font-medium transition-colors ${isSelected ? 'text-slate-200' : 'text-slate-600'}`}>
+											Auto
+										</span>
+									</motion.button>
+								)
+							})()}
+
 							{BACKGROUND_PRESETS.map((preset, i) => {
 								const isSelected = backgroundId === preset.id
 								return (
@@ -280,7 +343,7 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 										initial={{ opacity: 0, y: 12 }}
 										animate={{ opacity: 1, y: 0 }}
 										transition={{
-											delay: 0.3 + i * 0.04,
+											delay: 0.34 + i * 0.04,
 											duration: 0.35,
 											ease: [0.16, 1, 0.3, 1],
 										}}
@@ -298,7 +361,6 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 													? 'transparent'
 													: 'rgba(255,255,255,0.08)',
 											}}>
-											{/* Preview dots */}
 											<div className='flex items-center gap-1.5'>
 												<div
 													className='h-2 w-2 rounded-full opacity-60'
@@ -332,8 +394,10 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 							className='overflow-hidden rounded-2xl ring-1 ring-white/[0.06]'
 							style={{
 								backgroundColor:
-									BACKGROUND_PRESETS.find((p) => p.id === backgroundId)?.bg ||
-									'#020617',
+									backgroundId === 'auto'
+										? accentToBackground(accentColor)
+										: BACKGROUND_PRESETS.find((p) => p.id === backgroundId)
+												?.bg || '#020617',
 							}}>
 							{/* Mini titlebar */}
 							<div className='flex items-center gap-2 border-b border-white/[0.06] px-4 py-2.5'>

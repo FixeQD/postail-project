@@ -36,6 +36,12 @@ export const BACKGROUND_PRESETS: BackgroundPreset[] = [
 	{ id: 'midnight', name: 'Midnight', bg: '#0f172a', class: 'bg-slate-900' },
 ]
 
+export function accentToBackground(accentHex: string): string {
+	const { r, g, b } = hexToRgb(accentHex)
+	const { h, s } = rgbToHsl(r, g, b)
+	return hslToHex(h, Math.min(s * 0.35, 30), 5)
+}
+
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
 	const cleaned = hex.replace('#', '')
 	return {
@@ -154,7 +160,7 @@ interface ThemeState {
 }
 
 const DEFAULT_ACCENT = '#f97316'
-const DEFAULT_BG_ID = 'slate'
+const DEFAULT_BG_ID = 'auto'
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
 	accentColor: DEFAULT_ACCENT,
@@ -165,6 +171,9 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 	setAccentColor: (hex: string) => {
 		set({ accentColor: hex })
 		applyAccentCSSVariables(hex)
+		if (get().backgroundId === 'auto') {
+			applyBackgroundCSSVariables(accentToBackground(hex))
+		}
 	},
 
 	setAnimationsEnabled: (enabled: boolean) => {
@@ -172,6 +181,11 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 	},
 
 	setBackgroundId: (id: string) => {
+		if (id === 'auto') {
+			set({ backgroundId: 'auto' })
+			applyBackgroundCSSVariables(accentToBackground(get().accentColor))
+			return
+		}
 		const preset = BACKGROUND_PRESETS.find((p) => p.id === id)
 		if (!preset) return
 		set({ backgroundId: id })
@@ -211,20 +225,27 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 			})
 
 			applyAccentCSSVariables(accent)
-			const preset = BACKGROUND_PRESETS.find((p) => p.id === bgId)
-			if (preset) applyBackgroundCSSVariables(preset.bg)
+			if (bgId === 'auto') {
+				applyBackgroundCSSVariables(accentToBackground(accent))
+			} else {
+				const preset = BACKGROUND_PRESETS.find((p) => p.id === bgId)
+				if (preset) applyBackgroundCSSVariables(preset.bg)
+			}
 		} catch {
 			set({ isLoaded: true })
 			applyAccentCSSVariables(DEFAULT_ACCENT)
-			const preset = BACKGROUND_PRESETS.find((p) => p.id === DEFAULT_BG_ID)
-			if (preset) applyBackgroundCSSVariables(preset.bg)
+			applyBackgroundCSSVariables(accentToBackground(DEFAULT_ACCENT))
 		}
 	},
 
 	applyTheme: () => {
 		const { accentColor, backgroundId } = get()
 		applyAccentCSSVariables(accentColor)
-		const preset = BACKGROUND_PRESETS.find((p) => p.id === backgroundId)
-		if (preset) applyBackgroundCSSVariables(preset.bg)
+		if (backgroundId === 'auto') {
+			applyBackgroundCSSVariables(accentToBackground(accentColor))
+		} else {
+			const preset = BACKGROUND_PRESETS.find((p) => p.id === backgroundId)
+			if (preset) applyBackgroundCSSVariables(preset.bg)
+		}
 	},
 }))
