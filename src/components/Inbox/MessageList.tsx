@@ -460,7 +460,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 	)
 
 	// Syncing state
-	if (isSyncing) {
+	if (isSyncing || needsSync) {
 		return (
 			<div className='flex h-full items-center justify-center'>
 				<motion.div
