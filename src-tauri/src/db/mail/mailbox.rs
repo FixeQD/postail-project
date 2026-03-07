@@ -32,7 +32,7 @@ pub fn upsert_mailbox(
         "INSERT INTO mailboxes (account_id, name, role, uid_validity, highest_modseq, last_synced_uid)
          VALUES (?, ?, ?, ?, ?, ?)
          ON CONFLICT(account_id, name) DO UPDATE SET
-            role = excluded.role,
+            role = CASE WHEN role_customized = 1 THEN role ELSE excluded.role END,
             uid_validity = excluded.uid_validity,
             highest_modseq = excluded.highest_modseq,
             last_synced_uid = excluded.last_synced_uid",

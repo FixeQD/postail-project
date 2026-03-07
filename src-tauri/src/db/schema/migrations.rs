@@ -62,6 +62,11 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         set_db_version(conn, 5)?;
     }
 
+    if current_version < 6 {
+        migrate_to_v6(conn)?;
+        set_db_version(conn, 6)?;
+    }
+
     Ok(())
 }
 
@@ -159,6 +164,17 @@ fn migrate_to_v5(conn: &Connection) -> Result<(), DBError> {
 
     if !column_exists(conn, "attachments", "cid")? {
         conn.execute("ALTER TABLE attachments ADD COLUMN cid TEXT", [])?;
+    }
+
+    Ok(())
+}
+
+fn migrate_to_v6(conn: &Connection) -> Result<(), DBError> {
+    if !column_exists(conn, "mailboxes", "role_customized")? {
+        conn.execute(
+            "ALTER TABLE mailboxes ADD COLUMN role_customized INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
     }
 
     Ok(())

@@ -114,7 +114,7 @@ pub async fn update_mailbox_role(
     let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
 
     conn.execute(
-        "UPDATE mailboxes SET role = ? WHERE account_id = ? AND name = ?",
+        "UPDATE mailboxes SET role = ?, role_customized = 1 WHERE account_id = ? AND name = ?",
         params![role, account_id, mailbox_name],
     )
     .map_err(|e| e.to_string())?;
