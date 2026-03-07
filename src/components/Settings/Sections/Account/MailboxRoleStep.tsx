@@ -77,8 +77,8 @@ function RoleSelect({ value, onChange }: { value: Role; onChange: (role: Role) =
 				ref={buttonRef}
 				type='button'
 				onClick={handleOpen}
-				className='flex items-center gap-2 rounded-lg border border-white/[0.08] bg-slate-800/60 px-3 py-1.5 text-sm text-slate-200 transition-colors hover:border-white/[0.14] hover:bg-slate-700/60'>
-				<RoleIcon role={value} className='h-3.5 w-3.5 text-slate-400' />
+				className='flex items-center gap-2 rounded-lg border border-black/[0.08] bg-black/[0.04] px-3 py-1.5 text-sm text-slate-700 transition-colors hover:border-black/[0.14] hover:bg-black/[0.07] dark:border-white/[0.08] dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-white/[0.14] dark:hover:bg-slate-700/60'>
+				<RoleIcon role={value} className='h-3.5 w-3.5 text-slate-500 dark:text-slate-400' />
 				<span>{t(`settings:mailboxRoles.roles.${value}`)}</span>
 				<ChevronDown
 					className={`h-3.5 w-3.5 text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`}
@@ -89,7 +89,7 @@ function RoleSelect({ value, onChange }: { value: Role; onChange: (role: Role) =
 				createPortal(
 					<div
 						ref={dropdownRef}
-						className='fixed z-[201] w-44 overflow-hidden rounded-xl border border-white/[0.08] bg-slate-900 shadow-2xl'
+						className='fixed z-[201] w-44 overflow-hidden rounded-xl border border-black/[0.08] bg-white shadow-2xl dark:border-white/[0.08] dark:bg-slate-900'
 						style={{ top: coords.top, right: coords.right, pointerEvents: 'auto' }}>
 						{roles.map((role) => {
 							const Icon = ROLE_ICONS[role]
@@ -101,13 +101,15 @@ function RoleSelect({ value, onChange }: { value: Role; onChange: (role: Role) =
 										onChange(role)
 										setOpen(false)
 									}}
-									className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-white/[0.06] ${
-										role === value ? 'text-slate-100' : 'text-slate-400'
+									className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06] ${
+										role === value
+											? 'text-slate-900 dark:text-slate-100'
+											: 'text-slate-500 dark:text-slate-400'
 									}`}>
 									<Icon className='h-3.5 w-3.5 shrink-0' />
 									<span>{t(`settings:mailboxRoles.roles.${role}`)}</span>
 									{role === value && (
-										<Check className='ml-auto h-3.5 w-3.5 text-green-400' />
+										<Check className='ml-auto h-3.5 w-3.5 text-green-600 dark:text-green-400' />
 									)}
 								</button>
 							)
@@ -186,10 +188,10 @@ export function MailboxRoleStep({ accountId, onDone, initialMailboxes }: Mailbox
 		<div ref={shellScope} className='w-full'>
 			<div ref={contentScope} className='flex flex-col gap-5'>
 				<div>
-					<h2 className='text-lg font-semibold text-slate-100'>
+					<h2 className='text-lg font-semibold text-slate-900 dark:text-slate-100'>
 						{t('settings:mailboxRoles.title')}
 					</h2>
-					<p className='mt-1 text-sm text-slate-400'>
+					<p className='mt-1 text-sm text-slate-500 dark:text-slate-400'>
 						{t('settings:mailboxRoles.subtitle')}
 					</p>
 				</div>
@@ -200,24 +202,24 @@ export function MailboxRoleStep({ accountId, onDone, initialMailboxes }: Mailbox
 					<div className='flex flex-col gap-1.5'>
 						{loading ? (
 							<div className='flex items-center justify-center py-10'>
-								<Loader2 className='h-5 w-5 animate-spin text-slate-500' />
+								<Loader2 className='h-5 w-5 animate-spin text-slate-400 dark:text-slate-500' />
 							</div>
 						) : mailboxes.length === 0 ? (
-							<p className='py-6 text-center text-sm text-slate-500'>
+							<p className='py-6 text-center text-sm text-slate-400 dark:text-slate-500'>
 								{t('settings:mailboxRoles.noMailboxes')}
 							</p>
 						) : (
 							mailboxes.map((mb) => (
 								<div
 									key={mb.name}
-									className='flex items-center justify-between gap-3 rounded-xl border border-white/[0.05] bg-white/[0.03] px-4 py-2.5'>
+									className='flex items-center justify-between gap-3 rounded-xl border border-black/[0.06] bg-black/[0.02] px-4 py-2.5 dark:border-white/[0.05] dark:bg-white/[0.03]'>
 									<div className='flex min-w-0 items-center gap-3'>
 										<RoleIcon
 											role={roles[mb.name] ?? mb.role}
-											className='h-4 w-4 shrink-0 text-slate-400'
+											className='h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400'
 										/>
 										<span
-											className='truncate text-sm text-slate-200'
+											className='truncate text-sm text-slate-700 dark:text-slate-200'
 											title={mb.display_name || mb.name}>
 											{mb.display_name || mb.name}
 										</span>
@@ -232,13 +234,13 @@ export function MailboxRoleStep({ accountId, onDone, initialMailboxes }: Mailbox
 					</div>
 				</div>
 
-				<div className='flex gap-3 border-t border-white/[0.06] pt-4'>
+				<div className='flex gap-3 border-t border-black/[0.06] pt-4 dark:border-white/[0.06]'>
 					<Button
 						type='button'
 						variant='outline'
 						onClick={onDone}
 						disabled={saving}
-						className='flex-1 border-slate-700 bg-slate-800/50 hover:bg-slate-800'>
+						className='flex-1 border-black/10 bg-black/[0.03] hover:bg-black/[0.06] dark:border-slate-700 dark:bg-slate-800/50 dark:hover:bg-slate-800'>
 						{t('settings:mailboxRoles.skip')}
 					</Button>
 					<Button

@@ -85,14 +85,14 @@ export const MessageViewAttachments = ({
 
 	return (
 		<motion.div
-			className='mt-8 border-t border-white/[0.06] pt-6'
+			className='mt-8 border-t border-[var(--border-faint)] pt-6'
 			variants={container}
 			initial='hidden'
 			animate='show'>
 			<motion.div
 				variants={item}
-				className='mb-3 flex items-center gap-2 text-sm font-medium text-slate-300'>
-				<PaperclipIcon className='size-4 text-slate-400' />
+				className='mb-3 flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]'>
+				<PaperclipIcon className='size-4 text-[var(--text-secondary)]' />
 				<span>
 					{attachments.length}{' '}
 					{attachments.length === 1
@@ -106,28 +106,30 @@ export const MessageViewAttachments = ({
 					<motion.div
 						key={att.part_id}
 						variants={item}
-						className='group relative flex items-center gap-3 rounded-lg border border-white/[0.06] bg-slate-900/30 p-3 transition-colors hover:border-white/[0.1] hover:bg-slate-800/50'>
-						<div className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-white/[0.03] ring-1 ring-white/[0.05] ring-inset'>
+						className='group relative flex items-center gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-3 transition-colors hover:border-[var(--border-subtle)] hover:bg-[var(--surface-hover)]'>
+						<div className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-hover)] ring-1 ring-[var(--border-faint)] ring-inset'>
 							{getIcon(att.mime_type)}
 						</div>
 
 						<div className='min-w-0 flex-1'>
-							<p className='truncate text-sm font-medium text-slate-200'>
+							<p className='truncate text-sm font-medium text-[var(--text-primary)]'>
 								{att.filename || 'Unnamed'}
 							</p>
-							<p className='text-xs text-slate-500'>{formatFileSize(att.size)}</p>
+							<p className='text-xs text-[var(--text-secondary)]'>
+								{formatFileSize(att.size)}
+							</p>
 						</div>
 
 						<button
 							onClick={() => handleDownload(att)}
 							disabled={downloading === att.part_id}
-							className={`flex size-8 shrink-0 items-center justify-center rounded-md text-slate-400 transition-all hover:bg-white/[0.08] hover:text-slate-200 focus:opacity-100 disabled:cursor-not-allowed disabled:opacity-50 ${
+							className={`flex size-8 shrink-0 items-center justify-center rounded-md text-[var(--text-secondary)] transition-all hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] focus:opacity-100 disabled:cursor-not-allowed disabled:opacity-50 ${
 								downloading === att.part_id
 									? 'opacity-100'
 									: 'opacity-0 group-hover:opacity-100'
 							}`}>
 							{downloading === att.part_id ? (
-								<div className='size-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent' />
+								<div className='size-4 animate-spin rounded-full border-2 border-[var(--text-secondary)] border-t-transparent' />
 							) : (
 								<DownloadIcon className='size-4' />
 							)}

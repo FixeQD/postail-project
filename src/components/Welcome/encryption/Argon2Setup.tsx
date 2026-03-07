@@ -75,7 +75,7 @@ export const Argon2Setup = ({
 				initial={{ opacity: 0, y: -10 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-				className='relative border-b border-white/[0.06] bg-slate-900/40 px-4 py-6 backdrop-blur-lg'>
+				className='relative border-b border-black/[0.06] bg-white/40 px-4 py-6 backdrop-blur-lg dark:border-white/[0.06] dark:bg-slate-900/40'>
 				<div
 					className='pointer-events-none absolute inset-x-0 bottom-0 h-px'
 					style={{
@@ -87,7 +87,7 @@ export const Argon2Setup = ({
 					<button
 						type='button'
 						onClick={onBack}
-						className='group mb-6 flex items-center gap-2 text-sm text-slate-400 transition-colors hover:text-slate-100'>
+						className='group mb-6 flex items-center gap-2 text-sm text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'>
 						<ArrowLeft className='h-4 w-4 transition-transform group-hover:-translate-x-0.5' />
 						{t('common:actions.back')}
 					</button>
@@ -101,10 +101,10 @@ export const Argon2Setup = ({
 							<Lock className='h-5 w-5' style={{ color: accentColor }} />
 						</div>
 						<div>
-							<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
+							<h1 className='text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100'>
 								{t('security:argon2.title')}
 							</h1>
-							<p className='mt-1 text-sm text-slate-400'>
+							<p className='mt-1 text-sm text-slate-500 dark:text-slate-400'>
 								{t('security:argon2.subtitle')}
 							</p>
 						</div>
@@ -127,7 +127,7 @@ export const Argon2Setup = ({
 							transition={{ delay: 0.15, duration: 0.4 }}>
 							<label
 								htmlFor='passphrase'
-								className='mb-2 block text-sm font-medium text-slate-200'>
+								className='mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200'>
 								{t('security:argon2.passphrase.label')}
 							</label>
 							<div className='group relative'>
@@ -136,7 +136,7 @@ export const Argon2Setup = ({
 									type={showPassword ? 'text' : 'password'}
 									value={passphrase}
 									onChange={(e) => setPassphrase(e.target.value)}
-									className='w-full rounded-xl bg-slate-800/40 px-4 py-3 pr-12 text-slate-100 placeholder-slate-600 ring-1 ring-white/[0.08] transition-all duration-200 focus:bg-slate-800/60 focus:outline-none'
+									className='w-full rounded-xl bg-black/[0.04] px-4 py-3 pr-12 text-slate-900 placeholder-slate-400 ring-1 ring-black/[0.08] transition-all duration-200 focus:bg-black/[0.06] focus:outline-none dark:bg-slate-800/40 dark:text-slate-100 dark:placeholder-slate-600 dark:ring-white/[0.08] dark:focus:bg-slate-800/60'
 									style={
 										{
 											'--tw-ring-color': `rgba(var(--accent-rgb), 0.4)`,
@@ -148,7 +148,7 @@ export const Argon2Setup = ({
 								<button
 									type='button'
 									onClick={() => setShowPassword(!showPassword)}
-									className='absolute top-1/2 right-3 -translate-y-1/2 rounded-lg p-1 text-slate-500 transition-colors hover:text-slate-300'>
+									className='absolute top-1/2 right-3 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition-colors hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300'>
 									{showPassword ? (
 										<EyeOff className='h-[18px] w-[18px]' />
 									) : (
@@ -156,7 +156,7 @@ export const Argon2Setup = ({
 									)}
 								</button>
 							</div>
-							<p className='mt-1.5 text-xs text-slate-500'>
+							<p className='mt-1.5 text-xs text-slate-400 dark:text-slate-500'>
 								{t('security:argon2.passphrase.hint')}
 							</p>
 						</motion.div>
@@ -168,7 +168,7 @@ export const Argon2Setup = ({
 							transition={{ delay: 0.25, duration: 0.4 }}>
 							<label
 								htmlFor='confirmPassphrase'
-								className='mb-2 block text-sm font-medium text-slate-200'>
+								className='mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200'>
 								{t('security:argon2.confirm.label')}
 							</label>
 							<div className='group relative'>
@@ -177,7 +177,7 @@ export const Argon2Setup = ({
 									type={showConfirmPassword ? 'text' : 'password'}
 									value={confirmPassphrase}
 									onChange={(e) => setConfirmPassphrase(e.target.value)}
-									className='w-full rounded-xl bg-slate-800/40 px-4 py-3 pr-12 text-slate-100 placeholder-slate-600 ring-1 ring-white/[0.08] transition-all duration-200 focus:bg-slate-800/60 focus:outline-none'
+									className='w-full rounded-xl bg-black/[0.04] px-4 py-3 pr-12 text-slate-900 placeholder-slate-400 ring-1 ring-black/[0.08] transition-all duration-200 focus:bg-black/[0.06] focus:outline-none dark:bg-slate-800/40 dark:text-slate-100 dark:placeholder-slate-600 dark:ring-white/[0.08] dark:focus:bg-slate-800/60'
 									style={
 										{
 											'--tw-ring-color': `rgba(var(--accent-rgb), 0.4)`,
@@ -189,7 +189,7 @@ export const Argon2Setup = ({
 								<button
 									type='button'
 									onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-									className='absolute top-1/2 right-3 -translate-y-1/2 rounded-lg p-1 text-slate-500 transition-colors hover:text-slate-300'>
+									className='absolute top-1/2 right-3 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition-colors hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300'>
 									{showConfirmPassword ? (
 										<EyeOff className='h-[18px] w-[18px]' />
 									) : (
@@ -207,7 +207,7 @@ export const Argon2Setup = ({
 								transition={{ duration: 0.25 }}
 								className='space-y-2.5 overflow-hidden'>
 								<div className='flex items-center justify-between text-sm'>
-									<span className='text-slate-500'>
+									<span className='text-slate-400 dark:text-slate-500'>
 										{t('security:argon2.strength.label')}
 									</span>
 									<span
@@ -219,7 +219,7 @@ export const Argon2Setup = ({
 												: t('security:argon2.strength.weak')}
 									</span>
 								</div>
-								<div className='h-1.5 overflow-hidden rounded-full bg-slate-800'>
+								<div className='h-1.5 overflow-hidden rounded-full bg-black/[0.08] dark:bg-slate-800'>
 									<motion.div
 										className={`h-full rounded-full ${strengthConfig[strengthLevel].color}`}
 										initial={{ width: 0 }}
@@ -284,16 +284,16 @@ export const Argon2Setup = ({
 						initial={{ opacity: 0, y: 12 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ delay: 0.4, duration: 0.5 }}
-						className='mt-8 rounded-2xl bg-slate-800/30 p-5 ring-1 ring-white/[0.06]'>
+						className='mt-8 rounded-2xl bg-black/[0.03] p-5 ring-1 ring-black/[0.06] dark:bg-slate-800/30 dark:ring-white/[0.06]'>
 						<div className='flex items-start gap-3'>
 							<div className='mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-500/10 ring-1 ring-green-500/20'>
 								<ShieldCheck className='h-4 w-4 text-green-400' />
 							</div>
 							<div>
-								<h4 className='mb-1 text-sm font-semibold text-slate-200'>
+								<h4 className='mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200'>
 									{t('security:argon2.info.title')}
 								</h4>
-								<p className='text-xs leading-relaxed text-slate-500'>
+								<p className='text-xs leading-relaxed text-slate-500 dark:text-slate-500'>
 									{t('security:argon2.info.description')}
 								</p>
 							</div>

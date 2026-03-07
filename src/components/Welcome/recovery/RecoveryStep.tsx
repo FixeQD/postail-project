@@ -72,7 +72,9 @@ export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: Rec
 	const cardContent = (
 		<>
 			{variant === 'embedded' && (
-				<h2 className='text-lg font-semibold text-slate-100'>{t('recovery.title')}</h2>
+				<h2 className='text-lg font-semibold text-[var(--text-primary)]'>
+					{t('recovery.title')}
+				</h2>
 			)}
 			<div className='rounded-xl border border-amber-500/20 bg-amber-500/10 p-4'>
 				<div className='flex gap-3'>
@@ -81,7 +83,7 @@ export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: Rec
 						<h3 className='font-semibold text-amber-500'>
 							{t('recovery.warning.title')}
 						</h3>
-						<p className='mt-1 text-sm text-amber-200/80'>
+						<p className='mt-1 text-sm text-amber-700 dark:text-amber-200/80'>
 							{encryptionMethod === 'tpm'
 								? t('recovery.warning.descriptionTPM')
 								: t('recovery.warning.descriptionArgon2')}
@@ -95,7 +97,7 @@ export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: Rec
 					? Array.from({ length: 12 }).map((_, i) => (
 							<div
 								key={i}
-								className='flex h-12 w-full animate-pulse rounded-lg bg-slate-800/50'
+								className='flex h-12 w-full animate-pulse rounded-lg bg-[var(--surface-active)]'
 							/>
 						))
 					: words.map((word, i) => (
@@ -105,11 +107,11 @@ export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: Rec
 								animate={{ opacity: 1, y: 0 }}
 								transition={{ delay: i * 0.05 + 0.2 }}
 								onAnimationComplete={() => handleAnimationComplete(i)}
-								className='group relative flex items-center gap-3 overflow-hidden rounded-lg bg-slate-800/40 px-3 py-2.5 ring-1 ring-white/[0.06] transition-all hover:bg-slate-800/60 hover:ring-white/[0.1]'>
-								<span className='w-6 shrink-0 text-xs font-medium text-slate-500'>
+								className='group relative flex items-center gap-3 overflow-hidden rounded-lg bg-[var(--surface-panel)] px-3 py-2.5 ring-1 ring-[var(--border-subtle)] transition-all hover:bg-[var(--surface-hover)]'>
+								<span className='w-6 shrink-0 text-xs font-medium text-[var(--text-secondary)]'>
 									{i + 1}.
 								</span>
-								<span className='font-mono text-sm font-medium text-slate-200'>
+								<span className='font-mono text-sm font-medium text-[var(--text-primary)]'>
 									{visibleIndices.has(i) ? (
 										<DecryptedText
 											text={word}
@@ -130,7 +132,7 @@ export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: Rec
 			<div className='flex gap-3'>
 				<button
 					onClick={handleCopy}
-					className='flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-800/40 px-4 py-3 text-sm font-medium text-slate-300 ring-1 ring-white/[0.06] transition-all hover:bg-slate-800/60 hover:text-slate-100 active:scale-[0.98]'>
+					className='flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--surface-panel)] px-4 py-3 text-sm font-medium text-[var(--text-primary)] ring-1 ring-[var(--border-subtle)] transition-all hover:bg-[var(--surface-hover)] active:scale-[0.98]'>
 					{copied ? (
 						<>
 							<Check className='h-4 w-4 text-green-400' />
@@ -145,7 +147,7 @@ export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: Rec
 				</button>
 				<button
 					onClick={handleSave}
-					className='flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-800/40 px-4 py-3 text-sm font-medium text-slate-300 ring-1 ring-white/[0.06] transition-all hover:bg-slate-800/60 hover:text-slate-100 active:scale-[0.98]'>
+					className='flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--surface-panel)] px-4 py-3 text-sm font-medium text-[var(--text-primary)] ring-1 ring-[var(--border-subtle)] transition-all hover:bg-[var(--surface-hover)] active:scale-[0.98]'>
 					{saved ? (
 						<>
 							<Check className='h-4 w-4 text-green-400' />
@@ -187,7 +189,7 @@ export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: Rec
 				initial={{ opacity: 0, y: -10 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-				className='relative border-b border-white/[0.06] bg-slate-900/40 px-4 py-6 backdrop-blur-lg'>
+				className='relative border-b border-[var(--border-faint)] bg-[var(--surface-glass-subtle)] px-4 py-6 backdrop-blur-lg'>
 				<div
 					className='pointer-events-none absolute inset-x-0 bottom-0 h-px'
 					style={{
@@ -205,10 +207,12 @@ export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: Rec
 							<ShieldAlert className='h-5 w-5' style={{ color: accentColor }} />
 						</div>
 						<div>
-							<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
+							<h1 className='text-3xl font-bold tracking-tight text-[var(--text-primary)]'>
 								{t('recovery.title')}
 							</h1>
-							<p className='mt-1 text-sm text-slate-400'>{t('recovery.subtitle')}</p>
+							<p className='mt-1 text-sm text-[var(--text-secondary)]'>
+								{t('recovery.subtitle')}
+							</p>
 						</div>
 					</div>
 				</div>

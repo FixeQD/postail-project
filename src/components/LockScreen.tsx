@@ -43,14 +43,14 @@ export const LockScreen = ({ isLocked, onUnlock, useEncryptionPassword }: LockSc
 			style={{
 				backdropFilter: 'blur(100px) saturate(0%) brightness(0.02)',
 				WebkitBackdropFilter: 'blur(100px) saturate(0%) brightness(0.02)',
-				backgroundColor: 'rgba(2, 6, 23, 1)',
+				backgroundColor: 'var(--app-bg, #020617)',
 			}}>
 			<div
 				className='pointer-events-none absolute inset-0'
 				style={{
 					backdropFilter: 'blur(50px)',
 					WebkitBackdropFilter: 'blur(50px)',
-					backgroundColor: 'rgba(2, 6, 23, 0.8)',
+					backgroundColor: `color-mix(in srgb, var(--app-bg, #020617) 80%, transparent)`,
 				}}
 			/>
 			<div
@@ -58,17 +58,17 @@ export const LockScreen = ({ isLocked, onUnlock, useEncryptionPassword }: LockSc
 				style={{
 					backdropFilter: 'blur(50px)',
 					WebkitBackdropFilter: 'blur(50px)',
-					backgroundColor: 'rgba(2, 6, 23, 0.8)',
+					backgroundColor: `color-mix(in srgb, var(--app-bg, #020617) 80%, transparent)`,
 				}}
 			/>
 			<div className='relative z-10 flex flex-col items-center gap-6 p-8'>
-				<div className='flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-800/50 ring-1 ring-white/10'>
-					<Lock className='h-10 w-10 text-slate-400' />
+				<div className='flex h-20 w-20 items-center justify-center rounded-2xl bg-[var(--surface-active)] ring-1 ring-[var(--border-subtle)]'>
+					<Lock className='text-muted-foreground h-10 w-10' />
 				</div>
 
 				<div className='text-center'>
-					<h2 className='text-2xl font-bold text-white'>App Locked</h2>
-					<p className='mt-2 text-sm text-slate-400'>
+					<h2 className='text-foreground text-2xl font-bold'>App Locked</h2>
+					<p className='text-muted-foreground mt-2 text-sm'>
 						{useEncryptionPassword
 							? 'Enter your database encryption password'
 							: 'Enter your PIN to unlock'}
@@ -82,7 +82,7 @@ export const LockScreen = ({ isLocked, onUnlock, useEncryptionPassword }: LockSc
 						onChange={(e) => setPassword(e.target.value)}
 						onKeyDown={handleKeyDown}
 						placeholder={useEncryptionPassword ? 'Password' : 'PIN'}
-						className='w-full rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-3 text-center text-white placeholder-slate-500 ring-0 transition-all outline-none focus:border-slate-500 focus:bg-slate-800/50'
+						className='text-foreground placeholder:text-muted-foreground w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-4 py-3 text-center ring-0 transition-all outline-none focus:border-[var(--accent-color)] focus:bg-[var(--surface-hover)]'
 					/>
 				</div>
 
@@ -90,7 +90,10 @@ export const LockScreen = ({ isLocked, onUnlock, useEncryptionPassword }: LockSc
 					type='button'
 					onClick={handleUnlock}
 					disabled={!password || isUnlocking}
-					className='w-72 rounded-xl bg-slate-700 px-4 py-3 font-medium text-white transition-colors hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-50'>
+					className='text-accent-contrast w-72 rounded-xl px-4 py-3 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50'
+					style={{
+						background: `linear-gradient(to right, var(--accent-dark), var(--accent-color))`,
+					}}>
 					{isUnlocking ? 'Unlocking...' : 'Unlock'}
 				</button>
 			</div>

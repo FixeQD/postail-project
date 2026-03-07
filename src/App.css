@@ -115,6 +115,41 @@
 	/* App background - overridden by ThemeProvider via JS */
 	--app-bg: #020617;
 
+	/* Semantic surface tokens (light defaults) */
+	--surface-glass: rgba(248, 250, 252, 0.85);
+	--surface-glass-subtle: rgba(248, 250, 252, 0.6);
+	--surface-panel: rgba(0, 0, 0, 0.02);
+	--surface-hover: rgba(0, 0, 0, 0.04);
+	--surface-active: rgba(0, 0, 0, 0.07);
+	--border-subtle: rgba(0, 0, 0, 0.08);
+	--border-faint: rgba(0, 0, 0, 0.05);
+	--scrollbar-thumb: rgba(0, 0, 0, 0.12);
+	--scrollbar-thumb-hover: rgba(0, 0, 0, 0.22);
+	--skeleton-from: rgba(0, 0, 0, 0.04);
+	--skeleton-to: rgba(0, 0, 0, 0.09);
+	--text-primary: #1e293b;
+	--text-secondary: #64748b;
+	--text-tertiary: #94a3b8;
+
+	/* Compose-specific tokens (light defaults) */
+	--compose-bg: #f8fafc;
+	--compose-header-bg: #f1f5f9;
+	--compose-footer-bg: rgba(241, 245, 249, 0.8);
+	--compose-text: #1e293b;
+	--compose-text-muted: #64748b;
+	--compose-placeholder: #94a3b8;
+	--compose-input-border: rgba(0, 0, 0, 0.08);
+	--compose-ring: rgba(0, 0, 0, 0.09);
+	--compose-ring-faint: rgba(0, 0, 0, 0.04);
+	--compose-hover: rgba(0, 0, 0, 0.05);
+	--compose-active: rgba(0, 0, 0, 0.09);
+	--compose-chip-bg: rgba(0, 0, 0, 0.06);
+	--compose-chip-border: rgba(0, 0, 0, 0.12);
+	--compose-suggestions-bg: #ffffff;
+	--compose-context-bg: rgba(0, 0, 0, 0.03);
+	--compose-separator: rgba(0, 0, 0, 0.09);
+	--compose-focus-line: #94a3b8;
+
 	transition:
 		--accent-color 0.4s ease,
 		--accent-light 0.4s ease,
@@ -123,6 +158,40 @@
 }
 
 .dark {
+	/* Override surface tokens for dark mode */
+	--surface-glass: rgba(2, 6, 23, 0.7);
+	--surface-glass-subtle: rgba(2, 6, 23, 0.5);
+	--surface-panel: rgba(255, 255, 255, 0.03);
+	--surface-hover: rgba(255, 255, 255, 0.04);
+	--surface-active: rgba(255, 255, 255, 0.08);
+	--border-subtle: rgba(255, 255, 255, 0.06);
+	--border-faint: rgba(255, 255, 255, 0.04);
+	--scrollbar-thumb: rgba(148, 163, 184, 0.15);
+	--scrollbar-thumb-hover: rgba(148, 163, 184, 0.3);
+	--skeleton-from: rgba(148, 163, 184, 0.06);
+	--skeleton-to: rgba(148, 163, 184, 0.12);
+	--text-primary: #e2e8f0;
+	--text-secondary: #94a3b8;
+	--text-tertiary: #475569;
+
+	/* Compose-specific tokens (dark overrides) */
+	--compose-bg: #0d1117;
+	--compose-header-bg: #161b22;
+	--compose-footer-bg: rgba(13, 17, 23, 0.8);
+	--compose-text: #e2e8f0;
+	--compose-text-muted: #94a3b8;
+	--compose-placeholder: #475569;
+	--compose-input-border: rgba(255, 255, 255, 0.07);
+	--compose-ring: rgba(255, 255, 255, 0.08);
+	--compose-ring-faint: rgba(255, 255, 255, 0.04);
+	--compose-hover: rgba(255, 255, 255, 0.05);
+	--compose-active: rgba(255, 255, 255, 0.09);
+	--compose-chip-bg: rgba(255, 255, 255, 0.08);
+	--compose-chip-border: rgba(255, 255, 255, 0.12);
+	--compose-suggestions-bg: #1c2128;
+	--compose-context-bg: rgba(255, 255, 255, 0.04);
+	--compose-separator: rgba(255, 255, 255, 0.07);
+	--compose-focus-line: #64748b;
 	--background: oklch(0.145 0 0);
 	--foreground: oklch(0.985 0 0);
 	--card: oklch(0.205 0 0);
@@ -176,13 +245,13 @@
 }
 
 ::-webkit-scrollbar-thumb {
-	background: rgba(148, 163, 184, 0.15);
+	background: var(--scrollbar-thumb);
 	border-radius: 9999px;
 	transition: background 0.2s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-	background: rgba(148, 163, 184, 0.3);
+	background: var(--scrollbar-thumb-hover);
 }
 
 ::-webkit-scrollbar-corner {
@@ -202,13 +271,13 @@
 	scrollbar-color: transparent transparent;
 }
 .hover-scrollbar:hover {
-	scrollbar-color: rgba(148, 163, 184, 0.15) transparent;
+	scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 /* ─── Selection ─── */
 ::selection {
 	background: rgba(var(--accent-rgb), 0.25);
-	color: #fff;
+	color: var(--text-primary);
 }
 
 /* ─── Smooth focus rings ─── */
@@ -383,15 +452,35 @@
 
 /* ─── Glass morphism utility ─── */
 .glass {
-	background: rgba(2, 6, 23, 0.7);
+	background: var(--surface-glass);
 	backdrop-filter: blur(16px) saturate(1.4);
 	-webkit-backdrop-filter: blur(16px) saturate(1.4);
 }
 
 .glass-subtle {
-	background: rgba(2, 6, 23, 0.5);
+	background: var(--surface-glass-subtle);
 	backdrop-filter: blur(8px) saturate(1.2);
 	-webkit-backdrop-filter: blur(8px) saturate(1.2);
+}
+
+/* ─── Semantic surface utilities ─── */
+.bg-surface-panel {
+	background-color: var(--surface-panel);
+}
+.bg-surface-hover {
+	background-color: var(--surface-hover);
+}
+.border-subtle {
+	border-color: var(--border-subtle);
+}
+.text-primary {
+	color: var(--text-primary);
+}
+.text-secondary {
+	color: var(--text-secondary);
+}
+.text-tertiary {
+	color: var(--text-tertiary);
 }
 
 /* ─── Glow effects (accent-aware) ─── */
@@ -445,6 +534,13 @@
 
 /* ─── Gradient text ─── */
 .gradient-text {
+	background: linear-gradient(135deg, #1e293b 0%, #64748b 100%);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+
+.dark .gradient-text {
 	background: linear-gradient(135deg, #f1f5f9 0%, #94a3b8 100%);
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
@@ -515,6 +611,11 @@
 	z-index: 0;
 	border-radius: 50%;
 	filter: blur(60px);
+}
+
+/* ─── Light mode: invert noise overlay opacity ─── */
+.light .noise-overlay::before {
+	opacity: 0.008;
 }
 
 /* ─── Message row unread indicator ─── */
@@ -597,9 +698,9 @@ textarea:focus {
 .skeleton {
 	background: linear-gradient(
 		90deg,
-		rgba(148, 163, 184, 0.06) 25%,
-		rgba(148, 163, 184, 0.12) 50%,
-		rgba(148, 163, 184, 0.06) 75%
+		var(--skeleton-from) 25%,
+		var(--skeleton-to) 50%,
+		var(--skeleton-from) 75%
 	);
 	background-size: 200% 100%;
 	animation: shimmer 1.5s ease-in-out infinite;

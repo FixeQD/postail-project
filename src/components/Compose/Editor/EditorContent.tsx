@@ -27,14 +27,14 @@ export const EditorContent = memo(
 
 		const contentEditable = useMemo(
 			() => (
-				<ContentEditable className='h-full min-h-50 w-full text-sm text-zinc-200 outline-none focus:outline-none' />
+				<ContentEditable className='h-full min-h-50 w-full text-sm text-[var(--compose-text)] outline-none focus:outline-none' />
 			),
 			[]
 		)
 
 		const placeholder = useMemo(
 			() => (
-				<div className='pointer-events-none absolute top-4 left-4 text-sm text-zinc-600'>
+				<div className='pointer-events-none absolute top-4 left-4 text-sm text-[var(--compose-placeholder)]'>
 					Compose message...
 				</div>
 			),

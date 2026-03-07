@@ -108,11 +108,13 @@ export function AddressInput({
 			onMouseEnter={animationsEnabled ? undefined : () => setIsHovered(true)}
 			onMouseLeave={animationsEnabled ? undefined : () => setIsHovered(false)}
 			className={cn(
-				'relative flex min-h-11 w-full flex-wrap items-center gap-2 border-b border-zinc-900 bg-transparent px-0 py-1.5 transition-colors',
+				'relative flex min-h-11 w-full flex-wrap items-center gap-2 border-b border-[var(--compose-input-border)] bg-transparent px-0 py-1.5 transition-colors',
 				className
 			)}
 			onClick={() => inputRef.current?.focus()}>
-			<span className='mr-1 text-sm font-medium text-zinc-500 select-none'>{label}</span>
+			<span className='mr-1 text-sm font-medium text-[var(--compose-text-muted)] select-none'>
+				{label}
+			</span>
 
 			{recipients.map((recipient) => (
 				<motion.div
@@ -125,7 +127,7 @@ export function AddressInput({
 								transition: { duration: 0.15 },
 							}
 						: {})}
-					className='flex items-center gap-1.5 rounded-full bg-zinc-800 py-0.5 pr-1 pl-2.5 text-sm text-zinc-200 ring-1 ring-zinc-700 hover:bg-zinc-700'
+					className='flex items-center gap-1.5 rounded-full bg-[var(--compose-chip-bg)] py-0.5 pr-1 pl-2.5 text-sm text-[var(--compose-text)] ring-1 ring-[var(--compose-chip-border)] hover:bg-[var(--compose-active)]'
 					onClick={(e) => e.stopPropagation()}>
 					<span className='max-w-[200px] truncate'>
 						{recipient.name || recipient.email}
@@ -136,7 +138,7 @@ export function AddressInput({
 							e.stopPropagation()
 							onRemove(recipient.email)
 						}}
-						className='flex h-4 w-4 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-600 hover:text-white'>
+						className='flex h-4 w-4 items-center justify-center rounded-full text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)] hover:text-[var(--compose-text)]'>
 						<X className='h-3 w-3' />
 					</button>
 				</motion.div>
@@ -155,7 +157,7 @@ export function AddressInput({
 				}}
 				onPaste={handlePaste}
 				placeholder={recipients.length === 0 ? placeholder : ''}
-				className='min-w-[120px] flex-1 bg-transparent py-1 text-sm text-zinc-100 outline-none placeholder:text-zinc-600'
+				className='min-w-[120px] flex-1 bg-transparent py-1 text-sm text-[var(--compose-text)] outline-none placeholder:text-[var(--compose-placeholder)]'
 			/>
 
 			{rightElement && <div className='ml-auto flex items-center pl-2'>{rightElement}</div>}
@@ -169,26 +171,30 @@ export function AddressInput({
 								exit: { opacity: 0, y: -10 },
 							}
 						: {})}
-					className='absolute top-full left-0 z-[60] mt-1 w-full overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 shadow-xl'>
+					className='absolute top-full left-0 z-[60] mt-1 w-full overflow-hidden rounded-lg border border-[var(--compose-ring)] bg-[var(--compose-suggestions-bg)] shadow-xl'>
 					{suggestions.map((contact, index) => (
 						<div
 							key={contact.id}
 							className={cn(
 								'flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors',
-								index === selectedIndex ? 'bg-zinc-800' : 'hover:bg-zinc-800/50'
+								index === selectedIndex
+									? 'bg-[var(--compose-active)]'
+									: 'hover:bg-[var(--compose-hover)]'
 							)}
 							onMouseDown={(e) => {
 								e.preventDefault()
 								handleAddRecipientWithContact(contact)
 							}}>
-							<div className='flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 text-zinc-400'>
+							<div className='flex h-8 w-8 items-center justify-center rounded-full bg-[var(--compose-chip-bg)] text-[var(--compose-text-muted)]'>
 								<User className='h-4 w-4' />
 							</div>
 							<div className='flex flex-col'>
-								<span className='text-sm font-medium text-zinc-200'>
+								<span className='text-sm font-medium text-[var(--compose-text)]'>
 									{contact.name || contact.email.split('@')[0]}
 								</span>
-								<span className='text-xs text-zinc-500'>{contact.email}</span>
+								<span className='text-xs text-[var(--compose-text-muted)]'>
+									{contact.email}
+								</span>
 							</div>
 						</div>
 					))}
@@ -205,7 +211,7 @@ export function AddressInput({
 					: {
 							style: { scaleX: isFocused || isHovered ? 1 : 0 },
 						})}
-				className='pointer-events-none absolute bottom-0 left-0 h-[1px] w-full origin-center bg-zinc-500'
+				className='pointer-events-none absolute bottom-0 left-0 h-[1px] w-full origin-center bg-[var(--compose-focus-line)]'
 			/>
 		</motion.div>
 	)

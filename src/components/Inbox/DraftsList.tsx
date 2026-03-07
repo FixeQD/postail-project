@@ -43,8 +43,9 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 							transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
 						}
 					: {})}
-				className='relative border-b border-white/[0.04] px-5 py-4'>
-				<h2 className='text-sm font-semibold tracking-wide text-slate-200'>
+				className='relative border-b px-5 py-4'
+				style={{ borderColor: 'var(--border-faint)' }}>
+				<h2 className='text-foreground text-sm font-semibold tracking-wide'>
 					{t('inbox:sidebar.mailboxes.drafts')}
 				</h2>
 				{drafts.length > 0 && (
@@ -58,7 +59,7 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 						{drafts.length}
 					</span>
 				)}
-				<div className='pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/[0.04] to-transparent' />
+				<div className='pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-black/[0.04] to-transparent dark:via-white/[0.04]' />
 			</motion.div>
 
 			{/* Empty state */}
@@ -72,13 +73,11 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 							}
 						: {})}
 					className='flex flex-1 flex-col items-center justify-center'>
-					<div className='flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-900/50 ring-1 ring-white/[0.06]'>
-						<FileText className='h-8 w-8 text-slate-700' />
+					<div className='flex h-20 w-20 items-center justify-center rounded-2xl bg-[var(--surface-panel)] ring-1 ring-[var(--border-subtle)]'>
+						<FileText className='text-muted-foreground/40 h-8 w-8' />
 					</div>
-					<p className='mt-4 text-sm font-medium text-slate-400'>No drafts</p>
-					<p className='mt-1 text-xs text-slate-600'>
-						Your saved drafts will appear here
-					</p>
+					<p className='text-muted-foreground mt-4 text-sm font-medium'>No drafts</p>
+					<p className='text-tertiary mt-1 text-xs'>Your saved drafts will appear here</p>
 				</motion.div>
 			)}
 
@@ -104,7 +103,8 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 											}
 										: {})}
 									onClick={() => onDraftClick(draft)}
-									className='group relative flex cursor-pointer items-center border-b border-white/[0.04] px-5 py-3.5 transition-all duration-150 hover:bg-white/[0.03]'>
+									className='group relative flex cursor-pointer items-center border-b px-5 py-3.5 transition-all duration-150 hover:bg-[var(--surface-panel)]'
+									style={{ borderColor: 'var(--border-faint)' }}>
 									{/* Left accent line on hover */}
 									<div
 										className='absolute top-1/2 left-0 h-0 w-[3px] -translate-y-1/2 rounded-r-full transition-all duration-200 group-hover:h-[60%]'
@@ -127,25 +127,25 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 									{/* Content */}
 									<div className='min-w-0 flex-1'>
 										<div className='flex items-center justify-between gap-3'>
-											<h3 className='truncate text-[13px] font-medium text-slate-200 transition-colors group-hover:text-white'>
+											<h3 className='text-foreground/80 group-hover:text-foreground truncate text-[13px] font-medium transition-colors'>
 												{draft.subject || t('compose.noSubject')}
 											</h3>
-											<span className='shrink-0 text-xs text-slate-600 tabular-nums'>
+											<span className='text-tertiary shrink-0 text-xs tabular-nums'>
 												{formatDistanceToNow(new Date(draft.updatedAt), {
 													addSuffix: true,
 												})}
 											</span>
 										</div>
-										<div className='mt-1 text-xs text-slate-500'>
+										<div className='text-muted-foreground mt-1 text-xs'>
 											{t('compose.to')}:{' '}
-											<span className='text-slate-400'>
+											<span className='text-foreground/70'>
 												{draft.to.length > 0
 													? draft.to.map((r) => r.email).join(', ')
 													: '-'}
 											</span>
 										</div>
 										{draft.body && (
-											<div className='mt-1 truncate text-xs text-slate-600'>
+											<div className='text-tertiary mt-1 truncate text-xs'>
 												{draft.body.slice(0, 120)}
 											</div>
 										)}
@@ -163,7 +163,7 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 											<Button
 												variant='ghost'
 												size='icon'
-												className='h-7 w-7 text-slate-500 hover:bg-white/[0.08] hover:text-slate-200'
+												className='text-muted-foreground hover:text-foreground h-7 w-7 hover:bg-[var(--surface-active)]'
 												onClick={(e) => {
 													e.stopPropagation()
 													onDraftClick(draft)
@@ -181,7 +181,7 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 											<Button
 												variant='ghost'
 												size='icon'
-												className='h-7 w-7 text-slate-500 hover:bg-red-500/10 hover:text-red-400'
+												className='text-muted-foreground h-7 w-7 hover:bg-red-500/10 hover:text-red-400'
 												onClick={(e) => handleDelete(draft.id!, e)}>
 												<Trash2 className='h-[15px] w-[15px]' />
 											</Button>

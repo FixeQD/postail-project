@@ -43,8 +43,8 @@ export const MessageViewHeader = ({
 						active
 							? 'bg-sky-500/15 text-sky-400'
 							: destructive
-								? 'text-slate-400 hover:bg-red-500/10 hover:text-red-400'
-								: 'text-slate-400 hover:bg-white/[0.07] hover:text-slate-200'
+								? 'text-muted-foreground hover:bg-red-500/10 hover:text-red-400'
+								: 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-hover)]'
 					}`}
 					onClick={onClick}
 					disabled={disabled}>
@@ -66,7 +66,8 @@ export const MessageViewHeader = ({
 
 	return (
 		<motion.div
-			className='flex shrink-0 flex-col border-b border-white/[0.05]'
+			className='flex shrink-0 flex-col border-b'
+			style={{ borderColor: 'var(--border-faint)' }}
 			initial={animationsEnabled ? 'hidden' : 'show'}
 			animate='show'
 			variants={container}>
@@ -82,7 +83,7 @@ export const MessageViewHeader = ({
 				</motion.div>
 
 				{/* Divider */}
-				<motion.div variants={item} className='h-4 w-px bg-white/[0.07]' />
+				<motion.div variants={item} className='h-4 w-px bg-[var(--border-subtle)]' />
 
 				{/* Reply actions */}
 				<motion.div variants={item} className='flex items-center gap-0.5'>
@@ -104,7 +105,7 @@ export const MessageViewHeader = ({
 				</motion.div>
 
 				{/* Divider */}
-				<motion.div variants={item} className='h-4 w-px bg-white/[0.07]' />
+				<motion.div variants={item} className='h-4 w-px bg-[var(--border-subtle)]' />
 
 				{/* Secondary actions */}
 				<motion.div variants={item}>

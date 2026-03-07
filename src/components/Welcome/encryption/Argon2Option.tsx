@@ -23,16 +23,9 @@ export const Argon2Option = ({
 			type='button'
 			className={`group relative flex h-full w-full flex-col justify-between overflow-hidden rounded-2xl p-6 text-left ring-1 transition-all duration-300 ${
 				isDisabled
-					? 'cursor-not-allowed bg-slate-800/20 opacity-50 ring-slate-800/50'
-					: 'cursor-pointer bg-slate-800/40 ring-white/[0.08] hover:bg-slate-800/70'
+					? 'cursor-not-allowed bg-black/[0.02] opacity-50 ring-black/10 dark:bg-slate-800/20 dark:ring-slate-800/50'
+					: 'cursor-pointer bg-black/[0.04] ring-black/[0.08] hover:bg-black/[0.07] dark:bg-slate-800/40 dark:ring-white/[0.08] dark:hover:bg-slate-800/70'
 			}`}
-			style={
-				!isDisabled
-					? ({
-							'--tw-ring-hover-color': `rgba(var(--accent-rgb), 0.3)`,
-						} as React.CSSProperties)
-					: undefined
-			}
 			onClick={isDisabled ? undefined : onSelect}
 			disabled={isDisabled}>
 			{/* Hover glow effect */}
@@ -69,7 +62,9 @@ export const Argon2Option = ({
 				{/* Icon */}
 				<div
 					className={`mb-5 flex h-12 w-12 items-center justify-center rounded-xl ring-1 transition-all duration-300 ${
-						available ? '' : 'bg-slate-900/50 ring-white/[0.06]'
+						available
+							? ''
+							: 'bg-black/[0.04] ring-black/[0.06] dark:bg-slate-900/50 dark:ring-white/[0.06]'
 					}`}
 					style={
 						available
@@ -80,13 +75,13 @@ export const Argon2Option = ({
 							: undefined
 					}>
 					<Lock
-						className={`h-6 w-6 transition-colors duration-300 ${available ? '' : 'text-slate-600'}`}
+						className={`h-6 w-6 transition-colors duration-300 ${available ? '' : 'text-slate-400 dark:text-slate-600'}`}
 						style={available ? { color: accentColor } : undefined}
 					/>
 				</div>
 
 				{/* Title */}
-				<h3 className='mb-2 text-[15px] font-semibold text-slate-100'>
+				<h3 className='mb-2 text-[15px] font-semibold text-slate-900 dark:text-slate-100'>
 					{t('security:options.argon2.title')}
 				</h3>
 
@@ -99,7 +94,7 @@ export const Argon2Option = ({
 			{/* Footer */}
 			<div className='relative mt-auto'>
 				{/* Divider */}
-				<div className='mb-3 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent' />
+				<div className='mb-3 h-px bg-gradient-to-r from-transparent via-black/[0.06] to-transparent dark:via-white/[0.06]' />
 
 				<p className='text-xs' style={{ color: accentColor }}>
 					{t('security:options.argon2.status.available')}

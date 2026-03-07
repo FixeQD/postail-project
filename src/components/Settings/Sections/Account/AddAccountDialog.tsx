@@ -42,7 +42,7 @@ const ProviderOption = ({
 		onClick={onClick}
 		disabled={disabled}
 		className={cn(
-			'group relative flex w-full items-center justify-between overflow-hidden rounded-xl border border-white/5 bg-white/5 p-4 transition-all hover:border-white/10 hover:bg-white/10',
+			'group relative flex w-full items-center justify-between overflow-hidden rounded-xl border border-black/[0.06] bg-black/[0.03] p-4 transition-all hover:border-black/[0.1] hover:bg-black/[0.05] dark:border-white/5 dark:bg-white/5 dark:hover:border-white/10 dark:hover:bg-white/10',
 			disabled && 'cursor-not-allowed opacity-50'
 		)}>
 		<div
@@ -54,17 +54,17 @@ const ProviderOption = ({
 		<div className='flex items-center gap-4'>
 			<div
 				className={cn(
-					'flex h-10 w-10 items-center justify-center rounded-lg bg-slate-950/50 ring-1 ring-white/10',
+					'flex h-10 w-10 items-center justify-center rounded-lg bg-black/[0.05] ring-1 ring-black/10 dark:bg-slate-950/50 dark:ring-white/10',
 					brandColor.replace('from-', 'text-')
 				)}>
 				<Icon className='h-5 w-5' />
 			</div>
-			<h3 className='font-medium text-slate-100'>{title}</h3>
+			<h3 className='font-medium text-slate-900 dark:text-slate-100'>{title}</h3>
 		</div>
 		{isLoading ? (
-			<Loader2 className='h-5 w-5 animate-spin text-slate-400' />
+			<Loader2 className='h-5 w-5 animate-spin text-slate-400 dark:text-slate-400' />
 		) : (
-			<ArrowRight className='h-5 w-5 -translate-x-2 text-slate-500 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100' />
+			<ArrowRight className='h-5 w-5 -translate-x-2 text-slate-400 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100 dark:text-slate-500' />
 		)}
 	</button>
 )
@@ -133,7 +133,7 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 				)}
 			</DialogTrigger>
 
-			<DialogContent className='overflow-hidden border-slate-800 bg-slate-900/95 p-0 text-slate-100 backdrop-blur-xl'>
+			<DialogContent className='overflow-hidden border-black/10 bg-white/95 p-0 text-slate-900 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-100'>
 				{/* Shell: we pin its height in px during the resize animation */}
 				<div ref={shellScope} className='w-full'>
 					{/* Content wrapper: we fade this independently */}
@@ -149,7 +149,7 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 									<DialogTitle className='text-xl font-bold'>
 										{t('settings:accounts.title')}
 									</DialogTitle>
-									<DialogDescription className='text-slate-400'>
+									<DialogDescription className='text-slate-500 dark:text-slate-400'>
 										{t('settings:accounts.subtitle')}
 									</DialogDescription>
 								</DialogHeader>

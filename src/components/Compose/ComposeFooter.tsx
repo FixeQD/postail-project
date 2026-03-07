@@ -11,7 +11,7 @@ export const ComposeFooter = memo(({ onSend, onDiscard, isValid }: ComposeFooter
 	const { isSaving, isSending } = useDraftStore()
 
 	return (
-		<div className='mt-auto border-t border-zinc-900 bg-zinc-950/50 p-3'>
+		<div className='mt-auto border-t border-[var(--compose-input-border)] bg-[var(--compose-footer-bg)] p-3'>
 			<div className='flex items-center justify-between'>
 				<div className='flex items-center gap-1'>
 					<Button
@@ -28,7 +28,7 @@ export const ComposeFooter = memo(({ onSend, onDiscard, isValid }: ComposeFooter
 					<Button
 						variant='ghost'
 						size='icon'
-						className='h-9 w-9 text-zinc-400 hover:bg-zinc-900 hover:text-red-400'
+						className='h-9 w-9 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)] hover:text-red-400'
 						onClick={onDiscard}>
 						<Trash2 className='h-4 w-4' />
 					</Button>

@@ -50,15 +50,16 @@ const MessageRow = memo(
 						onMessageClick(message.uid)
 					}
 				}}
-				className={`message-unread-indicator group relative flex w-full cursor-pointer items-center border-b border-white/[0.04] px-4 py-3 text-left transition-all duration-150 outline-none focus-visible:bg-white/[0.05] ${
+				className={`message-unread-indicator group relative flex w-full cursor-pointer items-center border-b px-4 py-3 text-left transition-all duration-150 outline-none ${
 					isUnread && !zenMode ? 'is-unread' : ''
 				} ${
 					isFocused
-						? 'bg-white/[0.06] shadow-[inset_3px_0_0_0_var(--accent-color)]'
+						? 'bg-[var(--surface-active)] shadow-[inset_3px_0_0_0_var(--accent-color)]'
 						: isUnread && !zenMode
-							? 'bg-slate-900/30 hover:bg-slate-900/60'
-							: 'bg-transparent hover:bg-white/[0.03]'
+							? 'bg-[var(--surface-panel)] hover:bg-[var(--surface-hover)]'
+							: 'bg-transparent hover:bg-[var(--surface-panel)]'
 				}`}
+				style={{ borderColor: 'var(--border-faint)' }}
 				whileHover={
 					animationsEnabled
 						? {
@@ -71,7 +72,7 @@ const MessageRow = memo(
 				<div className='flex items-center gap-2.5 pr-3'>
 					<input
 						type='checkbox'
-						className='h-[15px] w-[15px] cursor-pointer rounded border-slate-700 bg-transparent transition-colors focus:ring-1 focus:ring-offset-0'
+						className='border-muted-foreground/40 h-[15px] w-[15px] cursor-pointer rounded border bg-transparent transition-colors focus:ring-1 focus:ring-offset-0'
 						style={{
 							accentColor: accentColor,
 							color: accentColor,
@@ -81,7 +82,7 @@ const MessageRow = memo(
 					<span
 						role='button'
 						tabIndex={0}
-						className='rounded-md p-0.5 text-slate-700 transition-colors hover:text-amber-400 focus:outline-none'
+						className='text-muted-foreground/40 rounded-md p-0.5 transition-colors hover:text-amber-400 focus:outline-none'
 						onClick={(e) => e.stopPropagation()}
 						onKeyDown={(e) => {
 							if (e.key === 'Enter' || e.key === ' ') {
@@ -99,8 +100,8 @@ const MessageRow = memo(
 					<div
 						className={`w-44 shrink-0 truncate text-[13px] ${
 							isUnread && !zenMode
-								? 'font-semibold text-white'
-								: 'font-medium text-slate-300'
+								? 'text-foreground font-semibold'
+								: 'text-foreground/80 font-medium'
 						}`}>
 						{message.from[0]?.replace(/<.*>/, '').trim() || message.from.join(', ')}
 					</div>
@@ -110,12 +111,12 @@ const MessageRow = memo(
 						<span
 							className={`truncate text-[13px] ${
 								isUnread && !zenMode
-									? 'font-semibold text-slate-200'
-									: 'text-slate-400'
+									? 'text-foreground font-semibold'
+									: 'text-muted-foreground'
 							}`}>
 							{message.subject || '(No Subject)'}
 						</span>
-						<span className='truncate text-xs text-slate-600'>- {message.snippet}</span>
+						<span className='text-tertiary truncate text-xs'>- {message.snippet}</span>
 					</div>
 				</div>
 
@@ -162,8 +163,8 @@ const MessageRow = memo(
 									transition={{ duration: 0.1 }}
 									className={`text-xs tabular-nums ${
 										isUnread && !zenMode
-											? 'font-medium text-slate-300'
-											: 'text-slate-600'
+											? 'text-foreground/80 font-medium'
+											: 'text-tertiary'
 									}`}>
 									{formatDate(message.internal_date)}
 								</motion.span>
@@ -173,8 +174,8 @@ const MessageRow = memo(
 						<span
 							className={`text-xs tabular-nums ${
 								isUnread && !zenMode
-									? 'font-medium text-slate-300'
-									: 'text-slate-600'
+									? 'text-foreground/80 font-medium'
+									: 'text-tertiary'
 							}`}>
 							{formatDate(message.internal_date)}
 						</span>
@@ -491,10 +492,10 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 						<FolderSync className='h-6 w-6' style={{ color: accentColor }} />
 					</div>
 					<div className='flex flex-col items-center gap-1'>
-						<span className='text-sm font-medium text-slate-300'>
+						<span className='text-foreground/80 text-sm font-medium'>
 							Syncing messages...
 						</span>
-						<span className='text-xs text-slate-600'>
+						<span className='text-tertiary text-xs'>
 							{currentMailbox?.display_name || mailbox}
 						</span>
 					</div>
@@ -519,7 +520,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 						<FolderSync className='h-5 w-5 text-red-400' />
 					</div>
 					<p className='text-sm font-medium text-red-400'>Failed to sync mailbox</p>
-					<p className='max-w-xs text-center text-xs text-slate-600'>{syncError}</p>
+					<p className='text-tertiary max-w-xs text-center text-xs'>{syncError}</p>
 					<button
 						type='button'
 						onClick={() => {
@@ -531,7 +532,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 								queryKey: ['mailboxes', account.id],
 							})
 						}}
-						className='mt-1 rounded-lg px-4 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/[0.08] transition-colors hover:bg-white/[0.04]'>
+						className='text-foreground/80 mt-1 rounded-lg px-4 py-1.5 text-xs font-medium ring-1 ring-[var(--border-subtle)] transition-colors hover:bg-[var(--surface-hover)]'>
 						Retry
 					</button>
 				</motion.div>
@@ -557,7 +558,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 							}}
 						/>
 					</div>
-					<span className='text-sm text-slate-500'>Loading messages...</span>
+					<span className='text-muted-foreground text-sm'>Loading messages...</span>
 				</div>
 			</div>
 		)
@@ -578,7 +579,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 
 	if (allMessages.length === 0) {
 		return (
-			<div className='flex h-full flex-col items-center justify-center text-slate-500'>
+			<div className='text-muted-foreground flex h-full flex-col items-center justify-center'>
 				<motion.div
 					{...(animationsEnabled
 						? {
@@ -588,13 +589,13 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 							}
 						: {})}
 					className='flex flex-col items-center'>
-					<div className='flex h-24 w-24 items-center justify-center rounded-2xl bg-slate-900/50 ring-1 ring-white/[0.06]'>
-						<Mail className='h-10 w-10 text-slate-700' />
+					<div className='flex h-24 w-24 items-center justify-center rounded-2xl bg-[var(--surface-panel)] ring-1 ring-[var(--border-subtle)]'>
+						<Mail className='text-muted-foreground/50 h-10 w-10' />
 					</div>
-					<p className='mt-5 text-sm font-medium text-slate-400'>
+					<p className='text-muted-foreground mt-5 text-sm font-medium'>
 						{t('inbox:messageList.empty.title')}
 					</p>
-					<p className='mt-1 text-xs text-slate-600'>
+					<p className='text-tertiary mt-1 text-xs'>
 						{t('inbox:messageList.empty.subtitle')}
 					</p>
 				</motion.div>
@@ -647,7 +648,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 								className='h-4 w-4 animate-spin rounded-full border-2 border-transparent'
 								style={{ borderTopColor: accentColor }}
 							/>
-							<span className='text-xs text-slate-400'>
+							<span className='text-muted-foreground text-xs'>
 								{t('inbox:messageList.loadingMore')}
 							</span>
 						</motion.div>
@@ -678,8 +679,8 @@ const ActionBtn = ({
 				: {})}
 			className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
 				destructive
-					? 'text-slate-400 hover:bg-red-500/10 hover:text-red-400'
-					: 'text-slate-400 hover:bg-white/[0.08] hover:text-slate-200'
+					? 'text-muted-foreground hover:bg-red-500/10 hover:text-red-400'
+					: 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-active)]'
 			}`}
 			title={tooltip}
 			onClick={(e) => {

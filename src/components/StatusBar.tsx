@@ -178,7 +178,7 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 				return (
 					<div className='flex items-center gap-2'>
 						<Loader2 className='h-3 w-3 animate-spin text-blue-400' />
-						<span className='text-slate-300'>
+						<span className='text-foreground/80'>
 							{status.mailbox
 								? t('statusBar.syncingMailbox', {
 										mailbox: status.mailbox,
@@ -189,7 +189,7 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 						<Button
 							variant='ghost'
 							size='sm'
-							className='h-4 w-4 p-0 text-slate-600 hover:text-red-400'
+							className='text-tertiary h-4 w-4 p-0 hover:text-red-400'
 							onClick={(e) => handleCancelSync(accountId, e)}>
 							<X className='h-3 w-3' />
 						</Button>
@@ -206,7 +206,7 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 						<Button
 							variant='ghost'
 							size='sm'
-							className='h-4 w-4 p-0 text-slate-600 hover:text-blue-400'
+							className='text-tertiary h-4 w-4 p-0 hover:text-blue-400'
 							onClick={(e) => handleRetrySync(accountId, e)}>
 							<RefreshCw className='h-3 w-3' />
 						</Button>
@@ -216,7 +216,7 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 				return (
 					<div className='flex items-center gap-2'>
 						<CheckCircle className='h-3 w-3 text-green-500/70' />
-						<span className='text-slate-600'>
+						<span className='text-tertiary'>
 							{t('statusBar.lastSynced', {
 								time: useSyncStore.getState().getFormattedLastSync(accountId),
 							})}
@@ -230,12 +230,12 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 
 	return (
 		<TooltipProvider>
-			<div className='relative flex h-7 shrink-0 items-center justify-between px-2 text-xs text-slate-500'>
+			<div className='text-muted-foreground relative flex h-7 shrink-0 items-center justify-between px-2 text-xs'>
 				{/* Top gradient border */}
-				<div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent' />
+				<div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-black/[0.06] to-transparent dark:via-white/[0.06]' />
 
 				{/* Background */}
-				<div className='absolute inset-0 bg-slate-950/90 backdrop-blur-sm' />
+				<div className='glass absolute inset-0' />
 
 				{/* Left section - Sync status */}
 				<DropdownMenu open={isSyncMenuOpen} onOpenChange={setIsSyncMenuOpen}>
@@ -243,7 +243,7 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 						<Button
 							variant='ghost'
 							size='sm'
-							className='relative z-10 h-5 gap-1.5 px-2 text-xs text-slate-500 hover:text-slate-300'>
+							className='text-muted-foreground hover:text-foreground relative z-10 h-5 gap-1.5 px-2 text-xs'>
 							{getGlobalSyncIcon()}
 							<span>{getGlobalSyncText()}</span>
 							<motion.div
@@ -255,13 +255,13 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 					</DropdownMenuTrigger>
 					<DropdownMenuContent
 						align='start'
-						className='w-72 border-white/[0.06] bg-slate-900/95 backdrop-blur-xl'>
-						<DropdownMenuLabel className='text-slate-400'>
+						className='w-72 border-[var(--border-subtle)] bg-[var(--surface-glass)] backdrop-blur-xl'>
+						<DropdownMenuLabel className='text-muted-foreground'>
 							{t('statusBar.syncStatus')}
 						</DropdownMenuLabel>
-						<DropdownMenuSeparator className='bg-white/[0.06]' />
+						<DropdownMenuSeparator className='bg-[var(--border-subtle)]' />
 						{accounts.length === 0 ? (
-							<DropdownMenuItem disabled className='text-slate-600'>
+							<DropdownMenuItem disabled className='text-tertiary'>
 								{t('statusBar.noAccounts')}
 							</DropdownMenuItem>
 						) : (
@@ -271,10 +271,10 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 									className='flex cursor-default flex-col items-start gap-1.5 py-2.5'
 									onSelect={(e) => e.preventDefault()}>
 									<div className='flex w-full items-center gap-2'>
-										<div className='flex h-5 w-5 items-center justify-center rounded bg-slate-800 ring-1 ring-white/[0.06]'>
-											<Mail className='h-3 w-3 text-slate-500' />
+										<div className='flex h-5 w-5 items-center justify-center rounded bg-[var(--surface-active)] ring-1 ring-[var(--border-subtle)]'>
+											<Mail className='text-muted-foreground h-3 w-3' />
 										</div>
-										<span className='truncate text-sm font-medium text-slate-300'>
+										<span className='text-foreground truncate text-sm font-medium'>
 											{account.email}
 										</span>
 									</div>
@@ -296,8 +296,8 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 								size='sm'
 								className={`h-5 gap-1.5 px-2 text-xs transition-colors ${
 									hasActivity
-										? 'text-slate-300 hover:text-white'
-										: 'text-slate-600 hover:text-slate-400'
+										? 'text-foreground/80 hover:text-foreground'
+										: 'text-tertiary hover:text-muted-foreground'
 								}`}
 								onClick={onOpenOutbox}>
 								<AnimatePresence mode='wait'>
@@ -323,7 +323,7 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 						</TooltipTrigger>
 						<TooltipContent
 							side='top'
-							className='border-white/[0.06] bg-slate-900 text-slate-300'>
+							className='text-foreground border-[var(--border-subtle)] bg-[var(--surface-glass)]'>
 							<p>
 								{hasActivity
 									? t('statusBar.clickToView')

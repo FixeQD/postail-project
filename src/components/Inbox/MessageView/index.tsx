@@ -233,7 +233,7 @@ export const MessageView = ({
 					<p className='text-sm font-medium'>{t('inbox:messageView.error')}</p>
 					<button
 						onClick={() => refetch()}
-						className='rounded-lg px-4 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/[0.08] transition-colors hover:bg-white/[0.04]'>
+						className='rounded-lg px-4 py-1.5 text-xs font-medium text-[var(--text-secondary)] ring-1 ring-[var(--border-subtle)] transition-colors hover:bg-[var(--surface-hover)]'>
 						{t('inbox:messageView.errorRetry')}
 					</button>
 				</div>
@@ -249,7 +249,7 @@ export const MessageView = ({
 					<p className='text-sm'>{t('inbox:messageView.notFound')}</p>
 					<button
 						onClick={onBack}
-						className='mt-1 text-xs text-slate-400 underline underline-offset-2 hover:text-slate-300'>
+						className='mt-1 text-xs text-[var(--text-secondary)] underline underline-offset-2 hover:text-[var(--text-primary)]'>
 						{t('inbox:messageView.back')}
 					</button>
 				</div>
@@ -258,7 +258,7 @@ export const MessageView = ({
 	}
 
 	return (
-		<div className='message-view-container flex h-full flex-col bg-slate-900'>
+		<div className='message-view-container flex h-full flex-col bg-[var(--surface-panel)]'>
 			<MessageViewHeader
 				onBack={onBack}
 				onReply={handleReply}
@@ -273,23 +273,23 @@ export const MessageView = ({
 
 				{/* CSP-triggered banner - appears only when browser actually blocked something */}
 				{cspBlocked && !allowExternalResources && (
-					<div className='mx-5 mb-2 flex items-center justify-between gap-2 rounded-lg bg-zinc-900/50 px-3 py-2 ring-1 ring-white/[0.04]'>
+					<div className='mx-5 mb-2 flex items-center justify-between gap-2 rounded-lg bg-[var(--surface-active)] px-3 py-2 ring-1 ring-[var(--border-faint)]'>
 						<div className='flex items-center gap-2'>
 							<div className='h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]' />
-							<span className='text-[11px] font-medium tracking-tight text-zinc-500 uppercase'>
+							<span className='text-[11px] font-medium tracking-tight text-[var(--text-tertiary)] uppercase'>
 								{t('inbox:messageView.cspBlocked.label')}
 							</span>
 						</div>
 						<button
 							type='button'
 							onClick={() => setAllowExternalResources(true)}
-							className='text-[11px] font-medium text-zinc-300 transition-colors hover:text-white'>
+							className='text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:text-[var(--text-primary)]'>
 							{t('inbox:messageView.cspBlocked.allow')}
 						</button>
 					</div>
 				)}
 
-				<div className='border-t border-white/[0.04]'>
+				<div className='border-t border-[var(--border-faint)]'>
 					<MessageViewErrorBoundary
 						onFallback={() => toggleViewMode()}
 						title={t('inbox:messageView.renderError.title')}

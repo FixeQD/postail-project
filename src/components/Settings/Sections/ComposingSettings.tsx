@@ -14,15 +14,17 @@ export function ComposingSettings() {
 				{...(animationsEnabled
 					? { initial: { opacity: 0, y: -20 }, animate: { opacity: 1, y: 0 } }
 					: {})}>
-				<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
+				<h1 className='text-3xl font-bold tracking-tight text-[var(--text-primary)]'>
 					{t('settings:composing.title')}
 				</h1>
-				<p className='mt-1 text-slate-400'>{t('settings:composing.subtitle')}</p>
+				<p className='mt-1 text-[var(--text-secondary)]'>
+					{t('settings:composing.subtitle')}
+				</p>
 			</motion.div>
 
 			<div className='space-y-6'>
 				<section>
-					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
+					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
 						{t('settings:composing.sending.title')}
 					</h2>
 					<div className='space-y-3'>
@@ -37,7 +39,7 @@ export function ComposingSettings() {
 				</section>
 
 				<section>
-					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
+					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
 						{t('settings:composing.drafts.title')}
 					</h2>
 					<div className='space-y-3'>
@@ -52,7 +54,7 @@ export function ComposingSettings() {
 				</section>
 
 				<section>
-					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
+					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
 						{t('settings:composing.editor.title')}
 					</h2>
 					<div className='space-y-3'>

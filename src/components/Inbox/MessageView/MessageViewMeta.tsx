@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import i18n from '@/i18n'
 import type { MessageViewMetaProps } from '@/types/components/shared'
 
-// Generate initials + deterministic hue from email string
 const senderAvatar = (name: string, email: string) => {
 	const initials = name
 		? name
@@ -66,21 +65,23 @@ export const MessageViewMeta = ({ header }: MessageViewMetaProps) => {
 				{/* Row 1: name + date */}
 				<div className='flex items-baseline justify-between gap-3'>
 					<div className='flex min-w-0 items-baseline gap-2'>
-						<span className='truncate text-sm font-semibold text-slate-100'>
+						<span className='truncate text-sm font-semibold text-[var(--text-primary)]'>
 							{from?.name || from?.email}
 						</span>
 						{from?.name && (
-							<span className='shrink-0 text-xs text-slate-500'>{from.email}</span>
+							<span className='shrink-0 text-xs text-[var(--text-secondary)]'>
+								{from.email}
+							</span>
 						)}
 					</div>
-					<span className='shrink-0 text-xs text-slate-500'>{dateStr}</span>
+					<span className='shrink-0 text-xs text-[var(--text-secondary)]'>{dateStr}</span>
 				</div>
 
 				{/* Row 2: to summary + expand toggle */}
 				<button
 					type='button'
 					onClick={() => setExpanded((e) => !e)}
-					className='mt-0.5 flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-400'>
+					className='mt-0.5 flex items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]'>
 					<span>to {recipientSummary}</span>
 					<motion.div
 						animate={{ rotate: expanded ? 180 : 0 }}
@@ -98,23 +99,23 @@ export const MessageViewMeta = ({ header }: MessageViewMetaProps) => {
 							exit={{ opacity: 0, height: 0 }}
 							transition={{ duration: animationsEnabled ? 0.2 : 0 }}
 							className='overflow-hidden'>
-							<div className='mt-2.5 flex flex-col gap-1.5 rounded-lg border border-white/[0.05] bg-slate-900/40 px-3 py-2.5 text-xs'>
+							<div className='mt-2.5 flex flex-col gap-1.5 rounded-lg border border-[var(--border-faint)] bg-[var(--surface-panel)] px-3 py-2.5 text-xs'>
 								<MetaRow label='From'>
-									<span className='text-slate-200'>
+									<span className='text-[var(--text-primary)]'>
 										{from?.name}{' '}
-										<span className='text-slate-400'>
+										<span className='text-[var(--text-secondary)]'>
 											&lt;{from?.email}&gt;
 										</span>
 									</span>
 								</MetaRow>
 								<MetaRow label='To'>
-									<span className='text-slate-200'>
+									<span className='text-[var(--text-primary)]'>
 										{to.map((r, i) => (
 											<span key={i}>
 												{r.name ? (
 													<>
 														{r.name}{' '}
-														<span className='text-slate-400'>
+														<span className='text-[var(--text-secondary)]'>
 															&lt;{r.email}&gt;
 														</span>
 													</>
@@ -128,7 +129,7 @@ export const MessageViewMeta = ({ header }: MessageViewMetaProps) => {
 								</MetaRow>
 								{cc.length > 0 && (
 									<MetaRow label='Cc'>
-										<span className='text-slate-200'>
+										<span className='text-[var(--text-primary)]'>
 											{cc.map((r, i) => (
 												<span key={i}>
 													{r.name || r.email}
@@ -139,7 +140,7 @@ export const MessageViewMeta = ({ header }: MessageViewMetaProps) => {
 									</MetaRow>
 								)}
 								<MetaRow label='Date'>
-									<span className='text-slate-200'>{dateStr}</span>
+									<span className='text-[var(--text-primary)]'>{dateStr}</span>
 								</MetaRow>
 							</div>
 						</motion.div>
@@ -152,7 +153,7 @@ export const MessageViewMeta = ({ header }: MessageViewMetaProps) => {
 
 const MetaRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
 	<div className='flex items-baseline gap-2'>
-		<span className='w-8 shrink-0 text-right text-slate-500'>{label}</span>
+		<span className='w-8 shrink-0 text-right text-[var(--text-secondary)]'>{label}</span>
 		<div className='min-w-0 flex-1'>{children}</div>
 	</div>
 )

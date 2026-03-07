@@ -1,14 +1,16 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Moon, Minimize2, UserCircle, Sparkles, Pipette, Check } from 'lucide-react'
+import { Minimize2, UserCircle, Sparkles, Pipette, Check, Moon, Sun } from 'lucide-react'
 import { ColorPicker } from '@/components/ui/custom/ColorPicker'
 import { ToggleSetting } from '@/components/ui/toggle-setting'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 import {
 	useThemeStore,
 	ACCENT_PRESETS,
-	BACKGROUND_PRESETS,
+	DARK_BACKGROUND_PRESETS,
+	LIGHT_BACKGROUND_PRESETS,
 	accentToBackground,
+	accentToLightBackground,
 } from '@/stores/themeStore'
 
 export function AppearanceSettings() {
@@ -16,15 +18,20 @@ export function AppearanceSettings() {
 	const {
 		accentColor,
 		setAccentColor,
-		backgroundId,
+		darkBackgroundId,
+		lightBackgroundId,
 		setBackgroundId,
 		animationsEnabled,
 		setAnimationsEnabled,
+		darkMode,
+		setDarkMode,
 		persistTheme,
 	} = useThemeStore()
 	const [showCustomPicker, setShowCustomPicker] = useState(false)
 	const [customColor, setCustomColor] = useState(accentColor)
+	const prevDarkMode = useRef(darkMode)
 
+	const backgroundId = darkMode ? darkBackgroundId : lightBackgroundId
 	const isPresetSelected = ACCENT_PRESETS.some((p) => p.hex === accentColor)
 
 	const handlePresetClick = (hex: string) => {
@@ -48,6 +55,15 @@ export function AppearanceSettings() {
 		persistTheme()
 	}
 
+	const handleDarkModeToggle = () => {
+		prevDarkMode.current = darkMode
+		setDarkMode(!darkMode)
+		persistTheme()
+	}
+
+	// slide direction: going to light → slide right; going to dark → slide left
+	const slideDir = darkMode ? -1 : 1
+
 	const fade = (delay = 0) =>
 		animationsEnabled
 			? {
@@ -62,29 +78,38 @@ export function AppearanceSettings() {
 		? { whileHover: { scale: 1.05 }, whileTap: { scale: 0.95 } }
 		: {}
 
+	const activePresets = darkMode ? DARK_BACKGROUND_PRESETS : LIGHT_BACKGROUND_PRESETS
+	const autoBg = darkMode ? accentToBackground(accentColor) : accentToLightBackground(accentColor)
+
+	// for light mode tiles, dots/lines need to be dark since bg is bright
+	const tileDotsClass = darkMode ? 'bg-white/10' : 'bg-black/10'
+	const tileDotsFaintClass = darkMode ? 'bg-white/5' : 'bg-black/5'
+
 	return (
 		<div className='mx-auto flex h-full w-full max-w-3xl flex-col space-y-8 overflow-y-auto p-8'>
 			<motion.div
 				{...(animationsEnabled
 					? { initial: { opacity: 0, y: -20 }, animate: { opacity: 1, y: 0 } }
 					: {})}>
-				<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
+				<h1 className='text-foreground text-3xl font-bold tracking-tight'>
 					{t('settings:appearance.title')}
 				</h1>
-				<p className='mt-1 text-slate-400'>{t('settings:appearance.subtitle')}</p>
+				<p className='text-muted-foreground mt-1'>{t('settings:appearance.subtitle')}</p>
 			</motion.div>
 
 			<div className='space-y-8'>
 				{/* Accent Color */}
 				<motion.section {...fade(0.05)}>
-					<h2 className='mb-2 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
+					<h2 className='text-muted-foreground mb-2 ml-2 text-xs font-bold tracking-widest uppercase'>
 						{t('settings:appearance.accentColor.title')}
 					</h2>
-					<p className='mb-4 ml-2 text-xs text-slate-600'>
+					<p className='text-tertiary mb-4 ml-2 text-xs'>
 						{t('settings:appearance.accentColor.description')}
 					</p>
 
-					<div className='rounded-2xl border border-white/[0.05] bg-white/[0.03] p-5'>
+					<div
+						className='rounded-2xl border bg-[var(--surface-panel)] p-5'
+						style={{ borderColor: 'var(--border-subtle)' }}>
 						{/* Preset swatches */}
 						<div className='mb-4 flex flex-wrap gap-3'>
 							{ACCENT_PRESETS.map((preset) => {
@@ -128,7 +153,7 @@ export function AppearanceSettings() {
 											)}
 										</div>
 										<span
-											className={`text-[10px] font-medium transition-colors ${isSelected ? 'text-slate-200' : 'text-slate-600'}`}>
+											className={`text-[10px] font-medium transition-colors ${isSelected ? 'text-foreground' : 'text-tertiary'}`}>
 											{preset.name}
 										</span>
 									</motion.button>
@@ -160,7 +185,7 @@ export function AppearanceSettings() {
 									)}
 								</div>
 								<span
-									className={`text-[10px] font-medium ${showCustomPicker || !isPresetSelected ? 'text-slate-200' : 'text-slate-600'}`}>
+									className={`text-[10px] font-medium ${showCustomPicker || !isPresetSelected ? 'text-foreground' : 'text-tertiary'}`}>
 									{t('settings:appearance.accentColor.custom')}
 								</span>
 							</motion.button>
@@ -188,123 +213,175 @@ export function AppearanceSettings() {
 
 				{/* Background */}
 				<motion.section {...fade(0.1)}>
-					<h2 className='mb-2 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
-						{t('settings:appearance.background.title')}
-					</h2>
-					<p className='mb-4 ml-2 text-xs text-slate-600'>
-						{t('settings:appearance.background.description')}
-					</p>
-
-					<div className='rounded-2xl border border-white/[0.05] bg-white/[0.03] p-5'>
-						<div className='grid grid-cols-4 gap-3 sm:grid-cols-7'>
-							{/* Auto tile */}
-							{(() => {
-								const autoBg = accentToBackground(accentColor)
-								const isSelected = backgroundId === 'auto'
-								return (
-									<motion.button
-										key='auto'
-										type='button'
-										onClick={() => handleBackgroundChange('auto')}
-										{...hoverSmall}
-										className='group flex flex-col items-center gap-2'>
-										<div
-											className='relative flex h-14 w-full items-center justify-center overflow-hidden rounded-xl ring-1 transition-all duration-200'
-											style={{
-												backgroundColor: autoBg,
-												boxShadow: isSelected
-													? `0 0 0 2px var(--accent-color, #f97316)`
-													: 'none',
-												borderColor: isSelected
-													? 'transparent'
-													: 'rgba(255,255,255,0.08)',
-											}}>
-											<div
-												className='pointer-events-none absolute inset-0 rounded-xl'
-												style={{
-													background: `radial-gradient(ellipse at 50% 0%, rgba(var(--accent-rgb), 0.18) 0%, transparent 70%)`,
-												}}
-											/>
-											<div className='relative flex items-center gap-1.5'>
-												<div
-													className='h-2 w-2 rounded-full opacity-70'
-													style={{ backgroundColor: accentColor }}
-												/>
-												<div className='h-1.5 w-6 rounded-full bg-white/10' />
-												<div className='h-1.5 w-4 rounded-full bg-white/5' />
-											</div>
-											<Sparkles
-												className='absolute top-1.5 right-1.5 h-2.5 w-2.5'
-												style={{ color: accentColor, opacity: 0.7 }}
-											/>
-										</div>
-										<span
-											className={`text-[10px] font-medium transition-colors ${isSelected ? 'text-slate-200' : 'text-slate-600'}`}>
-											Auto
-										</span>
-									</motion.button>
-								)
-							})()}
-
-							{BACKGROUND_PRESETS.map((preset) => {
-								const isSelected = backgroundId === preset.id
-								return (
-									<motion.button
-										key={preset.id}
-										type='button'
-										onClick={() => handleBackgroundChange(preset.id)}
-										{...hoverSmall}
-										className='group flex flex-col items-center gap-2'>
-										<div
-											className='flex h-14 w-full items-center justify-center rounded-xl ring-1 transition-all duration-200'
-											style={{
-												backgroundColor: preset.bg,
-												boxShadow: isSelected
-													? `0 0 0 2px var(--accent-color, #f97316)`
-													: 'none',
-												borderColor: isSelected
-													? 'transparent'
-													: 'rgba(255,255,255,0.08)',
-											}}>
-											<div className='flex items-center gap-1.5'>
-												<div
-													className='h-2 w-2 rounded-full opacity-60'
-													style={{ backgroundColor: accentColor }}
-												/>
-												<div className='h-1.5 w-6 rounded-full bg-white/10' />
-												<div className='h-1.5 w-4 rounded-full bg-white/5' />
-											</div>
-										</div>
-										<span
-											className={`text-[10px] font-medium transition-colors ${isSelected ? 'text-slate-200' : 'text-slate-600'}`}>
-											{preset.name}
-										</span>
-									</motion.button>
-								)
-							})}
+					{/* Header row with dark/light toggle */}
+					<div className='mb-2 ml-2 flex items-center justify-between'>
+						<div>
+							<h2 className='text-muted-foreground text-xs font-bold tracking-widest uppercase'>
+								{t('settings:appearance.background.title')}
+							</h2>
+							<p className='text-tertiary mt-1 text-xs'>
+								{t('settings:appearance.background.description')}
+							</p>
 						</div>
-					</div>
-				</motion.section>
 
-				{/* Theme */}
-				<motion.section {...fade(0.15)}>
-					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
-						{t('settings:appearance.theme.title')}
-					</h2>
-					<div className='space-y-3'>
-						<ToggleSetting
-							icon={Moon}
-							label={t('settings:appearance.theme.darkMode.label')}
-							description={t('settings:appearance.theme.darkMode.description')}
-							value={true}
-							onChange={() => {}}
-						/>
+						{/* Dark / Light mode toggle */}
+						<motion.button
+							type='button'
+							onClick={handleDarkModeToggle}
+							whileHover={animationsEnabled ? { scale: 1.05 } : {}}
+							whileTap={animationsEnabled ? { scale: 0.95 } : {}}
+							className='flex shrink-0 items-center gap-2 rounded-full border bg-[var(--surface-panel)] px-3 py-1.5 transition-colors hover:bg-[var(--surface-hover)]'
+							style={{ borderColor: 'var(--border-subtle)' }}>
+							<div className='relative h-3.5 w-3.5'>
+								<AnimatePresence mode='wait'>
+									{darkMode ? (
+										<motion.div
+											key='moon'
+											className='absolute inset-0 flex items-center justify-center'
+											initial={{ rotate: 90, opacity: 0, scale: 0.5 }}
+											animate={{ rotate: 0, opacity: 1, scale: 1 }}
+											exit={{ rotate: -90, opacity: 0, scale: 0.5 }}
+											transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}>
+											<Moon className='text-muted-foreground h-3.5 w-3.5' />
+										</motion.div>
+									) : (
+										<motion.div
+											key='sun'
+											className='absolute inset-0 flex items-center justify-center'
+											initial={{ rotate: -90, opacity: 0, scale: 0.5 }}
+											animate={{ rotate: 0, opacity: 1, scale: 1 }}
+											exit={{ rotate: 90, opacity: 0, scale: 0.5 }}
+											transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}>
+											<Sun
+												className='h-3.5 w-3.5'
+												style={{ color: accentColor }}
+											/>
+										</motion.div>
+									)}
+								</AnimatePresence>
+							</div>
+							<span className='text-muted-foreground text-[11px] font-medium'>
+								{darkMode ? 'Dark' : 'Light'}
+							</span>
+						</motion.button>
+					</div>
+
+					<div
+						className='overflow-hidden rounded-2xl border bg-[var(--surface-panel)] p-5'
+						style={{ borderColor: 'var(--border-subtle)' }}>
+						<AnimatePresence mode='wait'>
+							<motion.div
+								key={darkMode ? 'dark-grid' : 'light-grid'}
+								initial={
+									animationsEnabled
+										? { opacity: 0, x: slideDir * 32 }
+										: { opacity: 1, x: 0 }
+								}
+								animate={{ opacity: 1, x: 0 }}
+								exit={
+									animationsEnabled
+										? { opacity: 0, x: slideDir * -32 }
+										: { opacity: 0, x: 0 }
+								}
+								transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+								className='grid grid-cols-4 gap-3 sm:grid-cols-7'>
+								{/* Auto tile */}
+								<motion.button
+									key='auto'
+									type='button'
+									onClick={() => handleBackgroundChange('auto')}
+									{...hoverSmall}
+									className='group flex flex-col items-center gap-2'>
+									<div
+										className='relative flex h-14 w-full items-center justify-center overflow-hidden rounded-xl ring-1 transition-all duration-300'
+										style={{
+											backgroundColor: autoBg,
+											boxShadow:
+												backgroundId === 'auto'
+													? `0 0 0 2px var(--accent-color, #f97316)`
+													: 'none',
+											borderColor:
+												backgroundId === 'auto'
+													? 'transparent'
+													: 'rgba(255,255,255,0.08)',
+										}}>
+										<div
+											className='pointer-events-none absolute inset-0 rounded-xl'
+											style={{
+												background: `radial-gradient(ellipse at 50% 0%, rgba(var(--accent-rgb), 0.18) 0%, transparent 70%)`,
+											}}
+										/>
+										<div className='relative flex items-center gap-1.5'>
+											<div
+												className='h-2 w-2 rounded-full opacity-70'
+												style={{ backgroundColor: accentColor }}
+											/>
+											<div
+												className={`h-1.5 w-6 rounded-full ${tileDotsClass}`}
+											/>
+											<div
+												className={`h-1.5 w-4 rounded-full ${tileDotsFaintClass}`}
+											/>
+										</div>
+										<Sparkles
+											className='absolute top-1.5 right-1.5 h-2.5 w-2.5'
+											style={{ color: accentColor, opacity: 0.7 }}
+										/>
+									</div>
+									<span
+										className={`text-[10px] font-medium transition-colors ${backgroundId === 'auto' ? 'text-foreground' : 'text-tertiary'}`}>
+										Auto
+									</span>
+								</motion.button>
+
+								{activePresets.map((preset) => {
+									const isSelected = backgroundId === preset.id
+									return (
+										<motion.button
+											key={preset.id}
+											type='button'
+											onClick={() => handleBackgroundChange(preset.id)}
+											{...hoverSmall}
+											className='group flex flex-col items-center gap-2'>
+											<div
+												className='flex h-14 w-full items-center justify-center rounded-xl ring-1 transition-all duration-200'
+												style={{
+													backgroundColor: preset.bg,
+													boxShadow: isSelected
+														? `0 0 0 2px var(--accent-color, #f97316)`
+														: 'none',
+													borderColor: isSelected
+														? 'transparent'
+														: 'rgba(255,255,255,0.08)',
+												}}>
+												<div className='flex items-center gap-1.5'>
+													<div
+														className='h-2 w-2 rounded-full opacity-60'
+														style={{ backgroundColor: accentColor }}
+													/>
+													<div
+														className={`h-1.5 w-6 rounded-full ${tileDotsClass}`}
+													/>
+													<div
+														className={`h-1.5 w-4 rounded-full ${tileDotsFaintClass}`}
+													/>
+												</div>
+											</div>
+											<span
+												className={`text-[10px] font-medium transition-colors ${isSelected ? 'text-foreground' : 'text-tertiary'}`}>
+												{preset.name}
+											</span>
+										</motion.button>
+									)
+								})}
+							</motion.div>
+						</AnimatePresence>
 					</div>
 				</motion.section>
 
 				{/* Layout */}
-				<motion.section {...fade(0.2)}>
-					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
+				<motion.section {...fade(0.15)}>
+					<h2 className='text-muted-foreground mb-4 ml-2 text-xs font-bold tracking-widest uppercase'>
 						{t('settings:appearance.layout.title')}
 					</h2>
 					<div className='space-y-3'>
@@ -340,15 +417,17 @@ export function AppearanceSettings() {
 
 	function renderCustomPicker() {
 		return (
-			<div className='mt-2 flex items-start gap-6 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4'>
+			<div
+				className='mt-2 flex items-start gap-6 rounded-xl border bg-[var(--surface-panel)] p-4'
+				style={{ borderColor: 'var(--border-subtle)' }}>
 				<div className='color-picker-container'>
 					<ColorPicker color={customColor} onChange={handleCustomColorChange} />
 				</div>
 				<div className='flex flex-col gap-3'>
-					<label className='text-xs font-medium text-slate-400'>Hex</label>
+					<label className='text-muted-foreground text-xs font-medium'>Hex</label>
 					<div className='flex items-center gap-2'>
 						<div
-							className='h-8 w-8 rounded-lg shadow-inner ring-1 ring-white/[0.1]'
+							className='h-8 w-8 rounded-lg shadow-inner ring-1 ring-[var(--border-subtle)]'
 							style={{ backgroundColor: customColor }}
 						/>
 						<input
@@ -362,14 +441,14 @@ export function AppearanceSettings() {
 								}
 							}}
 							onBlur={handleCustomColorComplete}
-							className='w-24 rounded-lg bg-slate-800/60 px-3 py-1.5 font-mono text-sm text-slate-200 ring-1 ring-white/[0.08] transition-all focus:ring-white/[0.2] focus:outline-none'
+							className='text-foreground w-24 rounded-lg bg-[var(--surface-panel)] px-3 py-1.5 font-mono text-sm ring-1 ring-[var(--border-subtle)] transition-all focus:ring-[var(--accent-color)] focus:outline-none'
 							maxLength={7}
 						/>
 					</div>
 
 					{/* Mini preview */}
 					<div className='mt-2 space-y-2'>
-						<p className='text-[10px] font-semibold tracking-wider text-slate-600 uppercase'>
+						<p className='text-tertiary text-[10px] font-semibold tracking-wider uppercase'>
 							Preview
 						</p>
 						<button
@@ -395,7 +474,7 @@ export function AppearanceSettings() {
 					<button
 						type='button'
 						onClick={handleCustomColorComplete}
-						className='mt-2 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/[0.1] transition-colors hover:bg-white/[0.06] hover:text-white'>
+						className='text-foreground/80 hover:text-foreground mt-2 rounded-lg px-3 py-1.5 text-xs font-medium ring-1 ring-[var(--border-subtle)] transition-colors hover:bg-[var(--surface-hover)]'>
 						Apply
 					</button>
 				</div>

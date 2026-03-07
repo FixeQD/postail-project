@@ -56,17 +56,19 @@ export function TPMUnlockFailed({
 						transition={{ duration: 0.2 }}
 						className='w-full max-w-sm text-center'>
 						<div className='mb-6 flex justify-center'>
-							<div className='flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-800/80 ring-1 ring-white/10'>
+							<div className='flex h-20 w-20 items-center justify-center rounded-2xl bg-[var(--surface-active)] ring-1 ring-[var(--border-subtle)]'>
 								<XCircle className='h-10 w-10 text-slate-400' />
 							</div>
 						</div>
 
-						<h1 className='mb-3 text-2xl font-bold tracking-tight text-slate-100'>
+						<h1 className='mb-3 text-2xl font-bold tracking-tight text-[var(--text-primary)]'>
 							{tSec('security:tpm.unlockFailed.title')}
 						</h1>
-						<p className='mb-2 text-sm leading-relaxed text-slate-400'>{description}</p>
+						<p className='mb-2 text-sm leading-relaxed text-[var(--text-secondary)]'>
+							{description}
+						</p>
 						{error && !error.cancelled && (
-							<p className='mb-6 rounded-lg bg-slate-800/60 px-3 py-2 font-mono text-xs text-slate-500'>
+							<p className='mb-6 rounded-lg bg-[var(--surface-active)] px-3 py-2 font-mono text-xs text-[var(--text-secondary)]'>
 								{error.message}
 							</p>
 						)}
@@ -84,7 +86,7 @@ export function TPMUnlockFailed({
 									setView('recovery')
 									setRecoveryError(null)
 								}}
-								className='w-full text-center text-xs text-slate-500 transition-colors hover:text-slate-300'>
+								className='w-full text-center text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]'>
 								{tSec('security:tpm.unlockFailed.useRecovery')}
 							</button>
 						</div>
@@ -105,7 +107,7 @@ export function TPMUnlockFailed({
 								setRecoveryError(null)
 								setPhrase('')
 							}}
-							className='group mb-8 flex items-center gap-2 text-sm text-slate-500 transition-colors hover:text-slate-200'>
+							className='group mb-8 flex items-center gap-2 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]'>
 							<ArrowLeft className='h-4 w-4 transition-transform group-hover:-translate-x-0.5' />
 							Back
 						</button>
@@ -121,10 +123,10 @@ export function TPMUnlockFailed({
 								<ShieldAlert className='h-5 w-5' style={{ color: accentColor }} />
 							</div>
 							<div>
-								<h2 className='text-lg font-bold text-slate-100'>
+								<h2 className='text-lg font-bold text-[var(--text-primary)]'>
 									{t('recovery.unlock.title') || 'Recovery Unlock'}
 								</h2>
-								<p className='text-sm text-slate-500'>
+								<p className='text-sm text-[var(--text-secondary)]'>
 									{t('recovery.unlock.hint')}
 								</p>
 							</div>
@@ -132,7 +134,7 @@ export function TPMUnlockFailed({
 
 						<form onSubmit={handleRecoverySubmit} className='space-y-5'>
 							<div>
-								<label className='mb-2 block text-sm font-medium text-slate-300'>
+								<label className='mb-2 block text-sm font-medium text-[var(--text-primary)]'>
 									{t('recovery.unlock.label')}
 								</label>
 								<textarea
@@ -141,7 +143,7 @@ export function TPMUnlockFailed({
 										setPhrase(e.target.value)
 										setRecoveryError(null)
 									}}
-									className='min-h-[120px] w-full resize-none rounded-xl bg-slate-800/40 px-4 py-3 text-slate-100 placeholder-slate-600 ring-1 ring-white/[0.08] transition-all duration-200 focus:bg-slate-800/60 focus:outline-none'
+									className='min-h-[120px] w-full resize-none rounded-xl bg-[var(--surface-panel)] px-4 py-3 text-[var(--text-primary)] placeholder-[var(--text-tertiary)] ring-1 ring-[var(--border-subtle)] transition-all duration-200 focus:bg-[var(--surface-hover)] focus:outline-none'
 									placeholder={t('recovery.unlock.placeholder')}
 									required
 									autoFocus

@@ -36,8 +36,8 @@ const SettingsNavItem = memo(
 				{...(animationsEnabled ? { whileTap: { scale: 0.97 } } : {})}
 				className={`relative flex w-full items-center gap-3 rounded-xl px-4 py-2.5 transition-colors duration-200 ${
 					isActive
-						? 'text-slate-100'
-						: 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+						? 'text-foreground'
+						: 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-hover)]'
 				}`}>
 				{/* Active background pill */}
 				{isActive && (
@@ -52,7 +52,7 @@ const SettingsNavItem = memo(
 									},
 								}
 							: {})}
-						className='absolute inset-0 rounded-xl bg-white/[0.08] ring-1 ring-white/[0.08]'
+						className='absolute inset-0 rounded-xl bg-[var(--surface-active)] ring-1 ring-[var(--border-subtle)]'
 					/>
 				)}
 
@@ -148,7 +148,7 @@ export function SettingsScreen({
 				return <AboutSettings />
 			default:
 				return (
-					<div className='flex h-full items-center justify-center text-slate-500'>
+					<div className='text-muted-foreground flex h-full items-center justify-center'>
 						{t('settings:comingSoon')}
 					</div>
 				)
@@ -156,7 +156,7 @@ export function SettingsScreen({
 	}, [activeSection, accounts, onRemoveAccount, onSyncAccount, onAccountAdded, t])
 
 	return (
-		<div className='flex h-full text-slate-100'>
+		<div className='text-foreground flex h-full'>
 			{showSidebar && (
 				<motion.div
 					{...(animationsEnabled
@@ -166,15 +166,16 @@ export function SettingsScreen({
 								transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
 							}
 						: {})}
-					className='relative flex w-64 flex-col border-r border-white/[0.06] bg-slate-900/20 p-4 backdrop-blur-xl'>
+					className='relative flex w-64 flex-col border-r bg-[var(--surface-panel)] p-4 backdrop-blur-xl'
+					style={{ borderColor: 'var(--border-subtle)' }}>
 					{/* Right edge gradient */}
-					<div className='pointer-events-none absolute top-0 right-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/[0.06] to-transparent' />
+					<div className='pointer-events-none absolute top-0 right-0 bottom-0 w-px bg-gradient-to-b from-transparent via-black/[0.06] to-transparent dark:via-white/[0.06]' />
 
 					{canGoBack && (
 						<button
 							type='button'
 							onClick={onBack}
-							className='group mb-8 flex items-center gap-2 rounded-xl px-4 py-2 text-slate-400 transition-colors hover:bg-white/[0.04] hover:text-white'>
+							className='text-muted-foreground hover:text-foreground group mb-8 flex items-center gap-2 rounded-xl px-4 py-2 transition-colors hover:bg-[var(--surface-hover)]'>
 							<ArrowLeft className='h-4 w-4 transition-transform group-hover:-translate-x-0.5' />
 							<span className='text-sm font-medium'>{t('settings:back')}</span>
 						</button>
@@ -193,7 +194,7 @@ export function SettingsScreen({
 						))}
 					</div>
 
-					<div className='border-t border-white/[0.06] pt-4'>
+					<div className='border-t pt-4' style={{ borderColor: 'var(--border-subtle)' }}>
 						<motion.button
 							type='button'
 							{...(animationsEnabled ? { whileTap: { scale: 0.97 } } : {})}

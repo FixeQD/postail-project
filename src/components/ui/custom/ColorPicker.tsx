@@ -140,7 +140,7 @@ export const ColorPicker = ({ color, onChange }: CustomColorPickerProps) => {
 				ref={svRef}
 				onPointerDown={onSvDown}
 				onPointerMove={(e) => e.buttons > 0 && handleSvPointer(e)}
-				className='relative h-[180px] w-full cursor-crosshair overflow-hidden rounded-lg border border-white/10'
+				className='relative h-[180px] w-full cursor-crosshair overflow-hidden rounded-lg border border-[var(--border-faint)]'
 				style={{ backgroundColor: hsvToHex({ h: hsv.h, s: 100, v: 100 }) }}>
 				<div className='absolute inset-0 bg-gradient-to-r from-white to-transparent' />
 				<div className='absolute inset-0 bg-gradient-to-t from-black to-transparent' />
@@ -161,7 +161,7 @@ export const ColorPicker = ({ color, onChange }: CustomColorPickerProps) => {
 				ref={hRef}
 				onPointerDown={onHDown}
 				onPointerMove={(e) => e.buttons > 0 && handleHPointer(e)}
-				className='relative h-3 w-full cursor-ew-resize rounded-full border border-white/10'
+				className='relative h-3 w-full cursor-ew-resize rounded-full border border-[var(--border-faint)]'
 				style={{
 					background:
 						'linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)',

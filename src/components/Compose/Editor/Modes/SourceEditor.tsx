@@ -10,6 +10,7 @@ import { loader, Editor } from '@monaco-editor/react'
 import { useDraftStore } from '@/stores/draftStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { memo, useCallback, useEffect, useRef } from 'react'
+import { useThemeStore } from '@/stores/themeStore'
 import { html_beautify } from 'js-beautify'
 import { motion } from 'framer-motion'
 import type { MonacoEnvironment, SourceEditorProps } from '@/types/components/compose'
@@ -55,6 +56,9 @@ const formatOptions: import('js-beautify').HTMLBeautifyOptions = {
 export const SourceEditor = memo(({ htmlRef, onChange, isFixing, onMount }: SourceEditorProps) => {
 	const { markDirty } = useDraftStore()
 	const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null)
+	const darkMode = useThemeStore((s) => s.darkMode)
+	const monacoTheme = darkMode ? 'vs-dark' : 'vs'
+	const containerBg = darkMode ? '#1e1e1e' : '#fffffe'
 
 	const handleEditorChange = useCallback(
 		(value: string | undefined) => {
@@ -102,7 +106,8 @@ export const SourceEditor = memo(({ htmlRef, onChange, isFixing, onMount }: Sour
 
 	return (
 		<motion.div
-			className='relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#1e1e1e]'
+			className='relative flex min-h-0 flex-1 flex-col overflow-hidden'
+			style={{ background: containerBg }}
 			{...(animationsEnabled
 				? {
 						initial: {
@@ -128,7 +133,7 @@ export const SourceEditor = memo(({ htmlRef, onChange, isFixing, onMount }: Sour
 				height='100%'
 				defaultLanguage='html'
 				value={htmlRef.current}
-				theme='vs-dark'
+				theme={monacoTheme}
 				options={{
 					minimap: { enabled: false },
 					fontSize: 14,

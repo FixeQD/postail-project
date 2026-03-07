@@ -30,7 +30,7 @@ import './i18n'
 
 function App() {
 	const loadSettings = useSettingsStore((s) => s.loadSettings)
-	const { loadTheme, accentColor } = useThemeStore()
+	const { loadTheme, accentColor, darkMode } = useThemeStore()
 	const animationsEnabled = useAnimationsEnabled()
 	const { isLocked, unlock, useEncryptionPassword } = useAutoLock()
 
@@ -56,8 +56,20 @@ function App() {
 	} = useAppInitialization()
 
 	useEffect(() => {
+		// Apply dark class immediately so there's no flash before loadTheme resolves
+		document.documentElement.classList.add('dark')
 		loadTheme()
 	}, [loadTheme])
+
+	useEffect(() => {
+		if (darkMode) {
+			document.documentElement.classList.add('dark')
+			document.documentElement.classList.remove('light')
+		} else {
+			document.documentElement.classList.remove('dark')
+			document.documentElement.classList.add('light')
+		}
+	}, [darkMode])
 
 	useEffect(() => {
 		// only call the DB when it's actually initialized
@@ -273,7 +285,7 @@ function App() {
 
 	return (
 		<div
-			className='noise-overlay relative flex h-screen flex-col text-slate-100 transition-colors duration-500 ease-in-out'
+			className='noise-overlay text-foreground relative flex h-screen flex-col transition-colors duration-500 ease-in-out'
 			style={{ backgroundColor: 'var(--app-bg, #020617)' }}>
 			<TitleBar
 				isDashboard={currentState === 'dashboard'}

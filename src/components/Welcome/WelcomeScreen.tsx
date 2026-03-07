@@ -27,7 +27,7 @@ export const WelcomeScreen = ({
 				transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
 				className='relative z-10 mb-8'>
 				<div className='animate-subtle-float'>
-					<div className='relative flex h-24 w-24 items-center justify-center rounded-2xl bg-slate-800/80 shadow-xl ring-1 ring-white/[0.08]'>
+					<div className='relative flex h-24 w-24 items-center justify-center rounded-2xl bg-[var(--surface-active)] shadow-xl ring-1 ring-[var(--border-subtle)]'>
 						<img src={icon} alt='Postail' className='h-20 w-20' />
 						{/* Glow behind logo */}
 						<div
@@ -52,7 +52,7 @@ export const WelcomeScreen = ({
 				initial={{ opacity: 0, y: 12 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.5, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
-				className='relative z-10 text-lg text-slate-400'>
+				className='text-muted-foreground relative z-10 text-lg'>
 				{t('welcome:subtitle')}
 			</motion.p>
 
@@ -62,7 +62,9 @@ export const WelcomeScreen = ({
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.5, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
 				className='relative z-10 mt-4 mb-12 max-w-md'>
-				<p className='leading-relaxed text-slate-500'>{t('welcome:description')}</p>
+				<p className='text-muted-foreground/70 leading-relaxed'>
+					{t('welcome:description')}
+				</p>
 			</motion.div>
 
 			{/* CTA Button */}
@@ -74,7 +76,7 @@ export const WelcomeScreen = ({
 				transition={{ duration: 0.5, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
 				whileHover={{ scale: 1.03, y: -1 }}
 				whileTap={{ scale: 0.97 }}
-				className='text-accent-contrast press-down relative z-10 rounded-xl px-10 py-3.5 text-sm font-semibold shadow-lg transition-shadow hover:shadow-xl focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-950 focus:outline-none'
+				className='text-accent-contrast press-down relative z-10 rounded-xl px-10 py-3.5 text-sm font-semibold shadow-lg transition-shadow hover:shadow-xl focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--app-bg)] focus:outline-none'
 				style={{
 					background: `linear-gradient(to right, var(--accent-dark), var(--accent-color))`,
 					boxShadow: `0 8px 24px -4px rgba(var(--accent-rgb), 0.2)`,
@@ -90,7 +92,7 @@ export const WelcomeScreen = ({
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
 				transition={{ duration: 0.4, delay: 0.65, ease: 'easeOut' }}
-				className='relative z-10 mt-4 text-sm text-slate-600 transition-colors hover:text-slate-400 focus:outline-none'>
+				className='text-tertiary hover:text-muted-foreground relative z-10 mt-4 text-sm transition-colors focus:outline-none'>
 				{t('welcome:existingData')}
 			</motion.button>
 

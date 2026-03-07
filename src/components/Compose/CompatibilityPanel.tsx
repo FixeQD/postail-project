@@ -76,19 +76,19 @@ const IssueItem = memo(function IssueItem({
 
 	return (
 		<div
-			className={`flex gap-3 border-l-2 bg-zinc-900/30 p-3.5 ${config.borderColor} ${!isLast ? 'border-b border-zinc-800' : ''} transition-colors hover:bg-zinc-800/50`}>
+			className={`flex gap-3 border-l-2 bg-[var(--compose-context-bg)] p-3.5 ${config.borderColor} ${!isLast ? 'border-b border-[var(--compose-input-border)]' : ''} transition-colors hover:bg-[var(--compose-hover)]`}>
 			<div className={`mt-0.5 flex-shrink-0 ${config.color}`}>
 				<Icon className='h-4 w-4' />
 			</div>
 			<div className='min-w-0 flex-1'>
 				<div className='mb-1.5 flex items-center gap-2'>
-					<code className='font-mono text-xs font-bold text-zinc-300'>
+					<code className='font-mono text-xs font-bold text-[var(--compose-text)]'>
 						{issue.property}
 					</code>
 					{issue.count > 1 && (
 						<Badge
 							variant='secondary'
-							className='scale-90 bg-zinc-700/50 px-1.5 py-0 text-[10px] text-zinc-400'>
+							className='scale-90 bg-[var(--compose-active)] px-1.5 py-0 text-[10px] text-[var(--compose-text-muted)]'>
 							x{issue.count}
 						</Badge>
 					)}
@@ -98,7 +98,9 @@ const IssueItem = memo(function IssueItem({
 						{t(`compatibilityPanel.severity.${issue.severity.toLowerCase()}`)}
 					</Badge>
 				</div>
-				<p className='text-xs leading-relaxed text-zinc-400'>{issue.reason}</p>
+				<p className='text-xs leading-relaxed text-[var(--compose-text-muted)]'>
+					{issue.reason}
+				</p>
 			</div>
 		</div>
 	)
@@ -123,11 +125,11 @@ const IssueGroup = memo(function IssueGroup({
 			<button
 				type='button'
 				onClick={() => setIsExpanded(!isExpanded)}
-				className='flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors hover:bg-zinc-800/50'>
+				className='flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors hover:bg-[var(--compose-hover)]'>
 				{isExpanded ? (
-					<ChevronDown className='h-3.5 w-3.5 text-zinc-500' />
+					<ChevronDown className='h-3.5 w-3.5 text-[var(--compose-text-muted)]' />
 				) : (
-					<ChevronRight className='h-3.5 w-3.5 text-zinc-500' />
+					<ChevronRight className='h-3.5 w-3.5 text-[var(--compose-text-muted)]' />
 				)}
 				<Icon className={`h-4 w-4 ${config.color}`} />
 				<span className={`text-xs font-medium ${config.color}`}>
@@ -141,7 +143,7 @@ const IssueGroup = memo(function IssueGroup({
 			</button>
 			<div
 				className={`overflow-hidden transition-all duration-200 ${isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-				<div className='mt-1 rounded-md border border-zinc-800/50 bg-zinc-900/50'>
+				<div className='mt-1 rounded-md border border-[var(--compose-ring)] bg-[var(--compose-context-bg)]'>
 					{issues.map((issue, index) => (
 						<IssueItem
 							key={`${issue.property}-${index}`}
@@ -234,7 +236,7 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 
 	return (
 		<div
-			className='fixed z-[60] flex flex-col border-r border-zinc-800 bg-zinc-950 shadow-2xl'
+			className='fixed z-[60] flex flex-col border-r border-[var(--compose-ring)] bg-[var(--compose-bg)] shadow-2xl'
 			style={panelStyle}>
 			{/* Resizer handle */}
 			<div
@@ -251,9 +253,9 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 			/>
 
 			<Card className='relative flex flex-1 flex-col overflow-hidden rounded-none border-0 bg-transparent'>
-				<CardHeader className='flex-shrink-0 border-b border-zinc-800/50 px-4 py-3 pb-3'>
+				<CardHeader className='flex-shrink-0 border-b border-[var(--compose-input-border)] px-4 py-3 pb-3'>
 					<div className='flex items-center justify-between'>
-						<CardTitle className='flex items-center gap-2 text-sm font-semibold text-zinc-200'>
+						<CardTitle className='flex items-center gap-2 text-sm font-semibold text-[var(--compose-text)]'>
 							{t('compatibilityPanel.title')}
 							{isLoading && (
 								<span className='h-2 w-2 animate-pulse rounded-full bg-blue-500' />
@@ -262,7 +264,7 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 						<Button
 							variant='ghost'
 							size='icon'
-							className='h-7 w-7 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
+							className='h-7 w-7 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)] hover:text-[var(--compose-text)]'
 							onClick={onClose}>
 							<X className='h-4 w-4' />
 						</Button>
@@ -318,20 +320,22 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 							<div className='mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10'>
 								<Info className='h-5 w-5 text-green-500' />
 							</div>
-							<p className='text-sm text-zinc-400'>
+							<p className='text-sm text-[var(--compose-text-muted)]'>
 								{t('compatibilityPanel.issues.none')}
 							</p>
-							<p className='mt-1 text-xs text-zinc-600'>Your email looks good!</p>
+							<p className='mt-1 text-xs text-[var(--compose-placeholder)]'>
+								Your email looks good!
+							</p>
 						</div>
 					)}
 				</CardContent>
 
 				{/* Action buttons */}
-				<div className='flex-shrink-0 space-y-2 border-t border-zinc-800/50 p-3'>
+				<div className='flex-shrink-0 space-y-2 border-t border-[var(--compose-input-border)] p-3'>
 					<Button
 						variant='outline'
 						size='sm'
-						className='h-8 w-full border-zinc-700 bg-zinc-900 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-200'
+						className='h-8 w-full border-[var(--compose-ring)] bg-[var(--compose-context-bg)] text-xs text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)] hover:text-[var(--compose-text)]'
 						onClick={onCheckAgain}
 						disabled={isLoading}>
 						<RefreshCw
@@ -344,10 +348,10 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 					<Button
 						variant='outline'
 						size='sm'
-						className={`h-8 w-full border-zinc-700 bg-zinc-900 text-xs hover:bg-zinc-800 ${
+						className={`h-8 w-full border-[var(--compose-ring)] bg-[var(--compose-context-bg)] text-xs hover:bg-[var(--compose-hover)] ${
 							hasIssues
 								? 'text-yellow-400 hover:text-yellow-300'
-								: 'cursor-not-allowed text-zinc-500 opacity-50'
+								: 'cursor-not-allowed text-[var(--compose-placeholder)] opacity-50'
 						}`}
 						onClick={handleAutoFix}
 						disabled={!hasIssues || isLoading}>

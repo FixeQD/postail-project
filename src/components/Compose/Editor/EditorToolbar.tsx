@@ -139,23 +139,23 @@ const LinkPopover = memo(({ editor, formats, linkData }: LinkPopoverProps) => {
 				<Button
 					variant='ghost'
 					size='icon'
-					className={`h-9 w-9 ${formats.link ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400 hover:bg-zinc-800'}`}>
+					className={`h-9 w-9 ${formats.link ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}>
 					<LinkIcon className='h-4 w-4' />
 				</Button>
 			</PopoverTrigger>
 			<PopoverContent
 				side='bottom'
 				align='start'
-				className='rounded-md border border-zinc-800 bg-zinc-900 p-3 text-zinc-200 shadow-md'>
+				className='rounded-md border border-[var(--compose-ring)] bg-[var(--compose-suggestions-bg)] p-3 text-[var(--compose-text)] shadow-md'>
 				<div className='flex flex-col gap-2'>
-					<label className='text-xs text-zinc-400'>Text</label>
+					<label className='text-xs text-[var(--compose-text-muted)]'>Text</label>
 					<Input
 						ref={textInputRef}
 						value={localText}
 						onChange={(e) => setLocalText(e.target.value)}
 						className='bg-transparent'
 					/>
-					<label className='text-xs text-zinc-400'>URL</label>
+					<label className='text-xs text-[var(--compose-text-muted)]'>URL</label>
 					<Input
 						value={localUrl}
 						onChange={(e) => setLocalUrl(e.target.value)}
@@ -258,50 +258,50 @@ export function EditorToolbar() {
 					<Button
 						variant='ghost'
 						size='icon'
-						className='h-9 w-9 text-zinc-400 hover:bg-zinc-800'
+						className='h-9 w-9 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'
 						onClick={handleAttachment}>
 						<Paperclip className='h-5 w-5' />
 					</Button>
 					<Button
 						variant='ghost'
 						size='icon'
-						className={`h-9 w-9 ${formats.bold ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400'}`}
+						className={`h-9 w-9 ${formats.bold ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
 						onClick={() => exec(FORMAT_TEXT_COMMAND, 'bold')}>
 						<Bold className='h-4 w-4' />
 					</Button>
 					<Button
 						variant='ghost'
 						size='icon'
-						className={`h-9 w-9 ${formats.italic ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400'}`}
+						className={`h-9 w-9 ${formats.italic ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
 						onClick={() => exec(FORMAT_TEXT_COMMAND, 'italic')}>
 						<Italic className='h-4 w-4' />
 					</Button>
 					<Button
 						variant='ghost'
 						size='icon'
-						className={`h-9 w-9 ${formats.underline ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400'}`}
+						className={`h-9 w-9 ${formats.underline ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
 						onClick={() => exec(FORMAT_TEXT_COMMAND, 'underline')}>
 						<Underline className='h-4 w-4' />
 					</Button>
 					<Button
 						variant='ghost'
 						size='icon'
-						className={`h-9 w-9 ${formats.strikethrough ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400'}`}
+						className={`h-9 w-9 ${formats.strikethrough ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
 						onClick={() => exec(FORMAT_TEXT_COMMAND, 'strikethrough')}>
 						<Strikethrough className='h-4 w-4' />
 					</Button>
-					<div className='mx-1 h-4 w-px bg-zinc-800' />
+					<div className='mx-1 h-4 w-px bg-[var(--compose-separator)]' />
 					<Button
 						variant='ghost'
 						size='icon'
-						className={`h-9 w-9 ${formats.unordered ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400'}`}
+						className={`h-9 w-9 ${formats.unordered ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
 						onClick={() => exec(INSERT_UNORDERED_LIST_COMMAND)}>
 						<ListIcon className='h-4 w-4' />
 					</Button>
 					<Button
 						variant='ghost'
 						size='icon'
-						className={`h-9 w-9 ${formats.ordered ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400'}`}
+						className={`h-9 w-9 ${formats.ordered ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
 						onClick={() => exec(INSERT_ORDERED_LIST_COMMAND)}>
 						<ListOrdered className='h-4 w-4' />
 					</Button>
@@ -309,13 +309,13 @@ export function EditorToolbar() {
 				</>
 			)}
 
-			<div className='mx-1 h-4 w-px bg-zinc-800' />
+			<div className='mx-1 h-4 w-px bg-[var(--compose-separator)]' />
 
 			<Button
 				variant='ghost'
 				size='icon'
 				title={editorMode === 'rich-text' ? 'Switch to Source' : 'Switch to Rich Text'}
-				className={`h-9 w-9 text-zinc-400 hover:bg-zinc-800 ${editorMode === 'source' ? 'bg-zinc-800 text-blue-400' : ''}`}
+				className={`h-9 w-9 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)] ${editorMode === 'source' ? 'bg-[var(--compose-active)] text-blue-400' : ''}`}
 				onClick={() => setEditorMode(editorMode === 'rich-text' ? 'source' : 'rich-text')}>
 				{editorMode === 'rich-text' ? (
 					<Code className='h-4 w-4' />
@@ -327,7 +327,7 @@ export function EditorToolbar() {
 			{/* Compatibility panel button - only in source mode */}
 			{editorMode === 'source' && (
 				<>
-					<div className='mx-1 h-4 w-px bg-zinc-800' />
+					<div className='mx-1 h-4 w-px bg-[var(--compose-separator)]' />
 					<CompatibilityButton
 						isOpen={useDraftStore.getState().compatibilityPanelOpen}
 						onClick={() => useDraftStore.getState().toggleCompatibilityPanel()}

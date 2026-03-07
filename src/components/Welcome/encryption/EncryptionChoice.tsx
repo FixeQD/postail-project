@@ -80,7 +80,9 @@ export const EncryptionChoice = ({
 							}}
 						/>
 					</div>
-					<p className='text-sm text-slate-400'>{t('common:status.loading')}</p>
+					<p className='text-sm text-slate-500 dark:text-slate-400'>
+						{t('common:status.loading')}
+					</p>
 				</motion.div>
 			</div>
 		)
@@ -108,7 +110,7 @@ export const EncryptionChoice = ({
 					initial={{ opacity: 0, y: -10 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-					className='relative border-b border-white/[0.06] bg-slate-900/40 px-4 py-6 backdrop-blur-lg'>
+					className='relative border-b border-black/[0.06] bg-white/40 px-4 py-6 backdrop-blur-lg dark:border-white/[0.06] dark:bg-slate-900/40'>
 					{/* Top highlight line */}
 					<div
 						className='pointer-events-none absolute inset-x-0 bottom-0 h-px'
@@ -121,7 +123,7 @@ export const EncryptionChoice = ({
 						<button
 							type='button'
 							onClick={onBack}
-							className='group mb-6 flex items-center gap-2 text-sm text-slate-400 transition-colors hover:text-slate-100'>
+							className='group mb-6 flex items-center gap-2 text-sm text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'>
 							<ArrowLeft className='h-4 w-4 transition-transform group-hover:-translate-x-0.5' />
 							{t('common:actions.back')}
 						</button>
@@ -135,10 +137,10 @@ export const EncryptionChoice = ({
 								<Shield className='h-5 w-5' style={{ color: accentColor }} />
 							</div>
 							<div>
-								<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
+								<h1 className='text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100'>
 									{t('security:title')}
 								</h1>
-								<p className='mt-1 text-sm text-slate-400'>
+								<p className='mt-1 text-sm text-slate-500 dark:text-slate-400'>
 									{t('security:subtitle')}
 								</p>
 							</div>

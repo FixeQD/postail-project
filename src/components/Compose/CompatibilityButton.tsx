@@ -64,8 +64,8 @@ export const CompatibilityButton = memo(function CompatibilityButton({
 						onClick={onClick}
 						className={`relative h-9 w-9 transition-colors ${
 							isOpen
-								? 'bg-zinc-800 text-zinc-100'
-								: `text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 ${colorClass}`
+								? 'bg-[var(--compose-active)] text-[var(--compose-text)]'
+								: `text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)] hover:text-[var(--compose-text)] ${colorClass}`
 						}`}>
 						{isLoading ? (
 							<span className='h-4 w-4 animate-pulse rounded-full bg-current' />

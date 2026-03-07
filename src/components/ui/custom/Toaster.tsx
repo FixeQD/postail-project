@@ -32,7 +32,7 @@ function LiveCountdown({ durationMs }: { durationMs: number }) {
 
 	return (
 		<>
-			Sending in <span className='text-white/90 tabular-nums'>{secs}</span>s…
+			Sending in <span className='text-[var(--text-primary)] tabular-nums'>{secs}</span>s…
 		</>
 	)
 }
@@ -54,7 +54,7 @@ function CountdownBar({ duration }: { duration: number }) {
 	}, [duration])
 
 	return (
-		<div className='absolute right-0 bottom-0 left-0 h-[3px] overflow-hidden rounded-b-2xl bg-white/5'>
+		<div className='absolute right-0 bottom-0 left-0 h-[3px] overflow-hidden rounded-b-2xl bg-[var(--border-faint)]'>
 			<div
 				ref={barRef}
 				className='h-full w-full origin-left bg-gradient-to-r from-blue-500 to-cyan-400'
@@ -77,7 +77,7 @@ function ToastItem({ t, onRemove }: { t: Toast; onRemove: (id: string) => void }
 			exit={{ opacity: 0, scale: 0.85, y: 10, transition: { duration: 0.15 } }}
 			transition={{ type: 'spring', stiffness: 400, damping: 30, restDelta: 0.01 }}
 			style={{ willChange: 'transform, opacity, filter' }}
-			className='pointer-events-auto relative max-w-md min-w-[320px] cursor-default overflow-hidden rounded-2xl border border-white/[0.08] bg-slate-900/80 p-4 shadow-2xl backdrop-blur-2xl transition-shadow select-none hover:shadow-white/[0.02]'>
+			className='pointer-events-auto relative max-w-md min-w-[320px] cursor-default overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-glass)] p-4 shadow-2xl backdrop-blur-2xl transition-shadow select-none'>
 			<div
 				className='absolute inset-0 -z-10 opacity-20'
 				style={{
@@ -88,10 +88,12 @@ function ToastItem({ t, onRemove }: { t: Toast; onRemove: (id: string) => void }
 			<div className='flex items-start gap-3'>
 				<div className='mt-0.5 shrink-0'>{icons[t.type]}</div>
 				<div className='flex-1 overflow-hidden'>
-					<p className='text-[15px] leading-tight font-medium text-white/95'>
+					<p className='text-[15px] leading-tight font-medium text-[var(--text-primary)]'>
 						{isCountdown ? <LiveCountdown durationMs={t.duration!} /> : t.message}
 					</p>
-					{t.description && <p className='mt-1 text-sm text-white/60'>{t.description}</p>}
+					{t.description && (
+						<p className='mt-1 text-sm text-[var(--text-secondary)]'>{t.description}</p>
+					)}
 				</div>
 
 				{isCountdown && (
@@ -100,14 +102,14 @@ function ToastItem({ t, onRemove }: { t: Toast; onRemove: (id: string) => void }
 							t.cancelFn!()
 							onRemove(t.id)
 						}}
-						className='ml-1 shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-white/70 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-white/90'>
+						className='ml-1 shrink-0 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-hover)] px-2.5 py-1 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)]'>
 						Undo
 					</button>
 				)}
 
 				<button
 					onClick={() => onRemove(t.id)}
-					className='-mt-1 -mr-1 ml-2 rounded-full p-1 text-white/20 transition-colors hover:bg-white/5 hover:text-white/40'>
+					className='-mt-1 -mr-1 ml-2 rounded-full p-1 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]'>
 					<XIcon className='size-4' />
 				</button>
 			</div>

@@ -143,8 +143,8 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 								}
 							: {})}
 						onClick={(e) => e.stopPropagation()}>
-						<Card className='flex max-h-[80vh] w-full max-w-4xl min-w-[640px] flex-col overflow-hidden border-white/[0.06] bg-slate-950/95 shadow-2xl ring-1 shadow-black/40 ring-white/[0.08] backdrop-blur-xl'>
-							<CardHeader className='flex-shrink-0 border-b border-white/[0.06] px-5 py-4'>
+						<Card className='flex max-h-[80vh] w-full max-w-4xl min-w-[640px] flex-col overflow-hidden border-[var(--border-subtle)] bg-[var(--surface-glass)] shadow-2xl ring-1 ring-[var(--border-subtle)] backdrop-blur-xl'>
+							<CardHeader className='flex-shrink-0 border-b border-[var(--border-faint)] px-5 py-4'>
 								<div className='flex items-center justify-between'>
 									<div className='flex items-center gap-3'>
 										<div
@@ -158,7 +158,7 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 												style={{ color: accentColor }}
 											/>
 										</div>
-										<CardTitle className='text-lg font-semibold text-slate-200'>
+										<CardTitle className='text-lg font-semibold text-[var(--text-primary)]'>
 											{t('outbox.title')}
 											{activeItems.length > 0 && (
 												<Badge
@@ -179,7 +179,7 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 										<Button
 											variant='ghost'
 											size='icon'
-											className='h-8 w-8 text-slate-500 hover:bg-white/[0.06] hover:text-slate-300'
+											className='h-8 w-8 text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
 											onClick={onClose}>
 											<X className='h-4 w-4' />
 										</Button>
@@ -268,7 +268,7 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 
 										{/* Recently Sent */}
 										{sentItems.length > 0 && (
-											<div className='space-y-2 border-t border-white/[0.06] pt-4'>
+											<div className='space-y-2 border-t border-[var(--border-faint)] pt-4'>
 												<h3 className='ml-1 text-xs font-semibold tracking-wider text-slate-500 uppercase'>
 													{t('outbox.recentlySent')}
 												</h3>
@@ -328,7 +328,7 @@ function OutboxItemCard({
 	const isAccentStatus = item.status === 'RETRY'
 
 	return (
-		<div className='group space-y-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 transition-colors hover:bg-white/[0.04]'>
+		<div className='group space-y-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-3.5 transition-colors hover:bg-[var(--surface-hover)]'>
 			<div className='flex items-start justify-between gap-3'>
 				<div className='flex min-w-0 flex-1 items-start gap-2.5'>
 					<div
@@ -337,7 +337,7 @@ function OutboxItemCard({
 						<Icon className='h-4 w-4' />
 					</div>
 					<div className='min-w-0 flex-1'>
-						<p className='truncate text-sm font-medium text-slate-200'>
+						<p className='truncate text-sm font-medium text-[var(--text-primary)]'>
 							{item.subject || '(No subject)'}
 						</p>
 						<p className='truncate text-xs text-slate-500'>

@@ -35,10 +35,10 @@ export class MessageViewErrorBoundary extends Component<Props, State> {
 						<AlertCircle className='h-6 w-6 text-red-400' />
 					</div>
 					<div className='space-y-1'>
-						<h3 className='font-semibold text-slate-200'>
+						<h3 className='font-semibold text-[var(--text-primary)]'>
 							{this.props.title}
 						</h3>
-						<p className='text-sm text-slate-400'>
+						<p className='text-sm text-[var(--text-secondary)]'>
 							{this.props.description}
 						</p>
 					</div>
@@ -48,8 +48,8 @@ export class MessageViewErrorBoundary extends Component<Props, State> {
 							this.setState({ hasError: false })
 							this.props.onFallback()
 						}}
-						className='gap-2 border-white/5 bg-white/5 hover:bg-white/10'>
-						<FileText className='h-4 w-4 text-slate-400' />
+						className='gap-2 border-[var(--border-faint)] bg-[var(--surface-panel)] hover:bg-[var(--surface-hover)]'>
+						<FileText className='h-4 w-4 text-[var(--text-secondary)]' />
 						{this.props.fallbackText}
 					</Button>
 				</div>

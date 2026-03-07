@@ -29,10 +29,12 @@ export function AccountsScreen({
 					: {})}
 				className='mb-8 flex items-center justify-between'>
 				<div>
-					<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
+					<h1 className='text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100'>
 						{t('settings:accounts.title')}
 					</h1>
-					<p className='mt-1 text-sm text-slate-400'>{t('settings:accounts.subtitle')}</p>
+					<p className='mt-1 text-sm text-slate-500 dark:text-slate-400'>
+						{t('settings:accounts.subtitle')}
+					</p>
 				</div>
 				<AddAccountDialog>
 					<motion.div
@@ -84,14 +86,14 @@ export function AccountsScreen({
 									transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
 								}
 							: {})}
-						className='col-span-full flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/[0.06] bg-white/[0.02] py-24 text-center transition-all duration-300 hover:border-white/[0.12] hover:bg-white/[0.04]'>
-						<div className='mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-800/60 ring-1 ring-white/[0.06]'>
+						className='col-span-full flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-black/[0.06] bg-black/[0.01] py-24 text-center transition-all duration-300 hover:border-black/[0.1] hover:bg-black/[0.02] dark:border-white/[0.06] dark:bg-white/[0.02] dark:hover:border-white/[0.12] dark:hover:bg-white/[0.04]'>
+						<div className='mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-black/[0.04] ring-1 ring-black/[0.06] dark:bg-slate-800/60 dark:ring-white/[0.06]'>
 							<Mail className='h-7 w-7 text-slate-500' />
 						</div>
-						<h3 className='text-lg font-semibold text-slate-200'>
+						<h3 className='text-lg font-semibold text-slate-700 dark:text-slate-200'>
 							No accounts connected
 						</h3>
-						<p className='mx-auto mt-2 mb-7 max-w-sm text-sm text-slate-500'>
+						<p className='mx-auto mt-2 mb-7 max-w-sm text-sm text-slate-500 dark:text-slate-500'>
 							Connect your Gmail or Outlook account to start syncing messages.
 						</p>
 						<AddAccountDialog onAccountAdded={onAccountAdded} />

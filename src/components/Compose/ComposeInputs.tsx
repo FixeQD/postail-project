@@ -33,23 +33,23 @@ export function ComposeInputs({
 	return (
 		<div className='flex flex-col px-4 pt-1'>
 			{replyContext && (
-				<div className='mb-2 flex items-center gap-2 rounded-lg bg-zinc-900/50 px-3 py-2 ring-1 ring-white/[0.04]'>
+				<div className='mb-2 flex items-center gap-2 rounded-lg bg-[var(--compose-context-bg)] px-3 py-2 ring-1 ring-[var(--compose-ring-faint)]'>
 					<div className='h-1.5 w-1.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.5)]' />
-					<span className='text-[11px] font-medium tracking-tight text-zinc-500 uppercase'>
+					<span className='text-[11px] font-medium tracking-tight text-[var(--compose-text-muted)] uppercase'>
 						{t('compose.replyingTo')}
 					</span>
-					<span className='truncate text-xs font-medium text-zinc-300'>
+					<span className='truncate text-xs font-medium text-[var(--compose-text)]'>
 						{replySubject}
 					</span>
 				</div>
 			)}
 			{forwardContext && (
-				<div className='mb-2 flex items-center gap-2 rounded-lg bg-zinc-900/50 px-3 py-2 ring-1 ring-white/[0.04]'>
+				<div className='mb-2 flex items-center gap-2 rounded-lg bg-[var(--compose-context-bg)] px-3 py-2 ring-1 ring-[var(--compose-ring-faint)]'>
 					<div className='h-1.5 w-1.5 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]' />
-					<span className='text-[11px] font-medium tracking-tight text-zinc-500 uppercase'>
+					<span className='text-[11px] font-medium tracking-tight text-[var(--compose-text-muted)] uppercase'>
 						{t('compose.forwardingFrom')}
 					</span>
-					<span className='truncate text-xs font-medium text-zinc-300'>
+					<span className='truncate text-xs font-medium text-[var(--compose-text)]'>
 						{forwardSubject}
 					</span>
 				</div>
@@ -66,7 +66,7 @@ export function ComposeInputs({
 							<button
 								type='button'
 								onClick={handleToggleCc}
-								className='text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-300'>
+								className='text-xs font-medium text-[var(--compose-text-muted)] transition-colors hover:text-[var(--compose-text)]'>
 								{t('compose.cc')}
 							</button>
 						)}
@@ -74,7 +74,7 @@ export function ComposeInputs({
 							<button
 								type='button'
 								onClick={handleToggleBcc}
-								className='text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-300'>
+								className='text-xs font-medium text-[var(--compose-text-muted)] transition-colors hover:text-[var(--compose-text)]'>
 								{t('compose.bcc')}
 							</button>
 						)}
@@ -94,7 +94,7 @@ export function ComposeInputs({
 								setShowCc(false)
 								onUpdate({ cc: [] })
 							}}
-							className='mr-2 text-zinc-500 transition-colors hover:text-zinc-300'>
+							className='mr-2 text-[var(--compose-text-muted)] transition-colors hover:text-[var(--compose-text)]'>
 							<X className='h-3.5 w-3.5' />
 						</button>
 					}
@@ -113,7 +113,7 @@ export function ComposeInputs({
 								setShowBcc(false)
 								onUpdate({ bcc: [] })
 							}}
-							className='mr-2 text-zinc-500 transition-colors hover:text-zinc-300'>
+							className='mr-2 text-[var(--compose-text-muted)] transition-colors hover:text-[var(--compose-text)]'>
 							<X className='h-3.5 w-3.5' />
 						</button>
 					}

@@ -113,7 +113,7 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 						transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
 					}
 				: {})}>
-			<Card className='group relative overflow-visible border-white/[0.06] bg-white/[0.03] backdrop-blur-md transition-all duration-300 hover:border-white/[0.1] hover:bg-white/[0.06] hover:shadow-xl hover:shadow-black/30'>
+			<Card className='group relative overflow-visible border-black/[0.06] bg-black/[0.02] backdrop-blur-md transition-all duration-300 hover:border-black/[0.1] hover:bg-black/[0.04] hover:shadow-xl hover:shadow-black/10 dark:border-white/[0.06] dark:bg-white/[0.03] dark:hover:border-white/[0.1] dark:hover:bg-white/[0.06] dark:hover:shadow-black/30'>
 				{/* Hover gradient overlay */}
 				<div className='pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-white/[0.04] via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100' />
 
@@ -124,17 +124,19 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 					<div className='flex items-center gap-4'>
 						<div
 							className={cn(
-								'flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900/60 ring-1 ring-white/[0.08] transition-all duration-300 group-hover:scale-105',
+								'flex h-12 w-12 items-center justify-center rounded-xl bg-black/[0.05] ring-1 ring-black/[0.08] transition-all duration-300 group-hover:scale-105 dark:bg-slate-900/60 dark:ring-white/[0.08]',
 								getProviderGlow(account.provider_type)
 							)}>
 							{getProviderIcon(account.provider_type)}
 						</div>
 
 						<div className='flex flex-col'>
-							<h3 className='text-[15px] font-semibold text-slate-100 transition-colors group-hover:text-white'>
+							<h3 className='text-[15px] font-semibold text-slate-800 transition-colors group-hover:text-slate-900 dark:text-slate-100 dark:group-hover:text-white'>
 								{account.name}
 							</h3>
-							<p className='text-sm text-slate-400'>{account.email}</p>
+							<p className='text-sm text-slate-500 dark:text-slate-400'>
+								{account.email}
+							</p>
 							<div className='mt-1.5 flex items-center gap-2'>
 								{animationsEnabled ? (
 									<AnimatePresence mode='wait'>
@@ -146,7 +148,7 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 								) : (
 									<div>{statusBadge}</div>
 								)}
-								<span className='text-[11px] text-slate-600'>
+								<span className='text-[11px] text-slate-400 dark:text-slate-600'>
 									{account.auth_type}
 								</span>
 							</div>
@@ -162,7 +164,7 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 								variant='ghost'
 								size='icon'
 								className={cn(
-									'h-8 w-8 text-slate-500 hover:bg-white/[0.06] hover:text-slate-200',
+									'h-8 w-8 text-slate-500 hover:bg-black/[0.06] hover:text-slate-700 dark:hover:bg-white/[0.06] dark:hover:text-slate-200',
 									status === 'Syncing' && 'animate-spin'
 								)}
 								onClick={() => onSync(account.id)}
@@ -176,7 +178,7 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 							<Button
 								variant='ghost'
 								size='icon'
-								className='h-8 w-8 text-slate-500 hover:bg-white/[0.06] hover:text-slate-200'
+								className='h-8 w-8 text-slate-500 hover:bg-black/[0.06] hover:text-slate-700 dark:hover:bg-white/[0.06] dark:hover:text-slate-200'
 								onClick={() => setMenuOpen((v) => !v)}>
 								<MoreVertical className='h-4 w-4' />
 							</Button>
@@ -189,18 +191,18 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 										exit={{ opacity: 0, scaleY: 0.8, y: -4 }}
 										transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
 										style={{ transformOrigin: 'top right' }}
-										className='absolute top-full right-0 z-50 mt-1 w-48 overflow-hidden rounded-lg border border-white/[0.06] bg-slate-900/95 py-1 shadow-xl shadow-black/40 backdrop-blur-xl'>
-										<p className='px-3 py-1.5 text-xs font-medium text-slate-500'>
+										className='absolute top-full right-0 z-50 mt-1 w-48 overflow-hidden rounded-lg border border-black/[0.08] bg-white/95 py-1 shadow-xl shadow-black/10 backdrop-blur-xl dark:border-white/[0.06] dark:bg-slate-900/95 dark:shadow-black/40'>
+										<p className='px-3 py-1.5 text-xs font-medium text-slate-400 dark:text-slate-500'>
 											Actions
 										</p>
-										<div className='mx-1 my-1 h-px bg-white/[0.06]' />
+										<div className='mx-1 my-1 h-px bg-black/[0.06] dark:bg-white/[0.06]' />
 										<button
-											className='flex w-full items-center gap-2.5 px-3 py-2 text-sm text-slate-200 transition-colors hover:bg-white/[0.06] hover:text-slate-100'
+											className='flex w-full items-center gap-2.5 px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-black/[0.04] hover:text-slate-900 dark:text-slate-200 dark:hover:bg-white/[0.06] dark:hover:text-slate-100'
 											onClick={() => {
 												setIsEditDialogOpen(true)
 												setMenuOpen(false)
 											}}>
-											<Settings2 className='h-4 w-4 text-slate-400' />
+											<Settings2 className='h-4 w-4 text-slate-400 dark:text-slate-400' />
 											Edit settings
 										</button>
 										<button

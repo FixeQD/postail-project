@@ -205,7 +205,7 @@ export const MessageViewBody = ({
 	if (effectiveViewMode === 'plain') {
 		return (
 			<div className='px-5 py-5'>
-				<pre className='message-view-plain w-full rounded-xl border border-white/[0.06] bg-slate-950/60 p-5 font-mono text-[13px] leading-relaxed break-words whitespace-pre-wrap text-slate-300'>
+				<pre className='message-view-plain w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-5 font-mono text-[13px] leading-relaxed break-words whitespace-pre-wrap text-[var(--text-primary)]'>
 					{plainContent || '(No content)'}
 				</pre>
 			</div>
@@ -216,7 +216,7 @@ export const MessageViewBody = ({
 		<>
 			<div ref={containerRef} className='overflow-x-auto px-5 py-5'>
 				<div
-					className='overflow-hidden rounded-xl border border-white/[0.06]'
+					className='overflow-hidden rounded-xl border border-[var(--border-faint)]'
 					style={{
 						width: iframeWidth,
 						backgroundColor: emailBg,
@@ -246,11 +246,13 @@ export const MessageViewBody = ({
 				confirmLabel={t('security:externalLink.open')}
 				onConfirm={handleConfirmOpenLink}
 				confirmClassName='w-full border-0 font-semibold shadow-lg bg-sky-500 text-white hover:bg-sky-600'>
-				<div className='flex flex-col gap-1.5 rounded-lg border border-white/[0.06] bg-slate-950/50 p-3'>
-					<p className='text-[10px] font-bold tracking-wider text-slate-500 uppercase'>
+				<div className='flex flex-col gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-3'>
+					<p className='text-[10px] font-bold tracking-wider text-[var(--text-tertiary)] uppercase'>
 						Target URL
 					</p>
-					<p className='font-mono text-xs break-all text-slate-300'>{pendingUrl}</p>
+					<p className='font-mono text-xs break-all text-[var(--text-primary)]'>
+						{pendingUrl}
+					</p>
 				</div>
 			</ConfirmationDialog>
 		</>

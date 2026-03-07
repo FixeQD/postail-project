@@ -107,7 +107,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 						value={formData.accountName}
 						onChange={(e) => handleChange('accountName', e.target.value)}
 						required
-						className='border-slate-700 bg-slate-800/50'
+						className='border-black/10 bg-black/[0.03] dark:border-slate-700 dark:bg-slate-800/50'
 					/>
 				</div>
 
@@ -120,7 +120,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 						value={formData.email}
 						onChange={(e) => handleChange('email', e.target.value)}
 						required
-						className='border-slate-700 bg-slate-800/50'
+						className='border-black/10 bg-black/[0.03] dark:border-slate-700 dark:bg-slate-800/50'
 					/>
 				</div>
 
@@ -130,7 +130,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 						id='useSeparateUsername'
 						checked={formData.useSeparateUsername}
 						onChange={(e) => handleChange('useSeparateUsername', e.target.checked)}
-						className='h-4 w-4 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-blue-500'
+						className='h-4 w-4 rounded border-black/20 bg-black/[0.03] text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800'
 					/>
 					<Label
 						htmlFor='useSeparateUsername'
@@ -149,7 +149,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 							value={formData.username}
 							onChange={(e) => handleChange('username', e.target.value)}
 							required={formData.useSeparateUsername}
-							className='border-slate-700 bg-slate-800/50'
+							className='border-black/10 bg-black/[0.03] dark:border-slate-700 dark:bg-slate-800/50'
 						/>
 					</div>
 				)}
@@ -165,12 +165,14 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 						value={formData.password}
 						onChange={(e) => handleChange('password', e.target.value)}
 						required
-						className='border-slate-700 bg-slate-800/50'
+						className='border-black/10 bg-black/[0.03] dark:border-slate-700 dark:bg-slate-800/50'
 					/>
 				</div>
 
-				<div className='border-t border-slate-800 pt-4'>
-					<h3 className='mb-4 text-sm font-semibold text-slate-300'>IMAP Settings</h3>
+				<div className='border-t border-black/[0.08] pt-4 dark:border-slate-800'>
+					<h3 className='mb-4 text-sm font-semibold text-slate-600 dark:text-slate-300'>
+						IMAP Settings
+					</h3>
 					<div className='grid gap-4 sm:grid-cols-2'>
 						<div className='space-y-2 sm:col-span-2'>
 							<Label htmlFor='imapHost'>{t('settings:accounts.manual.server')}</Label>
@@ -181,7 +183,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 								value={formData.imapHost}
 								onChange={(e) => handleChange('imapHost', e.target.value)}
 								required
-								className='border-slate-700 bg-slate-800/50'
+								className='border-black/10 bg-black/[0.03] dark:border-slate-700 dark:bg-slate-800/50'
 							/>
 						</div>
 						<div className='space-y-2'>
@@ -195,7 +197,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 								required
 								min='1'
 								max='65535'
-								className='border-slate-700 bg-slate-800/50'
+								className='border-black/10 bg-black/[0.03] dark:border-slate-700 dark:bg-slate-800/50'
 							/>
 						</div>
 						<div className='flex items-center gap-2 pt-6'>
@@ -204,7 +206,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 								id='imapTls'
 								checked={formData.imapTls}
 								onChange={(e) => handleChange('imapTls', e.target.checked)}
-								className='h-4 w-4 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-blue-500'
+								className='h-4 w-4 rounded border-black/20 bg-black/[0.03] text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800'
 							/>
 							<Label htmlFor='imapTls' className='cursor-pointer text-sm font-normal'>
 								Use TLS
@@ -213,8 +215,10 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 					</div>
 				</div>
 
-				<div className='border-t border-slate-800 pt-4'>
-					<h3 className='mb-4 text-sm font-semibold text-slate-300'>SMTP Settings</h3>
+				<div className='border-t border-black/[0.08] pt-4 dark:border-slate-800'>
+					<h3 className='mb-4 text-sm font-semibold text-slate-600 dark:text-slate-300'>
+						SMTP Settings
+					</h3>
 					<div className='grid gap-4 sm:grid-cols-2'>
 						<div className='space-y-2 sm:col-span-2'>
 							<Label htmlFor='smtpHost'>{t('settings:accounts.manual.server')}</Label>
@@ -225,7 +229,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 								value={formData.smtpHost}
 								onChange={(e) => handleChange('smtpHost', e.target.value)}
 								required
-								className='border-slate-700 bg-slate-800/50'
+								className='border-black/10 bg-black/[0.03] dark:border-slate-700 dark:bg-slate-800/50'
 							/>
 						</div>
 						<div className='space-y-2'>
@@ -239,7 +243,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 								required
 								min='1'
 								max='65535'
-								className='border-slate-700 bg-slate-800/50'
+								className='border-black/10 bg-black/[0.03] dark:border-slate-700 dark:bg-slate-800/50'
 							/>
 						</div>
 						<div className='flex items-center gap-2 pt-6'>
@@ -248,7 +252,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 								id='smtpTls'
 								checked={formData.smtpTls}
 								onChange={(e) => handleChange('smtpTls', e.target.checked)}
-								className='h-4 w-4 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-blue-500'
+								className='h-4 w-4 rounded border-black/20 bg-black/[0.03] text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800'
 							/>
 							<Label htmlFor='smtpTls' className='cursor-pointer text-sm font-normal'>
 								Use TLS
@@ -264,7 +268,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 					variant='outline'
 					onClick={onCancel}
 					disabled={isLoading}
-					className='flex-1 border-slate-700 bg-slate-800/50 hover:bg-slate-800'>
+					className='flex-1 border-black/10 bg-black/[0.03] hover:bg-black/[0.06] dark:border-slate-700 dark:bg-slate-800/50 dark:hover:bg-slate-800'>
 					Cancel
 				</Button>
 				<Button

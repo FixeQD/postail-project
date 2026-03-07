@@ -96,7 +96,9 @@ const MailboxItem = memo(
 						}
 					: {})}
 				className={`relative flex w-full items-center rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
-					isActive ? '' : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
+					isActive
+						? ''
+						: 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-hover)]'
 				} ${isCollapsed ? 'justify-center px-0' : ''}`}
 				style={isActive ? { color: accentColor } : undefined}>
 				{/* Active background */}
@@ -236,7 +238,7 @@ export const Sidebar = ({
 				style={{ width }}
 				className='relative flex h-full flex-col p-3'>
 				{/* Right edge gradient line */}
-				<div className='pointer-events-none absolute top-0 right-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/[0.06] to-transparent' />
+				<div className='pointer-events-none absolute top-0 right-0 bottom-0 w-px bg-gradient-to-b from-transparent via-black/[0.06] to-transparent dark:via-white/[0.06]' />
 
 				{/* New Message Button */}
 				<div className='mb-1 flex flex-col gap-3'>
@@ -263,7 +265,7 @@ export const Sidebar = ({
 
 					{/* Separator */}
 					<div className='relative mx-3 h-px'>
-						<div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.08] to-transparent' />
+						<div className='absolute inset-0 bg-gradient-to-r from-transparent via-black/[0.08] to-transparent dark:via-white/[0.08]' />
 					</div>
 				</div>
 
@@ -313,9 +315,9 @@ export const Sidebar = ({
 					onMouseDown={startResizing}>
 					{/* Visual grip dots when hovering */}
 					<div className='pointer-events-none flex h-full flex-col items-center justify-center gap-1 opacity-0 transition-opacity hover:opacity-100'>
-						<div className='h-1 w-1 rounded-full bg-slate-500' />
-						<div className='h-1 w-1 rounded-full bg-slate-500' />
-						<div className='h-1 w-1 rounded-full bg-slate-500' />
+						<div className='bg-muted-foreground h-1 w-1 rounded-full' />
+						<div className='bg-muted-foreground h-1 w-1 rounded-full' />
+						<div className='bg-muted-foreground h-1 w-1 rounded-full' />
 					</div>
 				</div>
 			</motion.div>

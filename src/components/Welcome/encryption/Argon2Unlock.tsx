@@ -79,7 +79,7 @@ export const Argon2Unlock = ({
 						animate={{ opacity: 1, scale: 1 }}
 						transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
 						className='animate-subtle-float mb-6'>
-						<div className='relative flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-800/80 shadow-xl ring-1 ring-white/[0.08]'>
+						<div className='relative flex h-20 w-20 items-center justify-center rounded-2xl bg-black/[0.05] shadow-xl ring-1 ring-black/[0.08] dark:bg-slate-800/80 dark:ring-white/[0.08]'>
 							<img src={icon} alt='Postail' className='h-16 w-16' />
 							<div
 								className='animate-glow-breathe absolute -inset-3 -z-10 rounded-3xl blur-xl'
@@ -99,7 +99,7 @@ export const Argon2Unlock = ({
 						initial={{ opacity: 0, y: 8 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ delay: 0.25, duration: 0.4 }}
-						className='text-sm text-slate-500'>
+						className='text-sm text-slate-400 dark:text-slate-500'>
 						Enter your password to decrypt your mail database.
 					</motion.p>
 				</div>
@@ -123,14 +123,14 @@ export const Argon2Unlock = ({
 							<div>
 								<label
 									htmlFor='recoveryPhrase'
-									className='mb-2 block text-sm font-medium text-slate-300'>
+									className='mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300'>
 									{t('welcome:recovery.unlock.label')}
 								</label>
 								<textarea
 									id='recoveryPhrase'
 									value={recoveryPhrase}
 									onChange={(e) => setRecoveryPhrase(e.target.value)}
-									className='min-h-[120px] w-full resize-none rounded-xl bg-slate-800/40 px-4 py-3 text-slate-100 placeholder-slate-600 ring-1 ring-white/[0.08] transition-all duration-200 focus:bg-slate-800/60 focus:outline-none'
+									className='min-h-[120px] w-full resize-none rounded-xl bg-black/[0.04] px-4 py-3 text-slate-900 placeholder-slate-400 ring-1 ring-black/[0.08] transition-all duration-200 focus:bg-black/[0.06] focus:outline-none dark:bg-slate-800/40 dark:text-slate-100 dark:placeholder-slate-600 dark:ring-white/[0.08] dark:focus:bg-slate-800/60'
 									placeholder={t('welcome:recovery.unlock.placeholder')}
 									required
 									autoFocus
@@ -140,7 +140,7 @@ export const Argon2Unlock = ({
 										} as React.CSSProperties
 									}
 								/>
-								<p className='mt-2 text-xs text-slate-500'>
+								<p className='mt-2 text-xs text-slate-400 dark:text-slate-500'>
 									{t('welcome:recovery.unlock.hint')}
 								</p>
 							</div>
@@ -148,7 +148,7 @@ export const Argon2Unlock = ({
 							<div>
 								<label
 									htmlFor='passphrase'
-									className='mb-2 block text-sm font-medium text-slate-300'>
+									className='mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300'>
 									{t('security:argon2.passphrase.label')}
 								</label>
 								<div className='group relative'>
@@ -163,7 +163,7 @@ export const Argon2Unlock = ({
 										type={showPassword ? 'text' : 'password'}
 										value={passphrase}
 										onChange={(e) => setPassphrase(e.target.value)}
-										className='w-full rounded-xl bg-slate-800/40 py-3.5 pr-12 pl-10 text-slate-100 placeholder-slate-600 ring-1 ring-white/[0.08] transition-all duration-200 focus:bg-slate-800/60 focus:outline-none'
+										className='w-full rounded-xl bg-black/[0.04] py-3.5 pr-12 pl-10 text-slate-900 placeholder-slate-400 ring-1 ring-black/[0.08] transition-all duration-200 focus:bg-black/[0.06] focus:outline-none dark:bg-slate-800/40 dark:text-slate-100 dark:placeholder-slate-600 dark:ring-white/[0.08] dark:focus:bg-slate-800/60'
 										placeholder={t('security:argon2.passphrase.placeholder')}
 										required
 										autoFocus
@@ -171,7 +171,7 @@ export const Argon2Unlock = ({
 									<button
 										type='button'
 										onClick={() => setShowPassword(!showPassword)}
-										className='absolute top-1/2 right-3 -translate-y-1/2 rounded-lg p-1 text-slate-500 transition-colors hover:text-slate-300'>
+										className='absolute top-1/2 right-3 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition-colors hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300'>
 										{showPassword ? (
 											<EyeOff className='h-[18px] w-[18px]' />
 										) : (
@@ -186,7 +186,7 @@ export const Argon2Unlock = ({
 											setIsRecoveryMode(true)
 											setError(null)
 										}}
-										className='text-xs text-slate-500 transition-colors hover:text-slate-300'>
+										className='text-xs text-slate-400 transition-colors hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300'>
 										{t('welcome:recovery.unlock.forgotPassword')}
 									</button>
 								</div>
@@ -247,7 +247,7 @@ export const Argon2Unlock = ({
 								setIsRecoveryMode(false)
 								setError(null)
 							}}
-							className='w-full text-center text-xs text-slate-500 transition-colors hover:text-slate-300'>
+							className='w-full text-center text-xs text-slate-400 transition-colors hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300'>
 							{t('welcome:recovery.unlock.usePassword')}
 						</button>
 					)}

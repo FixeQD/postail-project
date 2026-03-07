@@ -23,7 +23,7 @@ export function ConfirmationDialog({
 }: ConfirmationDialogProps) {
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className='border-white/[0.06] bg-zinc-950 p-0 text-zinc-100 shadow-2xl sm:max-w-[400px]'>
+			<DialogContent className='border-[var(--border-subtle)] bg-[var(--surface-glass)] p-0 text-[var(--text-primary)] shadow-2xl sm:max-w-[400px]'>
 				<AnimatePresence>
 					{open && (
 						<motion.div
@@ -54,7 +54,7 @@ export function ConfirmationDialog({
 											delay: 0.06,
 											ease: 'circOut',
 										}}>
-										<DialogTitle className='text-base font-semibold tracking-tight text-zinc-100'>
+										<DialogTitle className='text-base font-semibold tracking-tight text-[var(--text-primary)]'>
 											{title}
 										</DialogTitle>
 									</motion.div>
@@ -66,7 +66,7 @@ export function ConfirmationDialog({
 											delay: 0.12,
 											ease: 'circOut',
 										}}>
-										<DialogDescription className='mt-1.5 text-sm leading-relaxed text-zinc-400'>
+										<DialogDescription className='mt-1.5 text-sm leading-relaxed text-[var(--text-secondary)]'>
 											{description}
 										</DialogDescription>
 									</motion.div>
@@ -103,7 +103,7 @@ export function ConfirmationDialog({
 											<Button
 												variant='ghost'
 												onClick={() => onOpenChange(false)}
-												className='w-full border border-white/[0.06] bg-white/[0.03] text-zinc-400 transition-colors hover:border-white/10 hover:bg-white/[0.07] hover:text-zinc-200'>
+												className='w-full border border-[var(--border-subtle)] bg-[var(--surface-panel)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
 												{cancelLabel}
 											</Button>
 										</motion.div>

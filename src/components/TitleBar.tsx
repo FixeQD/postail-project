@@ -50,10 +50,11 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 
 	return (
 		<div
-			className='glass relative z-50 flex h-14 shrink-0 items-center justify-between border-b border-white/[0.06] select-none'
+			className='glass relative z-50 flex h-14 shrink-0 items-center justify-between border-b select-none'
+			style={{ borderColor: 'var(--border-subtle)' }}
 			onMouseDown={startDrag}>
 			{/* Subtle top highlight */}
-			<div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent' />
+			<div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-black/[0.05] to-transparent dark:via-white/[0.06]' />
 
 			{/* Left: Branding */}
 			<div className='flex w-64 shrink-0 items-center gap-3 px-4 pl-6'>
@@ -140,10 +141,10 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 							onBlur={() => setSearchFocused(false)}
 							onMouseDown={(e) => e.stopPropagation()}
 							placeholder={t('inbox:search.placeholder')}
-							className={`block w-full rounded-xl border py-2.5 pr-4 pl-10 text-sm text-slate-200 placeholder-slate-500 transition-all duration-200 focus:outline-none ${
+							className={`block w-full rounded-xl border py-2.5 pr-4 pl-10 text-sm transition-all duration-200 focus:outline-none ${
 								searchFocused
-									? 'bg-slate-900/90 shadow-lg ring-1'
-									: 'border-white/[0.06] bg-slate-900/60 hover:border-white/[0.1] hover:bg-slate-900/80'
+									? 'bg-background/90 text-foreground shadow-lg ring-1'
+									: 'bg-background/60 text-foreground placeholder:text-muted-foreground hover:bg-background/80 border-[var(--border-subtle)]'
 							}`}
 							style={
 								searchFocused
@@ -168,12 +169,14 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 			<div className='flex w-64 shrink-0 items-center justify-end gap-2 px-2'>
 				{/* Dashboard Actions */}
 				{isDashboard && activeAccount && (
-					<div className='mr-3 flex items-center gap-1 border-r border-white/[0.06] pr-3'>
+					<div
+						className='mr-3 flex items-center gap-1 border-r pr-3'
+						style={{ borderColor: 'var(--border-subtle)' }}>
 						<NotificationCenter />
 
 						<motion.button
 							id='outbox-button'
-							className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-slate-200'
+							className='text-muted-foreground hover:text-foreground flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-[var(--surface-hover)]'
 							onClick={(e) => {
 								e.stopPropagation()
 								onOpenOutbox?.()
@@ -202,7 +205,7 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 						</motion.button>
 
 						<motion.button
-							className='flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-slate-200'
+							className='text-muted-foreground hover:text-foreground flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-[var(--surface-hover)]'
 							onClick={(e) => {
 								e.stopPropagation()
 								onOpenSettings?.()
@@ -228,8 +231,8 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 						onMouseDown={(e) => e.stopPropagation()}
 						whileHover={{ scale: 1.1 }}
 						whileTap={{ scale: 0.85 }}
-						className='group flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-white/[0.08]'>
-						<div className='h-0.5 w-2.5 rounded-full bg-slate-500 transition-colors group-hover:bg-slate-300' />
+						className='group flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-[var(--surface-active)]'>
+						<div className='bg-muted-foreground group-hover:bg-foreground h-0.5 w-2.5 rounded-full transition-colors' />
 					</motion.button>
 
 					{/* Maximize */}
@@ -241,8 +244,8 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 						onMouseDown={(e) => e.stopPropagation()}
 						whileHover={{ scale: 1.1 }}
 						whileTap={{ scale: 0.85 }}
-						className='group flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-white/[0.08]'>
-						<div className='h-2.5 w-2.5 rounded-[2px] border-[1.5px] border-slate-500 transition-colors group-hover:border-slate-300' />
+						className='group flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-[var(--surface-active)]'>
+						<div className='border-muted-foreground group-hover:border-foreground h-2.5 w-2.5 rounded-[2px] border-[1.5px] transition-colors' />
 					</motion.button>
 
 					{/* Close */}
@@ -256,7 +259,7 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 						whileTap={{ scale: 0.85 }}
 						className='group flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-red-500/80'>
 						<svg
-							className='h-3.5 w-3.5 text-slate-500 transition-colors group-hover:text-white'
+							className='text-muted-foreground h-3.5 w-3.5 transition-colors group-hover:text-white'
 							fill='none'
 							stroke='currentColor'
 							viewBox='0 0 24 24'>

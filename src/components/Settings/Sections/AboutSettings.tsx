@@ -29,15 +29,15 @@ const Row = ({
 					transition: { duration: 0.25, delay: index * 0.06, ease: [0.16, 1, 0.3, 1] },
 				}
 			: {})}
-		className='flex items-center justify-between rounded-2xl border border-white/5 bg-white/5 px-5 py-3.5 transition-colors hover:bg-white/[0.07]'>
+		className='flex items-center justify-between rounded-2xl border border-[var(--border-faint)] bg-[var(--surface-panel)] px-5 py-3.5 transition-colors hover:bg-[var(--surface-hover)]'>
 		<div className='flex items-center gap-3.5'>
-			<div className='flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 ring-1 ring-white/10'>
-				<Icon className='h-4 w-4 text-slate-400' />
+			<div className='flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--surface-active)] ring-1 ring-[var(--border-subtle)]'>
+				<Icon className='h-4 w-4 text-[var(--text-secondary)]' />
 			</div>
-			<span className='text-sm font-medium text-slate-300'>{label}</span>
+			<span className='text-sm font-medium text-[var(--text-primary)]'>{label}</span>
 		</div>
 		<span
-			className={`max-w-[340px] truncate text-sm text-slate-400 ${mono ? 'font-mono tracking-tight' : ''}`}>
+			className={`max-w-[340px] truncate text-sm text-[var(--text-secondary)] ${mono ? 'font-mono tracking-tight' : ''}`}>
 			{value}
 		</span>
 	</motion.div>
@@ -97,12 +97,14 @@ export function AboutSettings() {
 						}
 					: {})}
 				className='mb-8 flex items-center gap-4'>
-				<div className='flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 ring-1 ring-white/10'>
-					<Package className='h-7 w-7 text-slate-400' />
+				<div className='flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--surface-active)] ring-1 ring-[var(--border-subtle)]'>
+					<Package className='h-7 w-7 text-[var(--text-secondary)]' />
 				</div>
 				<div>
-					<h1 className='text-xl font-bold text-slate-100'>Postail</h1>
-					<p className='text-sm text-slate-500'>{info ? `v${info.version}` : '—'}</p>
+					<h1 className='text-xl font-bold text-[var(--text-primary)]'>Postail</h1>
+					<p className='text-sm text-[var(--text-secondary)]'>
+						{info ? `v${info.version}` : '—'}
+					</p>
 				</div>
 			</motion.div>
 

@@ -12,14 +12,14 @@ import { ToggleSetting } from '@/components/ui/toggle-setting'
 import type { SettingCardProps } from '@/types/components/shared'
 
 const SettingCard = ({ label, description, icon: Icon, children }: SettingCardProps) => (
-	<div className='flex items-center justify-between rounded-2xl border border-white/5 bg-white/5 p-4 transition-colors hover:bg-white/10'>
+	<div className='flex items-center justify-between rounded-2xl border border-[var(--border-faint)] bg-[var(--surface-panel)] p-4 transition-colors hover:bg-[var(--surface-hover)]'>
 		<div className='flex items-center gap-4'>
-			<div className='flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 ring-1 ring-white/10'>
-				<Icon className='h-5 w-5 text-slate-400' />
+			<div className='flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-active)] ring-1 ring-[var(--border-subtle)]'>
+				<Icon className='h-5 w-5 text-[var(--text-secondary)]' />
 			</div>
 			<div>
-				<h3 className='text-sm font-semibold text-slate-200'>{label}</h3>
-				<p className='max-w-[400px] text-xs text-slate-500'>{description}</p>
+				<h3 className='text-sm font-semibold text-[var(--text-primary)]'>{label}</h3>
+				<p className='max-w-[400px] text-xs text-[var(--text-secondary)]'>{description}</p>
 			</div>
 		</div>
 		<div className='flex items-center gap-2'>{children}</div>
@@ -97,15 +97,17 @@ export function GeneralSettings() {
 				{...(animationsEnabled
 					? { initial: { opacity: 0, y: -20 }, animate: { opacity: 1, y: 0 } }
 					: {})}>
-				<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
+				<h1 className='text-3xl font-bold tracking-tight text-[var(--text-primary)]'>
 					{t('settings:general.title')}
 				</h1>
-				<p className='mt-1 text-slate-400'>{t('settings:general.subtitle')}</p>
+				<p className='mt-1 text-[var(--text-secondary)]'>
+					{t('settings:general.subtitle')}
+				</p>
 			</motion.div>
 
 			<div className='space-y-6'>
 				<section>
-					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
+					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
 						{t('settings:general.interface.title')}
 					</h2>
 					<div className='space-y-3'>
@@ -120,7 +122,7 @@ export function GeneralSettings() {
 				</section>
 
 				<section>
-					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
+					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
 						{t('settings:general.behavior.title')}
 					</h2>
 					<div className='space-y-3'>
@@ -135,7 +137,7 @@ export function GeneralSettings() {
 				</section>
 
 				<section>
-					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
+					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
 						{t('settings:general.storage.title')}
 					</h2>
 					<div className='space-y-3'>
@@ -144,7 +146,7 @@ export function GeneralSettings() {
 							label={t('settings:general.storage.path.label')}
 							description={t('settings:general.storage.path.description')}>
 							<div className='flex items-center gap-2'>
-								<code className='rounded border border-white/5 bg-slate-900 px-2 py-1 text-[10px] text-slate-400'>
+								<code className='rounded border border-[var(--border-faint)] bg-[var(--surface-active)] px-2 py-1 text-[10px] text-[var(--text-secondary)]'>
 									{currentPath || 'Default'}
 								</code>
 								<div className='flex items-center gap-1.5'>
@@ -153,7 +155,7 @@ export function GeneralSettings() {
 										disabled={isMigrating}
 										onClick={handlePathSelect}
 										title={t('settings:general.storage.path.select')}
-										className='rounded-lg bg-white/5 p-2 text-slate-300 transition-colors hover:bg-white/10 disabled:opacity-50'>
+										className='rounded-lg bg-[var(--surface-panel)] p-2 text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] disabled:opacity-50'>
 										<Folder className='h-4 w-4' />
 									</button>
 									<button
@@ -161,7 +163,7 @@ export function GeneralSettings() {
 										disabled={isMigrating || isDefaultPath}
 										onClick={handleResetPath}
 										title={t('settings:general.storage.migration.reset')}
-										className='rounded-lg bg-white/5 p-2 text-slate-300 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30'>
+										className='rounded-lg bg-[var(--surface-panel)] p-2 text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-30'>
 										<RotateCcw className='h-4 w-4' />
 									</button>
 								</div>

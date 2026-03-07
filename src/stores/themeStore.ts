@@ -27,7 +27,7 @@ export const ACCENT_PRESETS: AccentPreset[] = [
 	{ id: 'pink', name: 'Pink', hex: '#ec4899' },
 ]
 
-export const BACKGROUND_PRESETS: BackgroundPreset[] = [
+export const DARK_BACKGROUND_PRESETS: BackgroundPreset[] = [
 	{ id: 'slate', name: 'Slate', bg: '#020617', class: 'bg-slate-950' },
 	{ id: 'pitch', name: 'Pitch Black', bg: '#000000', class: 'bg-black' },
 	{ id: 'dark', name: 'Pure Dark', bg: '#0a0a0a', class: 'bg-neutral-950' },
@@ -43,10 +43,35 @@ export const BACKGROUND_PRESETS: BackgroundPreset[] = [
 	{ id: 'rosewood', name: 'Rosewood', bg: '#0d0208', class: 'bg-[#0d0208]' },
 ]
 
+// alias for backward compat
+export const BACKGROUND_PRESETS = DARK_BACKGROUND_PRESETS
+
+export const LIGHT_BACKGROUND_PRESETS: BackgroundPreset[] = [
+	{ id: 'white', name: 'White', bg: '#ffffff', class: 'bg-white' },
+	{ id: 'pearl', name: 'Pearl', bg: '#f8f9fa', class: 'bg-gray-50' },
+	{ id: 'cream', name: 'Cream', bg: '#fffdf7', class: 'bg-[#fffdf7]' },
+	{ id: 'linen', name: 'Linen', bg: '#faf7f2', class: 'bg-[#faf7f2]' },
+	{ id: 'zinc-light', name: 'Zinc', bg: '#f4f4f5', class: 'bg-zinc-100' },
+	{ id: 'slate-light', name: 'Slate', bg: '#f1f5f9', class: 'bg-slate-100' },
+	{ id: 'sky-light', name: 'Sky', bg: '#f0f9ff', class: 'bg-sky-50' },
+	{ id: 'mint-light', name: 'Mint', bg: '#f0fdf4', class: 'bg-green-50' },
+	{ id: 'rose-light', name: 'Rose', bg: '#fff1f2', class: 'bg-rose-50' },
+	{ id: 'violet-light', name: 'Violet', bg: '#f5f3ff', class: 'bg-violet-50' },
+	{ id: 'amber-light', name: 'Amber', bg: '#fffbeb', class: 'bg-amber-50' },
+	{ id: 'stone-light', name: 'Stone', bg: '#fafaf9', class: 'bg-stone-50' },
+	{ id: 'ocean-light', name: 'Ocean', bg: '#ecfeff', class: 'bg-cyan-50' },
+]
+
 export function accentToBackground(accentHex: string): string {
 	const { r, g, b } = hexToRgb(accentHex)
 	const { h, s } = rgbToHsl(r, g, b)
 	return hslToHex(h, Math.min(s * 0.35, 30), 5)
+}
+
+export function accentToLightBackground(accentHex: string): string {
+	const { r, g, b } = hexToRgb(accentHex)
+	const { h, s } = rgbToHsl(r, g, b)
+	return hslToHex(h, Math.min(s * 0.15, 12), 97)
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
@@ -100,11 +125,7 @@ function hslToHex(h: number, s: number, l: number): string {
 	return `#${f(0)}${f(8)}${f(4)}`
 }
 
-function generateShades(hex: string): {
-	light: string
-	main: string
-	dark: string
-} {
+function generateShades(hex: string): { light: string; main: string; dark: string } {
 	const { r, g, b } = hexToRgb(hex)
 	const { h, s, l } = rgbToHsl(r, g, b)
 	return {
@@ -147,19 +168,39 @@ function applyAccentCSSVariables(hex: string) {
 	root.style.setProperty('--accent-text-rgb', `${textRgb.r}, ${textRgb.g}, ${textRgb.b}`)
 }
 
-function applyBackgroundCSSVariables(bgHex: string) {
-	const root = document.documentElement
-	root.style.setProperty('--app-bg', bgHex)
+function applyBackgroundCSSVariable(bgHex: string) {
+	document.documentElement.style.setProperty('--app-bg', bgHex)
+}
+
+function applyDarkModeClass(dark: boolean) {
+	if (dark) {
+		document.documentElement.classList.add('dark')
+		document.documentElement.classList.remove('light')
+	} else {
+		document.documentElement.classList.remove('dark')
+		document.documentElement.classList.add('light')
+	}
+}
+
+function resolveBackground(id: string, darkMode: boolean, accentColor: string): string {
+	if (id === 'auto') {
+		return darkMode ? accentToBackground(accentColor) : accentToLightBackground(accentColor)
+	}
+	const presets = darkMode ? DARK_BACKGROUND_PRESETS : LIGHT_BACKGROUND_PRESETS
+	return presets.find((p) => p.id === id)?.bg ?? (darkMode ? '#020617' : '#ffffff')
 }
 
 interface ThemeState {
 	accentColor: string
-	backgroundId: string
+	darkBackgroundId: string
+	lightBackgroundId: string
+	darkMode: boolean
 	animationsEnabled: boolean
 	isLoaded: boolean
 
 	setAccentColor: (hex: string) => void
 	setBackgroundId: (id: string) => void
+	setDarkMode: (dark: boolean) => void
 	setAnimationsEnabled: (enabled: boolean) => void
 	persistTheme: () => Promise<void>
 	loadTheme: () => Promise<void>
@@ -167,45 +208,59 @@ interface ThemeState {
 }
 
 const DEFAULT_ACCENT = '#f97316'
-const DEFAULT_BG_ID = 'auto'
+const DEFAULT_DARK_BG_ID = 'auto'
+const DEFAULT_LIGHT_BG_ID = 'auto'
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
 	accentColor: DEFAULT_ACCENT,
-	backgroundId: DEFAULT_BG_ID,
+	darkBackgroundId: DEFAULT_DARK_BG_ID,
+	lightBackgroundId: DEFAULT_LIGHT_BG_ID,
+	darkMode: true,
 	animationsEnabled: true,
 	isLoaded: false,
 
 	setAccentColor: (hex: string) => {
 		set({ accentColor: hex })
 		applyAccentCSSVariables(hex)
-		if (get().backgroundId === 'auto') {
-			applyBackgroundCSSVariables(accentToBackground(hex))
+		const { darkMode, darkBackgroundId, lightBackgroundId } = get()
+		const bgId = darkMode ? darkBackgroundId : lightBackgroundId
+		if (bgId === 'auto') {
+			applyBackgroundCSSVariable(resolveBackground('auto', darkMode, hex))
 		}
+	},
+
+	setBackgroundId: (id: string) => {
+		const { darkMode, accentColor } = get()
+		if (darkMode) {
+			set({ darkBackgroundId: id })
+		} else {
+			set({ lightBackgroundId: id })
+		}
+		applyBackgroundCSSVariable(resolveBackground(id, darkMode, accentColor))
+	},
+
+	setDarkMode: (dark: boolean) => {
+		set({ darkMode: dark })
+		applyDarkModeClass(dark)
+		const { accentColor, darkBackgroundId, lightBackgroundId } = get()
+		const bgId = dark ? darkBackgroundId : lightBackgroundId
+		applyBackgroundCSSVariable(resolveBackground(bgId, dark, accentColor))
 	},
 
 	setAnimationsEnabled: (enabled: boolean) => {
 		set({ animationsEnabled: enabled })
 	},
 
-	setBackgroundId: (id: string) => {
-		if (id === 'auto') {
-			set({ backgroundId: 'auto' })
-			applyBackgroundCSSVariables(accentToBackground(get().accentColor))
-			return
-		}
-		const preset = BACKGROUND_PRESETS.find((p) => p.id === id)
-		if (!preset) return
-		set({ backgroundId: id })
-		applyBackgroundCSSVariables(preset.bg)
-	},
-
 	persistTheme: async () => {
-		const { accentColor, backgroundId, animationsEnabled } = get()
+		const { accentColor, darkBackgroundId, lightBackgroundId, animationsEnabled, darkMode } =
+			get()
 		try {
 			await invoke('set_theme_config', {
 				accentColor,
-				background: backgroundId,
+				background: darkBackgroundId,
+				lightBackground: lightBackgroundId,
 				animationsEnabled,
+				darkMode,
 			})
 		} catch (e) {
 			console.error('Failed to persist theme:', e)
@@ -217,42 +272,43 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 			const theme = await invoke<{
 				accent_color: string
 				background: string
+				light_background: string
 				animations_enabled: boolean
+				dark_mode: boolean
 			}>('get_theme_config')
 
 			const accent = theme.accent_color || DEFAULT_ACCENT
-			const bgId = theme.background || DEFAULT_BG_ID
+			const darkBgId = theme.background || DEFAULT_DARK_BG_ID
+			const lightBgId = theme.light_background || DEFAULT_LIGHT_BG_ID
 			const animations = theme.animations_enabled ?? true
+			const dark = theme.dark_mode ?? true
 
 			set({
 				accentColor: accent,
-				backgroundId: bgId,
+				darkBackgroundId: darkBgId,
+				lightBackgroundId: lightBgId,
 				animationsEnabled: animations,
+				darkMode: dark,
 				isLoaded: true,
 			})
 
+			applyDarkModeClass(dark)
 			applyAccentCSSVariables(accent)
-			if (bgId === 'auto') {
-				applyBackgroundCSSVariables(accentToBackground(accent))
-			} else {
-				const preset = BACKGROUND_PRESETS.find((p) => p.id === bgId)
-				if (preset) applyBackgroundCSSVariables(preset.bg)
-			}
+			const bgId = dark ? darkBgId : lightBgId
+			applyBackgroundCSSVariable(resolveBackground(bgId, dark, accent))
 		} catch {
 			set({ isLoaded: true })
+			applyDarkModeClass(true)
 			applyAccentCSSVariables(DEFAULT_ACCENT)
-			applyBackgroundCSSVariables(accentToBackground(DEFAULT_ACCENT))
+			applyBackgroundCSSVariable(accentToBackground(DEFAULT_ACCENT))
 		}
 	},
 
 	applyTheme: () => {
-		const { accentColor, backgroundId } = get()
+		const { accentColor, darkBackgroundId, lightBackgroundId, darkMode } = get()
+		applyDarkModeClass(darkMode)
 		applyAccentCSSVariables(accentColor)
-		if (backgroundId === 'auto') {
-			applyBackgroundCSSVariables(accentToBackground(accentColor))
-		} else {
-			const preset = BACKGROUND_PRESETS.find((p) => p.id === backgroundId)
-			if (preset) applyBackgroundCSSVariables(preset.bg)
-		}
+		const bgId = darkMode ? darkBackgroundId : lightBackgroundId
+		applyBackgroundCSSVariable(resolveBackground(bgId, darkMode, accentColor))
 	},
 }))

@@ -69,13 +69,13 @@ export function RecoveryVerifyDialog({ open, onClose, onVerified }: RecoveryVeri
 
 	return (
 		<Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-			<DialogContent className='border-slate-800 bg-slate-900/95 text-slate-100 backdrop-blur-xl sm:max-w-md'>
+			<DialogContent className='border-[var(--border-subtle)] bg-[var(--surface-glass)] text-[var(--text-primary)] backdrop-blur-xl sm:max-w-md'>
 				<DialogHeader>
 					<DialogTitle className='flex items-center gap-2'>
 						<ShieldCheck className='h-5 w-5 text-green-400' />
 						{t('recovery.verify.title')}
 					</DialogTitle>
-					<DialogDescription className='text-slate-400'>
+					<DialogDescription className='text-[var(--text-secondary)]'>
 						{t('recovery.verify.description')}
 					</DialogDescription>
 				</DialogHeader>
@@ -84,14 +84,14 @@ export function RecoveryVerifyDialog({ open, onClose, onVerified }: RecoveryVeri
 					<div className='grid gap-4'>
 						{indices.map((idx, i) => (
 							<div key={idx} className='space-y-2'>
-								<label className='text-sm font-medium text-slate-300'>
+								<label className='text-sm font-medium text-[var(--text-primary)]'>
 									{t('recovery.verify.wordLabel', { number: idx + 1 })}
 								</label>
 								<input
 									type='text'
 									value={inputs[i]}
 									onChange={(e) => handleInputChange(i, e.target.value)}
-									className='w-full rounded-lg bg-slate-800/50 px-3 py-2 text-slate-100 placeholder-slate-600 ring-1 ring-white/[0.1] focus:ring-2 focus:ring-[var(--accent-color)] focus:outline-none'
+									className='w-full rounded-lg bg-[var(--surface-hover)] px-3 py-2 text-[var(--text-primary)] ring-1 ring-[var(--border-subtle)] placeholder:text-[var(--text-tertiary)] focus:ring-2 focus:ring-[var(--accent-color)] focus:outline-none'
 									placeholder={t('recovery.verify.placeholder', {
 										number: idx + 1,
 									})}
@@ -120,7 +120,7 @@ export function RecoveryVerifyDialog({ open, onClose, onVerified }: RecoveryVeri
 					<div className='mt-6 flex justify-end gap-3'>
 						<button
 							onClick={onClose}
-							className='rounded-lg px-4 py-2 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-800/50 hover:text-slate-200'
+							className='rounded-lg px-4 py-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
 							disabled={loading}>
 							{t('common:actions.cancel') || 'Cancel'}
 						</button>

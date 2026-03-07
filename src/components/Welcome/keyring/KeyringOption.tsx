@@ -21,8 +21,8 @@ export const KeyringOption = ({
 			type='button'
 			className={`group relative flex h-full w-full flex-col justify-between overflow-hidden rounded-2xl p-6 text-left ring-1 transition-all duration-300 ${
 				isDisabled
-					? 'cursor-not-allowed bg-slate-800/20 opacity-50 ring-slate-800/50'
-					: 'cursor-pointer bg-slate-800/40 ring-white/[0.08] hover:bg-slate-800/70 hover:ring-blue-400/30'
+					? 'cursor-not-allowed bg-black/[0.02] opacity-50 ring-black/10 dark:bg-slate-800/20 dark:ring-slate-800/50'
+					: 'cursor-pointer bg-black/[0.04] ring-black/[0.08] hover:bg-black/[0.07] hover:ring-blue-600/30 dark:bg-slate-800/40 dark:ring-white/[0.08] dark:hover:bg-slate-800/70 dark:hover:ring-blue-400/30'
 			}`}
 			onClick={isDisabled ? undefined : onSelect}
 			disabled={isDisabled}>
@@ -38,17 +38,17 @@ export const KeyringOption = ({
 				{/* Status Badge */}
 				<div className='absolute top-0 right-0'>
 					{loading ? (
-						<div className='flex items-center rounded-full bg-slate-800/60 px-2.5 py-1 text-[11px] font-medium text-slate-400 ring-1 ring-white/[0.06]'>
+						<div className='flex items-center rounded-full bg-black/[0.04] px-2.5 py-1 text-[11px] font-medium text-slate-500 ring-1 ring-black/10 dark:bg-slate-800/60 dark:ring-white/[0.06]'>
 							<div className='mr-1.5 h-3 w-3 animate-spin rounded-full border-2 border-slate-400 border-t-transparent' />
 							{t('common:status.loading')}
 						</div>
 					) : available ? (
-						<div className='flex items-center rounded-full bg-blue-500/10 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-blue-400 ring-1 ring-blue-400/20'>
+						<div className='flex items-center rounded-full bg-blue-500/10 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-blue-600 ring-1 ring-blue-500/20 dark:text-blue-400 dark:ring-blue-400/20'>
 							<Check className='mr-1 h-3 w-3' />
 							{t('common:status.available')}
 						</div>
 					) : (
-						<div className='flex items-center rounded-full bg-slate-800/60 px-2.5 py-1 text-[11px] font-medium text-slate-500 ring-1 ring-white/[0.06]'>
+						<div className='flex items-center rounded-full bg-black/[0.04] px-2.5 py-1 text-[11px] font-medium text-slate-500 ring-1 ring-black/10 dark:bg-slate-800/60 dark:ring-white/[0.06]'>
 							<X className='mr-1 h-3 w-3' />
 							{t('common:status.unavailable')}
 						</div>
@@ -60,16 +60,16 @@ export const KeyringOption = ({
 					className={`mb-5 flex h-12 w-12 items-center justify-center rounded-xl ring-1 transition-all duration-300 ${
 						available
 							? 'bg-blue-500/[0.08] ring-blue-500/20 group-hover:bg-blue-500/[0.12] group-hover:ring-blue-500/30'
-							: 'bg-slate-900/50 ring-white/[0.06]'
+							: 'bg-black/[0.04] ring-black/[0.06] dark:bg-slate-900/50 dark:ring-white/[0.06]'
 					}`}>
 					<Key
-						className={`h-6 w-6 transition-colors duration-300 ${available ? 'text-blue-400' : 'text-slate-600'}`}
+						className={`h-6 w-6 transition-colors duration-300 ${available ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-600'}`}
 					/>
 				</div>
 
 				{/* Title */}
 				<h3
-					className={`mb-2 text-[15px] font-semibold ${available ? 'text-slate-100' : 'text-slate-500'}`}>
+					className={`mb-2 text-[15px] font-semibold ${available ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}`}>
 					{t('security:options.keyring.title')}
 				</h3>
 
@@ -82,15 +82,15 @@ export const KeyringOption = ({
 			{/* Footer */}
 			<div className='relative mt-auto'>
 				{/* Divider */}
-				<div className='mb-3 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent' />
+				<div className='mb-3 h-px bg-gradient-to-r from-transparent via-black/[0.06] to-transparent dark:via-white/[0.06]' />
 
 				<p className='text-xs'>
 					{available ? (
-						<span className='text-blue-400'>
+						<span className='text-blue-600 dark:text-blue-400'>
 							{t('security:options.keyring.status.available')}
 						</span>
 					) : (
-						<span className='text-slate-600'>
+						<span className='text-slate-400 dark:text-slate-600'>
 							{t('security:options.keyring.status.unavailable')}
 						</span>
 					)}
@@ -98,14 +98,14 @@ export const KeyringOption = ({
 
 				{available && !loading && (
 					<div className='mt-2 flex items-center text-xs text-slate-500'>
-						<ShieldCheck className='mr-1.5 h-3 w-3 text-blue-400/70' />
+						<ShieldCheck className='mr-1.5 h-3 w-3 text-blue-500/70 dark:text-blue-400/70' />
 						System integration
 					</div>
 				)}
 
 				{loading && (
-					<div className='mt-2 flex items-center text-xs text-blue-400'>
-						<div className='mr-1.5 h-3 w-3 animate-spin rounded-full border border-blue-400 border-t-transparent' />
+					<div className='mt-2 flex items-center text-xs text-blue-600 dark:text-blue-400'>
+						<div className='mr-1.5 h-3 w-3 animate-spin rounded-full border border-blue-600 border-t-transparent dark:border-blue-400 dark:border-t-transparent' />
 						Initializing...
 					</div>
 				)}

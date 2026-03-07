@@ -148,15 +148,17 @@ export function SecuritySettings() {
 				{...(animationsEnabled
 					? { initial: { opacity: 0, y: -20 }, animate: { opacity: 1, y: 0 } }
 					: {})}>
-				<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
+				<h1 className='text-3xl font-bold tracking-tight text-[var(--text-primary)]'>
 					{t('settings:security.title')}
 				</h1>
-				<p className='mt-1 text-slate-400'>{t('settings:security.subtitle')}</p>
+				<p className='mt-1 text-[var(--text-secondary)]'>
+					{t('settings:security.subtitle')}
+				</p>
 			</motion.div>
 
 			<div className='space-y-6'>
 				<section>
-					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
+					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
 						{t('settings:security.session.title')}
 					</h2>
 					<div className='space-y-3'>
@@ -189,7 +191,7 @@ export function SecuritySettings() {
 									<button
 										type='button'
 										onClick={() => setShowTimeoutDropdown(!showTimeoutDropdown)}
-										className='flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/50 px-4 py-2 text-sm text-slate-200 transition-colors hover:bg-slate-700/50'>
+										className='flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-4 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)]'>
 										<span>
 											{t('settings:security.session.autoLock.timeout.label')}:{' '}
 											{timeout === 0
@@ -207,7 +209,7 @@ export function SecuritySettings() {
 										<motion.div
 											initial={{ opacity: 0, y: -10 }}
 											animate={{ opacity: 1, y: 0 }}
-											className='absolute top-full z-10 mt-1 w-48 rounded-lg border border-slate-700 bg-slate-800 py-1 shadow-xl'>
+											className='absolute top-full z-10 mt-1 w-48 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-glass)] py-1 shadow-xl'>
 											{TIMEOUT_OPTIONS.map((option) => (
 												<button
 													type='button'
@@ -215,10 +217,10 @@ export function SecuritySettings() {
 													onClick={() =>
 														handleTimeoutChange(option.value)
 													}
-													className={`w-full px-4 py-2 text-left text-sm transition-colors hover:bg-slate-700 ${
+													className={`w-full px-4 py-2 text-left text-sm transition-colors hover:bg-[var(--surface-hover)] ${
 														timeout === option.value
-															? 'text-slate-100'
-															: 'text-slate-400'
+															? 'text-[var(--text-primary)]'
+															: 'text-[var(--text-secondary)]'
 													}`}>
 													{t(
 														`settings:security.session.autoLock.timeout.options.${option.label}`
@@ -236,7 +238,7 @@ export function SecuritySettings() {
 											setPin('')
 											setConfirmPin('')
 										}}
-										className='flex h-9 items-center justify-center rounded-lg border border-slate-700 bg-slate-900/50 px-4 text-sm text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-300'>
+										className='flex h-9 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-4 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
 										Change PIN
 									</button>
 								)}
@@ -247,11 +249,11 @@ export function SecuritySettings() {
 							<motion.div
 								initial={{ opacity: 0, height: 0 }}
 								animate={{ opacity: 1, height: 'auto' }}
-								className='mt-4 ml-11 rounded-xl border border-slate-700 bg-slate-800/50 p-4'>
-								<h3 className='mb-2 text-sm font-medium text-slate-200'>
+								className='mt-4 ml-11 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-4'>
+								<h3 className='mb-2 text-sm font-medium text-[var(--text-primary)]'>
 									{t('settings:security.session.autoLock.setupPin.title')}
 								</h3>
-								<p className='mb-4 text-xs text-slate-400'>
+								<p className='mb-4 text-xs text-[var(--text-secondary)]'>
 									{t('settings:security.session.autoLock.setupPin.description')}
 								</p>
 
@@ -265,7 +267,7 @@ export function SecuritySettings() {
 												placeholder={t(
 													'settings:security.session.autoLock.setupPin.pinPlaceholder'
 												)}
-												className='w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-slate-500'
+												className='w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-hover)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-subtle)] focus:ring-1 focus:ring-[var(--accent-color)]'
 											/>
 											<input
 												type='password'
@@ -274,13 +276,13 @@ export function SecuritySettings() {
 												placeholder={t(
 													'settings:security.session.autoLock.setupPin.confirmPlaceholder'
 												)}
-												className='w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-slate-500'
+												className='w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-hover)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-subtle)] focus:ring-1 focus:ring-[var(--accent-color)]'
 											/>
 										</>
 									)}
 
 									{usesPassphraseMethod && (
-										<label className='flex items-center gap-2 text-sm text-slate-300'>
+										<label className='flex items-center gap-2 text-sm text-[var(--text-primary)]'>
 											<input
 												type='checkbox'
 												checked={useEncryptionPassword}
@@ -299,7 +301,7 @@ export function SecuritySettings() {
 										<button
 											type='button'
 											onClick={handlePinSetup}
-											className='flex-1 rounded-lg bg-slate-700 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-600'>
+											className='flex-1 rounded-lg bg-[var(--surface-active)] py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)]'>
 											Enable
 										</button>
 										<button
@@ -308,7 +310,7 @@ export function SecuritySettings() {
 												setShowPinSetup(false)
 												setAutoLockEnabled(false)
 											}}
-											className='flex-1 rounded-lg border border-slate-700 py-2 text-sm text-slate-300 transition-colors hover:bg-slate-800'>
+											className='flex-1 rounded-lg border border-[var(--border-subtle)] py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)]'>
 											Cancel
 										</button>
 									</div>
@@ -320,11 +322,11 @@ export function SecuritySettings() {
 							<motion.div
 								initial={{ opacity: 0, height: 0 }}
 								animate={{ opacity: 1, height: 'auto' }}
-								className='mt-4 ml-11 rounded-xl border border-slate-700 bg-slate-800/50 p-4'>
-								<h3 className='mb-2 text-sm font-medium text-slate-200'>
+								className='mt-4 ml-11 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-4'>
+								<h3 className='mb-2 text-sm font-medium text-[var(--text-primary)]'>
 									Change PIN
 								</h3>
-								<p className='mb-4 text-xs text-slate-400'>
+								<p className='mb-4 text-xs text-[var(--text-secondary)]'>
 									{usesPassphraseMethod
 										? 'Set a new PIN or switch to encryption password'
 										: 'Set a new PIN'}
@@ -340,7 +342,7 @@ export function SecuritySettings() {
 												placeholder={t(
 													'settings:security.session.autoLock.setupPin.newPinPlaceholder'
 												)}
-												className='w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-slate-500'
+												className='w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-hover)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-subtle)] focus:ring-1 focus:ring-[var(--accent-color)]'
 											/>
 											<input
 												type='password'
@@ -349,13 +351,13 @@ export function SecuritySettings() {
 												placeholder={t(
 													'settings:security.session.autoLock.setupPin.confirmPinPlaceholder'
 												)}
-												className='w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-slate-500'
+												className='w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-hover)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-subtle)] focus:ring-1 focus:ring-[var(--accent-color)]'
 											/>
 										</>
 									)}
 
 									{usesPassphraseMethod && (
-										<label className='flex items-center gap-2 text-sm text-slate-300'>
+										<label className='flex items-center gap-2 text-sm text-[var(--text-primary)]'>
 											<input
 												type='checkbox'
 												checked={useEncryptionPassword}
@@ -372,7 +374,7 @@ export function SecuritySettings() {
 										<button
 											type='button'
 											onClick={handleChangePin}
-											className='flex-1 rounded-lg bg-slate-700 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-600'>
+											className='flex-1 rounded-lg bg-[var(--surface-active)] py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)]'>
 											Save
 										</button>
 										<button
@@ -382,7 +384,7 @@ export function SecuritySettings() {
 												setPin('')
 												setConfirmPin('')
 											}}
-											className='flex-1 rounded-lg border border-slate-700 py-2 text-sm text-slate-300 transition-colors hover:bg-slate-800'>
+											className='flex-1 rounded-lg border border-[var(--border-subtle)] py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)]'>
 											Cancel
 										</button>
 									</div>
@@ -393,7 +395,7 @@ export function SecuritySettings() {
 				</section>
 
 				<section>
-					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
+					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
 						{t('settings:security.data.title')}
 					</h2>
 					<div className='space-y-3'>

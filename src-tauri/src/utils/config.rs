@@ -58,20 +58,30 @@ pub fn set_data_dir_override(path: &str) -> std::io::Result<()> {
 pub struct ThemeConfig {
     pub accent_color: String,
     pub background: String,
+    #[serde(default = "default_light_background")]
+    pub light_background: String,
     #[serde(default = "default_true")]
     pub animations_enabled: bool,
+    #[serde(default = "default_true")]
+    pub dark_mode: bool,
 }
 
 fn default_true() -> bool {
     true
 }
 
+fn default_light_background() -> String {
+    "auto".to_string()
+}
+
 impl Default for ThemeConfig {
     fn default() -> Self {
         Self {
             accent_color: "#f97316".to_string(),
-            background: "slate".to_string(),
+            background: "auto".to_string(),
+            light_background: "auto".to_string(),
             animations_enabled: true,
+            dark_mode: true,
         }
     }
 }

@@ -26,7 +26,7 @@ export function SubjectInput({
 			onMouseEnter={animationsEnabled ? undefined : () => setIsHovered(true)}
 			onMouseLeave={animationsEnabled ? undefined : () => setIsHovered(false)}
 			className={cn(
-				'relative flex h-11 w-full items-center gap-2 border-b border-zinc-900 bg-transparent px-0 transition-colors',
+				'relative flex h-11 w-full items-center gap-2 border-b border-[var(--compose-input-border)] bg-transparent px-0 transition-colors',
 				className
 			)}>
 			<input
@@ -37,7 +37,7 @@ export function SubjectInput({
 				onBlur={() => setIsFocused(false)}
 				placeholder={placeholder}
 				autoFocus={autoFocus}
-				className='w-full bg-transparent py-1 text-sm font-medium text-zinc-100 outline-none placeholder:text-zinc-600'
+				className='w-full bg-transparent py-1 text-sm font-medium text-[var(--compose-text)] outline-none placeholder:text-[var(--compose-placeholder)]'
 			/>
 			<motion.div
 				{...(animationsEnabled
@@ -49,7 +49,7 @@ export function SubjectInput({
 					: {
 							style: { scaleX: isFocused || isHovered ? 1 : 0 },
 						})}
-				className='pointer-events-none absolute bottom-0 left-0 h-[1px] w-full origin-center bg-zinc-500'
+				className='pointer-events-none absolute bottom-0 left-0 h-[1px] w-full origin-center bg-[var(--compose-focus-line)]'
 			/>
 		</motion.div>
 	)

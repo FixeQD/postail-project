@@ -59,12 +59,16 @@ pub async fn get_theme_config() -> Result<ThemeConfig, String> {
 pub async fn set_theme_config(
     accent_color: String,
     background: String,
+    light_background: String,
     animations_enabled: bool,
+    dark_mode: bool,
 ) -> Result<(), String> {
     let theme = ThemeConfig {
         accent_color,
         background,
+        light_background,
         animations_enabled,
+        dark_mode,
     };
     crate::utils::config::save_theme_config(&theme)
 }

@@ -1,4 +1,3 @@
-
 export const MessageViewSkeleton = () => {
 	const skeletonStyle = {
 		backgroundImage:
@@ -8,11 +7,11 @@ export const MessageViewSkeleton = () => {
 	}
 
 	return (
-		<div className='flex h-full flex-col bg-slate-900'>
+		<div className='flex h-full flex-col bg-[var(--surface-panel)]'>
 			{/* Header imitation */}
-			<div className='flex h-14 items-center gap-2 border-b border-white/[0.06] bg-slate-900/50 px-4'>
+			<div className='flex h-14 items-center gap-2 border-b border-[var(--border-faint)] bg-[var(--surface-panel)] px-4'>
 				<div className='h-8 w-8 rounded-lg' style={skeletonStyle} />
-				<div className='mx-2 h-6 w-px bg-white/[0.08]' />
+				<div className='mx-2 h-6 w-px bg-[var(--border-subtle)]' />
 				<div className='h-8 w-8 rounded-lg' style={skeletonStyle} />
 				<div className='h-8 w-8 rounded-lg' style={skeletonStyle} />
 				<div className='h-8 w-8 rounded-lg' style={skeletonStyle} />

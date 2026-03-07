@@ -40,10 +40,10 @@ function SelectSetting({
 	const accentColor = useThemeStore((s) => s.accentColor)
 	return (
 		<div
-			className={`flex items-center justify-between rounded-2xl border border-white/[0.05] bg-white/[0.03] p-4 transition-all duration-200 ${
+			className={`flex items-center justify-between rounded-2xl border border-[var(--border-faint)] bg-[var(--surface-panel)] p-4 transition-all duration-200 ${
 				disabled
 					? 'cursor-not-allowed opacity-50'
-					: 'hover:border-white/[0.08] hover:bg-white/[0.06]'
+					: 'hover:border-[var(--border-subtle)] hover:bg-[var(--surface-hover)]'
 			}`}>
 			<div className='flex items-center gap-4'>
 				<div
@@ -52,8 +52,8 @@ function SelectSetting({
 					<Icon className='h-5 w-5' style={{ color: accentColor }} />
 				</div>
 				<div>
-					<p className='text-sm font-semibold text-slate-200'>{label}</p>
-					<p className='text-xs text-slate-500'>{description}</p>
+					<p className='text-sm font-semibold text-[var(--text-primary)]'>{label}</p>
+					<p className='text-xs text-[var(--text-secondary)]'>{description}</p>
 				</div>
 			</div>
 			<div className='flex gap-1'>
@@ -66,7 +66,7 @@ function SelectSetting({
 						className={`min-w-[36px] rounded-lg px-2 py-1.5 text-xs font-semibold transition-all duration-150 ${
 							value === opt
 								? 'text-white shadow-md'
-								: 'text-slate-500 ring-1 ring-white/[0.08] hover:text-slate-300 hover:ring-white/[0.15]'
+								: 'text-[var(--text-secondary)] ring-1 ring-[var(--border-subtle)] hover:text-[var(--text-primary)] hover:ring-[var(--border-subtle)]'
 						}`}
 						style={value === opt ? { backgroundColor: accentColor } : {}}>
 						{opt === 1 ? 'All' : `${opt}+`}
@@ -80,7 +80,7 @@ function SelectSetting({
 // ── Section heading ────────────────────────────────────────────────
 function SectionTitle({ children }: { children: React.ReactNode }) {
 	return (
-		<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-slate-500 uppercase'>
+		<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
 			{children}
 		</h2>
 	)
@@ -112,10 +112,12 @@ export function NotificationsSettings() {
 				{...(anim
 					? { initial: { opacity: 0, y: -20 }, animate: { opacity: 1, y: 0 } }
 					: {})}>
-				<h1 className='text-3xl font-bold tracking-tight text-slate-100'>
+				<h1 className='text-3xl font-bold tracking-tight text-[var(--text-primary)]'>
 					{t('settings:notifications.title')}
 				</h1>
-				<p className='mt-1 text-slate-400'>{t('settings:notifications.subtitle')}</p>
+				<p className='mt-1 text-[var(--text-secondary)]'>
+					{t('settings:notifications.subtitle')}
+				</p>
 			</motion.div>
 
 			<div className='space-y-8'>
