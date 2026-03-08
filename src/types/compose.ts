@@ -24,6 +24,7 @@ export interface ComposeDraft {
 	body: string
 	bodyType: 'plain' | 'html'
 	attachments: EmailAttachment[]
+	requestReadReceipt?: boolean
 	replyContext?: {
 		subject: string
 		fromName: string

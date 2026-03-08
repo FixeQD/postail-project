@@ -38,6 +38,7 @@
 		"duplicateTitle": "Duplicate Attachment",
 		"duplicateMessage": "The file '{{filename}}' has already been attached. Do you want to add it again?",
 		"addAnyway": "Add anyway",
+		"requestReadReceipt": "Request read receipt",
 		"fileInfo": {
 			"hash": "Hash",
 			"type": "Type",

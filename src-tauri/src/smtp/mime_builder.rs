@@ -20,9 +20,10 @@ pub fn build_multipart_email(
     subject: &str,
     html_body: &str,
     attachments: &[crate::db::DraftAttachment],
+    disposition_notification_to: Option<&str>,
 ) -> Result<Vec<u8>, EmailBuildError> {
-    tracing::info!(target: "postail", "[MimeBuilder] Building email - from={}, to_count={}, cc_count={}, bcc_count={}, subject='{}'",
-		from, to.len(), cc.len(), bcc.len(), subject);
+    tracing::info!(target: "postail", "[MimeBuilder] Building email - from={}, to_count={}, cc_count={}, bcc_count={}, subject='{}' read_receipt={}",
+		from, to.len(), cc.len(), bcc.len(), subject, disposition_notification_to.is_some());
 
     let (inline_attachments, regular_attachments): (
         Vec<&crate::db::DraftAttachment>,
@@ -56,6 +57,13 @@ pub fn build_multipart_email(
             message_builder.bcc(recipient.parse().map_err(|e| {
                 EmailBuildError(format!("Invalid bcc address '{}': {}", recipient, e))
             })?);
+    }
+
+    if let Some(notify_addr) = disposition_notification_to {
+        message_builder = message_builder.raw_header(header::HeaderValue::new(
+            header::HeaderName::new_from_ascii_str("Disposition-Notification-To"),
+            notify_addr.to_string(),
+        ));
     }
 
     let mut multipart_mixed = MultiPart::mixed().build();

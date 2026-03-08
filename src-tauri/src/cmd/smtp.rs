@@ -75,8 +75,11 @@ pub struct BuildEmailResult {
 }
 
 #[command]
-pub async fn build_email_from_draft(draft_id: String) -> Result<BuildEmailResult, String> {
-    tracing::info!(target: "postail", "[build_email_from_draft] Starting for draft_id={}", draft_id);
+pub async fn build_email_from_draft(
+    draft_id: String,
+    request_read_receipt: Option<bool>,
+) -> Result<BuildEmailResult, String> {
+    tracing::info!(target: "postail", "[build_email_from_draft] Starting for draft_id={} request_read_receipt={:?}", draft_id, request_read_receipt);
     let db_conn = Arc::clone(&DB_CONN);
 
     tokio::task::spawn_blocking(move || {
@@ -107,6 +110,12 @@ pub async fn build_email_from_draft(draft_id: String) -> Result<BuildEmailResult
         tracing::info!(target: "postail", "[build_email_from_draft] Building email with {} to, {} cc, {} bcc recipients, subject='{}'",
             to.len(), cc.len(), bcc.len(), subject);
 
+        let disposition_notification_to = if request_read_receipt.unwrap_or(false) {
+            Some(from_email.clone())
+        } else {
+            None
+        };
+
         let eml_bytes = crate::smtp::mime_builder::build_multipart_email(
             &from_email,
             to,
@@ -115,6 +124,7 @@ pub async fn build_email_from_draft(draft_id: String) -> Result<BuildEmailResult
             &subject,
             &html_with_cids,
             &draft.attachments,
+            disposition_notification_to.as_deref(),
         )
         .map_err(|e| e.to_string())?;
 

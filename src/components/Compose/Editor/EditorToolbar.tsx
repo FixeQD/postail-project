@@ -31,6 +31,7 @@ import {
 	Link as LinkIcon,
 	Code,
 	FileType,
+	MailCheck,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
@@ -183,7 +184,9 @@ export function EditorToolbar() {
 	const { t } = useTranslation()
 	const [editor] = useLexicalComposerContext()
 	const { formats, linkData } = useEditorFormats(editor, false)
-	const { currentDraft, editorMode, setEditorMode, addAttachment } = useDraftStore()
+	const { currentDraft, editorMode, setEditorMode, addAttachment, updateCurrentDraft } =
+		useDraftStore()
+	const requestReadReceipt = currentDraft?.requestReadReceipt ?? false
 
 	const [pendingAttachment, setPendingAttachment] = useState<{
 		attachment: EmailAttachment
@@ -306,6 +309,17 @@ export function EditorToolbar() {
 						<ListOrdered className='h-4 w-4' />
 					</Button>
 					<LinkPopover editor={editor} formats={formats} linkData={linkData} />
+					<div className='mx-1 h-4 w-px bg-[var(--compose-separator)]' />
+					<Button
+						variant='ghost'
+						size='icon'
+						title={t('compose.requestReadReceipt')}
+						className={`h-9 w-9 ${requestReadReceipt ? 'bg-[var(--compose-active)] text-sky-400' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
+						onClick={() =>
+							updateCurrentDraft({ requestReadReceipt: !requestReadReceipt })
+						}>
+						<MailCheck className='h-4 w-4' />
+					</Button>
 				</>
 			)}
 

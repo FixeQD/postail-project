@@ -637,7 +637,10 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 
 			const result = await invoke<{ eml_bytes: number[]; html_with_cids: string }>(
 				'build_email_from_draft',
-				{ draftId: currentDraft.id }
+				{
+					draftId: currentDraft.id,
+					requestReadReceipt: currentDraft.requestReadReceipt ?? false,
+				}
 			)
 
 			const emlBytes = new Uint8Array(result.eml_bytes)
