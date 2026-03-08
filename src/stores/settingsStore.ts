@@ -52,14 +52,14 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 			// Map backend strings to typed settings
 			const mappedSettings = { ...DEFAULT_SETTINGS }
 
-			if (allSettings['zen-mode'])
+			if ('zen-mode' in allSettings)
 				mappedSettings['zen-mode'] = allSettings['zen-mode'] === 'true'
 			if (allSettings['undo-send-delay'])
 				mappedSettings['undo-send-delay'] = parseInt(allSettings['undo-send-delay'])
 			if (allSettings['data-path']) mappedSettings['data-path'] = allSettings['data-path']
 			if (allSettings['auto-lock-timeout'])
 				mappedSettings['auto-lock-timeout'] = parseInt(allSettings['auto-lock-timeout'])
-			if (allSettings['block-external-images'])
+			if ('block-external-images' in allSettings)
 				mappedSettings['block-external-images'] =
 					allSettings['block-external-images'] === 'true'
 

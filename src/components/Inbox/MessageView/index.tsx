@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 
 import { useMessageViewStore } from '@/stores/messageViewStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { useDraftStore } from '@/stores/draftStore'
 import type { MessageFull } from '@/types/mail'
 import { MessageViewHeader } from './MessageViewHeader'
@@ -38,8 +39,9 @@ export const MessageView = ({
 	const { t } = useTypedTranslation(['common', 'inbox'])
 	const queryClient = useQueryClient()
 	const { viewMode, toggleViewMode, setTitleMeta, setLoading } = useMessageViewStore()
+	const blockExternalImages = useSettingsStore((s) => s.settings['block-external-images'])
 	// viewMode passed to MessageViewBody below
-	const [allowExternalResources, setAllowExternalResources] = useState(false)
+	const [allowExternalResources, setAllowExternalResources] = useState(!blockExternalImages)
 	const [cspBlocked, setCspBlocked] = useState(false)
 	const [noReplyAction, setNoReplyAction] = useState<'reply' | 'replyAll' | null>(null)
 
@@ -201,8 +203,8 @@ export const MessageView = ({
 		}
 		setLoading(true)
 		setCspBlocked(false)
-		setAllowExternalResources(false)
-	}, [uid, setLoading])
+		setAllowExternalResources(!blockExternalImages)
+	}, [uid, setLoading, blockExternalImages])
 
 	// Keep TitleBar in sync with current message subject + navigation
 	useEffect(() => {
