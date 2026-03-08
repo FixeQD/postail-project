@@ -72,7 +72,6 @@
 		},
 		"readReceipt": {
 			"label": "Sender requested read receipt",
-			"blocked": "blocked by settings",
 			"send": "Send Receipt",
 			"sending": "Sending...",
 			"sent": "Read receipt sent",
