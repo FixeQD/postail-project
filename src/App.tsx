@@ -23,6 +23,7 @@ import { useSettingsStore } from './stores/settingsStore'
 import { useThemeStore } from './stores/themeStore'
 import { useAnimationsEnabled } from './hooks/useMotion'
 import { useAppInitialization } from './hooks/useAppInitialization'
+import { DevTools } from './components/DevTools/DevTools'
 import { useAccountStore } from '@/stores/accountStore'
 import { MailboxRoleDialog } from './components/Settings/Sections/Account/MailboxRoleDialog'
 import icon from './assets/icon.png'
@@ -316,6 +317,9 @@ function App() {
 				accountId={pendingMailboxRoleAccountId}
 				onDone={handleMailboxRolesDone}
 			/>
+			{import.meta.env.DEV && (
+				<DevTools currentState={currentState} setCurrentState={setCurrentState} />
+			)}
 			<Toaster />
 			<LockScreen
 				isLocked={isLocked}

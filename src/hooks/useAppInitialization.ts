@@ -8,21 +8,9 @@ import type { AccountMeta } from '@/types/accounts'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useTranslation } from 'react-i18next'
+import type { AppState } from '@/types/hooks'
 
-export type AppState =
-	| 'init'
-	| 'welcome'
-	| 'data-dir'
-	| 'customize'
-	| 'security'
-	| 'accounts'
-	| 'argon2-setup'
-	| 'dashboard'
-	| 'argon2-unlock'
-	| 'settings'
-	| 'recovery-setup'
-	| 'tpm-unlock-failed'
-	| 'recovery-reencrypt'
+export type { AppState } from '@/types/hooks'
 
 export function useAppInitialization() {
 	const { t } = useTranslation()

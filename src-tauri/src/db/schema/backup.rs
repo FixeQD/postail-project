@@ -179,14 +179,14 @@ pub fn export_backup(
 
     let partial_db = temp_dir.join("postail.db");
     {
-        let backup_conn = Connection::open(&partial_db)?;
-        backup_conn.execute("CREATE TABLE accounts AS SELECT * FROM accounts", [])?;
-        backup_conn.execute("CREATE TABLE mailboxes AS SELECT * FROM mailboxes", [])?;
-        backup_conn.execute("CREATE TABLE messages AS SELECT * FROM messages", [])?;
-        backup_conn.execute(
-            "CREATE TABLE message_bodies AS SELECT * FROM message_bodies",
-            [],
-        )?;
+        let path_str = partial_db.to_string_lossy();
+        conn.execute_batch(&format!(
+            "ATTACH DATABASE '{path_str}' AS backup;
+             CREATE TABLE backup.accounts AS SELECT * FROM accounts;
+             CREATE TABLE backup.mailboxes AS SELECT * FROM mailboxes;
+             CREATE TABLE backup.messages AS SELECT * FROM messages;
+             DETACH DATABASE backup;"
+        ))?;
     }
 
     let creds_dir = temp_dir.join("creds");
@@ -352,7 +352,7 @@ pub fn import_backup(
 }
 
 pub fn run_maintenance(conn: &Connection) -> Result<(), DBError> {
-    conn.execute("PRAGMA wal_checkpoint(TRUNCATE)", [])?;
+    conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")?;
     conn.execute("VACUUM", [])?;
     conn.execute("ANALYZE", [])?;
 
