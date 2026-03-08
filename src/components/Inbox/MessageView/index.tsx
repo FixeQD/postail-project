@@ -300,39 +300,46 @@ export const MessageView = ({
 				<MessageViewMeta header={data.header} />
 
 				{/* Read receipt request banner */}
-				{data.read_receipt_to && !blockReadReceipts && !receiptDismissed && (
+				{data.read_receipt_to && !receiptDismissed && (
 					<div className='mx-5 mb-2 flex items-center justify-between gap-2 rounded-lg bg-[var(--surface-active)] px-3 py-2 ring-1 ring-[var(--border-faint)]'>
 						<div className='flex items-center gap-2'>
 							<div className='h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.5)]' />
 							<span className='text-[11px] font-medium tracking-tight text-[var(--text-tertiary)] uppercase'>
 								{t('inbox:messageView.readReceipt.label')}
 							</span>
+							{blockReadReceipts && (
+								<span className='text-[11px] text-[var(--text-tertiary)] opacity-60'>
+									({t('inbox:messageView.readReceipt.blocked')})
+								</span>
+							)}
 						</div>
 						<div className='flex items-center gap-3'>
-							<button
-								type='button'
-								disabled={isSendingReceipt}
-								onClick={async () => {
-									setIsSendingReceipt(true)
-									try {
-										await invoke('send_read_receipt', {
-											accountId,
-											toAddress: data.read_receipt_to,
-											originalMessageId: data.header.message_id ?? null,
-											originalSubject: data.header.subject ?? null,
-										})
-										toast.success(t('inbox:messageView.readReceipt.sent'))
-										setReceiptDismissed(true)
-									} catch {
-										toast.error(t('inbox:messageView.readReceipt.error'))
-										setIsSendingReceipt(false)
-									}
-								}}
-								className='text-[11px] font-medium text-sky-400 transition-colors hover:text-sky-300 disabled:opacity-50'>
-								{isSendingReceipt
-									? t('inbox:messageView.readReceipt.sending')
-									: t('inbox:messageView.readReceipt.send')}
-							</button>
+							{!blockReadReceipts && (
+								<button
+									type='button'
+									disabled={isSendingReceipt}
+									onClick={async () => {
+										setIsSendingReceipt(true)
+										try {
+											await invoke('send_read_receipt', {
+												accountId,
+												toAddress: data.read_receipt_to,
+												originalMessageId: data.header.message_id ?? null,
+												originalSubject: data.header.subject ?? null,
+											})
+											toast.success(t('inbox:messageView.readReceipt.sent'))
+											setReceiptDismissed(true)
+										} catch {
+											toast.error(t('inbox:messageView.readReceipt.error'))
+											setIsSendingReceipt(false)
+										}
+									}}
+									className='text-[11px] font-medium text-sky-400 transition-colors hover:text-sky-300 disabled:opacity-50'>
+									{isSendingReceipt
+										? t('inbox:messageView.readReceipt.sending')
+										: t('inbox:messageView.readReceipt.send')}
+								</button>
+							)}
 							<button
 								type='button'
 								disabled={isSendingReceipt}

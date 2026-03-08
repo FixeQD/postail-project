@@ -206,6 +206,14 @@ fn save_attachments_from_eml(
             }
             return;
         }
+        // Skip RFC 3798 MDN parts and delivery status - not user attachments
+        if mime_type == "message/disposition-notification"
+            || mime_type == "message/delivery-status"
+            || mime_type == "text/rfc822-headers"
+        {
+            *counter += 1;
+            return;
+        }
         if mime_type == "text/html" || mime_type == "text/plain" {
             *counter += 1;
             return;
