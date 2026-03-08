@@ -7,6 +7,7 @@ interface AppSettings {
 	'data-path': string
 	'auto-lock-timeout': number
 	'block-external-images': boolean
+	'block-read-receipts': boolean
 }
 
 interface SettingsState {
@@ -24,6 +25,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 	'data-path': '',
 	'auto-lock-timeout': 0, // Disabled
 	'block-external-images': true,
+	'block-read-receipts': true,
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
@@ -62,6 +64,9 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 			if ('block-external-images' in allSettings)
 				mappedSettings['block-external-images'] =
 					allSettings['block-external-images'] === 'true'
+			if ('block-read-receipts' in allSettings)
+				mappedSettings['block-read-receipts'] =
+					allSettings['block-read-receipts'] === 'true'
 
 			set({ settings: mappedSettings })
 		} catch (error) {

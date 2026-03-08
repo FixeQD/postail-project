@@ -103,6 +103,8 @@ pub fn delete_eml(account_id: &str, mailbox: &str, uid: u32) -> Result<(), DBErr
 pub struct CachedBody {
     pub body_html: String,
     pub body_plain: String,
+    #[serde(default)]
+    pub read_receipt_to: Option<String>,
 }
 
 pub fn save_body(

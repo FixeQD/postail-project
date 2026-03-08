@@ -206,6 +206,8 @@ pub struct MessageFull {
     pub body_plain: String,
     pub attachments: Vec<AttachmentMeta>,
     pub inline_images: Vec<AttachmentMeta>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub read_receipt_to: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

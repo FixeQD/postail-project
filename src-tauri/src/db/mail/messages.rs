@@ -211,6 +211,7 @@ pub fn fetch_message_full(
             body_plain: String::new(),
             attachments,
             inline_images,
+            read_receipt_to: None,
         }))
     } else {
         Ok(None)

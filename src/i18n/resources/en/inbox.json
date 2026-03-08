@@ -70,6 +70,10 @@
 			"label": "Remote content blocked",
 			"allow": "Allow"
 		},
+		"readReceipt": {
+			"label": "Sender requested read receipt",
+			"dismiss": "Dismiss"
+		},
 		"noReply": {
 			"title": "This address doesn't accept replies",
 			"description": "This message was sent from a no-reply address. Your reply will most likely never be read.",

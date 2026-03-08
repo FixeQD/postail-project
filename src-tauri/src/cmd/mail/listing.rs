@@ -187,6 +187,7 @@ pub async fn fetch_message_full(
                         );
                         m.body_html_safe = body.body_html;
                         m.body_plain = body.body_plain;
+                        m.read_receipt_to = body.read_receipt_to;
                     }
                     Ok(None) => {
                         tracing::warn!(target: "postail",

@@ -40,9 +40,11 @@ export const MessageView = ({
 	const queryClient = useQueryClient()
 	const { viewMode, toggleViewMode, setTitleMeta, setLoading } = useMessageViewStore()
 	const blockExternalImages = useSettingsStore((s) => s.settings['block-external-images'])
+	const blockReadReceipts = useSettingsStore((s) => s.settings['block-read-receipts'])
 	// viewMode passed to MessageViewBody below
 	const [allowExternalResources, setAllowExternalResources] = useState(!blockExternalImages)
 	const [cspBlocked, setCspBlocked] = useState(false)
+	const [receiptDismissed, setReceiptDismissed] = useState(false)
 	const [noReplyAction, setNoReplyAction] = useState<'reply' | 'replyAll' | null>(null)
 
 	const { data, isLoading, error, refetch } = useQuery<MessageFull | null>({
@@ -203,6 +205,7 @@ export const MessageView = ({
 		}
 		setLoading(true)
 		setCspBlocked(false)
+		setReceiptDismissed(false)
 		setAllowExternalResources(!blockExternalImages)
 	}, [uid, setLoading, blockExternalImages])
 
@@ -272,6 +275,24 @@ export const MessageView = ({
 
 			<div ref={scrollContainerRef} className='message-view-body flex-1 overflow-y-auto'>
 				<MessageViewMeta header={data.header} />
+
+				{/* Read receipt request banner */}
+				{data.read_receipt_to && !blockReadReceipts && !receiptDismissed && (
+					<div className='mx-5 mb-2 flex items-center justify-between gap-2 rounded-lg bg-[var(--surface-active)] px-3 py-2 ring-1 ring-[var(--border-faint)]'>
+						<div className='flex items-center gap-2'>
+							<div className='h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.5)]' />
+							<span className='text-[11px] font-medium tracking-tight text-[var(--text-tertiary)] uppercase'>
+								{t('inbox:messageView.readReceipt.label')}
+							</span>
+						</div>
+						<button
+							type='button'
+							onClick={() => setReceiptDismissed(true)}
+							className='text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:text-[var(--text-primary)]'>
+							{t('inbox:messageView.readReceipt.dismiss')}
+						</button>
+					</div>
+				)}
 
 				{/* CSP-triggered banner - appears only when browser actually blocked something */}
 				{cspBlocked && !allowExternalResources && (

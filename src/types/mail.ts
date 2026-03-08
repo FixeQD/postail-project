@@ -41,4 +41,5 @@ export interface MessageFull {
 	body_plain: string
 	attachments: AttachmentMeta[]
 	inline_images: AttachmentMeta[]
+	read_receipt_to?: string | null
 }

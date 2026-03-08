@@ -43,8 +43,8 @@ export function PrivacySettings() {
 							description={t(
 								'settings:privacy.protection.blockReadReceipts.description'
 							)}
-							value={false}
-							onChange={() => {}}
+							value={settings['block-read-receipts']}
+							onChange={(val: boolean) => setSetting('block-read-receipts', val)}
 						/>
 						<ToggleSetting
 							icon={Link2Off}

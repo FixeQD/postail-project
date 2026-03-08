@@ -58,8 +58,17 @@ impl crate::imap::ImapManager {
             }
         };
 
-        // ── Step 2: parse body ─────────────────────────────────────────────
+        // ── Step 2: parse body + receipt header ────────────────────────────
         let (html, plain, parse_error) = db::parse_mail_with_fallback(&raw_eml);
+
+        let read_receipt_to = {
+            use mailparse::{parse_mail, MailHeaderMap};
+            parse_mail(&raw_eml).ok().and_then(|m| {
+                m.headers
+                    .get_first_value("Disposition-Notification-To")
+                    .or_else(|| m.headers.get_first_value("Return-Receipt-To"))
+            })
+        };
 
         if let Some(ref err) = parse_error {
             tracing::warn!(target: "postail", "[BodyCache] Parse error uid={}: {}", uid, err);
@@ -83,6 +92,7 @@ impl crate::imap::ImapManager {
             let cached_body = CachedBody {
                 body_html: body_html.clone(),
                 body_plain: body_plain.clone(),
+                read_receipt_to: read_receipt_to.clone(),
             };
             eml_cache::save_body(&security, account_id, mailbox, uid, &cached_body)
                 .map_err(|e| e.to_string())?;
@@ -108,10 +118,11 @@ impl crate::imap::ImapManager {
         let mut msg =
             db::fetch_message_full(conn, account_id, mailbox, uid).map_err(|e| e.to_string())?;
 
-        // Inject body from file cache
+        // Inject body + receipt header from file cache
         if let Some(ref mut m) = msg {
             m.body_html_safe = body_html;
             m.body_plain = body_plain;
+            m.read_receipt_to = read_receipt_to;
         }
 
         tracing::info!(

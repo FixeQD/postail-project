@@ -76,6 +76,7 @@ export interface AppSettings {
 	'data-path': string
 	'auto-lock-timeout': number
 	'block-external-images': boolean
+	'block-read-receipts': boolean
 }
 
 export interface SettingsState {
