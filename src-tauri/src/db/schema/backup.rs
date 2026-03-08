@@ -2,7 +2,7 @@ use crate::db::compose::outbox::cleanup_old_sent_messages;
 use crate::db::mail::message_bodies;
 use crate::error::DBError;
 use crate::security::SecurityManager;
-use rusqlite::{backup::Backup, params, Connection, Result as SqlResult};
+use rusqlite::{params, Connection, Result as SqlResult};
 use std::env;
 use std::fs;
 use std::io::Write;
@@ -177,14 +177,15 @@ pub fn export_backup(
         .unwrap_or_else(|| PathBuf::from("."))
         .join("postail_backup.zip");
 
-    // Full DB copy via SQLite online backup API
+    // Export full DB to plaintext via sqlcipher_export (handles SQLCipher encryption)
     let db_path = temp_dir.join("postail.db");
     {
-        let mut dest = Connection::open(&db_path)?;
-        let backup = Backup::new(conn, &mut dest).map_err(DBError::Sqlite)?;
-        backup
-            .run_to_completion(100, std::time::Duration::from_millis(0), None)
-            .map_err(DBError::Sqlite)?;
+        let path_str = db_path.to_string_lossy();
+        conn.execute_batch(&format!(
+            "ATTACH DATABASE '{path_str}' AS _export KEY '';
+             SELECT sqlcipher_export('_export');
+             DETACH DATABASE _export;"
+        ))?;
     }
 
     // Copy encrypted credential blobs
@@ -199,7 +200,8 @@ pub fn export_backup(
         .map_err(DBError::Sqlite)?;
 
     for (account_id, creds_path) in account_creds.flatten() {
-        let encrypted_creds = fs::read(&creds_path).map_err(DBError::Io)?;
+        let resolved = crate::db::resolve_creds_path(&creds_path);
+        let encrypted_creds = fs::read(&resolved).map_err(DBError::Io)?;
         let backup_encrypted = if let Some(ref pass) = passphrase {
             security
                 .encrypt_with_passphrase(&encrypted_creds, pass)
@@ -254,7 +256,7 @@ pub fn export_backup(
 }
 
 pub fn import_backup(
-    conn: &mut Connection,
+    conn: &Connection,
     security: &SecurityManager,
     backup_path: &PathBuf,
     passphrase: Option<String>,
@@ -271,14 +273,71 @@ pub fn import_backup(
         .extract(&temp_dir)
         .map_err(|e| DBError::Sqlite(rusqlite::Error::ToSqlConversionFailure(Box::new(e))))?;
 
-    // Restore full DB via SQLite online backup API (src → conn)
+    // Restore: attach plaintext backup into the encrypted conn, rebuild all tables
     let backup_db = temp_dir.join("postail.db");
     {
-        let src = Connection::open(&backup_db)?;
-        let backup = Backup::new_with_names(&src, "main", conn, "main").map_err(DBError::Sqlite)?;
-        backup
-            .run_to_completion(100, std::time::Duration::from_millis(0), None)
-            .map_err(DBError::Sqlite)?;
+        conn.execute(
+            "ATTACH DATABASE ? AS _import KEY ''",
+            params![backup_db.to_string_lossy()],
+        )?;
+
+        conn.execute_batch(
+            "DROP TABLE IF EXISTS messages_fts;
+             DROP TABLE IF EXISTS messages_fts_data;
+             DROP TABLE IF EXISTS messages_fts_idx;
+             DROP TABLE IF EXISTS messages_fts_docsize;
+             DROP TABLE IF EXISTS messages_fts_config;
+             DROP TABLE IF EXISTS contacts_fts;
+             DROP TABLE IF EXISTS contacts_fts_data;
+             DROP TABLE IF EXISTS contacts_fts_idx;
+             DROP TABLE IF EXISTS contacts_fts_docsize;
+             DROP TABLE IF EXISTS contacts_fts_config;
+             DROP TABLE IF EXISTS message_bodies;
+             DROP TABLE IF EXISTS attachments;
+             DROP TABLE IF EXISTS flag_sync_queue;
+             DROP TABLE IF EXISTS drafts;
+             DROP TABLE IF EXISTS messages;
+             DROP TABLE IF EXISTS mailboxes;
+             DROP TABLE IF EXISTS accounts;
+             DROP TABLE IF EXISTS settings;
+             DROP TABLE IF EXISTS contacts;
+             DROP TABLE IF EXISTS outbox;
+             DROP TABLE IF EXISTS schema_migrations;
+             DROP TABLE IF EXISTS schema_versions;",
+        )?;
+
+        // Copy each table that exists in the backup
+        for table in &[
+            "accounts",
+            "mailboxes",
+            "messages",
+            "message_bodies",
+            "attachments",
+            "flag_sync_queue",
+            "drafts",
+            "settings",
+            "contacts",
+            "outbox",
+            "schema_migrations",
+            "schema_versions",
+        ] {
+            let exists: bool = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _import.sqlite_master WHERE type='table' AND name=?",
+                    params![table],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap_or(0)
+                > 0;
+
+            if exists {
+                conn.execute_batch(&format!(
+                    "CREATE TABLE {table} AS SELECT * FROM _import.{table};"
+                ))?;
+            }
+        }
+
+        conn.execute_batch("DETACH DATABASE _import;")?;
     }
 
     if temp_dir.join("creds").exists() {
