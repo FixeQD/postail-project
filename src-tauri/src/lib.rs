@@ -129,6 +129,7 @@ pub fn run() {
             cmd::attachments::add_inline_attachment,
             cmd::attachments::remove_attachment,
             cmd::smtp::build_email_from_draft,
+            cmd::smtp::send_read_receipt,
             cmd::utils::process_email_content,
             cmd::utils::show_notification,
             cmd::utils::auto_fix_email_html,

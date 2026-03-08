@@ -72,6 +72,10 @@
 		},
 		"readReceipt": {
 			"label": "Sender requested read receipt",
+			"send": "Send Receipt",
+			"sending": "Sending...",
+			"sent": "Read receipt sent",
+			"error": "Failed to send read receipt",
 			"dismiss": "Dismiss"
 		},
 		"noReply": {

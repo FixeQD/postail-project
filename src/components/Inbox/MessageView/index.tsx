@@ -45,6 +45,7 @@ export const MessageView = ({
 	const [allowExternalResources, setAllowExternalResources] = useState(!blockExternalImages)
 	const [cspBlocked, setCspBlocked] = useState(false)
 	const [receiptDismissed, setReceiptDismissed] = useState(false)
+	const [isSendingReceipt, setIsSendingReceipt] = useState(false)
 	const [noReplyAction, setNoReplyAction] = useState<'reply' | 'replyAll' | null>(null)
 
 	const { data, isLoading, error, refetch } = useQuery<MessageFull | null>({
@@ -206,6 +207,7 @@ export const MessageView = ({
 		setLoading(true)
 		setCspBlocked(false)
 		setReceiptDismissed(false)
+		setIsSendingReceipt(false)
 		setAllowExternalResources(!blockExternalImages)
 	}, [uid, setLoading, blockExternalImages])
 
@@ -285,12 +287,39 @@ export const MessageView = ({
 								{t('inbox:messageView.readReceipt.label')}
 							</span>
 						</div>
-						<button
-							type='button'
-							onClick={() => setReceiptDismissed(true)}
-							className='text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:text-[var(--text-primary)]'>
-							{t('inbox:messageView.readReceipt.dismiss')}
-						</button>
+						<div className='flex items-center gap-3'>
+							<button
+								type='button'
+								disabled={isSendingReceipt}
+								onClick={async () => {
+									setIsSendingReceipt(true)
+									try {
+										await invoke('send_read_receipt', {
+											accountId,
+											toAddress: data.read_receipt_to,
+											originalMessageId: data.header.message_id ?? null,
+											originalSubject: data.header.subject ?? null,
+										})
+										toast.success(t('inbox:messageView.readReceipt.sent'))
+										setReceiptDismissed(true)
+									} catch {
+										toast.error(t('inbox:messageView.readReceipt.error'))
+										setIsSendingReceipt(false)
+									}
+								}}
+								className='text-[11px] font-medium text-sky-400 transition-colors hover:text-sky-300 disabled:opacity-50'>
+								{isSendingReceipt
+									? t('inbox:messageView.readReceipt.sending')
+									: t('inbox:messageView.readReceipt.send')}
+							</button>
+							<button
+								type='button'
+								disabled={isSendingReceipt}
+								onClick={() => setReceiptDismissed(true)}
+								className='text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50'>
+								{t('inbox:messageView.readReceipt.dismiss')}
+							</button>
+						</div>
 					</div>
 				)}
 

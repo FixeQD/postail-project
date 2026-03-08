@@ -7,6 +7,7 @@ use tauri::AppHandle;
 
 use crate::security::SecurityManager;
 
+pub mod mdn;
 pub mod mime_builder;
 pub mod outbox;
 pub mod sender;

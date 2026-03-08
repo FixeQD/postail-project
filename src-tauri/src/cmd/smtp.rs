@@ -4,6 +4,47 @@ use std::sync::Arc;
 use tauri::command;
 
 #[command]
+pub async fn send_read_receipt(
+    account_id: String,
+    to_address: String,
+    original_message_id: Option<String>,
+    original_subject: Option<String>,
+) -> Result<(), String> {
+    let from_email = {
+        let conn_guard = DB_CONN.lock().await;
+        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+        let mut stmt = conn
+            .prepare("SELECT email FROM accounts WHERE id = ?")
+            .map_err(|e| e.to_string())?;
+        let email: String = stmt
+            .query_row([&account_id], |row| row.get(0))
+            .map_err(|e| e.to_string())?;
+        email
+    };
+
+    let subject = original_subject.as_deref().unwrap_or("(no subject)");
+    let eml = crate::smtp::mdn::build_mdn(
+        &from_email,
+        &to_address,
+        subject,
+        original_message_id.as_deref(),
+    );
+
+    tracing::info!(
+        target: "postail",
+        "[MDN] Sending read receipt to={} for message_id={:?}",
+        to_address,
+        original_message_id
+    );
+
+    let smtp = SMTP_MANAGER.lock().await;
+    smtp.send_email(&account_id, &eml).await.map_err(|e| {
+        tracing::error!(target: "postail", "[MDN] Failed to send read receipt: {}", e);
+        e
+    })
+}
+
+#[command]
 pub async fn enqueue_message(account_id: String, raw_eml: Vec<u8>) -> Result<String, String> {
     let smtp = SMTP_MANAGER.lock().await;
     smtp.enqueue_message(&account_id, &raw_eml).await
