@@ -87,6 +87,7 @@ export interface MessageViewHeaderProps {
 	onForward: () => void
 	onDelete: () => void
 	onMarkUnread: () => void
+	onViewSource?: () => void
 	hasHtml?: boolean
 	isDeleting?: boolean
 }

@@ -1,4 +1,4 @@
-import { ArrowLeft, Reply, ReplyAll, Forward, Trash2, MailOpen } from 'lucide-react'
+import { ArrowLeft, Reply, ReplyAll, Forward, Trash2, MailOpen, Code2 } from 'lucide-react'
 import { motion, type Variants } from 'framer-motion'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
@@ -12,6 +12,7 @@ export const MessageViewHeader = ({
 	onForward,
 	onDelete,
 	onMarkUnread,
+	onViewSource,
 	isDeleting = false,
 }: MessageViewHeaderProps) => {
 	const { t } = useTypedTranslation(['common', 'inbox'])
@@ -72,7 +73,7 @@ export const MessageViewHeader = ({
 			animate='show'
 			variants={container}>
 			{/* Top bar: nav + actions */}
-			<div className='flex items-center gap-2 px-3 py-2'>
+			<div className='group/toolbar flex items-center gap-2 px-3 py-2'>
 				{/* Back + prev/next navigation */}
 				<motion.div variants={item}>
 					<ActionBtn
@@ -118,6 +119,17 @@ export const MessageViewHeader = ({
 
 				{/* Spacer */}
 				<div className='flex-1' />
+
+				{/* View source - hidden until hover on toolbar */}
+				<motion.div
+					variants={item}
+					className='opacity-0 transition-opacity duration-150 group-hover/toolbar:opacity-100'>
+					<ActionBtn
+						icon={<Code2 className='h-4 w-4' />}
+						tooltip='View source (EML)'
+						onClick={onViewSource}
+					/>
+				</motion.div>
 
 				{/* Destructive */}
 				<motion.div variants={item}>

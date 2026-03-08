@@ -46,9 +46,7 @@ impl crate::imap::ImapManager {
                     target: "postail",
                     "[EmlCache] Disk cache MISS uid={} mailbox={} — fetching from IMAP", uid, mailbox
                 );
-                let bytes = self
-                    .fetch_raw_eml_from_imap(account_id, mailbox, uid)
-                    .await?;
+                let bytes = self.fetch_raw_eml_bytes(account_id, mailbox, uid).await?;
 
                 // Encrypt and save to disk
                 let security = self.security.lock().await;
@@ -137,7 +135,7 @@ impl crate::imap::ImapManager {
         Ok(msg)
     }
 
-    async fn fetch_raw_eml_from_imap(
+    pub async fn fetch_raw_eml_bytes(
         &self,
         account_id: &str,
         mailbox: &str,

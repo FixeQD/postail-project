@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { invokeWithErrorLog } from '@/lib/tauri'
@@ -11,6 +11,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog'
+
 import { Button } from '@/components/ui/button'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 
@@ -47,6 +48,9 @@ export const MessageView = ({
 	const [receiptDismissed, setReceiptDismissed] = useState(false)
 	const [isSendingReceipt, setIsSendingReceipt] = useState(false)
 	const [noReplyAction, setNoReplyAction] = useState<'reply' | 'replyAll' | null>(null)
+	const [rawEml, setRawEml] = useState<string | null>(null)
+	const [rawEmlLoading, setRawEmlLoading] = useState(false)
+	const [sourceOpen, setSourceOpen] = useState(false)
 
 	const { data, isLoading, error, refetch } = useQuery<MessageFull | null>({
 		queryKey: ['message', accountId, mailbox, uid],
@@ -209,7 +213,23 @@ export const MessageView = ({
 		setReceiptDismissed(false)
 		setIsSendingReceipt(false)
 		setAllowExternalResources(!blockExternalImages)
+		setRawEml(null)
+		setSourceOpen(false)
 	}, [uid, setLoading, blockExternalImages])
+
+	const handleViewSource = useCallback(async () => {
+		setSourceOpen(true)
+		if (rawEml !== null) return
+		setRawEmlLoading(true)
+		try {
+			const eml = await invoke<string>('fetch_raw_eml_text', { accountId, mailbox, uid })
+			setRawEml(eml)
+		} catch {
+			setRawEml('// Failed to load raw EML')
+		} finally {
+			setRawEmlLoading(false)
+		}
+	}, [accountId, mailbox, uid, rawEml])
 
 	// Keep TitleBar in sync with current message subject + navigation
 	useEffect(() => {
@@ -273,6 +293,7 @@ export const MessageView = ({
 				onForward={handleForward}
 				onDelete={handleDelete}
 				onMarkUnread={handleMarkUnread}
+				onViewSource={handleViewSource}
 			/>
 
 			<div ref={scrollContainerRef} className='message-view-body flex-1 overflow-y-auto'>
@@ -366,6 +387,46 @@ export const MessageView = ({
 					)}
 				</div>
 			</div>
+			{/* Raw EML source viewer */}
+			<Dialog open={sourceOpen} onOpenChange={setSourceOpen}>
+				<DialogContent className='flex max-h-[80vh] w-full max-w-3xl flex-col gap-0 p-0'>
+					<DialogHeader className='shrink-0 border-b border-[var(--border-faint)] px-5 py-4'>
+						<DialogTitle className='font-mono text-sm'>
+							{data?.header.subject || 'Raw EML'}
+						</DialogTitle>
+						<DialogDescription className='font-mono text-xs text-[var(--text-tertiary)]'>
+							{accountId} / {mailbox} / uid:{uid}
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className='min-h-0 flex-1 overflow-y-auto'>
+						<pre className='p-5 font-mono text-[11px] leading-relaxed break-all whitespace-pre-wrap text-[var(--text-secondary)]'>
+							{rawEmlLoading ? 'Loading…' : (rawEml ?? '')}
+						</pre>
+					</div>
+
+					<div className='flex shrink-0 items-center justify-end gap-2 border-t border-[var(--border-faint)] px-5 py-3'>
+						<button
+							type='button'
+							onClick={async () => {
+								if (!rawEml) return
+								await navigator.clipboard.writeText(rawEml)
+								toast.success('Copied to clipboard')
+							}}
+							disabled={!rawEml}
+							className='rounded-md px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] ring-1 ring-[var(--border-subtle)] transition-colors hover:bg-[var(--surface-hover)] disabled:opacity-40'>
+							Copy
+						</button>
+						<button
+							type='button'
+							onClick={() => setSourceOpen(false)}
+							className='rounded-md px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] ring-1 ring-[var(--border-subtle)] transition-colors hover:bg-[var(--surface-hover)]'>
+							Close
+						</button>
+					</div>
+				</DialogContent>
+			</Dialog>
+
 			{/* No-reply warning dialog */}
 			<Dialog
 				open={noReplyAction !== null}
