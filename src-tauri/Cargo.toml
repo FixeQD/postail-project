@@ -40,7 +40,7 @@ hkdf = "0.12"
 hex = "0.4"
 
 # Database
-rusqlite = { version = "0.38", features = ["bundled-sqlcipher", "unlock_notify"] }
+rusqlite = { version = "0.38", features = ["bundled-sqlcipher", "unlock_notify", "backup"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }
 walkdir = "2"

@@ -2,7 +2,7 @@ use crate::db::compose::outbox::cleanup_old_sent_messages;
 use crate::db::mail::message_bodies;
 use crate::error::DBError;
 use crate::security::SecurityManager;
-use rusqlite::{params, Connection, Result as SqlResult};
+use rusqlite::{backup::Backup, params, Connection, Result as SqlResult};
 use std::env;
 use std::fs;
 use std::io::Write;
@@ -177,18 +177,17 @@ pub fn export_backup(
         .unwrap_or_else(|| PathBuf::from("."))
         .join("postail_backup.zip");
 
-    let partial_db = temp_dir.join("postail.db");
+    // Full DB copy via SQLite online backup API
+    let db_path = temp_dir.join("postail.db");
     {
-        let path_str = partial_db.to_string_lossy();
-        conn.execute_batch(&format!(
-            "ATTACH DATABASE '{path_str}' AS backup;
-             CREATE TABLE backup.accounts AS SELECT * FROM accounts;
-             CREATE TABLE backup.mailboxes AS SELECT * FROM mailboxes;
-             CREATE TABLE backup.messages AS SELECT * FROM messages;
-             DETACH DATABASE backup;"
-        ))?;
+        let mut dest = Connection::open(&db_path)?;
+        let backup = Backup::new(conn, &mut dest).map_err(DBError::Sqlite)?;
+        backup
+            .run_to_completion(100, std::time::Duration::from_millis(0), None)
+            .map_err(DBError::Sqlite)?;
     }
 
+    // Copy encrypted credential blobs
     let creds_dir = temp_dir.join("creds");
     fs::create_dir_all(&creds_dir)?;
 
@@ -215,31 +214,19 @@ pub fn export_backup(
         .map_err(DBError::Io)?;
     }
 
+    // Pack everything into a zip
     let file = fs::File::create(&backup_path).map_err(DBError::Io)?;
     let mut zip = ZipWriter::new(file);
     let options: zip::write::FileOptions<()> =
         FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
-    for entry in fs::read_dir(&temp_dir).map_err(DBError::Io)? {
-        let entry = entry.map_err(DBError::Io)?;
-        let path = entry.path();
-        if path.is_file() && path != backup_path {
-            let name = path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .ok_or_else(|| DBError::Sqlite(rusqlite::Error::InvalidQuery))?;
-            zip.start_file(name, options).map_err(|e| {
-                DBError::Sqlite(rusqlite::Error::ToSqlConversionFailure(Box::new(e)))
-            })?;
-            let contents = fs::read(&path).map_err(DBError::Io)?;
-            zip.write_all(&contents).map_err(|e| {
-                DBError::Sqlite(rusqlite::Error::ToSqlConversionFailure(Box::new(e)))
-            })?;
-        }
-    }
+    zip.start_file("postail.db", options)
+        .map_err(|e| DBError::Sqlite(rusqlite::Error::ToSqlConversionFailure(Box::new(e))))?;
+    let db_bytes = fs::read(&db_path).map_err(DBError::Io)?;
+    zip.write_all(&db_bytes)
+        .map_err(|e| DBError::Sqlite(rusqlite::Error::ToSqlConversionFailure(Box::new(e))))?;
 
-    let creds_entries = fs::read_dir(&creds_dir).map_err(DBError::Io)?;
-    for entry in creds_entries {
+    for entry in fs::read_dir(&creds_dir).map_err(DBError::Io)? {
         let entry = entry.map_err(DBError::Io)?;
         let path = entry.path();
         if path.is_file() {
@@ -267,7 +254,7 @@ pub fn export_backup(
 }
 
 pub fn import_backup(
-    conn: &Connection,
+    conn: &mut Connection,
     security: &SecurityManager,
     backup_path: &PathBuf,
     passphrase: Option<String>,
@@ -284,32 +271,15 @@ pub fn import_backup(
         .extract(&temp_dir)
         .map_err(|e| DBError::Sqlite(rusqlite::Error::ToSqlConversionFailure(Box::new(e))))?;
 
+    // Restore full DB via SQLite online backup API (src → conn)
     let backup_db = temp_dir.join("postail.db");
-    let _backup_conn = Connection::open(&backup_db)?;
-
-    conn.execute("DROP TABLE IF EXISTS messages_fts", [])?;
-    conn.execute("DROP TABLE IF EXISTS message_bodies", [])?;
-    conn.execute("DROP TABLE IF EXISTS messages", [])?;
-    conn.execute("DROP TABLE IF EXISTS mailboxes", [])?;
-    conn.execute("DROP TABLE IF EXISTS accounts", [])?;
-
-    conn.execute(
-        "ATTACH DATABASE ? AS backup",
-        params![backup_db.to_string_lossy()],
-    )?;
-
-    conn.execute("CREATE TABLE accounts AS SELECT * FROM backup.accounts", [])?;
-    conn.execute(
-        "CREATE TABLE mailboxes AS SELECT * FROM backup.mailboxes",
-        [],
-    )?;
-    conn.execute("CREATE TABLE messages AS SELECT * FROM backup.messages", [])?;
-    conn.execute(
-        "CREATE TABLE message_bodies AS SELECT * FROM backup.message_bodies",
-        [],
-    )?;
-
-    conn.execute("DETACH DATABASE backup", [])?;
+    {
+        let src = Connection::open(&backup_db)?;
+        let backup = Backup::new_with_names(&src, "main", conn, "main").map_err(DBError::Sqlite)?;
+        backup
+            .run_to_completion(100, std::time::Duration::from_millis(0), None)
+            .map_err(DBError::Sqlite)?;
+    }
 
     if temp_dir.join("creds").exists() {
         let creds_dir = dirs::data_dir()
