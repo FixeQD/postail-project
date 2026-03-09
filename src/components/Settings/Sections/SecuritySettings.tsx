@@ -5,8 +5,55 @@ import { ToggleSetting } from '@/components/ui/toggle-setting'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useAsyncState } from '@/hooks/useAsyncState'
+import { useSettingsStore } from '@/stores/settingsStore'
+import { useThemeStore } from '@/stores/themeStore'
 import { invoke } from '@tauri-apps/api/core'
 import { toast } from '../../ui/custom/Toaster'
+
+const CLIPBOARD_DELAY_OPTIONS = [
+	{ value: 0, labelKey: 'disabled' },
+	{ value: 30, labelKey: '30' },
+	{ value: 60, labelKey: '60' },
+] as const
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+	return (
+		<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
+			{children}
+		</h2>
+	)
+}
+
+interface InlineSelectProps {
+	value: number
+	options: { value: number; label: string }[]
+	onChange: (v: number) => void
+	accentColor: string
+}
+
+function InlineSelect({ value, options, onChange, accentColor }: InlineSelectProps) {
+	return (
+		<div className='flex flex-wrap justify-end gap-1'>
+			{options.map((opt) => (
+				<button
+					key={opt.value}
+					type='button'
+					onClick={() => onChange(opt.value)}
+					className='rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150'
+					style={
+						value === opt.value
+							? { backgroundColor: accentColor, color: '#fff' }
+							: {
+									color: 'var(--text-secondary)',
+									boxShadow: 'inset 0 0 0 1px var(--border-subtle)',
+								}
+					}>
+					{opt.label}
+				</button>
+			))}
+		</div>
+	)
+}
 
 const TIMEOUT_OPTIONS = [
 	{ value: 0, label: 'disabled' },
@@ -154,6 +201,13 @@ export function SecuritySettings() {
 	const { t } = useSettingsTranslation()
 	const animationsEnabled = useAnimationsEnabled()
 	const { isLoading, run } = useAsyncState()
+	const { settings, setSetting } = useSettingsStore()
+	const accentColor = useThemeStore((s) => s.accentColor)
+
+	const clipboardOptions = CLIPBOARD_DELAY_OPTIONS.map((o) => ({
+		value: o.value,
+		label: t(`settings:security.data.clearClipboard.options.${o.labelKey}`),
+	}))
 
 	const [lockEnabled, setLockEnabled] = useState(false)
 	const [lockTimeout, setLockTimeout] = useState(DEFAULT_LOCK_TIMEOUT)
@@ -287,7 +341,7 @@ export function SecuritySettings() {
 	const toggleValue = lockEnabled || pinFormMode === 'setup'
 
 	return (
-		<div className='mx-auto flex h-full w-full max-w-3xl flex-col space-y-8 p-8'>
+		<div className='mx-auto flex w-full max-w-3xl flex-col space-y-8 p-8 pb-16'>
 			<motion.div
 				{...(animationsEnabled
 					? { initial: { opacity: 0, y: -20 }, animate: { opacity: 1, y: 0 } }
@@ -300,11 +354,9 @@ export function SecuritySettings() {
 				</p>
 			</motion.div>
 
-			<div className='space-y-6'>
+			<div className='space-y-8'>
 				<section>
-					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
-						{t('settings:security.session.title')}
-					</h2>
+					<SectionTitle>{t('settings:security.session.title')}</SectionTitle>
 					<div className='space-y-3'>
 						<ToggleSetting
 							icon={Timer}
@@ -411,24 +463,56 @@ export function SecuritySettings() {
 				</section>
 
 				<section>
-					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
-						{t('settings:security.data.title')}
-					</h2>
+					<SectionTitle>{t('settings:security.data.title')}</SectionTitle>
 					<div className='space-y-3'>
 						<ToggleSetting
 							icon={FileKey}
 							label={t('settings:security.data.encryptAttachments.label')}
 							description={t('settings:security.data.encryptAttachments.description')}
-							value={false}
-							onChange={() => {}}
+							value={settings['encrypt-attachments']}
+							onChange={(val) => setSetting('encrypt-attachments', val)}
 						/>
-						<ToggleSetting
-							icon={ClipboardX}
-							label={t('settings:security.data.clearClipboard.label')}
-							description={t('settings:security.data.clearClipboard.description')}
-							value={false}
-							onChange={() => {}}
-						/>
+						<div className='flex items-center justify-between rounded-2xl border border-[var(--border-faint)] bg-[var(--surface-panel)] p-4 transition-all duration-200 hover:border-[var(--border-subtle)] hover:bg-[var(--surface-hover)]'>
+							<div className='flex items-center gap-4'>
+								<div
+									className='flex h-10 w-10 items-center justify-center rounded-xl ring-1 transition-all duration-200'
+									style={
+										settings['clear-clipboard-delay'] > 0
+											? {
+													backgroundColor: `rgba(var(--accent-rgb), 0.08)`,
+													boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.2)`,
+												}
+											: {
+													backgroundColor: 'var(--surface-active)',
+													boxShadow:
+														'inset 0 0 0 1px var(--border-subtle)',
+												}
+									}>
+									<ClipboardX
+										className='h-[18px] w-[18px] transition-colors duration-200'
+										style={
+											settings['clear-clipboard-delay'] > 0
+												? { color: accentColor }
+												: { color: 'var(--text-secondary)' }
+										}
+									/>
+								</div>
+								<div>
+									<h3 className='text-sm font-semibold text-[var(--text-primary)]'>
+										{t('settings:security.data.clearClipboard.label')}
+									</h3>
+									<p className='max-w-[320px] text-xs leading-relaxed text-[var(--text-secondary)]'>
+										{t('settings:security.data.clearClipboard.description')}
+									</p>
+								</div>
+							</div>
+							<InlineSelect
+								value={settings['clear-clipboard-delay']}
+								options={clipboardOptions}
+								onChange={(v) => setSetting('clear-clipboard-delay', v)}
+								accentColor={accentColor}
+							/>
+						</div>
 					</div>
 				</section>
 			</div>

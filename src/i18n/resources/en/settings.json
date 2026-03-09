@@ -22,11 +22,52 @@
 				"description": "Zen mode: Hides unread message counts to reduce anxiety."
 			}
 		},
+		"reading": {
+			"title": "Reading",
+			"markAsRead": {
+				"label": "Mark as Read",
+				"description": "How long to wait before marking an open email as read.",
+				"options": {
+					"immediate": "Immediately",
+					"2s": "After 2 seconds",
+					"5s": "After 5 seconds",
+					"manual": "Manually only"
+				}
+			},
+			"threadView": {
+				"label": "Thread View",
+				"description": "Group replies into conversation threads."
+			},
+			"previewLines": {
+				"label": "Preview Lines",
+				"description": "Number of body lines shown in the message list.",
+				"options": {
+					"1": "1 line",
+					"2": "2 lines",
+					"3": "3 lines"
+				}
+			}
+		},
 		"behavior": {
 			"title": "Behavior",
 			"strategicDelay": {
 				"label": "Strategic Delay",
 				"description": "Adds a 10-second delay before sending emails, allowing you to \"Undo Send\"."
+			},
+			"confirmBeforeDelete": {
+				"label": "Confirm Before Delete",
+				"description": "Show a confirmation dialog before permanently deleting emails."
+			}
+		},
+		"startup": {
+			"title": "Startup",
+			"openOnStartup": {
+				"label": "Launch on Login",
+				"description": "Automatically start Postail when you log in to your system."
+			},
+			"minimizeToTray": {
+				"label": "Minimize to Tray",
+				"description": "Keep Postail running in the system tray when the window is closed."
 			}
 		},
 		"storage": {
@@ -74,6 +115,17 @@
 				"label": "Strip Attachment Metadata",
 				"description": "Remove EXIF and other metadata from images before sending."
 			}
+		},
+		"danger": {
+			"title": "Danger Zone",
+			"clearCache": {
+				"label": "Clear Local Cache",
+				"description": "Delete all cached message bodies and attachments. Mail will re-sync on next open.",
+				"button": "Clear Cache",
+				"confirm": "This will delete all locally cached data. Are you sure?",
+				"success": "Cache cleared successfully.",
+				"error": "Failed to clear cache."
+			}
 		}
 	},
 	"security": {
@@ -114,8 +166,13 @@
 				"description": "Store downloaded attachments encrypted on disk."
 			},
 			"clearClipboard": {
-				"label": "Clear Clipboard",
-				"description": "Auto-clear clipboard 30 seconds after copying sensitive data."
+				"label": "Auto-clear Clipboard",
+				"description": "Wipe clipboard content automatically after copying sensitive data.",
+				"options": {
+					"disabled": "Disabled",
+					"30": "After 30 seconds",
+					"60": "After 1 minute"
+				}
 			}
 		}
 	},
@@ -151,6 +208,27 @@
 			"animations": {
 				"label": "Animations",
 				"description": "Enable smooth transitions and motion effects."
+			}
+		},
+		"typography": {
+			"title": "Typography",
+			"fontSize": {
+				"label": "Interface Font Size",
+				"description": "Scale the text size across the app.",
+				"options": {
+					"small": "Small",
+					"medium": "Medium",
+					"large": "Large"
+				}
+			},
+			"messageFont": {
+				"label": "Message Font",
+				"description": "Font used when reading plain-text emails.",
+				"options": {
+					"system": "System Default",
+					"serif": "Serif",
+					"mono": "Monospace"
+				}
 			}
 		}
 	},
@@ -243,6 +321,16 @@
 			"readReceipts": {
 				"label": "Request Read Receipts",
 				"description": "Ask for confirmation when recipients read your emails."
+			},
+			"warnLargeAttachment": {
+				"label": "Warn on Large Attachments",
+				"description": "Show a warning before sending emails with large attachments.",
+				"options": {
+					"disabled": "Disabled",
+					"10": "Over 10 MB",
+					"25": "Over 25 MB",
+					"50": "Over 50 MB"
+				}
 			}
 		},
 		"drafts": {
@@ -257,6 +345,25 @@
 			"spellCheck": {
 				"label": "Spell Check",
 				"description": "Check spelling as you type."
+			},
+			"replyPosition": {
+				"label": "Reply Position",
+				"description": "Where to place your cursor when replying to an email.",
+				"options": {
+					"top": "Top (reply above quote)",
+					"bottom": "Bottom (reply below quote)"
+				}
+			}
+		},
+		"signature": {
+			"title": "Signature",
+			"enable": {
+				"label": "Email Signature",
+				"description": "Append a signature block to every outgoing email."
+			},
+			"content": {
+				"label": "Signature Content",
+				"placeholder": "-- \nYour Name"
 			}
 		}
 	},

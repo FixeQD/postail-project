@@ -1,10 +1,24 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Folder, Database, Coffee, Send, RotateCcw } from 'lucide-react'
+import {
+	Folder,
+	Database,
+	Coffee,
+	Send,
+	RotateCcw,
+	Trash2,
+	Power,
+	MonitorOff,
+	BookOpen,
+	AlignLeft,
+	Clock,
+	Layers,
+} from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
+import { useThemeStore } from '@/stores/themeStore'
 import { open } from '@tauri-apps/plugin-dialog'
 import { toast } from '../../ui/custom/Toaster'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
@@ -26,14 +40,56 @@ const SettingCard = ({ label, description, icon: Icon, children }: SettingCardPr
 	</div>
 )
 
+function SectionTitle({ children }: { children: React.ReactNode }) {
+	return (
+		<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
+			{children}
+		</h2>
+	)
+}
+
+interface InlineSelectProps {
+	value: string | number
+	options: { value: string | number; label: string }[]
+	onChange: (v: string | number) => void
+	accentColor: string
+}
+
+function InlineSelect({ value, options, onChange, accentColor }: InlineSelectProps) {
+	return (
+		<div className='flex flex-wrap justify-end gap-1'>
+			{options.map((opt) => (
+				<button
+					key={String(opt.value)}
+					type='button'
+					onClick={() => onChange(opt.value)}
+					className='rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150'
+					style={
+						value === opt.value
+							? { backgroundColor: accentColor, color: '#fff' }
+							: {
+									color: 'var(--text-secondary)',
+									boxShadow: 'inset 0 0 0 1px var(--border-subtle)',
+								}
+					}>
+					{opt.label}
+				</button>
+			))}
+		</div>
+	)
+}
+
 export function GeneralSettings() {
 	const { t } = useSettingsTranslation()
 	const animationsEnabled = useAnimationsEnabled()
 	const { settings, setSetting } = useSettingsStore()
+	const accentColor = useThemeStore((s) => s.accentColor)
+
 	const [isMigrationDialogOpen, setIsMigrationDialogOpen] = useState(false)
 	const [pendingPath, setPendingPath] = useState<string | null>(null)
 	const [defaultPath, setDefaultPath] = useState<string | null>(null)
 	const [isMigrating, setIsMigrating] = useState(false)
+	const [isClearCacheDialogOpen, setIsClearCacheDialogOpen] = useState(false)
 
 	useEffect(() => {
 		invoke<string>('get_default_data_dir').then(setDefaultPath)
@@ -75,10 +131,8 @@ export function GeneralSettings() {
 
 	const handleConfirmMigration = async () => {
 		if (!pendingPath) return
-
 		setIsMigrating(true)
 		setIsMigrationDialogOpen(false)
-
 		try {
 			toast.loading(t('settings:general.storage.migration.loading'), { id: 'migration' })
 			await invoke('migrate_data_path', { newPath: pendingPath })
@@ -91,8 +145,40 @@ export function GeneralSettings() {
 		}
 	}
 
+	const handleClearCache = async () => {
+		setIsClearCacheDialogOpen(false)
+		try {
+			await invoke('clear_cache')
+			toast.success(t('settings:privacy.danger.clearCache.success'))
+		} catch (error) {
+			toast.error(`${t('settings:privacy.danger.clearCache.error')}: ${error}`)
+		}
+	}
+
+	const markAsReadOptions = [
+		{ value: 0, label: t('settings:general.reading.markAsRead.options.immediate') },
+		{ value: 2, label: t('settings:general.reading.markAsRead.options.2s') },
+		{ value: 5, label: t('settings:general.reading.markAsRead.options.5s') },
+		{ value: -1, label: t('settings:general.reading.markAsRead.options.manual') },
+	]
+
+	const previewLineOptions = [
+		{ value: 1, label: t('settings:general.reading.previewLines.options.1') },
+		{ value: 2, label: t('settings:general.reading.previewLines.options.2') },
+		{ value: 3, label: t('settings:general.reading.previewLines.options.3') },
+	]
+
+	const fade = (delay = 0) =>
+		animationsEnabled
+			? {
+					initial: { opacity: 0, y: 14 },
+					animate: { opacity: 1, y: 0 },
+					transition: { delay, duration: 0.35 },
+				}
+			: {}
+
 	return (
-		<div className='mx-auto flex h-full w-full max-w-3xl flex-col space-y-8 p-8'>
+		<div className='mx-auto flex w-full max-w-3xl flex-col space-y-8 p-8 pb-16'>
 			<motion.div
 				{...(animationsEnabled
 					? { initial: { opacity: 0, y: -20 }, animate: { opacity: 1, y: 0 } }
@@ -105,41 +191,104 @@ export function GeneralSettings() {
 				</p>
 			</motion.div>
 
-			<div className='space-y-6'>
-				<section>
-					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
-						{t('settings:general.interface.title')}
-					</h2>
+			<div className='space-y-8'>
+				{/* Interface */}
+				<motion.section {...fade(0.05)}>
+					<SectionTitle>{t('settings:general.interface.title')}</SectionTitle>
 					<div className='space-y-3'>
 						<ToggleSetting
 							icon={Coffee}
 							label={t('settings:general.interface.zenMode.label')}
 							description={t('settings:general.interface.zenMode.description')}
 							value={settings['zen-mode']}
-							onChange={(val: boolean) => setSetting('zen-mode', val)}
+							onChange={(val) => setSetting('zen-mode', val)}
 						/>
 					</div>
-				</section>
+				</motion.section>
 
-				<section>
-					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
-						{t('settings:general.behavior.title')}
-					</h2>
+				{/* Reading */}
+				<motion.section {...fade(0.08)}>
+					<SectionTitle>{t('settings:general.reading.title')}</SectionTitle>
+					<div className='space-y-3'>
+						<ToggleSetting
+							icon={BookOpen}
+							label={t('settings:general.reading.threadView.label')}
+							description={t('settings:general.reading.threadView.description')}
+							value={settings['thread-view']}
+							onChange={(val) => setSetting('thread-view', val)}
+						/>
+						<SettingCard
+							icon={Clock}
+							label={t('settings:general.reading.markAsRead.label')}
+							description={t('settings:general.reading.markAsRead.description')}>
+							<InlineSelect
+								value={settings['mark-as-read-delay']}
+								options={markAsReadOptions}
+								onChange={(v) => setSetting('mark-as-read-delay', v as number)}
+								accentColor={accentColor}
+							/>
+						</SettingCard>
+						<SettingCard
+							icon={AlignLeft}
+							label={t('settings:general.reading.previewLines.label')}
+							description={t('settings:general.reading.previewLines.description')}>
+							<InlineSelect
+								value={settings['preview-lines']}
+								options={previewLineOptions}
+								onChange={(v) => setSetting('preview-lines', v as number)}
+								accentColor={accentColor}
+							/>
+						</SettingCard>
+					</div>
+				</motion.section>
+
+				{/* Behavior */}
+				<motion.section {...fade(0.11)}>
+					<SectionTitle>{t('settings:general.behavior.title')}</SectionTitle>
 					<div className='space-y-3'>
 						<ToggleSetting
 							icon={Send}
 							label={t('settings:general.behavior.strategicDelay.label')}
 							description={t('settings:general.behavior.strategicDelay.description')}
 							value={settings['undo-send-delay'] > 0}
-							onChange={(val: boolean) => setSetting('undo-send-delay', val ? 10 : 0)}
+							onChange={(val) => setSetting('undo-send-delay', val ? 10 : 0)}
+						/>
+						<ToggleSetting
+							icon={Trash2}
+							label={t('settings:general.behavior.confirmBeforeDelete.label')}
+							description={t(
+								'settings:general.behavior.confirmBeforeDelete.description'
+							)}
+							value={settings['confirm-before-delete']}
+							onChange={(val) => setSetting('confirm-before-delete', val)}
 						/>
 					</div>
-				</section>
+				</motion.section>
 
-				<section>
-					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
-						{t('settings:general.storage.title')}
-					</h2>
+				{/* Startup */}
+				<motion.section {...fade(0.14)}>
+					<SectionTitle>{t('settings:general.startup.title')}</SectionTitle>
+					<div className='space-y-3'>
+						<ToggleSetting
+							icon={Power}
+							label={t('settings:general.startup.openOnStartup.label')}
+							description={t('settings:general.startup.openOnStartup.description')}
+							value={settings['open-on-startup']}
+							onChange={(val) => setSetting('open-on-startup', val)}
+						/>
+						<ToggleSetting
+							icon={MonitorOff}
+							label={t('settings:general.startup.minimizeToTray.label')}
+							description={t('settings:general.startup.minimizeToTray.description')}
+							value={settings['minimize-to-tray']}
+							onChange={(val) => setSetting('minimize-to-tray', val)}
+						/>
+					</div>
+				</motion.section>
+
+				{/* Storage */}
+				<motion.section {...fade(0.17)}>
+					<SectionTitle>{t('settings:general.storage.title')}</SectionTitle>
 					<div className='space-y-3'>
 						<SettingCard
 							icon={Database}
@@ -169,8 +318,20 @@ export function GeneralSettings() {
 								</div>
 							</div>
 						</SettingCard>
+
+						<SettingCard
+							icon={Layers}
+							label={t('settings:privacy.danger.clearCache.label')}
+							description={t('settings:privacy.danger.clearCache.description')}>
+							<button
+								type='button'
+								onClick={() => setIsClearCacheDialogOpen(true)}
+								className='rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-semibold text-red-400 transition-all hover:border-red-500/50 hover:bg-red-500/20'>
+								{t('settings:privacy.danger.clearCache.button')}
+							</button>
+						</SettingCard>
 					</div>
-				</section>
+				</motion.section>
 			</div>
 
 			<ConfirmationDialog
@@ -187,6 +348,17 @@ export function GeneralSettings() {
 					<span className='font-mono font-bold break-all'>{pendingPath}</span>
 				</div>
 			</ConfirmationDialog>
+
+			<ConfirmationDialog
+				open={isClearCacheDialogOpen}
+				onOpenChange={setIsClearCacheDialogOpen}
+				title={t('settings:privacy.danger.clearCache.label')}
+				description={t('settings:privacy.danger.clearCache.confirm')}
+				cancelLabel={t('common:actions.cancel')}
+				confirmLabel={t('settings:privacy.danger.clearCache.button')}
+				onConfirm={handleClearCache}
+				confirmClassName='w-full border-0 font-bold shadow-lg bg-red-600 text-white hover:bg-red-500'
+			/>
 		</div>
 	)
 }

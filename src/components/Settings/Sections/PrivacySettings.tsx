@@ -5,13 +5,30 @@ import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { ToggleSetting } from '@/components/ui/toggle-setting'
 
+function SectionTitle({ children }: { children: React.ReactNode }) {
+	return (
+		<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
+			{children}
+		</h2>
+	)
+}
+
 export function PrivacySettings() {
 	const { t } = useSettingsTranslation()
 	const { settings, setSetting } = useSettingsStore()
 	const animationsEnabled = useAnimationsEnabled()
 
+	const fade = (delay = 0) =>
+		animationsEnabled
+			? {
+					initial: { opacity: 0, y: 14 },
+					animate: { opacity: 1, y: 0 },
+					transition: { delay, duration: 0.35 },
+				}
+			: {}
+
 	return (
-		<div className='mx-auto flex h-full w-full max-w-3xl flex-col space-y-8 p-8'>
+		<div className='mx-auto flex w-full max-w-3xl flex-col space-y-8 p-8 pb-16'>
 			<motion.div
 				{...(animationsEnabled
 					? { initial: { opacity: 0, y: -20 }, animate: { opacity: 1, y: 0 } }
@@ -24,18 +41,16 @@ export function PrivacySettings() {
 				</p>
 			</motion.div>
 
-			<div className='space-y-6'>
-				<section>
-					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
-						{t('settings:privacy.protection.title')}
-					</h2>
+			<div className='space-y-8'>
+				<motion.section {...fade(0.05)}>
+					<SectionTitle>{t('settings:privacy.protection.title')}</SectionTitle>
 					<div className='space-y-3'>
 						<ToggleSetting
 							icon={ShieldAlert}
 							label={t('settings:privacy.protection.shieldImages.label')}
 							description={t('settings:privacy.protection.shieldImages.description')}
 							value={settings['block-external-images']}
-							onChange={(val: boolean) => setSetting('block-external-images', val)}
+							onChange={(val) => setSetting('block-external-images', val)}
 						/>
 						<ToggleSetting
 							icon={MailX}
@@ -44,7 +59,7 @@ export function PrivacySettings() {
 								'settings:privacy.protection.blockReadReceipts.description'
 							)}
 							value={settings['block-read-receipts']}
-							onChange={(val: boolean) => setSetting('block-read-receipts', val)}
+							onChange={(val) => setSetting('block-read-receipts', val)}
 						/>
 						<ToggleSetting
 							icon={Link2Off}
@@ -52,26 +67,24 @@ export function PrivacySettings() {
 							description={t(
 								'settings:privacy.protection.disableLinkPreview.description'
 							)}
-							value={false}
-							onChange={() => {}}
+							value={settings['disable-link-preview']}
+							onChange={(val) => setSetting('disable-link-preview', val)}
 						/>
 					</div>
-				</section>
+				</motion.section>
 
-				<section>
-					<h2 className='mb-4 ml-2 text-xs font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
-						{t('settings:privacy.metadata.title')}
-					</h2>
+				<motion.section {...fade(0.1)}>
+					<SectionTitle>{t('settings:privacy.metadata.title')}</SectionTitle>
 					<div className='space-y-3'>
 						<ToggleSetting
 							icon={FileX2}
 							label={t('settings:privacy.metadata.stripMetadata.label')}
 							description={t('settings:privacy.metadata.stripMetadata.description')}
-							value={false}
-							onChange={() => {}}
+							value={settings['strip-attachment-metadata']}
+							onChange={(val) => setSetting('strip-attachment-metadata', val)}
 						/>
 					</div>
-				</section>
+				</motion.section>
 			</div>
 		</div>
 	)

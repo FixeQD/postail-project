@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Minimize2, UserCircle, Sparkles, Pipette, Check, Moon, Sun } from 'lucide-react'
 import { ColorPicker } from '@/components/ui/custom/ColorPicker'
@@ -15,6 +16,7 @@ import {
 
 export function AppearanceSettings() {
 	const { t } = useSettingsTranslation()
+	const { settings, setSetting } = useSettingsStore()
 	const {
 		accentColor,
 		setAccentColor,
@@ -86,7 +88,7 @@ export function AppearanceSettings() {
 	const tileDotsFaintClass = darkMode ? 'bg-white/5' : 'bg-black/5'
 
 	return (
-		<div className='mx-auto flex h-full w-full max-w-3xl flex-col space-y-8 overflow-y-auto p-8'>
+		<div className='mx-auto flex w-full max-w-3xl flex-col space-y-8 p-8 pb-16'>
 			<motion.div
 				{...(animationsEnabled
 					? { initial: { opacity: 0, y: -20 }, animate: { opacity: 1, y: 0 } }
@@ -389,15 +391,15 @@ export function AppearanceSettings() {
 							icon={Minimize2}
 							label={t('settings:appearance.layout.compactMode.label')}
 							description={t('settings:appearance.layout.compactMode.description')}
-							value={false}
-							onChange={() => {}}
+							value={settings['compact-mode']}
+							onChange={(val) => setSetting('compact-mode', val)}
 						/>
 						<ToggleSetting
 							icon={UserCircle}
 							label={t('settings:appearance.layout.showAvatars.label')}
 							description={t('settings:appearance.layout.showAvatars.description')}
-							value={true}
-							onChange={() => {}}
+							value={settings['show-avatars']}
+							onChange={(val) => setSetting('show-avatars', val)}
 						/>
 						<ToggleSetting
 							icon={Sparkles}

@@ -106,7 +106,7 @@ export function NotificationsSettings() {
 			: {}
 
 	return (
-		<div className='mx-auto flex h-full w-full max-w-3xl flex-col space-y-8 overflow-y-auto p-8'>
+		<div className='mx-auto flex w-full max-w-3xl flex-col space-y-8 p-8 pb-16'>
 			{/* Header */}
 			<motion.div
 				{...(anim
