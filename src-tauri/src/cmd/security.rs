@@ -735,13 +735,29 @@ pub fn is_app_locked() -> bool {
 
 #[command]
 pub async fn unlock_app(password: String) -> Result<(), String> {
-    let security = SECURITY.lock().await;
-    let db_password = if security.is_initialized() {
-        Some(hex::encode(security.get_master_key_raw()))
+    if crate::security::lock::is_using_encryption_password() {
+        // Re-derive the master key from the provided passphrase and compare against the one currently held in memory
+        let storage_path = crate::utils::config::get_data_dir().join("security");
+        let store =
+            crate::security::stores::argon2::Argon2Store::new(storage_path, password.clone());
+
+        use crate::security::stores::SecretStore;
+        let retrieved = store
+            .retrieve()
+            .map_err(|_| "Invalid password".to_string())?;
+
+        let security = SECURITY.lock().await;
+        let current_key = security.get_master_key_raw();
+        if retrieved.as_bytes() != current_key.as_slice() {
+            return Err("Invalid password".to_string());
+        }
+        drop(security);
+
+        crate::security::lock::force_unlock();
+        Ok(())
     } else {
-        None
-    };
-    unlock(&password, db_password.as_deref())
+        unlock(&password)
+    }
 }
 
 #[command]
@@ -755,8 +771,8 @@ pub fn get_auto_lock_timeout() -> u32 {
 }
 
 #[command]
-pub async fn set_auto_lock_pin(pin: String) {
-    set_pin(&pin).await;
+pub async fn set_auto_lock_pin(pin: String) -> Result<(), String> {
+    set_pin(&pin).await
 }
 
 #[command]

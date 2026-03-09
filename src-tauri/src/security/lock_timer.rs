@@ -7,13 +7,17 @@ static TIMER_RUNNING: AtomicBool = AtomicBool::new(false);
 
 pub async fn start_lock_timer(app_handle: AppHandle) {
     if TIMER_RUNNING.swap(true, Ordering::SeqCst) {
-        return; // Timer already running
+        return; // already running
     }
 
-    let mut interval = interval(Duration::from_secs(10)); // Check every 10 seconds
+    let mut interval = interval(Duration::from_secs(10));
 
     loop {
         interval.tick().await;
+
+        if !TIMER_RUNNING.load(Ordering::SeqCst) {
+            break;
+        }
 
         if should_lock() {
             lock();

@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { Timer, FileKey, ClipboardX, ChevronDown } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Timer, FileKey, ClipboardX, ChevronDown, Check } from 'lucide-react'
 import { ToggleSetting } from '@/components/ui/toggle-setting'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
+import { useAsyncState } from '@/hooks/useAsyncState'
 import { invoke } from '@tauri-apps/api/core'
 import { toast } from '../../ui/custom/Toaster'
 
@@ -17,130 +18,273 @@ const TIMEOUT_OPTIONS = [
 	{ value: 60, label: '60min' },
 ]
 
+const DEFAULT_LOCK_TIMEOUT = 5
+
+const INPUT_CLASS =
+	'w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-hover)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--accent-color)] focus:ring-1 focus:ring-[var(--accent-color)]'
+
+type PinFormMode = 'setup' | 'change' | null
+
+interface PinFormProps {
+	mode: 'setup' | 'change'
+	usesPassphrase: boolean
+	isLoading: boolean
+	onSubmit: (pin: string | null, useEncryption: boolean) => Promise<void>
+	onCancel: () => void
+	t: (key: string) => string
+}
+
+function PinForm({ mode, usesPassphrase, isLoading, onSubmit, onCancel, t }: PinFormProps) {
+	const [pin, setPin] = useState('')
+	const [confirmPin, setConfirmPin] = useState('')
+	const [useEncryption, setUseEncryption] = useState(false)
+	const isSetup = mode === 'setup'
+
+	const handleSubmit = async () => {
+		if (useEncryption) {
+			await onSubmit(null, true)
+			return
+		}
+		if (pin.length < 4) {
+			toast.error('PIN must be at least 4 characters')
+			return
+		}
+		if (pin !== confirmPin) {
+			toast.error('PINs do not match')
+			return
+		}
+		await onSubmit(pin, false)
+	}
+
+	const title = isSetup ? t('settings:security.session.autoLock.setupPin.title') : 'Change PIN'
+
+	const description = isSetup
+		? t('settings:security.session.autoLock.setupPin.description')
+		: usesPassphrase
+			? 'Set a new PIN or switch to your encryption password'
+			: 'Set a new PIN for the lock screen'
+
+	return (
+		<motion.div
+			initial={{ opacity: 0, height: 0 }}
+			animate={{ opacity: 1, height: 'auto' }}
+			exit={{ opacity: 0, height: 0 }}
+			transition={{ duration: 0.2, ease: 'easeOut' }}
+			className='mt-4 ml-11 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-4'>
+			<h3 className='mb-1 text-sm font-semibold text-[var(--text-primary)]'>{title}</h3>
+			<p className='mb-4 text-xs leading-relaxed text-[var(--text-secondary)]'>
+				{description}
+			</p>
+
+			<div className='space-y-3'>
+				{!useEncryption && (
+					<>
+						<input
+							type='password'
+							value={pin}
+							onChange={(e) => setPin(e.target.value)}
+							placeholder={
+								isSetup
+									? t(
+											'settings:security.session.autoLock.setupPin.pinPlaceholder'
+										)
+									: t(
+											'settings:security.session.autoLock.setupPin.newPinPlaceholder'
+										)
+							}
+							className={INPUT_CLASS}
+						/>
+						<input
+							type='password'
+							value={confirmPin}
+							onChange={(e) => setConfirmPin(e.target.value)}
+							onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleSubmit()}
+							placeholder={
+								isSetup
+									? t(
+											'settings:security.session.autoLock.setupPin.confirmPlaceholder'
+										)
+									: t(
+											'settings:security.session.autoLock.setupPin.confirmPinPlaceholder'
+										)
+							}
+							className={INPUT_CLASS}
+						/>
+					</>
+				)}
+
+				{usesPassphrase && (
+					<label className='flex cursor-pointer items-center gap-2.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]'>
+						<input
+							type='checkbox'
+							checked={useEncryption}
+							onChange={(e) => setUseEncryption(e.target.checked)}
+							className='rounded accent-[var(--accent-color)]'
+						/>
+						{t('settings:security.session.autoLock.setupPin.usePassword')}
+					</label>
+				)}
+
+				<div className='flex gap-2 pt-1'>
+					<button
+						type='button'
+						disabled={isLoading}
+						onClick={handleSubmit}
+						className='flex-1 rounded-lg py-2 text-sm font-medium transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
+						style={{
+							background: `linear-gradient(135deg, var(--accent-color), var(--accent-dark))`,
+							color: 'var(--accent-text)',
+						}}>
+						{isLoading ? '...' : isSetup ? 'Enable' : 'Save'}
+					</button>
+					<button
+						type='button'
+						disabled={isLoading}
+						onClick={onCancel}
+						className='flex-1 rounded-lg border border-[var(--border-subtle)] py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50'>
+						Cancel
+					</button>
+				</div>
+			</div>
+		</motion.div>
+	)
+}
+
 export function SecuritySettings() {
 	const { t } = useSettingsTranslation()
 	const animationsEnabled = useAnimationsEnabled()
-	const [autoLockEnabled, setAutoLockEnabled] = useState(false)
-	const [timeout, setTimeout] = useState(5)
+	const { isLoading, run } = useAsyncState()
+
+	const [lockEnabled, setLockEnabled] = useState(false)
+	const [lockTimeout, setLockTimeout] = useState(DEFAULT_LOCK_TIMEOUT)
+	const [lockConfigured, setLockConfigured] = useState(false)
+	const [usesPassphrase, setUsesPassphrase] = useState(false)
+	const [pinFormMode, setPinFormMode] = useState<PinFormMode>(null)
 	const [showTimeoutDropdown, setShowTimeoutDropdown] = useState(false)
-	const [showPinSetup, setShowPinSetup] = useState(false)
-	const [showChangePin, setShowChangePin] = useState(false)
-	const [pin, setPin] = useState('')
-	const [confirmPin, setConfirmPin] = useState('')
-	const [useEncryptionPassword, setUseEncryptionPassword] = useState(false)
-	const [usesPassphraseMethod, setUsesPassphraseMethod] = useState(false)
-	const [isLockConfigured, setIsLockConfigured] = useState(false)
 
 	useEffect(() => {
-		const loadSettings = async () => {
-			const currentTimeout = await invoke<number>('get_auto_lock_timeout')
-			const useEncryption = await invoke<boolean>('is_lock_using_encryption_password')
-			const securityMethod = await invoke<string | null>('get_security_method')
-			const lockConfigured = await invoke<boolean>('is_lock_configured')
-			setTimeout(currentTimeout)
-			setUseEncryptionPassword(useEncryption)
-			setAutoLockEnabled(currentTimeout > 0 && lockConfigured)
-			setUsesPassphraseMethod(securityMethod === 'argon2')
-			setIsLockConfigured(lockConfigured)
+		const load = async () => {
+			try {
+				const [currentTimeout, securityMethod, configured] = await Promise.all([
+					invoke<number>('get_auto_lock_timeout'),
+					invoke<string | null>('get_security_method'),
+					invoke<boolean>('is_lock_configured'),
+				])
+				setLockTimeout(currentTimeout)
+				setLockConfigured(configured)
+				setLockEnabled(currentTimeout > 0 && configured)
+				setUsesPassphrase(securityMethod === 'argon2')
+			} catch (err) {
+				console.error('Failed to load security settings:', err)
+				toast.error('Failed to load security settings')
+			}
 		}
-		loadSettings()
+		load()
 	}, [])
 
-	const handleAutoLockToggle = async (enabled: boolean) => {
-		if (!enabled) {
-			// Disable auto-lock
-			await invoke('set_auto_lock_timeout', { minutes: 0 })
-			setAutoLockEnabled(false)
-			toast.success('Auto-lock disabled')
-			return
-		}
+	const handleAutoLockToggle = useCallback(
+		async (enabled: boolean) => {
+			if (!enabled) {
+				// Cancel pending setup without touching backend
+				if (pinFormMode === 'setup') {
+					setPinFormMode(null)
+					return
+				}
+				try {
+					await run(async () => {
+						await invoke('set_auto_lock_timeout', { minutes: 0 })
+						setLockTimeout(0)
+						setLockEnabled(false)
+					})
+					toast.success('Auto-lock disabled')
+				} catch (err) {
+					console.error('Failed to disable auto-lock:', err)
+					toast.error('Failed to disable auto-lock')
+				}
+				return
+			}
 
-		if (usesPassphraseMethod) {
-			// For argon2, enable immediately without PIN
-			await invoke('use_encryption_password_for_lock')
-			await invoke('set_auto_lock_timeout', { minutes: 5 })
-			setTimeout(5)
-			setAutoLockEnabled(true)
-			setIsLockConfigured(true)
-			toast.success('Auto-lock enabled with encryption password')
-		} else {
-			// For keyring/TPM, show PIN setup
-			setAutoLockEnabled(true)
-			setShowPinSetup(true)
-		}
-	}
+			// Passphrase method can enable immediately - no PIN needed
+			if (usesPassphrase) {
+				try {
+					await run(async () => {
+						await invoke('use_encryption_password_for_lock')
+						await invoke('set_auto_lock_timeout', { minutes: DEFAULT_LOCK_TIMEOUT })
+						setLockTimeout(DEFAULT_LOCK_TIMEOUT)
+						setLockEnabled(true)
+						setLockConfigured(true)
+					})
+					toast.success('Auto-lock enabled')
+				} catch (err) {
+					console.error('Failed to enable auto-lock:', err)
+					toast.error('Failed to enable auto-lock')
+				}
+				return
+			}
 
-	const handleTimeoutChange = async (minutes: number) => {
-		setTimeout(minutes)
-		await invoke('set_auto_lock_timeout', { minutes })
-		setShowTimeoutDropdown(false)
-		if (minutes === 0) {
-			setAutoLockEnabled(false)
-			setIsLockConfigured(false)
-			toast.success('Auto-lock disabled')
-		}
-	}
+			// Keyring/TPM - need a PIN before enabling
+			setPinFormMode('setup')
+		},
+		[pinFormMode, run, usesPassphrase]
+	)
 
-	const handlePinSetup = async () => {
-		if (useEncryptionPassword) {
-			await invoke('use_encryption_password_for_lock')
-			await invoke('set_auto_lock_timeout', { minutes: 5 })
-			setShowPinSetup(false)
-			setAutoLockEnabled(true)
-			setIsLockConfigured(true)
-			setTimeout(5)
-			toast.success('Auto-lock enabled with encryption password')
-			return
-		}
+	const handleTimeoutChange = useCallback(
+		async (minutes: number) => {
+			setShowTimeoutDropdown(false)
+			try {
+				await run(async () => {
+					await invoke('set_auto_lock_timeout', { minutes })
+					setLockTimeout(minutes)
+					if (minutes === 0) setLockEnabled(false)
+				})
+				if (minutes === 0) toast.success('Auto-lock disabled')
+			} catch (err) {
+				console.error('Failed to update timeout:', err)
+				toast.error('Failed to update timeout')
+			}
+		},
+		[run]
+	)
 
-		if (pin.length < 4) {
-			toast.error('PIN must be at least 4 characters')
-			return
-		}
+	const handlePinSubmit = useCallback(
+		async (pin: string | null, useEncryption: boolean) => {
+			try {
+				await run(async () => {
+					if (useEncryption) {
+						await invoke('use_encryption_password_for_lock')
+					} else {
+						await invoke('set_auto_lock_pin', { pin })
+					}
 
-		if (pin !== confirmPin) {
-			toast.error('PINs do not match')
-			return
-		}
+					if (pinFormMode === 'setup') {
+						await invoke('set_auto_lock_timeout', { minutes: DEFAULT_LOCK_TIMEOUT })
+						setLockTimeout(DEFAULT_LOCK_TIMEOUT)
+						setLockEnabled(true)
+					}
 
-		await invoke('set_auto_lock_pin', { pin })
-		await invoke('set_auto_lock_timeout', { minutes: 5 })
-		setShowPinSetup(false)
-		setAutoLockEnabled(true)
-		setIsLockConfigured(true)
-		setPin('')
-		setConfirmPin('')
-		setTimeout(5)
-		toast.success('Auto-lock enabled')
-	}
+					setLockConfigured(true)
+					setPinFormMode(null)
+				})
+				toast.success(pinFormMode === 'setup' ? 'Auto-lock enabled' : 'PIN changed')
+			} catch (err) {
+				console.error('Failed to configure lock:', err)
+				toast.error('Failed to configure lock')
+			}
+		},
+		[pinFormMode, run]
+	)
 
-	const handleChangePin = async () => {
-		if (useEncryptionPassword) {
-			await invoke('use_encryption_password_for_lock')
-			setShowChangePin(false)
-			setUseEncryptionPassword(true)
-			setIsLockConfigured(true)
-			toast.success('Changed to use encryption password')
-			return
-		}
+	const handlePinCancel = useCallback(() => {
+		setPinFormMode(null)
+	}, [])
 
-		if (pin.length < 4) {
-			toast.error('PIN must be at least 4 characters')
-			return
-		}
+	const currentTimeoutOption = TIMEOUT_OPTIONS.find((o) => o.value === lockTimeout)
+	const timeoutDisplayText = currentTimeoutOption
+		? t(`settings:security.session.autoLock.timeout.options.${currentTimeoutOption.label}`)
+		: `${lockTimeout} min`
 
-		if (pin !== confirmPin) {
-			toast.error('PINs do not match')
-			return
-		}
-
-		await invoke('set_auto_lock_pin', { pin })
-		setShowChangePin(false)
-		setIsLockConfigured(true)
-		setPin('')
-		setConfirmPin('')
-		toast.success('PIN changed successfully')
-	}
+	// Toggle appears ON either when lock is active or while setup form is open
+	const toggleValue = lockEnabled || pinFormMode === 'setup'
 
 	return (
 		<div className='mx-auto flex h-full w-full max-w-3xl flex-col space-y-8 p-8'>
@@ -166,231 +310,103 @@ export function SecuritySettings() {
 							icon={Timer}
 							label={t('settings:security.session.autoLock.label')}
 							description={t('settings:security.session.autoLock.description')}
-							value={autoLockEnabled}
+							value={toggleValue}
 							onChange={handleAutoLockToggle}
+							disabled={isLoading}
 						/>
 
-						{autoLockEnabled && !isLockConfigured && !usesPassphraseMethod && (
-							<motion.div
-								initial={{ opacity: 0, height: 0 }}
-								animate={{ opacity: 1, height: 'auto' }}
-								className='mt-2 ml-11 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3'>
-								<p className='text-sm text-amber-200'>
-									Auto-lock requires a PIN to be set. Please configure your PIN
-									below.
-								</p>
-							</motion.div>
-						)}
-
-						{autoLockEnabled && isLockConfigured && !showPinSetup && !showChangePin && (
-							<motion.div
-								initial={{ opacity: 0, height: 0 }}
-								animate={{ opacity: 1, height: 'auto' }}
-								className='mt-2 ml-11 flex flex-wrap items-center gap-2'>
-								<div className='relative'>
-									<button
-										type='button'
-										onClick={() => setShowTimeoutDropdown(!showTimeoutDropdown)}
-										className='flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-4 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)]'>
-										<span>
-											{t('settings:security.session.autoLock.timeout.label')}:{' '}
-											{timeout === 0
-												? 'Disabled'
-												: TIMEOUT_OPTIONS.find((o) => o.value === timeout)
-													? t(
-															`settings:security.session.autoLock.timeout.options.${TIMEOUT_OPTIONS.find((o) => o.value === timeout)?.label}`
-														)
-													: `${timeout} minutes`}
-										</span>
-										<ChevronDown className='h-4 w-4' />
-									</button>
-
-									{showTimeoutDropdown && (
-										<motion.div
-											initial={{ opacity: 0, y: -10 }}
-											animate={{ opacity: 1, y: 0 }}
-											className='absolute top-full z-10 mt-1 w-48 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-glass)] py-1 shadow-xl'>
-											{TIMEOUT_OPTIONS.map((option) => (
-												<button
-													type='button'
-													key={option.value}
-													onClick={() =>
-														handleTimeoutChange(option.value)
-													}
-													className={`w-full px-4 py-2 text-left text-sm transition-colors hover:bg-[var(--surface-hover)] ${
-														timeout === option.value
-															? 'text-[var(--text-primary)]'
-															: 'text-[var(--text-secondary)]'
-													}`}>
-													{t(
-														`settings:security.session.autoLock.timeout.options.${option.label}`
-													)}
-												</button>
-											))}
-										</motion.div>
-									)}
-								</div>
-								{!usesPassphraseMethod && (
-									<button
-										type='button'
-										onClick={() => {
-											setShowChangePin(true)
-											setPin('')
-											setConfirmPin('')
-										}}
-										className='flex h-9 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-4 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
-										Change PIN
-									</button>
-								)}
-							</motion.div>
-						)}
-
-						{showPinSetup && (
-							<motion.div
-								initial={{ opacity: 0, height: 0 }}
-								animate={{ opacity: 1, height: 'auto' }}
-								className='mt-4 ml-11 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-4'>
-								<h3 className='mb-2 text-sm font-medium text-[var(--text-primary)]'>
-									{t('settings:security.session.autoLock.setupPin.title')}
-								</h3>
-								<p className='mb-4 text-xs text-[var(--text-secondary)]'>
-									{t('settings:security.session.autoLock.setupPin.description')}
-								</p>
-
-								<div className='space-y-3'>
-									{!useEncryptionPassword && (
-										<>
-											<input
-												type='password'
-												value={pin}
-												onChange={(e) => setPin(e.target.value)}
-												placeholder={t(
-													'settings:security.session.autoLock.setupPin.pinPlaceholder'
+						<AnimatePresence mode='wait'>
+							{lockEnabled && lockConfigured && pinFormMode === null && (
+								<motion.div
+									key='timeout-controls'
+									initial={{ opacity: 0, height: 0 }}
+									animate={{ opacity: 1, height: 'auto' }}
+									exit={{ opacity: 0, height: 0 }}
+									transition={{ duration: 0.2, ease: 'easeOut' }}
+									className='ml-11 flex flex-wrap items-center gap-2'>
+									<div className='relative'>
+										{showTimeoutDropdown && (
+											<div
+												className='fixed inset-0 z-[9]'
+												onClick={() => setShowTimeoutDropdown(false)}
+											/>
+										)}
+										<button
+											type='button'
+											onClick={() => setShowTimeoutDropdown((v) => !v)}
+											className='relative z-10 flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-4 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)]'>
+											<span>
+												{t(
+													'settings:security.session.autoLock.timeout.label'
 												)}
-												className='w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-hover)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-subtle)] focus:ring-1 focus:ring-[var(--accent-color)]'
+												: {timeoutDisplayText}
+											</span>
+											<ChevronDown
+												className={`h-4 w-4 transition-transform duration-200 ${
+													showTimeoutDropdown ? 'rotate-180' : ''
+												}`}
 											/>
-											<input
-												type='password'
-												value={confirmPin}
-												onChange={(e) => setConfirmPin(e.target.value)}
-												placeholder={t(
-													'settings:security.session.autoLock.setupPin.confirmPlaceholder'
-												)}
-												className='w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-hover)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-subtle)] focus:ring-1 focus:ring-[var(--accent-color)]'
-											/>
-										</>
-									)}
+										</button>
 
-									{usesPassphraseMethod && (
-										<label className='flex items-center gap-2 text-sm text-[var(--text-primary)]'>
-											<input
-												type='checkbox'
-												checked={useEncryptionPassword}
-												onChange={(e) =>
-													setUseEncryptionPassword(e.target.checked)
-												}
-												className='rounded border-slate-600'
-											/>
-											{t(
-												'settings:security.session.autoLock.setupPin.usePassword'
+										<AnimatePresence>
+											{showTimeoutDropdown && (
+												<motion.div
+													initial={{ opacity: 0, y: -6 }}
+													animate={{ opacity: 1, y: 0 }}
+													exit={{ opacity: 0, y: -6 }}
+													transition={{ duration: 0.15 }}
+													className='absolute top-full left-0 z-20 mt-1 w-52 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-glass)] py-1 shadow-xl'>
+													{TIMEOUT_OPTIONS.map((option) => (
+														<button
+															type='button'
+															key={option.value}
+															onClick={() =>
+																handleTimeoutChange(option.value)
+															}
+															className='flex w-full items-center justify-between px-4 py-2 text-left text-sm transition-colors hover:bg-[var(--surface-hover)]'>
+															<span
+																className={
+																	lockTimeout === option.value
+																		? 'text-[var(--text-primary)]'
+																		: 'text-[var(--text-secondary)]'
+																}>
+																{t(
+																	`settings:security.session.autoLock.timeout.options.${option.label}`
+																)}
+															</span>
+															{lockTimeout === option.value && (
+																<Check className='h-3.5 w-3.5 text-[var(--accent-color)]' />
+															)}
+														</button>
+													))}
+												</motion.div>
 											)}
-										</label>
-									)}
-
-									<div className='flex gap-2 pt-2'>
-										<button
-											type='button'
-											onClick={handlePinSetup}
-											className='flex-1 rounded-lg bg-[var(--surface-active)] py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)]'>
-											Enable
-										</button>
-										<button
-											type='button'
-											onClick={() => {
-												setShowPinSetup(false)
-												setAutoLockEnabled(false)
-											}}
-											className='flex-1 rounded-lg border border-[var(--border-subtle)] py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)]'>
-											Cancel
-										</button>
+										</AnimatePresence>
 									</div>
-								</div>
-							</motion.div>
-						)}
 
-						{showChangePin && (
-							<motion.div
-								initial={{ opacity: 0, height: 0 }}
-								animate={{ opacity: 1, height: 'auto' }}
-								className='mt-4 ml-11 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-4'>
-								<h3 className='mb-2 text-sm font-medium text-[var(--text-primary)]'>
-									Change PIN
-								</h3>
-								<p className='mb-4 text-xs text-[var(--text-secondary)]'>
-									{usesPassphraseMethod
-										? 'Set a new PIN or switch to encryption password'
-										: 'Set a new PIN'}
-								</p>
-
-								<div className='space-y-3'>
-									{!useEncryptionPassword && (
-										<>
-											<input
-												type='password'
-												value={pin}
-												onChange={(e) => setPin(e.target.value)}
-												placeholder={t(
-													'settings:security.session.autoLock.setupPin.newPinPlaceholder'
-												)}
-												className='w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-hover)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-subtle)] focus:ring-1 focus:ring-[var(--accent-color)]'
-											/>
-											<input
-												type='password'
-												value={confirmPin}
-												onChange={(e) => setConfirmPin(e.target.value)}
-												placeholder={t(
-													'settings:security.session.autoLock.setupPin.confirmPinPlaceholder'
-												)}
-												className='w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-hover)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-subtle)] focus:ring-1 focus:ring-[var(--accent-color)]'
-											/>
-										</>
-									)}
-
-									{usesPassphraseMethod && (
-										<label className='flex items-center gap-2 text-sm text-[var(--text-primary)]'>
-											<input
-												type='checkbox'
-												checked={useEncryptionPassword}
-												onChange={(e) =>
-													setUseEncryptionPassword(e.target.checked)
-												}
-												className='rounded border-slate-600'
-											/>
-											Use encryption password instead
-										</label>
-									)}
-
-									<div className='flex gap-2 pt-2'>
+									{!usesPassphrase && (
 										<button
 											type='button'
-											onClick={handleChangePin}
-											className='flex-1 rounded-lg bg-[var(--surface-active)] py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)]'>
-											Save
+											onClick={() => setPinFormMode('change')}
+											className='flex h-9 items-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-4 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
+											Change PIN
 										</button>
-										<button
-											type='button'
-											onClick={() => {
-												setShowChangePin(false)
-												setPin('')
-												setConfirmPin('')
-											}}
-											className='flex-1 rounded-lg border border-[var(--border-subtle)] py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)]'>
-											Cancel
-										</button>
-									</div>
-								</div>
-							</motion.div>
-						)}
+									)}
+								</motion.div>
+							)}
+
+							{pinFormMode !== null && (
+								<PinForm
+									key={pinFormMode}
+									mode={pinFormMode}
+									usesPassphrase={usesPassphrase}
+									isLoading={isLoading}
+									onSubmit={handlePinSubmit}
+									onCancel={handlePinCancel}
+									t={t}
+								/>
+							)}
+						</AnimatePresence>
 					</div>
 				</section>
 
