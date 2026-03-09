@@ -19,6 +19,7 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 import { useThemeStore } from '@/stores/themeStore'
+import { formatFileSize } from '@/lib/formatFileSize'
 import { open } from '@tauri-apps/plugin-dialog'
 import { toast } from '../../ui/custom/Toaster'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
@@ -148,8 +149,10 @@ export function GeneralSettings() {
 	const handleClearCache = async () => {
 		setIsClearCacheDialogOpen(false)
 		try {
-			await invoke('clear_cache')
-			toast.success(t('settings:privacy.danger.clearCache.success'))
+			const freed = await invoke<number>('clear_cache')
+			toast.success(
+				`${t('settings:privacy.danger.clearCache.success')} (${formatFileSize(freed)} freed)`
+			)
 		} catch (error) {
 			toast.error(`${t('settings:privacy.danger.clearCache.error')}: ${error}`)
 		}

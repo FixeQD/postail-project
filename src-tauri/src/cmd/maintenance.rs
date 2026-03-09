@@ -4,6 +4,39 @@ use std::sync::Arc;
 use tauri::command;
 
 #[command]
+pub async fn clear_cache() -> Result<u64, String> {
+    let cache_dir = crate::db::eml_cache::get_eml_cache_dir();
+
+    if !cache_dir.exists() {
+        return Ok(0);
+    }
+
+    let freed = dir_size(&cache_dir);
+
+    std::fs::remove_dir_all(&cache_dir).map_err(|e| format!("Failed to clear cache: {}", e))?;
+
+    tracing::info!(target: "postail", "[Cache] Cleared eml_cache, freed {} bytes", freed);
+
+    Ok(freed)
+}
+
+fn dir_size(path: &std::path::Path) -> u64 {
+    let Ok(entries) = std::fs::read_dir(path) else {
+        return 0;
+    };
+    entries.flatten().fold(0u64, |acc, entry| {
+        let p = entry.path();
+        if p.is_file() {
+            acc + entry.metadata().map(|m| m.len()).unwrap_or(0)
+        } else if p.is_dir() {
+            acc + dir_size(&p)
+        } else {
+            acc
+        }
+    })
+}
+
+#[command]
 pub async fn dev_reset_data(
     clear_messages: bool,
     clear_eml_cache: bool,
