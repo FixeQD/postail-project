@@ -19,6 +19,9 @@
 		"notification:default",
 		"notification:allow-request-permission",
 		"notification:allow-notify",
-		"notification:allow-is-permission-granted"
+		"notification:allow-is-permission-granted",
+		"autostart:allow-enable",
+		"autostart:allow-disable",
+		"autostart:allow-is-enabled"
 	]
 }

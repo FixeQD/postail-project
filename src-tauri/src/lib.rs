@@ -39,6 +39,10 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .setup(|app| {
             let handle = app.handle().clone();
 
@@ -110,6 +114,8 @@ pub fn run() {
             cmd::mail::sync::unwatch_mailbox,
             cmd::mail::sync::unwatch_all_mailboxes,
             cmd::maintenance::clear_cache,
+            cmd::settings::get_autostart_enabled,
+            cmd::settings::set_autostart_enabled,
             cmd::maintenance::dev_reset_data,
             cmd::mail::sync::record_mailbox_activity,
             cmd::mail::actions::search_messages,

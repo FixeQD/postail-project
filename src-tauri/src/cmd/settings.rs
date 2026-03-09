@@ -2,6 +2,7 @@ use crate::db::settings;
 use crate::utils::config::{get_default_data_dir as get_default_path, ThemeConfig};
 use std::collections::HashMap;
 use tauri::Emitter;
+use tauri_plugin_autostart::ManagerExt;
 
 #[tauri::command]
 pub async fn get_default_data_dir() -> Result<String, String> {
@@ -71,6 +72,43 @@ pub async fn set_theme_config(
         dark_mode,
     };
     crate::utils::config::save_theme_config(&theme)
+}
+
+#[tauri::command]
+pub async fn get_autostart_enabled(app_handle: tauri::AppHandle) -> Result<bool, String> {
+    #[cfg(desktop)]
+    {
+        app_handle
+            .autolaunch()
+            .is_enabled()
+            .map_err(|e| e.to_string())
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = app_handle;
+        Ok(false)
+    }
+}
+
+#[tauri::command]
+pub async fn set_autostart_enabled(
+    app_handle: tauri::AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    #[cfg(desktop)]
+    {
+        let manager = app_handle.autolaunch();
+        if enabled {
+            manager.enable().map_err(|e| e.to_string())
+        } else {
+            manager.disable().map_err(|e| e.to_string())
+        }
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = (app_handle, enabled);
+        Ok(())
+    }
 }
 
 #[tauri::command]

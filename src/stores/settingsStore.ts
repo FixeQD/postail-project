@@ -12,7 +12,6 @@ interface AppSettings {
 	'undo-send-delay': number
 	'confirm-before-delete': boolean
 	// General - Startup
-	'open-on-startup': boolean
 	'minimize-to-tray': boolean
 	// General - Storage
 	'data-path': string
@@ -52,7 +51,6 @@ const DEFAULT_SETTINGS: AppSettings = {
 	'preview-lines': 2,
 	'undo-send-delay': 10,
 	'confirm-before-delete': true,
-	'open-on-startup': false,
 	'minimize-to-tray': false,
 	'data-path': '',
 	'auto-lock-timeout': 0,
@@ -108,7 +106,6 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 			if ('undo-send-delay' in raw) s['undo-send-delay'] = parseNum(raw['undo-send-delay'])
 			if ('confirm-before-delete' in raw)
 				s['confirm-before-delete'] = parseBool(raw['confirm-before-delete'])
-			if ('open-on-startup' in raw) s['open-on-startup'] = parseBool(raw['open-on-startup'])
 			if ('minimize-to-tray' in raw)
 				s['minimize-to-tray'] = parseBool(raw['minimize-to-tray'])
 			if ('data-path' in raw) s['data-path'] = raw['data-path']

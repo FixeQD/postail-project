@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import {
 	Folder,
@@ -91,9 +91,22 @@ export function GeneralSettings() {
 	const [defaultPath, setDefaultPath] = useState<string | null>(null)
 	const [isMigrating, setIsMigrating] = useState(false)
 	const [isClearCacheDialogOpen, setIsClearCacheDialogOpen] = useState(false)
+	const [autostartEnabled, setAutostartEnabled] = useState(false)
 
 	useEffect(() => {
 		invoke<string>('get_default_data_dir').then(setDefaultPath)
+		invoke<boolean>('get_autostart_enabled')
+			.then(setAutostartEnabled)
+			.catch(() => {})
+	}, [])
+
+	const handleAutostartToggle = useCallback(async (val: boolean) => {
+		try {
+			await invoke('set_autostart_enabled', { enabled: val })
+			setAutostartEnabled(val)
+		} catch (error) {
+			console.error('Failed to set autostart:', error)
+		}
 	}, [])
 
 	const currentPath = settings['data-path'] || null
@@ -276,8 +289,8 @@ export function GeneralSettings() {
 							icon={Power}
 							label={t('settings:general.startup.openOnStartup.label')}
 							description={t('settings:general.startup.openOnStartup.description')}
-							value={settings['open-on-startup']}
-							onChange={(val) => setSetting('open-on-startup', val)}
+							value={autostartEnabled}
+							onChange={handleAutostartToggle}
 						/>
 						<ToggleSetting
 							icon={MonitorOff}
