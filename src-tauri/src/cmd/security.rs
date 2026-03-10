@@ -260,6 +260,9 @@ pub async fn initialize_security_and_database(
     // Load lock settings from db
     crate::security::load_lock_settings().await;
 
+    // Load minimize-to-tray setting into global flag
+    crate::cmd::settings::load_minimize_to_tray_setting().await;
+
     Ok(())
 }
 

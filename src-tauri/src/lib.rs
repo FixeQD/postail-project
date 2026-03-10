@@ -12,9 +12,12 @@ pub mod security;
 pub mod smtp;
 pub mod utils;
 
+use std::sync::atomic::Ordering;
+
 use crate::globals::SMTP_MANAGER;
 use crate::imap::pool::init_pool;
 use crate::imap::sync_status::set_sync_status_app_handle;
+use tauri::Manager;
 
 /// TPM helper mode: Initialize TPM with elevated privileges (Linux only)
 #[cfg(all(target_os = "linux", feature = "tpm"))]
@@ -45,6 +48,33 @@ pub fn run() {
         ))
         .setup(|app| {
             let handle = app.handle().clone();
+
+            // System tray
+            {
+                use tauri::menu::{MenuBuilder, MenuItemBuilder};
+                use tauri::tray::TrayIconBuilder;
+
+                let show = MenuItemBuilder::with_id("show", "Open Postail").build(app)?;
+                let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+                let menu = MenuBuilder::new(app).items(&[&show, &quit]).build()?;
+
+                let tray_handle: tauri::AppHandle = handle.clone();
+                TrayIconBuilder::new()
+                    .icon(app.default_window_icon().unwrap().clone())
+                    .menu(&menu)
+                    .tooltip("Postail")
+                    .on_menu_event(move |_tray, event| match event.id.as_ref() {
+                        "show" => {
+                            if let Some(w) = tray_handle.get_webview_window("main") {
+                                let _ = w.show();
+                                let _ = w.set_focus();
+                            }
+                        }
+                        "quit" => tray_handle.exit(0),
+                        _ => {}
+                    })
+                    .build(app)?;
+            }
 
             // Initialize managers in async context
             let setup_handle = handle.clone();
@@ -154,6 +184,21 @@ pub fn run() {
             cmd::settings::get_build_info
         ])
         .register_uri_scheme_protocol("postail", protocol::handler)
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::WindowEvent {
+                label,
+                event: tauri::WindowEvent::CloseRequested { api, .. },
+                ..
+            } = event
+            {
+                if label == "main" && globals::MINIMIZE_TO_TRAY.load(Ordering::SeqCst) {
+                    api.prevent_close();
+                    if let Some(w) = app_handle.get_webview_window("main") {
+                        let _ = w.hide();
+                    }
+                }
+            }
+        });
 }

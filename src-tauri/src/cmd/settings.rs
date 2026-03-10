@@ -1,6 +1,7 @@
 use crate::db::settings;
 use crate::utils::config::{get_default_data_dir as get_default_path, ThemeConfig};
 use std::collections::HashMap;
+use std::sync::atomic::Ordering;
 use tauri::Emitter;
 use tauri_plugin_autostart::ManagerExt;
 
@@ -33,7 +34,22 @@ pub async fn get_setting(key: String) -> Result<Option<String>, String> {
 pub async fn set_setting(key: String, value: String) -> Result<(), String> {
     settings::set_setting(&key, &value)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    if key == "minimize-to-tray" {
+        crate::globals::MINIMIZE_TO_TRAY.store(value == "true", Ordering::SeqCst);
+    }
+
+    Ok(())
+}
+
+pub async fn load_minimize_to_tray_setting() {
+    let val = settings::get_setting("minimize-to-tray")
+        .await
+        .unwrap_or(None)
+        .map(|v| v == "true")
+        .unwrap_or(false);
+    crate::globals::MINIMIZE_TO_TRAY.store(val, Ordering::SeqCst);
 }
 
 #[tauri::command]
