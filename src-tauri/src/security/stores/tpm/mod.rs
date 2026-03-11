@@ -1,7 +1,7 @@
 #[cfg(target_os = "linux")]
 pub mod linux;
 
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", feature = "tpm"))]
 pub mod windows;
 
 #[cfg(feature = "tpm")]
@@ -26,15 +26,7 @@ pub fn get_tpm_store() -> Option<Box<dyn SecretStore>> {
     }
 }
 
-#[cfg(all(target_os = "windows", feature = "tpm"))]
-pub fn get_tpm_store() -> Option<Box<dyn SecretStore>> {
-    match windows::WindowsTpmStore::new() {
-        Ok(store) if store.is_available() => Some(Box::new(store)),
-        _ => None,
-    }
-}
-
-#[cfg(not(feature = "tpm"))]
+#[cfg(not(all(target_os = "linux", feature = "tpm")))]
 pub fn get_tpm_store() -> Option<Box<dyn SecretStore>> {
     None
 }
