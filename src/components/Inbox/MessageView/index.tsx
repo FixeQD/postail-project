@@ -42,6 +42,7 @@ export const MessageView = ({
 	const { viewMode, toggleViewMode, setTitleMeta, setLoading } = useMessageViewStore()
 	const blockExternalImages = useSettingsStore((s) => s.settings['block-external-images'])
 	const blockReadReceipts = useSettingsStore((s) => s.settings['block-read-receipts'])
+	const markAsReadDelay = useSettingsStore((s) => s.settings['mark-as-read-delay'])
 	// viewMode passed to MessageViewBody below
 	const [allowExternalResources, setAllowExternalResources] = useState(!blockExternalImages)
 	const [cspBlocked, setCspBlocked] = useState(false)
@@ -64,22 +65,34 @@ export const MessageView = ({
 		retry: 1,
 	})
 
-	// auto-mark as read
+	// auto-mark as read - respects mark-as-read-delay setting
+	// -1 = manual only, 0 = immediate, 2/5 = delayed seconds
 	useEffect(() => {
 		if (!data) return
+		if (markAsReadDelay === -1) return
+
 		const isUnread = !data.header.flags.includes('\\Seen')
-		if (isUnread) {
+		if (!isUnread) return
+
+		const doMark = () => {
 			invokeWithErrorLog(
 				'mark_read',
 				{ accountId, mailbox, uids: [uid], read: true },
 				'mark_read'
 			)
-
 			queryClient.invalidateQueries({
 				queryKey: ['messages', accountId, mailbox],
 			})
 		}
-	}, [data, accountId, mailbox, uid, queryClient])
+
+		if (markAsReadDelay === 0) {
+			doMark()
+			return
+		}
+
+		const timer = setTimeout(doMark, markAsReadDelay * 1000)
+		return () => clearTimeout(timer)
+	}, [data, accountId, mailbox, uid, queryClient, markAsReadDelay])
 
 	const isNoReply = (email: string) => /^no-reply@/i.test(email) || /^noreply@/i.test(email)
 

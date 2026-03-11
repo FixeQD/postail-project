@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import {
 	Folder,
@@ -76,6 +76,156 @@ function InlineSelect({ value, options, onChange, accentColor }: InlineSelectPro
 					{opt.label}
 				</button>
 			))}
+		</div>
+	)
+}
+
+const PRESET_DELAYS = [0, 2, 5, -1]
+
+interface MarkAsReadSelectProps {
+	value: number
+	onChange: (v: number) => void
+	accentColor: string
+	options: { value: number; label: string }[]
+	customPlaceholder: string
+	customLabel: string
+	customAriaLabel: string
+}
+
+function MarkAsReadSelect({
+	value,
+	onChange,
+	accentColor,
+	options,
+	customPlaceholder,
+	customLabel,
+	customAriaLabel,
+}: MarkAsReadSelectProps) {
+	const isCustom = !PRESET_DELAYS.includes(value)
+	const [showInput, setShowInput] = useState(isCustom)
+	const [inputVal, setInputVal] = useState(isCustom ? String(value) : '')
+	const inputRef = useRef<HTMLInputElement>(null)
+
+	useEffect(() => {
+		if (showInput) {
+			setTimeout(() => inputRef.current?.focus(), 50)
+		}
+	}, [showInput])
+
+	const handleCustomClick = () => {
+		if (showInput) {
+			setShowInput(false)
+			// revert to last preset if input is empty/invalid
+			const parsed = parseInt(inputVal, 10)
+			if (isNaN(parsed) || parsed < 1) {
+				onChange(2)
+				setInputVal('')
+			}
+			return
+		}
+		setShowInput(true)
+		setInputVal(isCustom ? String(value) : '')
+	}
+
+	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const raw = e.target.value.replace(/\D/g, '')
+		setInputVal(raw)
+		const parsed = parseInt(raw, 10)
+		if (!isNaN(parsed) && parsed >= 1 && parsed <= 999) {
+			onChange(parsed)
+		}
+	}
+
+	const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+		if (e.key === 'Enter' || e.key === 'Escape') {
+			setShowInput(false)
+			if (e.key === 'Escape') {
+				onChange(2)
+				setInputVal('')
+			}
+		}
+	}
+
+	const handlePresetClick = (v: number) => {
+		onChange(v)
+		setShowInput(false)
+		setInputVal('')
+	}
+
+	const customActive = isCustom || showInput
+
+	return (
+		<div className='flex flex-wrap items-center justify-end gap-1'>
+			{options.map((opt) => (
+				<button
+					key={String(opt.value)}
+					type='button'
+					onClick={() => handlePresetClick(opt.value)}
+					className='rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150'
+					style={
+						value === opt.value && !isCustom && !showInput
+							? { backgroundColor: accentColor, color: '#fff' }
+							: {
+									color: 'var(--text-secondary)',
+									boxShadow: 'inset 0 0 0 1px var(--border-subtle)',
+								}
+					}>
+					{opt.label}
+				</button>
+			))}
+
+			{/* Custom button + input */}
+			<div className='flex items-center gap-1'>
+				<button
+					type='button'
+					onClick={handleCustomClick}
+					className='rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150'
+					style={
+						customActive
+							? { backgroundColor: accentColor, color: '#fff' }
+							: {
+									color: 'var(--text-secondary)',
+									boxShadow: 'inset 0 0 0 1px var(--border-subtle)',
+								}
+					}>
+					{isCustom && !showInput ? `${value}s` : customLabel}
+				</button>
+
+				<div
+					className='overflow-hidden transition-all duration-200 ease-in-out'
+					style={{ width: showInput ? '72px' : '0px', opacity: showInput ? 1 : 0 }}>
+					<div
+						className='flex items-center gap-1 rounded-lg pl-0.5'
+						style={{ boxShadow: `inset 0 0 0 1px ${accentColor}66` }}>
+						<input
+							ref={inputRef}
+							type='text'
+							inputMode='numeric'
+							pattern='[0-9]*'
+							value={inputVal}
+							onChange={handleInputChange}
+							onKeyDown={handleInputKeyDown}
+							onBlur={() => {
+								const parsed = parseInt(inputVal, 10)
+								if (isNaN(parsed) || parsed < 1) {
+									setShowInput(false)
+									onChange(2)
+									setInputVal('')
+								} else {
+									setShowInput(false)
+								}
+							}}
+							aria-label={customAriaLabel}
+							maxLength={3}
+							className='w-8 bg-transparent py-1.5 pl-2 text-xs font-semibold text-[var(--text-primary)] outline-none'
+							style={{ caretColor: accentColor }}
+						/>
+						<span className='pr-2 text-[10px] font-medium text-[var(--text-secondary)]'>
+							{customPlaceholder}
+						</span>
+					</div>
+				</div>
+			</div>
 		</div>
 	)
 }
@@ -178,6 +328,10 @@ export function GeneralSettings() {
 		{ value: -1, label: t('settings:general.reading.markAsRead.options.manual') },
 	]
 
+	const markAsReadCustomLabel = t('settings:general.reading.markAsRead.options.custom')
+	const markAsReadCustomPlaceholder = t('settings:general.reading.markAsRead.customPlaceholder')
+	const markAsReadCustomAriaLabel = t('settings:general.reading.markAsRead.customAriaLabel')
+
 	const previewLineOptions = [
 		{ value: 1, label: t('settings:general.reading.previewLines.options.1') },
 		{ value: 2, label: t('settings:general.reading.previewLines.options.2') },
@@ -237,11 +391,14 @@ export function GeneralSettings() {
 							icon={Clock}
 							label={t('settings:general.reading.markAsRead.label')}
 							description={t('settings:general.reading.markAsRead.description')}>
-							<InlineSelect
+							<MarkAsReadSelect
 								value={settings['mark-as-read-delay']}
 								options={markAsReadOptions}
-								onChange={(v) => setSetting('mark-as-read-delay', v as number)}
+								onChange={(v) => setSetting('mark-as-read-delay', v)}
 								accentColor={accentColor}
+								customLabel={markAsReadCustomLabel}
+								customPlaceholder={markAsReadCustomPlaceholder}
+								customAriaLabel={markAsReadCustomAriaLabel}
 							/>
 						</SettingCard>
 						<SettingCard

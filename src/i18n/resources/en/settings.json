@@ -31,8 +31,11 @@
 					"immediate": "Immediately",
 					"2s": "After 2 seconds",
 					"5s": "After 5 seconds",
-					"manual": "Manually only"
-				}
+					"manual": "Manually only",
+					"custom": "Custom"
+				},
+				"customPlaceholder": "seconds",
+				"customAriaLabel": "Custom delay in seconds"
 			},
 			"threadView": {
 				"label": "Thread View",
