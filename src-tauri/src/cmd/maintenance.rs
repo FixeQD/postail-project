@@ -3,6 +3,23 @@ use crate::globals::{DB_CONN, SECURITY};
 use std::sync::Arc;
 use tauri::command;
 
+fn make_snippet(plain: &str, html: &str) -> String {
+    let source = if !plain.is_empty() {
+        plain.to_string()
+    } else {
+        use kuchiki::traits::TendrilSink;
+        let doc = kuchiki::parse_html().one(html);
+        doc.text_contents()
+    };
+    source
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(200)
+        .collect()
+}
+
 #[command]
 pub async fn clear_cache() -> Result<u64, String> {
     let cache_dir = crate::db::eml_cache::get_eml_cache_dir();
@@ -194,4 +211,68 @@ pub async fn search_contacts(query: String, limit: u32) -> Result<Vec<Contact>, 
     let conn_guard = DB_CONN.lock().await;
     let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
     crate::db::search_contacts(conn, &query, limit).map_err(|e| e.to_string())
+}
+
+#[command]
+pub async fn backfill_snippets(account_id: String, mailbox: String) -> Result<u32, String> {
+    // Find messages with no snippet but a body cache file on disk
+    let rows: Vec<(i64, u32)> = {
+        let conn_guard = DB_CONN.lock().await;
+        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, uid FROM messages
+                 WHERE account_id = ? AND mailbox = ?
+                   AND (snippet IS NULL OR snippet = '')",
+            )
+            .map_err(|e| e.to_string())?;
+        let collected: Vec<(i64, u32)> = stmt
+            .query_map(rusqlite::params![account_id, mailbox], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, u32>(1)?))
+            })
+            .map_err(|e| e.to_string())?
+            .filter_map(|r| r.ok())
+            .collect();
+        collected
+    };
+
+    if rows.is_empty() {
+        return Ok(0);
+    }
+
+    let security = SECURITY.lock().await;
+    let mut updated = 0u32;
+
+    for (table_id, uid) in rows {
+        let body = match crate::db::eml_cache::load_body(&security, &account_id, &mailbox, uid) {
+            Ok(Some(b)) => b,
+            _ => continue,
+        };
+
+        let snippet = make_snippet(&body.body_plain, &body.body_html);
+        if snippet.is_empty() {
+            continue;
+        }
+
+        let conn_guard = DB_CONN.lock().await;
+        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+        let rows_changed = conn
+            .execute(
+                "UPDATE messages SET snippet = ? WHERE id = ? AND (snippet IS NULL OR snippet = '')",
+                rusqlite::params![snippet, table_id],
+            )
+            .map_err(|e| e.to_string())?;
+
+        if rows_changed > 0 {
+            updated += 1;
+        }
+    }
+
+    tracing::info!(
+        target: "postail",
+        "[Snippets] Backfilled {} snippets for {}@{}",
+        updated, mailbox, account_id
+    );
+
+    Ok(updated)
 }

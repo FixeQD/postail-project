@@ -73,6 +73,8 @@ tiny-bip39 = "2.0.0"
 futures = "0.3.31"
 tokio-util = { version = "0.7.18", features = ["compat"] }
 native-tls = "0.2.16"
+imap-proto = "0.16.6"
+encoding_rs = "0.8.35"
 
 # Linux-specific deps
 [target.'cfg(target_os = "linux")'.dependencies]

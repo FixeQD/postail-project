@@ -420,6 +420,21 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 		queryClient.invalidateQueries({ queryKey: ['messages', account.id, mailbox] })
 	}, [account.id, mailbox, queryClient])
 
+	// After first page loads, backfill snippets for messages that are missing them
+	useEffect(() => {
+		if (!data?.pages[0]?.length) return
+		const hasMissingSnippets = data.pages[0].some((m) => !m.snippet)
+		if (!hasMissingSnippets) return
+
+		invoke('backfill_snippets', { accountId: account.id, mailbox })
+			.then((count) => {
+				if ((count as number) > 0) {
+					refreshMessages()
+				}
+			})
+			.catch(() => {})
+	}, [data?.pages[0], account.id, mailbox, refreshMessages])
+
 	useEffect(() => {
 		const unlisten = listen('sync:completed', (event: { payload: { accountId: string } }) => {
 			if (event.payload.accountId === account.id) {

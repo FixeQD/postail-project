@@ -144,6 +144,7 @@ pub fn run() {
             cmd::mail::sync::unwatch_mailbox,
             cmd::mail::sync::unwatch_all_mailboxes,
             cmd::maintenance::clear_cache,
+            cmd::maintenance::backfill_snippets,
             cmd::settings::get_autostart_enabled,
             cmd::settings::set_autostart_enabled,
             cmd::maintenance::dev_reset_data,

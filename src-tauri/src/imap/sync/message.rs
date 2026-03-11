@@ -96,13 +96,20 @@ impl crate::imap::ImapManager {
                 .map_err(|e| e.to_string())?;
         }
 
-        // ── Step 4b: extract and cache inline images ─────────────────────────
+        // ── Step 4b: backfill snippet + extract inline images ────────────────
         {
             let security = self.security.lock().await;
             let conn_guard = self.conn.lock().await;
             if let Some(conn) = conn_guard.as_ref() {
                 if let Ok(Some(table_id)) = db::get_message_table_id(conn, account_id, mailbox, uid)
                 {
+                    // Write snippet derived from body so MessageList can show it
+                    let snippet = make_snippet(&body_plain, &body_html);
+                    let _ = conn.execute(
+                        "UPDATE messages SET snippet = ? WHERE id = ? AND (snippet IS NULL OR snippet = '')",
+                        rusqlite::params![snippet, table_id],
+                    );
+
                     save_attachments_from_eml(
                         conn, &security, account_id, mailbox, uid, table_id, &raw_eml,
                     );
@@ -163,6 +170,24 @@ impl crate::imap::ImapManager {
 }
 
 /// Parses raw EML and saves attachment metadata (small rows, no BLOBs) to DB.
+
+/// Extracts up to 200 chars of plain text for the message list snippet.
+fn make_snippet(plain: &str, html: &str) -> String {
+    let source = if !plain.is_empty() {
+        plain.to_string()
+    } else {
+        use kuchiki::traits::TendrilSink;
+        let doc = kuchiki::parse_html().one(html);
+        doc.text_contents()
+    };
+    source
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(200)
+        .collect()
+}
 
 fn save_attachments_from_eml(
     conn: &rusqlite::Connection,

@@ -65,6 +65,19 @@ pub fn batch_insert_messages(
             ],
         )?;
 
+        // Backfill snippet for rows that already existed with NULL snippet
+        if item.snippet.is_some() {
+            tx.execute(
+                "UPDATE messages SET snippet = ? WHERE account_id = ? AND mailbox = ? AND uid = ? AND (snippet IS NULL OR snippet = '')",
+                params![
+                    item.snippet.as_deref(),
+                    account_id,
+                    mailbox,
+                    item.uid,
+                ],
+            )?;
+        }
+
         if let Some(from) = &item.from {
             let _ = upsert_from_address_string(&tx, from);
         }
