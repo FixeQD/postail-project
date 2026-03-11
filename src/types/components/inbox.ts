@@ -17,6 +17,7 @@ export interface MessageRowProps {
 	zenMode: boolean
 	accentColor: string
 	animationsEnabled: boolean
+	previewLines: number
 	formatDate: (date: string) => string
 	onMessageClick: (uid: number) => void
 	onMouseEnter: () => void

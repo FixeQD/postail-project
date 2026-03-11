@@ -19,6 +19,87 @@ const BATCH_SIZE = 50
 
 const syncedMailboxes = new Set<string>()
 
+const DateOrActions = memo(
+	({
+		isHovered,
+		isUnread,
+		zenMode,
+		animationsEnabled,
+		formattedDate,
+		onDelete,
+		onToggleRead,
+		t,
+	}: {
+		isHovered: boolean
+		isUnread: boolean
+		zenMode: boolean
+		animationsEnabled: boolean
+		formattedDate: string
+		onDelete: () => void
+		onToggleRead: () => void
+		t: (key: string) => string
+	}) => {
+		const dateClass = `text-xs tabular-nums ${
+			isUnread && !zenMode ? 'text-foreground/80 font-medium' : 'text-tertiary'
+		}`
+
+		const actions = (
+			<div className='flex items-center gap-0.5'>
+				<ActionBtn
+					icon={<Trash2 className='h-[15px] w-[15px]' />}
+					tooltip={t('inbox:messageList.actions.delete')}
+					destructive
+					onClick={onDelete}
+				/>
+				<ActionBtn
+					icon={
+						isUnread ? (
+							<MailOpen className='h-[15px] w-[15px]' />
+						) : (
+							<Mail className='h-[15px] w-[15px]' />
+						)
+					}
+					tooltip={
+						isUnread
+							? t('inbox:messageList.actions.markRead')
+							: t('inbox:messageList.actions.markUnread')
+					}
+					onClick={onToggleRead}
+				/>
+			</div>
+		)
+
+		if (!animationsEnabled) {
+			return isHovered ? actions : <span className={dateClass}>{formattedDate}</span>
+		}
+
+		return (
+			<AnimatePresence mode='wait'>
+				{isHovered ? (
+					<motion.div
+						key='actions'
+						initial={{ opacity: 0, scale: 0.9 }}
+						animate={{ opacity: 1, scale: 1 }}
+						exit={{ opacity: 0, scale: 0.9 }}
+						transition={{ duration: 0.12 }}>
+						{actions}
+					</motion.div>
+				) : (
+					<motion.span
+						key='date'
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.1 }}
+						className={dateClass}>
+						{formattedDate}
+					</motion.span>
+				)}
+			</AnimatePresence>
+		)
+	}
+)
+
 const MessageRow = memo(
 	({
 		message,
@@ -27,6 +108,7 @@ const MessageRow = memo(
 		zenMode,
 		accentColor,
 		animationsEnabled,
+		previewLines,
 		formatDate,
 		onMessageClick,
 		onMouseEnter,
@@ -37,6 +119,120 @@ const MessageRow = memo(
 	}: MessageRowProps) => {
 		const { t } = useTypedTranslation()
 
+		const sender = message.from[0]?.replace(/<.*>/g, '').trim() || message.from.join(', ')
+		const subject = message.subject || '(No Subject)'
+		const snippet = message.snippet ?? ''
+		const formattedDate = formatDate(message.internal_date)
+
+		const senderClass = `truncate text-[13px] leading-tight ${
+			isUnread && !zenMode
+				? 'text-foreground font-semibold'
+				: 'text-foreground/80 font-medium'
+		}`
+		const subjectClass = `text-[13px] leading-snug ${
+			isUnread && !zenMode ? 'text-foreground font-semibold' : 'text-foreground/70'
+		}`
+		const snippetClass = 'text-xs leading-snug text-[var(--text-tertiary)]'
+
+		const rowBase = `message-unread-indicator group relative flex w-full cursor-pointer border-b text-left transition-all duration-150 outline-none ${
+			isUnread && !zenMode ? 'is-unread' : ''
+		} ${
+			isFocused
+				? 'bg-[var(--surface-active)] shadow-[inset_3px_0_0_0_var(--accent-color)]'
+				: isUnread && !zenMode
+					? 'bg-[var(--surface-panel)] hover:bg-[var(--surface-hover)]'
+					: 'bg-transparent hover:bg-[var(--surface-panel)]'
+		}`
+
+		const checkboxStar = (
+			<div className='flex shrink-0 items-center gap-2.5 pr-3'>
+				<input
+					type='checkbox'
+					className='border-muted-foreground/40 h-[15px] w-[15px] cursor-pointer rounded border bg-transparent transition-colors focus:ring-1 focus:ring-offset-0'
+					style={{ accentColor, color: accentColor }}
+					onClick={(e) => e.stopPropagation()}
+				/>
+				<span
+					role='button'
+					tabIndex={0}
+					className='text-muted-foreground/40 rounded-md p-0.5 transition-colors hover:text-amber-400 focus:outline-none'
+					onClick={(e) => e.stopPropagation()}
+					onKeyDown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') e.preventDefault()
+					}}>
+					<Star className='h-4 w-4' />
+				</span>
+			</div>
+		)
+
+		const unreadDot = isUnread && !zenMode && (
+			<div
+				className='ml-2 h-2 w-2 shrink-0 self-center rounded-full'
+				style={{
+					backgroundColor: accentColor,
+					boxShadow: `0 1px 3px rgba(var(--accent-rgb), 0.3)`,
+				}}
+			/>
+		)
+
+		// ── 1-line compact layout ──────────────────────────────────────
+		if (previewLines === 1) {
+			return (
+				<motion.div
+					role='button'
+					tabIndex={0}
+					onMouseEnter={onMouseEnter}
+					onMouseLeave={onMouseLeave}
+					onClick={() => onMessageClick(message.uid)}
+					onKeyDown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') {
+							e.preventDefault()
+							onMessageClick(message.uid)
+						}
+					}}
+					className={`${rowBase} items-center px-4 py-3`}
+					style={{ borderColor: 'var(--border-faint)' }}
+					whileHover={
+						animationsEnabled
+							? {
+									scale: 1.01,
+									transition: { type: 'spring', damping: 20, stiffness: 300 },
+								}
+							: {}
+					}>
+					{checkboxStar}
+
+					<div className='flex min-w-0 flex-1 items-center gap-3'>
+						<div className={`w-44 shrink-0 ${senderClass}`}>{sender}</div>
+						<div className='flex min-w-0 flex-1 items-baseline gap-1.5'>
+							<span className={`max-w-[45%] shrink-0 truncate ${subjectClass}`}>
+								{subject}
+							</span>
+							{snippet && (
+								<span className={`truncate ${snippetClass}`}>— {snippet}</span>
+							)}
+						</div>
+					</div>
+
+					<div className='ml-3 flex w-24 shrink-0 justify-end'>
+						<DateOrActions
+							isHovered={isHovered}
+							isUnread={isUnread}
+							zenMode={zenMode}
+							animationsEnabled={animationsEnabled}
+							formattedDate={formattedDate}
+							onDelete={onDelete}
+							onToggleRead={onToggleRead}
+							t={t}
+						/>
+					</div>
+
+					{unreadDot}
+				</motion.div>
+			)
+		}
+
+		// ── 2 or 3-line card layout ────────────────────────────────────
 		return (
 			<motion.div
 				role='button'
@@ -50,148 +246,48 @@ const MessageRow = memo(
 						onMessageClick(message.uid)
 					}
 				}}
-				className={`message-unread-indicator group relative flex w-full cursor-pointer items-center border-b px-4 py-3 text-left transition-all duration-150 outline-none ${
-					isUnread && !zenMode ? 'is-unread' : ''
-				} ${
-					isFocused
-						? 'bg-[var(--surface-active)] shadow-[inset_3px_0_0_0_var(--accent-color)]'
-						: isUnread && !zenMode
-							? 'bg-[var(--surface-panel)] hover:bg-[var(--surface-hover)]'
-							: 'bg-transparent hover:bg-[var(--surface-panel)]'
-				}`}
+				className={`${rowBase} items-start px-4 py-3`}
 				style={{ borderColor: 'var(--border-faint)' }}
 				whileHover={
 					animationsEnabled
 						? {
-								scale: 1.01,
+								scale: 1.005,
 								transition: { type: 'spring', damping: 20, stiffness: 300 },
 							}
 						: {}
 				}>
-				{/* Checkbox & Star */}
-				<div className='flex items-center gap-2.5 pr-3'>
-					<input
-						type='checkbox'
-						className='border-muted-foreground/40 h-[15px] w-[15px] cursor-pointer rounded border bg-transparent transition-colors focus:ring-1 focus:ring-offset-0'
-						style={{
-							accentColor: accentColor,
-							color: accentColor,
-						}}
-						onClick={(e) => e.stopPropagation()}
-					/>
-					<span
-						role='button'
-						tabIndex={0}
-						className='text-muted-foreground/40 rounded-md p-0.5 transition-colors hover:text-amber-400 focus:outline-none'
-						onClick={(e) => e.stopPropagation()}
-						onKeyDown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') {
-								e.preventDefault()
-								// TODO: implement star toggle
-							}
-						}}>
-						<Star className='h-4 w-4' />
-					</span>
-				</div>
+				{checkboxStar}
 
-				{/* Main Content */}
-				<div className='flex min-w-0 flex-1 items-baseline gap-3'>
-					{/* Sender */}
-					<div
-						className={`w-44 shrink-0 truncate text-[13px] ${
-							isUnread && !zenMode
-								? 'text-foreground font-semibold'
-								: 'text-foreground/80 font-medium'
-						}`}>
-						{message.from[0]?.replace(/<.*>/, '').trim() || message.from.join(', ')}
+				<div className='flex min-w-0 flex-1 flex-col gap-0.5'>
+					{/* Row 1: sender + date */}
+					<div className='flex items-center justify-between gap-2'>
+						<span className={`${senderClass} min-w-0`}>{sender}</span>
+						<div className='ml-2 flex shrink-0 items-center'>
+							<DateOrActions
+								isHovered={isHovered}
+								isUnread={isUnread}
+								zenMode={zenMode}
+								animationsEnabled={animationsEnabled}
+								formattedDate={formattedDate}
+								onDelete={onDelete}
+								onToggleRead={onToggleRead}
+								t={t}
+							/>
+							{unreadDot}
+						</div>
 					</div>
 
-					{/* Subject & Snippet */}
-					<div className='flex min-w-0 flex-1 items-baseline gap-2'>
-						<span
-							className={`truncate text-[13px] ${
-								isUnread && !zenMode
-									? 'text-foreground font-semibold'
-									: 'text-muted-foreground'
-							}`}>
-							{message.subject || '(No Subject)'}
-						</span>
-						<span className='text-tertiary truncate text-xs'>- {message.snippet}</span>
-					</div>
-				</div>
+					{/* Row 2: subject */}
+					<span className={`${subjectClass} truncate`}>{subject}</span>
 
-				{/* Date or Actions */}
-				<div className='ml-3 flex w-24 shrink-0 justify-end'>
-					{animationsEnabled ? (
-						<AnimatePresence mode='wait'>
-							{isHovered ? (
-								<motion.div
-									key='actions'
-									initial={{ opacity: 0, scale: 0.9 }}
-									animate={{ opacity: 1, scale: 1 }}
-									exit={{ opacity: 0, scale: 0.9 }}
-									transition={{ duration: 0.12 }}
-									className='flex items-center gap-0.5'>
-									<ActionBtn
-										icon={<Trash2 className='h-[15px] w-[15px]' />}
-										tooltip={t('inbox:messageList.actions.delete')}
-										destructive
-										onClick={onDelete}
-									/>
-									<ActionBtn
-										icon={
-											isUnread ? (
-												<MailOpen className='h-[15px] w-[15px]' />
-											) : (
-												<Mail className='h-[15px] w-[15px]' />
-											)
-										}
-										tooltip={
-											isUnread
-												? t('inbox:messageList.actions.markRead')
-												: t('inbox:messageList.actions.markUnread')
-										}
-										onClick={onToggleRead}
-									/>
-								</motion.div>
-							) : (
-								<motion.span
-									key='date'
-									initial={{ opacity: 0 }}
-									animate={{ opacity: 1 }}
-									exit={{ opacity: 0 }}
-									transition={{ duration: 0.1 }}
-									className={`text-xs tabular-nums ${
-										isUnread && !zenMode
-											? 'text-foreground/80 font-medium'
-											: 'text-tertiary'
-									}`}>
-									{formatDate(message.internal_date)}
-								</motion.span>
-							)}
-						</AnimatePresence>
-					) : (
-						<span
-							className={`text-xs tabular-nums ${
-								isUnread && !zenMode
-									? 'text-foreground/80 font-medium'
-									: 'text-tertiary'
-							}`}>
-							{formatDate(message.internal_date)}
-						</span>
+					{/* Row 3 (2-line: snippet inline after subject / 3-line: separate) */}
+					{snippet && previewLines === 2 && (
+						<p className={`${snippetClass} line-clamp-1`}>{snippet}</p>
+					)}
+					{snippet && previewLines === 3 && (
+						<p className={`${snippetClass} line-clamp-2`}>{snippet}</p>
 					)}
 				</div>
-
-				{/* Unread dot indicator (right side) */}
-				{isUnread && !zenMode && (
-					<div
-						className='ml-2 h-2 w-2 shrink-0 rounded-full'
-						style={{
-							backgroundColor: accentColor,
-							boxShadow: `0 1px 3px rgba(var(--accent-rgb), 0.3)`,
-						}}
-					/>
-				)}
 			</motion.div>
 		)
 	}
@@ -209,6 +305,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 	const syncedRef = { current: syncedMailboxes }
 	const { settings } = useSettingsStore()
 	const zenMode = settings['zen-mode']
+	const previewLines = settings['preview-lines']
 	const accentColor = useThemeStore((s) => s.accentColor)
 
 	const mailboxKey = `${account.id}:${mailbox}`
@@ -624,6 +721,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 								zenMode={zenMode}
 								accentColor={accentColor}
 								animationsEnabled={animationsEnabled}
+								previewLines={previewLines}
 								formatDate={formatDate}
 								onMessageClick={onMessageClick}
 								onMouseEnter={() => setHoveredMessageId(message.uid)}
