@@ -269,7 +269,7 @@ export function AppearanceSettings() {
 					</div>
 
 					<div
-						className='overflow-hidden rounded-2xl border bg-[var(--surface-panel)] p-5'
+						className='-m-1 overflow-hidden rounded-2xl border bg-[var(--surface-panel)] p-6'
 						style={{ borderColor: 'var(--border-subtle)' }}>
 						<AnimatePresence mode='wait'>
 							<motion.div

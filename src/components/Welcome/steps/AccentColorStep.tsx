@@ -339,7 +339,7 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 							</motion.button>
 						</div>
 
-						<div className='overflow-hidden'>
+						<div className='-m-1 overflow-hidden p-1'>
 							<AnimatePresence mode='wait'>
 								<motion.div
 									key={darkMode ? 'dark-grid' : 'light-grid'}
