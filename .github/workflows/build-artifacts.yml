@@ -1,0 +1,36 @@
+name: Manual Build Artifacts
+
+on:
+    workflow_dispatch:
+
+jobs:
+    build:
+        name: Build Release Packages
+        runs-on: [self-hosted, Xeon]
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Install system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y pkg-config libglib2.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libtss2-dev
+
+            - name: Install Bun
+              uses: oven-sh/setup-bun@v1
+              with:
+                  bun-version: latest
+
+            - name: Install Frontend Deps
+              run: bun install
+
+            - name: Build Tauri App
+              run: bun tauri build
+
+            - name: Upload Artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                  name: postail-packages-${{ github.sha }}
+                  path: |
+                      src-tauri/target/release/bundle/deb/*.deb
+                      src-tauri/target/release/bundle/appimage/*.AppImage
+                      src-tauri/target/release/bundle/rpm/*.rpm

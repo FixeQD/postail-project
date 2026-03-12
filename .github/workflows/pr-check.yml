@@ -1,4 +1,4 @@
-name: Rust CI (Pull Request check)
+name: Rust PR Check
 
 on:
     pull_request:
@@ -8,17 +8,20 @@ on:
             - 'Cargo.lock'
 
 jobs:
-    rust-ci:
-        name: cargo check / clippy / test
-        runs-on: ubuntu-latest
+    test:
+        name: Cargo Test
+        runs-on: [self-hosted, Xeon]
         steps:
             - uses: actions/checkout@v4
+
             - name: Install system dependencies
               run: |
                   sudo apt-get update
                   sudo apt-get install -y pkg-config libglib2.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libtss2-dev
+
             - name: Install Rust
               run: rustup default stable
-            - name: cargo test
+
+            - name: Run Tests
               working-directory: ./src-tauri
               run: cargo test
