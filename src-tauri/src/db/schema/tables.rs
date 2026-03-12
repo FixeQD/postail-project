@@ -32,6 +32,8 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
             ("id", "INTEGER PRIMARY KEY"),
             ("account_id", "TEXT NOT NULL"),
             ("name", "TEXT NOT NULL"),
+            ("role_customized", "INTEGER NOT NULL DEFAULT 0"),
+            ("attributes_json", "TEXT"),
             ("uid_validity", "INTEGER"),
             ("highest_modseq", "INTEGER"),
             ("last_synced_uid", "INTEGER"),
