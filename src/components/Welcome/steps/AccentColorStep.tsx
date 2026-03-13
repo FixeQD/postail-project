@@ -52,12 +52,11 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 		<div className='noise-overlay relative flex h-full flex-col'>
 			{/* Header */}
 			<motion.div
-				initial={{ opacity: 0, y: -10 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-				className='relative border-b bg-[var(--surface-glass)] px-4 py-6 backdrop-blur-lg'
-				style={{ borderColor: 'var(--border-subtle)' }}>
-				<div className='pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[rgba(var(--accent-rgb),0.1)] to-transparent' />
+				initial={{ opacity: 0, y: -20, filter: 'blur(8px)' }}
+				animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+				transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+				className='relative border-b border-black/5 bg-white/10 px-4 py-6 shadow-sm backdrop-blur-[32px] dark:border-white/5 dark:bg-black/20'>
+				<div className='pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[var(--accent-color)] to-transparent opacity-20' />
 
 				<div className='container mx-auto'>
 					<button
@@ -96,9 +95,9 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 				<div className='mx-auto max-w-2xl space-y-10'>
 					{/* Accent color section */}
 					<motion.section
-						initial={{ opacity: 0, y: 20 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ delay: 0.1, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>
+						initial={{ opacity: 0, y: 24, filter: 'blur(4px)' }}
+						animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+						transition={{ delay: 0.1, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}>
 						<h2 className='text-muted-foreground mb-1 text-sm font-bold tracking-widest uppercase'>
 							{t('welcome:customize.accentColor')}
 						</h2>
@@ -118,24 +117,24 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 										key={preset.id}
 										type='button'
 										onClick={() => handlePresetClick(preset.hex)}
-										initial={{ opacity: 0, scale: 0.8 }}
-										animate={{ opacity: 1, scale: 1 }}
+										initial={{ opacity: 0, scale: 0.8, y: 10 }}
+										animate={{ opacity: 1, scale: 1, y: 0 }}
 										transition={{
-											delay: 0.15 + i * 0.03,
-											duration: 0.35,
+											delay: 0.15 + i * 0.04,
+											duration: 0.4,
 											ease: [0.16, 1, 0.3, 1],
 										}}
-										whileHover={{ scale: 1.12 }}
-										whileTap={{ scale: 0.92 }}
-										className='group relative flex flex-col items-center gap-1.5'
+										whileHover={{ scale: 1.15, y: -2 }}
+										whileTap={{ scale: 0.9 }}
+										className='group relative flex flex-col items-center gap-1.5 outline-none'
 										title={preset.name}>
 										<div
-											className='flex h-11 w-11 items-center justify-center rounded-xl shadow-lg transition-all duration-200'
+											className='flex h-12 w-12 items-center justify-center rounded-2xl shadow-lg transition-all duration-300 group-focus-visible:ring-2 group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-[var(--app-bg)]'
 											style={{
 												backgroundColor: preset.hex,
 												boxShadow: isSelected
-													? `0 0 0 2px #020617, 0 0 0 4px ${preset.hex}, 0 4px 20px -2px ${preset.hex}40`
-													: `0 4px 12px -2px ${preset.hex}30`,
+													? `0 0 0 2px var(--app-bg), 0 0 0 4px ${preset.hex}, 0 8px 24px -4px ${preset.hex}66`
+													: `0 4px 12px -2px ${preset.hex}40`,
 											}}>
 											<AnimatePresence>
 												{isSelected && (
@@ -569,8 +568,7 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 				initial={{ opacity: 0, y: 16 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ delay: 0.5, duration: 0.4 }}
-				className='relative border-t bg-[var(--surface-glass)] px-4 py-5 backdrop-blur-lg'
-				style={{ borderColor: 'var(--border-subtle)' }}>
+				className='relative border-t border-black/5 bg-white/10 px-4 py-5 backdrop-blur-[32px] dark:border-white/5 dark:bg-black/20'>
 				<div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-black/[0.05] to-transparent dark:via-white/[0.06]' />
 				<div className='container mx-auto flex justify-end'>
 					<motion.button

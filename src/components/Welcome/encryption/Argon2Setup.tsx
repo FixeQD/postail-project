@@ -72,10 +72,10 @@ export const Argon2Setup = ({
 		<div className='noise-overlay relative flex h-full flex-col'>
 			{/* Header */}
 			<motion.div
-				initial={{ opacity: 0, y: -10 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-				className='relative border-b border-black/[0.06] bg-white/40 px-4 py-6 backdrop-blur-lg dark:border-white/[0.06] dark:bg-slate-900/40'>
+				initial={{ opacity: 0, y: -20, filter: 'blur(8px)' }}
+				animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+				transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+				className='relative border-b border-black/5 bg-white/10 px-4 py-6 shadow-sm backdrop-blur-[32px] dark:border-white/5 dark:bg-black/20'>
 				<div
 					className='pointer-events-none absolute inset-x-0 bottom-0 h-px'
 					style={{

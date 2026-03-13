@@ -22,8 +22,9 @@ export default function DecryptedText({
 	parentClassName = '',
 	encryptedClassName = '',
 	animateOn = 'hover',
+	forceScramble = false,
 	...props
-}: DecryptedTextProps) {
+}: DecryptedTextProps & { forceScramble?: boolean }) {
 	const [displayText, setDisplayText] = useState<string>(() =>
 		animateOn === 'view' || animateOn === 'both' ? scrambleText(text, characters) : text
 	)
@@ -105,10 +106,33 @@ export default function DecryptedText({
 			}
 		}
 
-		if (isHovering) {
+		if (forceScramble || isHovering) {
 			setIsScrambling(true)
 			interval = setInterval(() => {
 				setRevealedIndices((prevRevealed) => {
+					if (forceScramble) {
+						if (sequential) {
+							if (prevRevealed.size > 0) {
+								const newRevealed = new Set(prevRevealed)
+								const items = Array.from(newRevealed)
+								newRevealed.delete(items[items.length - 1])
+								setDisplayText(shuffleText(text, newRevealed))
+								return newRevealed
+							} else {
+								clearInterval(interval)
+								setDisplayText(shuffleText(text, new Set()))
+								return prevRevealed
+							}
+						} else {
+							setDisplayText(shuffleText(text, new Set()))
+							currentIteration++
+							if (currentIteration >= maxIterations) {
+								clearInterval(interval)
+							}
+							return new Set()
+						}
+					}
+
 					if (sequential) {
 						if (prevRevealed.size < text.length) {
 							const nextIndex = getNextIndex(prevRevealed)
@@ -153,6 +177,7 @@ export default function DecryptedText({
 		revealDirection,
 		characters,
 		useOriginalCharsOnly,
+		forceScramble,
 	])
 
 	useEffect(() => {
@@ -202,8 +227,9 @@ export default function DecryptedText({
 
 			<span aria-hidden='true'>
 				{displayText.split('').map((char, index) => {
-					const isRevealedOrDone =
-						revealedIndices.has(index) || !isScrambling || !isHovering
+					const isRevealedOrDone = forceScramble
+						? revealedIndices.has(index)
+						: revealedIndices.has(index) || !isScrambling || !isHovering
 
 					return (
 						<span

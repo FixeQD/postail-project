@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Copy, Download, Check, ShieldAlert, ArrowRight } from 'lucide-react'
 import DecryptedText from '../../DecryptedText'
 import { useThemeStore } from '@/stores/themeStore'
+import { RecoveryVerifyDialog } from './RecoveryVerifyDialog'
 
 type RecoveryStepProps = {
 	onNext: (phrase: string) => void
@@ -21,6 +22,7 @@ export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: Rec
 	const [saved, setSaved] = useState(false)
 	const [visibleIndices, setVisibleIndices] = useState<Set<number>>(new Set())
 	const [loading, setLoading] = useState(true)
+	const [verifyOpen, setVerifyOpen] = useState(false)
 
 	const handleAnimationComplete = (index: number) => {
 		setVisibleIndices((prev) => {
@@ -66,7 +68,7 @@ export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: Rec
 	}
 
 	const handleNext = () => {
-		onNext(phrase)
+		setVerifyOpen(true)
 	}
 
 	const cardContent = (
@@ -120,6 +122,7 @@ export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: Rec
 											speed={50}
 											maxIterations={20}
 											characters='abcdefghijklmnopqrstuvwxyz'
+											forceScramble={verifyOpen}
 										/>
 									) : (
 										<span className='invisible'>{word}</span>
@@ -176,6 +179,15 @@ export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: Rec
 					<ArrowRight className='h-5 w-5' />
 				</motion.button>
 			</div>
+
+			<RecoveryVerifyDialog
+				open={verifyOpen}
+				onClose={() => setVerifyOpen(false)}
+				onVerified={() => {
+					setVerifyOpen(false)
+					onNext(phrase)
+				}}
+			/>
 		</>
 	)
 
@@ -186,16 +198,11 @@ export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: Rec
 	return (
 		<div className='noise-overlay relative flex h-full flex-col'>
 			<motion.div
-				initial={{ opacity: 0, y: -10 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-				className='relative border-b border-[var(--border-faint)] bg-[var(--surface-glass-subtle)] px-4 py-6 backdrop-blur-lg'>
-				<div
-					className='pointer-events-none absolute inset-x-0 bottom-0 h-px'
-					style={{
-						background: `linear-gradient(to right, transparent, rgba(var(--accent-rgb), 0.1), transparent)`,
-					}}
-				/>
+				initial={{ opacity: 0, y: -20, filter: 'blur(8px)' }}
+				animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+				transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+				className='relative border-b border-black/5 bg-white/10 px-4 py-6 shadow-sm backdrop-blur-[32px] dark:border-white/5 dark:bg-black/20'>
+				<div className='pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[var(--accent-color)] to-transparent opacity-20' />
 				<div className='container mx-auto'>
 					<div className='flex items-center gap-3'>
 						<div

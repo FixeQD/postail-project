@@ -107,23 +107,17 @@ export const EncryptionChoice = ({
 			<div className='noise-overlay relative flex h-full flex-col'>
 				{/* Header */}
 				<motion.div
-					initial={{ opacity: 0, y: -10 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-					className='relative border-b border-black/[0.06] bg-white/40 px-4 py-6 backdrop-blur-lg dark:border-white/[0.06] dark:bg-slate-900/40'>
-					{/* Top highlight line */}
-					<div
-						className='pointer-events-none absolute inset-x-0 bottom-0 h-px'
-						style={{
-							background: `linear-gradient(to right, transparent, rgba(var(--accent-rgb), 0.1), transparent)`,
-						}}
-					/>
+					initial={{ opacity: 0, y: -20, filter: 'blur(8px)' }}
+					animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+					transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+					className='relative border-b border-black/5 bg-white/10 px-4 py-6 shadow-sm backdrop-blur-[32px] dark:border-white/5 dark:bg-black/20'>
+					<div className='pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[var(--accent-color)] to-transparent opacity-20' />
 
 					<div className='container mx-auto'>
 						<button
 							type='button'
 							onClick={onBack}
-							className='group mb-6 flex items-center gap-2 text-sm text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'>
+							className='text-muted-foreground hover:text-foreground group mb-6 flex items-center gap-2 text-sm transition-colors'>
 							<ArrowLeft className='h-4 w-4 transition-transform group-hover:-translate-x-0.5' />
 							{t('common:actions.back')}
 						</button>
@@ -137,10 +131,10 @@ export const EncryptionChoice = ({
 								<Shield className='h-5 w-5' style={{ color: accentColor }} />
 							</div>
 							<div>
-								<h1 className='text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100'>
+								<h1 className='text-foreground text-3xl font-bold tracking-tight'>
 									{t('security:title')}
 								</h1>
-								<p className='mt-1 text-sm text-slate-500 dark:text-slate-400'>
+								<p className='text-muted-foreground mt-1 text-sm'>
 									{t('security:subtitle')}
 								</p>
 							</div>
