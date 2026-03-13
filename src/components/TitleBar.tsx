@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { platform } from '@tauri-apps/plugin-os'
-import { Search, Settings, Send } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { Search, Settings, Send, ChevronLeft, ChevronRight } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import icon from '@/assets/icon.png'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { useDraftStore } from '@/stores/draftStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAccountStore } from '@/stores/accountStore'
 import { useMessageViewStore } from '@/stores/messageViewStore'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { AccountSwitcher } from './TitleBar/AccountSwitcher'
 import { NotificationCenter } from './TitleBar/NotificationCenter'
 import type { TitleBarProps } from '@/types/components/shared'
@@ -50,133 +49,179 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 
 	return (
 		<div
-			className='glass relative z-50 flex h-14 shrink-0 items-center justify-between border-b select-none'
+			className='relative z-50 flex h-14 shrink-0 items-center justify-between border-b bg-white/80 backdrop-blur-xl transition-colors select-none dark:bg-[#0a0a0c]/80'
 			style={{ borderColor: 'var(--border-subtle)' }}
 			onMouseDown={startDrag}>
-			{/* Subtle top highlight */}
-			<div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-black/[0.05] to-transparent dark:via-white/[0.06]' />
+			{/* Subtle top highlight gradient */}
+			<div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-50 dark:via-white/10' />
+
+			{/* Loading animated gradient border */}
+			<AnimatePresence>
+				{isLoading && (
+					<motion.div
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						className='pointer-events-none absolute inset-x-0 bottom-[-1px] h-[2px] overflow-hidden'>
+						<motion.div
+							className='h-full w-full'
+							style={{
+								background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)`,
+							}}
+							animate={{ x: ['-100%', '100%'] }}
+							transition={{
+								duration: 1.5,
+								repeat: Infinity,
+								ease: 'easeInOut',
+							}}
+						/>
+					</motion.div>
+				)}
+			</AnimatePresence>
 
 			{/* Left: Branding */}
-			<div className='flex w-64 shrink-0 items-center gap-3 px-4 pl-6'>
-				<motion.img
-					src={icon}
-					alt='Postail'
-					className='h-8 w-8'
-					initial={false}
-					whileHover={{ rotate: [0, -8, 8, 0] }}
-					transition={{ duration: 0.4 }}
-				/>
-				<span className='gradient-text-brand text-lg font-bold tracking-tight'>
+			<div className='flex w-64 shrink-0 items-center gap-3.5 px-4 pl-6'>
+				<motion.div
+					className='relative flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-white to-slate-100 shadow-sm ring-1 ring-black/5 dark:from-slate-800 dark:to-slate-900 dark:ring-white/10'
+					whileHover={{ scale: 1.05, rotate: -5 }}
+					whileTap={{ scale: 0.95 }}>
+					<img src={icon} alt='Postail' className='h-5 w-5 object-contain' />
+				</motion.div>
+				<span className='bg-gradient-to-br from-slate-900 to-slate-600 bg-clip-text text-lg font-bold tracking-tight text-transparent dark:from-white dark:to-slate-400'>
 					Postail
 				</span>
 			</div>
 
-			{/* Middle: Subject when reading a message, Search otherwise */}
+			{/* Middle: Subject (Reading) or Search (Dashboard) */}
 			<div className='flex flex-1 items-center justify-center px-4'>
-				{isViewingMessage ? (
-					<motion.div
-						className='flex w-full max-w-2xl items-center gap-1'
-						initial={{ opacity: 0, y: -4 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.18, ease: 'easeOut' }}
-						onMouseDown={(e) => e.stopPropagation()}>
-						<motion.button
-							type='button'
-							onClick={(e) => {
-								e.stopPropagation()
-								titleMeta?.onPrev?.()
-							}}
-							disabled={isLoading || !titleMeta?.onPrev}
-							whileTap={{ scale: 0.88 }}
-							className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.07] hover:text-slate-200 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent'>
-							<ChevronLeft className='h-4 w-4' />
-						</motion.button>
-						{isLoading ? (
-							<div
-								className='h-4 w-48 rounded'
+				<AnimatePresence mode='wait'>
+					{isViewingMessage ? (
+						<motion.div
+							key='subject'
+							className='flex w-full max-w-2xl items-center gap-2'
+							initial={{ opacity: 0, y: 8, scale: 0.98, filter: 'blur(4px)' }}
+							animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+							exit={{ opacity: 0, y: -8, scale: 0.98, filter: 'blur(4px)' }}
+							transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+							onMouseDown={(e) => e.stopPropagation()}>
+							<div className='flex items-center gap-1 rounded-lg bg-[var(--surface-secondary)] p-0.5 ring-1 ring-[var(--border-subtle)] transition-all hover:ring-[var(--border-strong)]'>
+								<motion.button
+									type='button'
+									onClick={(e) => {
+										e.stopPropagation()
+										titleMeta?.onPrev?.()
+									}}
+									disabled={isLoading || !titleMeta?.onPrev}
+									whileHover={{
+										backgroundColor: 'var(--surface-hover)',
+										scale: 1.05,
+									}}
+									whileTap={{ scale: 0.9 }}
+									className='flex h-6 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition-all hover:text-[var(--text-primary)] disabled:opacity-30'>
+									<ChevronLeft className='h-3.5 w-3.5' />
+								</motion.button>
+								<div className='h-3 w-px bg-[var(--border-subtle)]' />
+								<motion.button
+									type='button'
+									onClick={(e) => {
+										e.stopPropagation()
+										titleMeta?.onNext?.()
+									}}
+									disabled={isLoading || !titleMeta?.onNext}
+									whileHover={{
+										backgroundColor: 'var(--surface-hover)',
+										scale: 1.05,
+									}}
+									whileTap={{ scale: 0.9 }}
+									className='flex h-6 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition-all hover:text-[var(--text-primary)] disabled:opacity-30'>
+									<ChevronRight className='h-3.5 w-3.5' />
+								</motion.button>
+							</div>
+
+							<div className='relative flex min-w-0 flex-1 items-center justify-center'>
+								<AnimatePresence mode='wait'>
+									{isLoading ? (
+										<motion.div
+											key='loading'
+											initial={{ opacity: 0 }}
+											animate={{ opacity: 1 }}
+											exit={{ opacity: 0 }}
+											className='relative h-6 w-48 overflow-hidden rounded-md bg-[var(--surface-active)]'>
+											<motion.div
+												className='absolute inset-0'
+												style={{
+													background: `linear-gradient(90deg, transparent, ${accentColor}33, transparent)`,
+												}}
+												animate={{ x: ['-100%', '100%'] }}
+												transition={{
+													duration: 1.5,
+													repeat: Infinity,
+													ease: 'easeInOut',
+												}}
+											/>
+										</motion.div>
+									) : (
+										<motion.p
+											key='subject-text'
+											initial={{ opacity: 0, y: 4 }}
+											animate={{ opacity: 1, y: 0 }}
+											exit={{ opacity: 0, y: -4 }}
+											className='min-w-0 truncate text-center text-sm font-medium text-[var(--text-primary)]'>
+											{titleMeta?.subject || 'No Subject'}
+										</motion.p>
+									)}
+								</AnimatePresence>
+							</div>
+						</motion.div>
+					) : isDashboard ? (
+						<motion.div
+							key='search'
+							className='relative w-full max-w-xl'
+							initial={{ opacity: 0, y: -8, scale: 0.98, filter: 'blur(4px)' }}
+							animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+							exit={{ opacity: 0, y: 8, scale: 0.98, filter: 'blur(4px)' }}
+							transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}>
+							<div className='pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3'>
+								<Search
+									className='h-4 w-4 transition-colors duration-200'
+									style={{
+										color: searchFocused ? accentColor : 'var(--text-tertiary)',
+									}}
+								/>
+							</div>
+							<input
+								type='text'
+								data-search-input
+								value={searchQuery}
+								onChange={(e) => {
+									setSearchQuery(e.target.value)
+									onSearch?.(e.target.value)
+								}}
+								onFocus={() => setSearchFocused(true)}
+								onBlur={() => setSearchFocused(false)}
+								onMouseDown={(e) => e.stopPropagation()}
+								placeholder={t('inbox:search.placeholder')}
+								className='h-9 w-full rounded-xl border bg-slate-100/50 pr-4 pl-9 text-sm text-slate-900 placeholder-slate-500 transition-all duration-300 focus:bg-white focus:outline-none dark:bg-white/5 dark:text-white dark:placeholder-slate-500 dark:focus:bg-slate-800/80'
 								style={{
-									backgroundImage:
-										'linear-gradient(90deg, rgba(var(--accent-rgb), 0.05) 25%, rgba(var(--accent-rgb), 0.12) 50%, rgba(var(--accent-rgb), 0.05) 75%)',
-									backgroundSize: '200% 100%',
-									animation: 'shimmer 1.5s ease-in-out infinite',
+									borderColor: searchFocused ? accentColor : 'transparent',
+									boxShadow: searchFocused
+										? `0 0 0 1px ${accentColor}, 0 4px 16px ${accentColor}1A`
+										: 'none',
 								}}
 							/>
-						) : (
-							<p className='min-w-0 flex-1 truncate text-center text-sm font-medium text-slate-200'>
-								{titleMeta?.subject}
-							</p>
-						)}
-						<motion.button
-							type='button'
-							onClick={(e) => {
-								e.stopPropagation()
-								titleMeta?.onNext?.()
-							}}
-							disabled={isLoading || !titleMeta?.onNext}
-							whileTap={{ scale: 0.88 }}
-							className='flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.07] hover:text-slate-200 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent'>
-							<ChevronRight className='h-4 w-4' />
-						</motion.button>
-					</motion.div>
-				) : isDashboard ? (
-					<motion.div
-						className='relative w-full max-w-2xl'
-						animate={{ scale: searchFocused ? 1.01 : 1 }}
-						transition={{ duration: 0.2, ease: 'easeOut' }}>
-						<div className='pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5'>
-							<Search
-								className='h-4 w-4 transition-colors duration-200'
-								style={{ color: searchFocused ? accentColor : undefined }}
-							/>
-						</div>
-						<input
-							type='text'
-							data-search-input
-							value={searchQuery}
-							onChange={(e) => {
-								setSearchQuery(e.target.value)
-								onSearch?.(e.target.value)
-							}}
-							onFocus={() => setSearchFocused(true)}
-							onBlur={() => setSearchFocused(false)}
-							onMouseDown={(e) => e.stopPropagation()}
-							placeholder={t('inbox:search.placeholder')}
-							className={`block w-full rounded-xl border py-2.5 pr-4 pl-10 text-sm transition-all duration-200 focus:outline-none ${
-								searchFocused
-									? 'bg-background/90 text-foreground shadow-lg ring-1'
-									: 'bg-background/60 text-foreground placeholder:text-muted-foreground hover:bg-background/80 border-[var(--border-subtle)]'
-							}`}
-							style={
-								searchFocused
-									? {
-											borderColor: `rgba(var(--accent-rgb), 0.3)`,
-											boxShadow: `0 4px 12px -2px rgba(var(--accent-rgb), 0.05), 0 0 0 1px rgba(var(--accent-rgb), 0.2)`,
-										}
-									: undefined
-							}
-						/>
-						<motion.div
-							className='pointer-events-none absolute inset-x-4 -bottom-1 h-4 rounded-full blur-md'
-							style={{ backgroundColor: `rgba(var(--accent-rgb), 0.1)` }}
-							initial={false}
-							animate={{ opacity: searchFocused ? 1 : 0 }}
-							transition={{ duration: 0.2 }}
-						/>
-					</motion.div>
-				) : null}
+						</motion.div>
+					) : null}
+				</AnimatePresence>
 			</div>
 
-			<div className='flex w-64 shrink-0 items-center justify-end gap-2 px-2'>
-				{/* Dashboard Actions */}
+			{/* Right: Actions & Window Controls */}
+			<div className='flex w-64 shrink-0 items-center justify-end gap-3 px-3'>
 				{isDashboard && activeAccount && (
-					<div
-						className='mr-3 flex items-center gap-1 border-r pr-3'
-						style={{ borderColor: 'var(--border-subtle)' }}>
+					<div className='flex items-center gap-1 border-r border-[var(--border-subtle)] pr-3'>
 						<NotificationCenter />
 
 						<motion.button
-							id='outbox-button'
-							className='text-muted-foreground hover:text-foreground flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-[var(--surface-hover)]'
+							className='relative flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-all hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
 							onClick={(e) => {
 								e.stopPropagation()
 								onOpenOutbox?.()
@@ -184,28 +229,30 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 							animate={
 								isSending
 									? {
-											scale: [1, 1.15, 1],
-											rotate: [0, 12, -12, 0],
 											color: accentColor,
 										}
 									: {}
 							}
-							transition={
-								isSending
-									? {
-											duration: 0.5,
-											repeat: Infinity,
-											repeatType: 'loop',
-										}
-									: {}
-							}
+							whileHover={{ scale: 1.05 }}
+							whileHover={{ scale: 1.05 }}
 							whileTap={{ scale: 0.9 }}
 							onMouseDown={(e) => e.stopPropagation()}>
-							<Send className='h-[18px] w-[18px]' />
+							<Send
+								className='h-[18px] w-[18px]'
+								style={isSending ? { color: accentColor } : {}}
+							/>
+							{isSending && (
+								<motion.span
+									className='absolute inset-0 rounded-lg opacity-20'
+									animate={{ scale: [1, 1.4], opacity: [0.2, 0] }}
+									transition={{ duration: 1, repeat: Infinity }}
+									style={{ backgroundColor: accentColor }}
+								/>
+							)}
 						</motion.button>
 
 						<motion.button
-							className='text-muted-foreground hover:text-foreground flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-[var(--surface-hover)]'
+							className='flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-all hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
 							onClick={(e) => {
 								e.stopPropagation()
 								onOpenSettings?.()
@@ -215,62 +262,52 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 							<Settings className='h-[18px] w-[18px]' />
 						</motion.button>
 
-						{/* Avatar / Account Switcher */}
-						<AccountSwitcher onOpenSettings={onOpenSettings!} />
+						<div className='ml-1'>
+							<AccountSwitcher onOpenSettings={onOpenSettings!} />
+						</div>
 					</div>
 				)}
 
-				{/* Window Controls */}
-				<div className='flex h-full items-center gap-0.5 pl-1'>
-					{/* Minimize */}
-					<motion.button
+				{/* Window Controls - Sleek & Minimal */}
+				<div className='flex items-center gap-1.5 pl-1'>
+					<button
 						onClick={(e) => {
 							e.stopPropagation()
 							minimize()
 						}}
 						onMouseDown={(e) => e.stopPropagation()}
-						whileHover={{ scale: 1.1 }}
-						whileTap={{ scale: 0.85 }}
-						className='group flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-[var(--surface-active)]'>
-						<div className='bg-muted-foreground group-hover:bg-foreground h-0.5 w-2.5 rounded-full transition-colors' />
-					</motion.button>
-
-					{/* Maximize */}
-					<motion.button
+						className='group flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-tertiary)] transition-all hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)]'>
+						<div className='h-0.5 w-3 rounded-full bg-current opacity-70 transition-opacity group-hover:opacity-100' />
+					</button>
+					<button
 						onClick={(e) => {
 							e.stopPropagation()
 							toggleMaximize()
 						}}
 						onMouseDown={(e) => e.stopPropagation()}
-						whileHover={{ scale: 1.1 }}
-						whileTap={{ scale: 0.85 }}
-						className='group flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-[var(--surface-active)]'>
-						<div className='border-muted-foreground group-hover:border-foreground h-2.5 w-2.5 rounded-[2px] border-[1.5px] transition-colors' />
-					</motion.button>
-
-					{/* Close */}
-					<motion.button
+						className='group flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-tertiary)] transition-all hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)]'>
+						<div className='h-2.5 w-2.5 rounded-[2px] border-[1.5px] border-current opacity-70 transition-opacity group-hover:opacity-100' />
+					</button>
+					<button
 						onClick={(e) => {
 							e.stopPropagation()
 							close()
 						}}
 						onMouseDown={(e) => e.stopPropagation()}
-						whileHover={{ scale: 1.1 }}
-						whileTap={{ scale: 0.85 }}
-						className='group flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-red-500/80'>
+						className='group flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-tertiary)] transition-all hover:bg-red-500 hover:text-white'>
 						<svg
-							className='text-muted-foreground h-3.5 w-3.5 transition-colors group-hover:text-white'
+							className='h-3.5 w-3.5 opacity-70 transition-opacity group-hover:opacity-100'
 							fill='none'
+							viewBox='0 0 24 24'
 							stroke='currentColor'
-							viewBox='0 0 24 24'>
+							strokeWidth={2.5}>
 							<path
 								strokeLinecap='round'
 								strokeLinejoin='round'
-								strokeWidth={2.5}
 								d='M6 18L18 6M6 6l12 12'
 							/>
 						</svg>
-					</motion.button>
+					</button>
 				</div>
 			</div>
 		</div>

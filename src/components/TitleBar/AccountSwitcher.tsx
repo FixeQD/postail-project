@@ -63,10 +63,25 @@ export function AccountSwitcher({ onOpenSettings }: AccountSwitcherProps) {
 						<motion.div
 							{...(animationsEnabled
 								? {
-										initial: { opacity: 0, scale: 0.95, y: -8 },
-										animate: { opacity: 1, scale: 1, y: 0 },
-										exit: { opacity: 0, scale: 0.95, y: -4 },
-										transition: { duration: 0.15, ease: 'easeOut' },
+										initial: {
+											opacity: 0,
+											scale: 0.96,
+											y: -8,
+											filter: 'blur(4px)',
+										},
+										animate: {
+											opacity: 1,
+											scale: 1,
+											y: 0,
+											filter: 'blur(0px)',
+										},
+										exit: {
+											opacity: 0,
+											scale: 0.96,
+											y: -4,
+											filter: 'blur(4px)',
+										},
+										transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] },
 									}
 								: {})}
 							onMouseDown={(e) => e.stopPropagation()}
@@ -97,9 +112,14 @@ export function AccountSwitcher({ onOpenSettings }: AccountSwitcherProps) {
 												setActiveAccount(account)
 												setIsOpen(false)
 											}}
-											className={`text-foreground flex w-full cursor-pointer items-center justify-between rounded-md px-2 py-2 text-sm transition-colors outline-none hover:bg-[var(--surface-hover)] focus:bg-[var(--surface-hover)] ${
-												isActive ? 'bg-[var(--surface-panel)]' : ''
-											}`}>
+											className={`text-foreground flex w-full cursor-pointer items-center justify-between rounded-md px-2 py-2 text-sm transition-all outline-none hover:bg-[var(--surface-hover)] focus:bg-[var(--surface-hover)]`}
+											style={
+												isActive
+													? {
+															backgroundColor: `${accentColor}1A`,
+														}
+													: {}
+											}>
 											<div className='flex items-center gap-2 truncate'>
 												<div
 													className='flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold'

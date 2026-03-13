@@ -56,8 +56,14 @@ function NotificationItem({ item }: { item: AppNotification; key?: string }) {
 			layout
 			initial={{ opacity: 0, x: 12 }}
 			animate={{ opacity: 1, x: 0 }}
-			exit={{ opacity: 0, x: 12, transition: { duration: 0.15 } }}
-			transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+			exit={{
+				opacity: 0,
+				scale: 0.95,
+				height: 0,
+				margin: 0,
+				transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] },
+			}}
+			transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
 			className='group relative flex gap-3 rounded-xl p-3 transition-colors hover:bg-[var(--surface-hover)]'
 			onMouseEnter={() => !item.read && markRead(item.id)}>
 			{/* Unread dot */}
@@ -128,7 +134,8 @@ export function NotificationCenter() {
 		<div ref={panelRef} className='relative'>
 			{/* Bell trigger */}
 			<motion.button
-				className='relative flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
+				className='relative flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)] transition-all hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
+				whileHover={{ scale: 1.05 }}
 				whileTap={{ scale: 0.88 }}
 				onMouseDown={(e) => e.stopPropagation()}
 				onClick={(e) => {
@@ -145,7 +152,10 @@ export function NotificationCenter() {
 							exit={{ scale: 0 }}
 							transition={{ type: 'spring', stiffness: 500, damping: 25 }}
 							className='absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white'
-							style={{ backgroundColor: accentColor }}>
+							style={{
+								backgroundColor: accentColor,
+								boxShadow: `0 0 8px ${accentColor}66`,
+							}}>
 							{unreadCount > 99 ? '99+' : unreadCount}
 						</motion.span>
 					)}
@@ -156,10 +166,10 @@ export function NotificationCenter() {
 			<AnimatePresence>
 				{centerOpen && (
 					<motion.div
-						initial={{ opacity: 0, scale: 0.95, y: -8 }}
-						animate={{ opacity: 1, scale: 1, y: 0 }}
-						exit={{ opacity: 0, scale: 0.95, y: -8 }}
-						transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+						initial={{ opacity: 0, scale: 0.96, y: -8, filter: 'blur(4px)' }}
+						animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
+						exit={{ opacity: 0, scale: 0.96, y: -4, filter: 'blur(4px)' }}
+						transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
 						style={{ transformOrigin: 'top right' }}
 						onMouseDown={(e) => e.stopPropagation()}
 						className='absolute top-full right-0 z-[200] mt-2 w-80 overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-glass)] shadow-2xl backdrop-blur-2xl'>
