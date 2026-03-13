@@ -2,7 +2,21 @@ use crate::db::{AttachmentMeta, MailHeader, Mailbox, MessageFull};
 use crate::globals::{DB_CONN, IMAP_MANAGER};
 use crate::oauth;
 use rusqlite::params;
+use serde::{Deserialize, Serialize};
 use tauri::command;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ThreadMessage {
+    pub header: MailHeader,
+    pub body_html_safe: String,
+    pub body_plain: String,
+    pub is_current: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ThreadView {
+    pub messages: Vec<ThreadMessage>,
+}
 
 #[command]
 pub async fn fetch_raw_eml_text(
@@ -297,6 +311,124 @@ pub async fn fetch_message_full(
     }
 
     result
+}
+
+#[command]
+pub async fn fetch_thread(
+    account_id: String,
+    mailbox: String,
+    uid: u64,
+) -> Result<ThreadView, String> {
+    let uid_u32: u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
+
+    tracing::info!(
+        target: "postail",
+        "[API] fetch_thread START uid={} mailbox={}",
+        uid_u32, mailbox
+    );
+
+    // Collect UIDs first without holding guard
+    let thread_uids: Vec<u32> = {
+        let conn_guard = DB_CONN.lock().await;
+        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+
+        // Get current message's message_id
+        let current_message_id: Option<String> = conn
+            .query_row(
+                "SELECT message_id FROM messages WHERE account_id = ? AND mailbox = ? AND uid = ?",
+                params![&account_id, &mailbox, uid_u32],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+
+        let current_message_id = match current_message_id {
+            Some(id) => id,
+            None => {
+                // No message found, return empty thread
+                return Ok(ThreadView { messages: vec![] });
+            }
+        };
+
+        // Get current message's subject for fallback search
+        let current_subject: Option<String> = conn
+            .query_row(
+                "SELECT subject FROM messages WHERE account_id = ? AND mailbox = ? AND uid = ?",
+                params![&account_id, &mailbox, uid_u32],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+
+        // Find all messages in thread by message_id (exact match or conversation)
+        let mut stmt = conn
+            .prepare(
+                "SELECT DISTINCT uid FROM messages
+                 WHERE account_id = ? AND mailbox = ? AND (message_id = ? OR (subject = ? AND subject IS NOT NULL AND subject != ''))
+                 ORDER BY internal_date ASC, uid ASC",
+            )
+            .map_err(|e| e.to_string())?;
+
+        let uids: Vec<u32> = stmt
+            .query_map(
+                params![
+                    &account_id,
+                    &mailbox,
+                    &current_message_id,
+                    current_subject.as_deref().unwrap_or("")
+                ],
+                |row| row.get::<_, u32>(0),
+            )
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+
+        uids
+    };
+
+    // Now load full messages
+    let security = crate::globals::SECURITY.lock().await;
+    let mut thread_messages = vec![];
+
+    for thread_uid in thread_uids {
+        let conn_guard = DB_CONN.lock().await;
+        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+
+        // Fetch full message
+        let msg = crate::db::fetch_message_full(conn, &account_id, &mailbox, thread_uid)
+            .map_err(|e| e.to_string())?;
+
+        if let Some(mut msg) = msg {
+            // Load body from cache
+            match crate::db::eml_cache::load_body(&security, &account_id, &mailbox, thread_uid) {
+                Ok(Some(body)) => {
+                    msg.body_html_safe = body.body_html;
+                    msg.body_plain = body.body_plain;
+                    msg.read_receipt_to = body.read_receipt_to;
+                }
+                _ => {
+                    // Leave empty if no cached body
+                }
+            }
+
+            thread_messages.push(ThreadMessage {
+                header: msg.header,
+                body_html_safe: msg.body_html_safe,
+                body_plain: msg.body_plain,
+                is_current: thread_uid == uid_u32,
+            });
+        }
+    }
+
+    tracing::info!(
+        target: "postail",
+        "[API] fetch_thread found {} messages uid={} mailbox={}",
+        thread_messages.len(),
+        uid_u32,
+        mailbox
+    );
+
+    Ok(ThreadView {
+        messages: thread_messages,
+    })
 }
 
 #[command]

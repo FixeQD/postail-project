@@ -43,3 +43,14 @@ export interface MessageFull {
 	inline_images: AttachmentMeta[]
 	read_receipt_to?: string | null
 }
+
+export interface ThreadMessage {
+	header: MailHeader
+	body_html_safe: string
+	body_plain: string
+	is_current: boolean
+}
+
+export interface ThreadView {
+	messages: ThreadMessage[]
+}

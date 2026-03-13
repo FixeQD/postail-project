@@ -152,6 +152,7 @@ pub fn run() {
             cmd::mail::actions::search_messages,
             cmd::mail::actions::mark_read,
             cmd::mail::listing::fetch_raw_eml_text,
+            cmd::mail::listing::fetch_thread,
             cmd::mail::actions::delete_messages,
             cmd::smtp::enqueue_message,
             cmd::smtp::list_outbox,

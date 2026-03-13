@@ -18,12 +18,13 @@ import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { useMessageViewStore } from '@/stores/messageViewStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useDraftStore } from '@/stores/draftStore'
-import type { MessageFull } from '@/types/mail'
+import type { MessageFull, ThreadView as ThreadViewType } from '@/types/mail'
 import { MessageViewHeader } from './MessageViewHeader'
 import { MessageViewMeta } from './MessageViewMeta'
 import { MessageViewBody } from './MessageViewBody'
 import { MessageViewAttachments } from './MessageViewAttachments'
 import { MessageViewErrorBoundary } from './MessageViewErrorBoundary'
+import { ThreadView } from './ThreadView'
 import { useInboxShortcuts } from '@/hooks/useInboxShortcuts'
 import { toast } from '@/stores/toastStore'
 import { MessageViewSkeleton } from './MessageViewSkeleton'
@@ -43,7 +44,8 @@ export const MessageView = ({
 	const blockExternalImages = useSettingsStore((s) => s.settings['block-external-images'])
 	const blockReadReceipts = useSettingsStore((s) => s.settings['block-read-receipts'])
 	const markAsReadDelay = useSettingsStore((s) => s.settings['mark-as-read-delay'])
-	// viewMode passed to MessageViewBody below
+	const threadViewEnabled = useSettingsStore((s) => s.settings['thread-view'])
+
 	const [allowExternalResources, setAllowExternalResources] = useState(!blockExternalImages)
 	const [cspBlocked, setCspBlocked] = useState(false)
 	const [receiptDismissed, setReceiptDismissed] = useState(false)
@@ -52,6 +54,8 @@ export const MessageView = ({
 	const [rawEml, setRawEml] = useState<string | null>(null)
 	const [rawEmlLoading, setRawEmlLoading] = useState(false)
 	const [sourceOpen, setSourceOpen] = useState(false)
+	const [thread, setThread] = useState<ThreadViewType | null>(null)
+	const [threadLoading, setThreadLoading] = useState(false)
 
 	const { data, isLoading, error, refetch } = useQuery<MessageFull | null>({
 		queryKey: ['message', accountId, mailbox, uid],
@@ -64,6 +68,23 @@ export const MessageView = ({
 		staleTime: 5 * 60 * 1000,
 		retry: 1,
 	})
+
+	// Load thread when threadViewEnabled
+	useEffect(() => {
+		if (!threadViewEnabled || !data) {
+			setThread(null)
+			return
+		}
+
+		setThreadLoading(true)
+		invoke<ThreadViewType>('fetch_thread', { accountId, mailbox, uid })
+			.then(setThread)
+			.catch((err) => {
+				console.error('Failed to load thread:', err)
+				setThread(null)
+			})
+			.finally(() => setThreadLoading(false))
+	}, [threadViewEnabled, data, accountId, mailbox, uid])
 
 	// auto-mark as read - respects mark-as-read-delay setting
 	// -1 = manual only, 0 = immediate, 2/5 = delayed seconds
@@ -310,96 +331,117 @@ export const MessageView = ({
 			/>
 
 			<div ref={scrollContainerRef} className='message-view-body flex-1 overflow-y-auto'>
-				<MessageViewMeta header={data.header} />
-
-				{/* Read receipt request banner */}
-				{data.read_receipt_to && !blockReadReceipts && !receiptDismissed && (
-					<div className='mx-5 mb-2 flex items-center justify-between gap-2 rounded-lg bg-[var(--surface-active)] px-3 py-2 ring-1 ring-[var(--border-faint)]'>
-						<div className='flex items-center gap-2'>
-							<div className='h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.5)]' />
-							<span className='text-[11px] font-medium tracking-tight text-[var(--text-tertiary)] uppercase'>
-								{t('inbox:messageView.readReceipt.label')}
-							</span>
-						</div>
-						<div className='flex items-center gap-3'>
-							<button
-								type='button'
-								disabled={isSendingReceipt}
-								onClick={async () => {
-									setIsSendingReceipt(true)
-									try {
-										await invoke('send_read_receipt', {
-											accountId,
-											toAddress: data.read_receipt_to,
-											originalMessageId: data.header.message_id ?? null,
-											originalSubject: data.header.subject ?? null,
-										})
-										toast.success(t('inbox:messageView.readReceipt.sent'))
-										setReceiptDismissed(true)
-									} catch {
-										toast.error(t('inbox:messageView.readReceipt.error'))
-										setIsSendingReceipt(false)
-									}
-								}}
-								className='text-[11px] font-medium text-sky-400 transition-colors hover:text-sky-300 disabled:opacity-50'>
-								{isSendingReceipt
-									? t('inbox:messageView.readReceipt.sending')
-									: t('inbox:messageView.readReceipt.send')}
-							</button>
-							<button
-								type='button'
-								disabled={isSendingReceipt}
-								onClick={() => setReceiptDismissed(true)}
-								className='text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50'>
-								{t('inbox:messageView.readReceipt.dismiss')}
-							</button>
-						</div>
+				{threadViewEnabled && thread && thread.messages.length > 1 && !threadLoading ? (
+					<ThreadView
+						thread={thread}
+						currentUid={uid}
+						blockExternalImages={blockExternalImages}
+						viewMode={viewMode}
+					/>
+				) : threadViewEnabled && threadLoading ? (
+					<div className='flex h-full items-center justify-center'>
+						<div className='text-sm text-[var(--text-secondary)]'>Loading thread…</div>
 					</div>
-				)}
+				) : (
+					<>
+						<MessageViewMeta header={data.header} />
 
-				{/* CSP-triggered banner - appears only when browser actually blocked something */}
-				{cspBlocked && !allowExternalResources && (
-					<div className='mx-5 mb-2 flex items-center justify-between gap-2 rounded-lg bg-[var(--surface-active)] px-3 py-2 ring-1 ring-[var(--border-faint)]'>
-						<div className='flex items-center gap-2'>
-							<div className='h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]' />
-							<span className='text-[11px] font-medium tracking-tight text-[var(--text-tertiary)] uppercase'>
-								{t('inbox:messageView.cspBlocked.label')}
-							</span>
+						{/* Read receipt request banner */}
+						{data.read_receipt_to && !blockReadReceipts && !receiptDismissed && (
+							<div className='mx-5 mb-2 flex items-center justify-between gap-2 rounded-lg bg-[var(--surface-active)] px-3 py-2 ring-1 ring-[var(--border-faint)]'>
+								<div className='flex items-center gap-2'>
+									<div className='h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.5)]' />
+									<span className='text-[11px] font-medium tracking-tight text-[var(--text-tertiary)] uppercase'>
+										{t('inbox:messageView.readReceipt.label')}
+									</span>
+								</div>
+								<div className='flex items-center gap-3'>
+									<button
+										type='button'
+										disabled={isSendingReceipt}
+										onClick={async () => {
+											setIsSendingReceipt(true)
+											try {
+												await invoke('send_read_receipt', {
+													accountId,
+													toAddress: data.read_receipt_to,
+													originalMessageId:
+														data.header.message_id ?? null,
+													originalSubject: data.header.subject ?? null,
+												})
+												toast.success(
+													t('inbox:messageView.readReceipt.sent')
+												)
+												setReceiptDismissed(true)
+											} catch {
+												toast.error(
+													t('inbox:messageView.readReceipt.error')
+												)
+												setIsSendingReceipt(false)
+											}
+										}}
+										className='text-[11px] font-medium text-sky-400 transition-colors hover:text-sky-300 disabled:opacity-50'>
+										{isSendingReceipt
+											? t('inbox:messageView.readReceipt.sending')
+											: t('inbox:messageView.readReceipt.send')}
+									</button>
+									<button
+										type='button'
+										disabled={isSendingReceipt}
+										onClick={() => setReceiptDismissed(true)}
+										className='text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50'>
+										{t('inbox:messageView.readReceipt.dismiss')}
+									</button>
+								</div>
+							</div>
+						)}
+
+						{/* CSP-triggered banner - appears only when browser actually blocked something */}
+						{cspBlocked && !allowExternalResources && (
+							<div className='mx-5 mb-2 flex items-center justify-between gap-2 rounded-lg bg-[var(--surface-active)] px-3 py-2 ring-1 ring-[var(--border-faint)]'>
+								<div className='flex items-center gap-2'>
+									<div className='h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]' />
+									<span className='text-[11px] font-medium tracking-tight text-[var(--text-tertiary)] uppercase'>
+										{t('inbox:messageView.cspBlocked.label')}
+									</span>
+								</div>
+								<button
+									type='button'
+									onClick={() => setAllowExternalResources(true)}
+									className='text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:text-[var(--text-primary)]'>
+									{t('inbox:messageView.cspBlocked.allow')}
+								</button>
+							</div>
+						)}
+
+						<div className='border-t border-[var(--border-faint)]'>
+							<MessageViewErrorBoundary
+								onFallback={() => toggleViewMode()}
+								title={t('inbox:messageView.renderError.title')}
+								description={t('inbox:messageView.renderError.description')}
+								fallbackText={t('inbox:messageView.renderError.fallback')}>
+								<MessageViewBody
+									htmlContent={data.body_html_safe}
+									plainContent={data.body_plain}
+									viewMode={viewMode}
+									allowExternalResources={allowExternalResources}
+									inline_images={data.inline_images}
+									onCspBlocked={() => setCspBlocked(true)}
+								/>
+							</MessageViewErrorBoundary>
+							{data.attachments.length > 0 && (
+								<MessageViewAttachments
+									attachments={data.attachments}
+									accountId={accountId}
+									mailbox={mailbox}
+									uid={uid}
+								/>
+							)}
 						</div>
-						<button
-							type='button'
-							onClick={() => setAllowExternalResources(true)}
-							className='text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:text-[var(--text-primary)]'>
-							{t('inbox:messageView.cspBlocked.allow')}
-						</button>
-					</div>
+					</>
 				)}
-
-				<div className='border-t border-[var(--border-faint)]'>
-					<MessageViewErrorBoundary
-						onFallback={() => toggleViewMode()}
-						title={t('inbox:messageView.renderError.title')}
-						description={t('inbox:messageView.renderError.description')}
-						fallbackText={t('inbox:messageView.renderError.fallback')}>
-						<MessageViewBody
-							htmlContent={data.body_html_safe}
-							plainContent={data.body_plain}
-							viewMode={viewMode}
-							allowExternalResources={allowExternalResources}
-							inline_images={data.inline_images}
-							onCspBlocked={() => setCspBlocked(true)}
-						/>
-					</MessageViewErrorBoundary>
-					{data.attachments.length > 0 && (
-						<MessageViewAttachments
-							attachments={data.attachments}
-							accountId={accountId}
-							mailbox={mailbox}
-							uid={uid}
-						/>
-					)}
-				</div>
 			</div>
+
 			{/* Raw EML source viewer */}
 			<Dialog open={sourceOpen} onOpenChange={setSourceOpen}>
 				<DialogContent className='flex max-h-[80vh] w-full max-w-3xl flex-col gap-0 p-0'>
