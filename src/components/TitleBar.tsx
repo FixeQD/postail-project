@@ -234,7 +234,6 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 									: {}
 							}
 							whileHover={{ scale: 1.05 }}
-							whileHover={{ scale: 1.05 }}
 							whileTap={{ scale: 0.9 }}
 							onMouseDown={(e) => e.stopPropagation()}>
 							<Send
