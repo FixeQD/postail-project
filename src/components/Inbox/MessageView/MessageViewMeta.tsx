@@ -53,9 +53,9 @@ export const MessageViewMeta = ({ header }: MessageViewMetaProps) => {
 			<div
 				className='mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold'
 				style={{
-					background: `hsl(${hue} 55% 22%)`,
-					color: `hsl(${hue} 80% 75%)`,
-					boxShadow: `0 0 0 1px hsl(${hue} 55% 30% / 0.5)`,
+					background: `linear-gradient(135deg, hsl(${hue} 55% 25%), hsl(${hue} 65% 15%))`,
+					color: `hsl(${hue} 80% 85%)`,
+					boxShadow: `inset 0 1px 0 hsl(0 0% 100% / 0.1), 0 2px 4px hsl(${hue} 55% 10% / 0.3), 0 0 0 1px hsl(${hue} 55% 30% / 0.5)`,
 				}}>
 				{initials}
 			</div>
@@ -94,10 +94,13 @@ export const MessageViewMeta = ({ header }: MessageViewMetaProps) => {
 				<AnimatePresence>
 					{expanded && (
 						<motion.div
-							initial={{ opacity: 0, height: 0 }}
-							animate={{ opacity: 1, height: 'auto' }}
-							exit={{ opacity: 0, height: 0 }}
-							transition={{ duration: animationsEnabled ? 0.2 : 0 }}
+							initial={{ opacity: 0, height: 0, filter: 'blur(4px)' }}
+							animate={{ opacity: 1, height: 'auto', filter: 'blur(0px)' }}
+							exit={{ opacity: 0, height: 0, filter: 'blur(4px)' }}
+							transition={{
+								duration: animationsEnabled ? 0.25 : 0,
+								ease: [0.16, 1, 0.3, 1],
+							}}
 							className='overflow-hidden'>
 							<div className='mt-2.5 flex flex-col gap-1.5 rounded-lg border border-[var(--border-faint)] bg-[var(--surface-panel)] px-3 py-2.5 text-xs'>
 								<MetaRow label='From'>

@@ -15,12 +15,15 @@ import { toast } from '@/stores/toastStore'
 import { useState } from 'react'
 import type { MessageViewAttachmentsProps } from '@/types/components/shared'
 
+import { useThemeStore } from '@/stores/themeStore'
+
 export const MessageViewAttachments = ({
 	attachments,
 	accountId,
 	mailbox,
 	uid,
 }: MessageViewAttachmentsProps) => {
+	const accentColor = useThemeStore((s) => s.accentColor)
 	const { t } = useTypedTranslation(['inbox'])
 	const [downloading, setDownloading] = useState<string | null>(null)
 
@@ -64,22 +67,26 @@ export const MessageViewAttachments = ({
 	}
 
 	const container: Variants = {
-		hidden: { opacity: 0 },
+		hidden: { opacity: 0, y: 10 },
 		show: {
 			opacity: 1,
+			y: 0,
 			transition: {
-				staggerChildren: 0.05,
-				delayChildren: 0.1,
+				staggerChildren: 0.04,
+				delayChildren: 0.05,
+				duration: 0.25,
+				ease: [0.16, 1, 0.3, 1],
 			},
 		},
 	}
 
 	const item: Variants = {
-		hidden: { opacity: 0, scale: 0.95 },
+		hidden: { opacity: 0, scale: 0.96, y: 8 },
 		show: {
 			opacity: 1,
 			scale: 1,
-			transition: { type: 'spring', stiffness: 300, damping: 24 },
+			y: 0,
+			transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] },
 		},
 	}
 
@@ -91,7 +98,7 @@ export const MessageViewAttachments = ({
 			animate='show'>
 			<motion.div
 				variants={item}
-				className='mb-3 flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]'>
+				className='mb-4 flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]'>
 				<PaperclipIcon className='size-4 text-[var(--text-secondary)]' />
 				<span>
 					{attachments.length}{' '}
@@ -106,12 +113,19 @@ export const MessageViewAttachments = ({
 					<motion.div
 						key={att.part_id}
 						variants={item}
-						className='group relative flex items-center gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-3 transition-colors hover:border-[var(--border-subtle)] hover:bg-[var(--surface-hover)]'>
-						<div className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-hover)] ring-1 ring-[var(--border-faint)] ring-inset'>
+						whileHover={{ y: -2 }}
+						className='group relative flex items-center gap-3 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-2.5 transition-all hover:border-transparent hover:shadow-lg'>
+						{/* Glow Background on Hover */}
+						<div
+							className='absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-10'
+							style={{ backgroundColor: accentColor }}
+						/>
+
+						<div className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-active)] ring-1 ring-[var(--border-faint)] transition-transform ring-inset group-hover:scale-105'>
 							{getIcon(att.mime_type)}
 						</div>
 
-						<div className='min-w-0 flex-1'>
+						<div className='relative z-10 min-w-0 flex-1'>
 							<p className='truncate text-sm font-medium text-[var(--text-primary)]'>
 								{att.filename || 'Unnamed'}
 							</p>
@@ -120,20 +134,35 @@ export const MessageViewAttachments = ({
 							</p>
 						</div>
 
-						<button
+						<motion.button
+							whileHover={{ scale: 1.1 }}
+							whileTap={{ scale: 0.9 }}
 							onClick={() => handleDownload(att)}
 							disabled={downloading === att.part_id}
-							className={`flex size-8 shrink-0 items-center justify-center rounded-md text-[var(--text-secondary)] transition-all hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)] focus:opacity-100 disabled:cursor-not-allowed disabled:opacity-50 ${
+							style={{
+								backgroundColor:
+									downloading === att.part_id
+										? 'transparent'
+										: `${accentColor}1A`,
+								color: accentColor,
+							}}
+							className={`relative z-10 mr-1 flex size-8 shrink-0 items-center justify-center rounded-full transition-all focus:opacity-100 disabled:cursor-not-allowed disabled:opacity-50 ${
 								downloading === att.part_id
 									? 'opacity-100'
-									: 'opacity-0 group-hover:opacity-100'
+									: 'opacity-0 shadow-sm backdrop-blur-sm group-hover:opacity-100'
 							}`}>
 							{downloading === att.part_id ? (
-								<div className='size-4 animate-spin rounded-full border-2 border-[var(--text-secondary)] border-t-transparent' />
+								<div
+									className='size-4 animate-spin rounded-full border-2 border-t-transparent'
+									style={{
+										borderColor: accentColor,
+										borderTopColor: 'transparent',
+									}}
+								/>
 							) : (
 								<DownloadIcon className='size-4' />
 							)}
-						</button>
+						</motion.button>
 					</motion.div>
 				))}
 			</div>

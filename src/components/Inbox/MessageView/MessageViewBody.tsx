@@ -74,23 +74,16 @@ export const MessageViewBody = ({
   <body>
     <div class="email-wrapper">${htmlContent}</div>
     <script>
-      let naturalWidth = 0;
-
       const sendHeight = () => {
         window.parent.postMessage({
           type: 'resize',
           height: document.body.scrollHeight,
-          naturalWidth,
         }, '*');
       };
 
       const ro = new ResizeObserver(() => sendHeight());
 
       const init = () => {
-        ro.disconnect();
-        document.body.style.width = 'max-content';
-        naturalWidth = document.body.scrollWidth;
-        document.body.style.width = '';
         ro.observe(document.body);
         sendHeight();
       };
@@ -172,13 +165,7 @@ export const MessageViewBody = ({
 
 			if (e.data?.type === 'resize' && typeof e.data.height === 'number') {
 				iframeRef.current.style.height = `${e.data.height}px`
-
-				if (typeof e.data.naturalWidth === 'number' && containerRef.current) {
-					const containerWidth = containerRef.current.getBoundingClientRect().width
-					const targetWidth = Math.min(e.data.naturalWidth, containerWidth)
-					setIframeWidth(`${targetWidth}px`)
-				}
-
+				setIframeWidth('100%')
 				setIframeReady(true)
 			}
 
@@ -204,8 +191,8 @@ export const MessageViewBody = ({
 
 	if (effectiveViewMode === 'plain') {
 		return (
-			<div className='px-5 py-5'>
-				<pre className='message-view-plain w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-5 font-mono text-[13px] leading-relaxed break-words whitespace-pre-wrap text-[var(--text-primary)]'>
+			<div className='animate-in fade-in slide-in-from-bottom-2 px-5 py-5 transition-all duration-300'>
+				<pre className='message-view-plain w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-6 font-mono text-[13px] leading-relaxed break-words whitespace-pre-wrap text-[var(--text-primary)] shadow-sm'>
 					{plainContent || '(No content)'}
 				</pre>
 			</div>
@@ -216,12 +203,14 @@ export const MessageViewBody = ({
 		<>
 			<div ref={containerRef} className='overflow-x-auto px-5 py-5'>
 				<div
-					className='overflow-hidden rounded-xl border border-[var(--border-faint)]'
+					className={`overflow-hidden rounded-xl border border-[var(--border-faint)] transition-all duration-300 ease-out ${
+						iframeReady
+							? 'translate-y-0 opacity-100 shadow-sm'
+							: 'translate-y-2 opacity-0'
+					}`}
 					style={{
 						width: iframeWidth,
 						backgroundColor: emailBg,
-						opacity: iframeReady ? 1 : 0,
-						transition: 'opacity 0.2s ease',
 					}}>
 					{iframeSrc && (
 						<iframe

@@ -166,7 +166,7 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 											initial={{ opacity: 0, y: 4 }}
 											animate={{ opacity: 1, y: 0 }}
 											exit={{ opacity: 0, y: -4 }}
-											className='min-w-0 truncate text-center text-sm font-medium text-[var(--text-primary)]'>
+											className='min-w-0 flex-1 truncate text-center text-sm font-medium text-[var(--text-primary)]'>
 											{titleMeta?.subject || 'No Subject'}
 										</motion.p>
 									)}

@@ -38,9 +38,9 @@ export const MessageViewHeader = ({
 				<motion.button
 					type='button'
 					{...(animationsEnabled
-						? { whileHover: { scale: 1.08 }, whileTap: { scale: 0.88 } }
+						? { whileHover: { scale: 1.05 }, whileTap: { scale: 0.9 } }
 						: {})}
-					className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors disabled:opacity-40 ${
+					className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all disabled:opacity-40 ${
 						active
 							? 'bg-sky-500/15 text-sky-400'
 							: destructive
@@ -61,8 +61,13 @@ export const MessageViewHeader = ({
 		show: { opacity: 1, transition: { staggerChildren: 0.04, delayChildren: 0.05 } },
 	}
 	const item: Variants = {
-		hidden: { opacity: 0, y: -4 },
-		show: { opacity: 1, y: 0, transition: { duration: 0.18, ease: 'easeOut' } },
+		hidden: { opacity: 0, y: -8, scale: 0.96 },
+		show: {
+			opacity: 1,
+			y: 0,
+			scale: 1,
+			transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] },
+		},
 	}
 
 	return (
