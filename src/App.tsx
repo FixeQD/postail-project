@@ -8,7 +8,6 @@ import { EncryptionChoice } from './components/Welcome/encryption/EncryptionChoi
 import { Argon2Setup } from './components/Welcome/encryption/Argon2Setup'
 import { Argon2Unlock } from './components/Welcome/encryption/Argon2Unlock'
 import { RecoveryStep } from './components/Welcome/recovery/RecoveryStep'
-import { RecoveryVerifyDialog } from './components/Welcome/recovery/RecoveryVerifyDialog'
 import { TPMUnlockFailed } from './components/Welcome/tpm/TPMUnlockFailed'
 import { SettingsScreen } from './components/Settings/SettingsScreen'
 import { InboxScreen } from './components/Inbox/InboxScreen'
@@ -43,8 +42,6 @@ function App() {
 		handleSecurityChoice,
 		handleRecoveryVerified,
 		setTempPassphrase,
-		showRecoveryVerify,
-		setShowRecoveryVerify,
 		activeAccount,
 		tpmUnlockError,
 		retryTpmUnlock,
@@ -235,17 +232,10 @@ function App() {
 				)
 			case 'recovery-setup':
 				return (
-					<>
-						<RecoveryStep
-							onNext={() => setShowRecoveryVerify(true)}
-							encryptionMethod='argon2'
-						/>
-						<RecoveryVerifyDialog
-							open={showRecoveryVerify}
-							onClose={() => setShowRecoveryVerify(false)}
-							onVerified={handleRecoveryVerified}
-						/>
-					</>
+					<RecoveryStep
+						onNext={() => handleRecoveryVerified()}
+						encryptionMethod='argon2'
+					/>
 				)
 			case 'argon2-unlock':
 				return (

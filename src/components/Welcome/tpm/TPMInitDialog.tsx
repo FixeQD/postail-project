@@ -13,7 +13,6 @@ import { useSecurityTranslation } from '@/hooks/useTypedTranslation'
 import { useShellTransition } from '@/hooks/useShellTransition'
 import { cn } from '@/lib/utils'
 import { RecoveryStep } from '@/components/Welcome/recovery/RecoveryStep'
-import { RecoveryVerifyDialog } from '@/components/Welcome/recovery/RecoveryVerifyDialog'
 import type { TPMInitDialogProps } from '@/types/components/welcome'
 
 type TpmStatus =
@@ -45,7 +44,6 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 	const [status, setStatus] = useState<TpmStatus>('checking')
 	const [error, setError] = useState<string | null>(null)
 	const [showRecoveryStep, setShowRecoveryStep] = useState(false)
-	const [showRecoveryVerify, setShowRecoveryVerify] = useState(false)
 	const { shellScope, contentScope, transition, reset } = useShellTransition()
 	const recoveryCompleted = useRef(false)
 
@@ -103,13 +101,8 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 		}
 	}, [switchToRecovery])
 
-	const handleRecoveryContinue = useCallback(() => {
-		setShowRecoveryVerify(true)
-	}, [])
-
 	const handleRecoveryVerified = useCallback(() => {
 		recoveryCompleted.current = true
-		setShowRecoveryVerify(false)
 		onSuccess()
 		onClose()
 	}, [onSuccess, onClose])
@@ -125,7 +118,6 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 				recoveryCompleted.current = false
 				onClose()
 				setShowRecoveryStep(false)
-				setShowRecoveryVerify(false)
 				reset()
 			}
 		},
@@ -342,7 +334,7 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 							{showRecoveryStep ? (
 								<RecoveryStep
 									variant='embedded'
-									onNext={handleRecoveryContinue}
+									onNext={handleRecoveryVerified}
 									encryptionMethod='tpm'
 								/>
 							) : (
@@ -352,12 +344,6 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 					</div>
 				</DialogContent>
 			</Dialog>
-
-			<RecoveryVerifyDialog
-				open={showRecoveryVerify}
-				onClose={() => setShowRecoveryVerify(false)}
-				onVerified={handleRecoveryVerified}
-			/>
 		</>
 	)
 }

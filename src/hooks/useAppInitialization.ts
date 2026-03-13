@@ -26,7 +26,6 @@ export function useAppInitialization() {
 
 	const [tempPassphrase, setTempPassphrase] = useState<string | null>(null)
 	const [isRecoveryReencrypt, setIsRecoveryReencrypt] = useState(false)
-	const [showRecoveryVerify, setShowRecoveryVerify] = useState(false)
 	const [recoveryReencryptSource, setRecoveryReencryptSource] = useState<AppState | null>(null)
 	const [pendingMailboxRoleAccountId, setPendingMailboxRoleAccountId] = useState<string | null>(
 		null
@@ -127,7 +126,6 @@ export function useAppInitialization() {
 					passphrase: tempPassphrase,
 				})
 			}
-			setShowRecoveryVerify(false)
 			await new Promise((resolve) => setTimeout(resolve, 100))
 			await persistTheme()
 			await loadSettings()
@@ -295,8 +293,6 @@ export function useAppInitialization() {
 		handleRecoveryVerified,
 		tempPassphrase,
 		setTempPassphrase,
-		showRecoveryVerify,
-		setShowRecoveryVerify,
 		activeAccount,
 		tpmUnlockError,
 		retryTpmUnlock,
