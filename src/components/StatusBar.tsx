@@ -230,12 +230,9 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 
 	return (
 		<TooltipProvider>
-			<div className='text-muted-foreground relative flex h-7 shrink-0 items-center justify-between px-2 text-xs'>
-				{/* Top gradient border */}
-				<div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-black/[0.06] to-transparent dark:via-white/[0.06]' />
-
-				{/* Background */}
-				<div className='glass absolute inset-0' />
+			<div className='text-muted-foreground relative z-50 flex h-7 shrink-0 items-center justify-between border-t border-[var(--border-subtle)] bg-[var(--app-bg)] px-2 text-xs transition-colors'>
+				{/* Background accent glow */}
+				<div className='absolute inset-0 bg-gradient-to-r from-transparent via-[var(--accent-color)] to-transparent opacity-[0.02]' />
 
 				{/* Left section - Sync status */}
 				<DropdownMenu open={isSyncMenuOpen} onOpenChange={setIsSyncMenuOpen}>
@@ -243,7 +240,7 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 						<Button
 							variant='ghost'
 							size='sm'
-							className='text-muted-foreground hover:text-foreground relative z-10 h-5 gap-1.5 px-2 text-xs'>
+							className='text-muted-foreground hover:text-foreground relative z-10 h-5 gap-1.5 px-2 text-xs transition-colors hover:bg-[var(--surface-hover)]'>
 							{getGlobalSyncIcon()}
 							<span>{getGlobalSyncText()}</span>
 							<motion.div
@@ -255,34 +252,39 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 					</DropdownMenuTrigger>
 					<DropdownMenuContent
 						align='start'
-						className='w-72 border-[var(--border-subtle)] bg-[var(--surface-glass)] backdrop-blur-xl'>
-						<DropdownMenuLabel className='text-muted-foreground'>
+						sideOffset={8}
+						className='w-72 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-glass)] p-1 shadow-xl backdrop-blur-xl'>
+						<DropdownMenuLabel className='text-muted-foreground px-2 py-1.5 text-xs font-semibold'>
 							{t('statusBar.syncStatus')}
 						</DropdownMenuLabel>
-						<DropdownMenuSeparator className='bg-[var(--border-subtle)]' />
+						<DropdownMenuSeparator className='mx-1 my-1 bg-[var(--border-subtle)]' />
 						{accounts.length === 0 ? (
-							<DropdownMenuItem disabled className='text-tertiary'>
+							<DropdownMenuItem
+								disabled
+								className='text-tertiary px-2 py-1.5 text-xs'>
 								{t('statusBar.noAccounts')}
 							</DropdownMenuItem>
 						) : (
-							accounts.map((account) => (
-								<DropdownMenuItem
-									key={account.id}
-									className='flex cursor-default flex-col items-start gap-1.5 py-2.5'
-									onSelect={(e) => e.preventDefault()}>
-									<div className='flex w-full items-center gap-2'>
-										<div className='flex h-5 w-5 items-center justify-center rounded bg-[var(--surface-active)] ring-1 ring-[var(--border-subtle)]'>
-											<Mail className='text-muted-foreground h-3 w-3' />
+							<div className='flex flex-col gap-0.5'>
+								{accounts.map((account) => (
+									<DropdownMenuItem
+										key={account.id}
+										className='flex cursor-default flex-col items-start gap-1.5 rounded-md px-2 py-2 transition-colors focus:bg-[var(--surface-hover)]'
+										onSelect={(e) => e.preventDefault()}>
+										<div className='flex w-full items-center gap-2'>
+											<div className='flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[var(--surface-active)] ring-1 ring-[var(--border-subtle)]'>
+												<Mail className='text-muted-foreground h-3 w-3' />
+											</div>
+											<span className='text-foreground min-w-0 flex-1 truncate text-xs font-medium'>
+												{account.email}
+											</span>
 										</div>
-										<span className='text-foreground truncate text-sm font-medium'>
-											{account.email}
-										</span>
-									</div>
-									<div className='w-full pl-7'>
-										{getAccountStatusDisplay(account.id)}
-									</div>
-								</DropdownMenuItem>
-							))
+										<div className='w-full pl-7 text-[11px]'>
+											{getAccountStatusDisplay(account.id)}
+										</div>
+									</DropdownMenuItem>
+								))}
+							</div>
 						)}
 					</DropdownMenuContent>
 				</DropdownMenu>
@@ -294,7 +296,7 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 							<Button
 								variant='ghost'
 								size='sm'
-								className={`h-5 gap-1.5 px-2 text-xs transition-colors ${
+								className={`h-5 gap-1.5 px-2 text-xs transition-colors hover:bg-[var(--surface-hover)] ${
 									hasActivity
 										? 'text-foreground/80 hover:text-foreground'
 										: 'text-tertiary hover:text-muted-foreground'

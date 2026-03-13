@@ -73,11 +73,15 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 							}
 						: {})}
 					className='flex flex-1 flex-col items-center justify-center'>
-					<div className='flex h-20 w-20 items-center justify-center rounded-2xl bg-[var(--surface-panel)] ring-1 ring-[var(--border-subtle)]'>
-						<FileText className='text-muted-foreground/40 h-8 w-8' />
+					<div
+						className='flex h-24 w-24 items-center justify-center rounded-3xl bg-[var(--surface-panel)] shadow-xl ring-1 ring-[var(--border-subtle)]'
+						style={{ boxShadow: `0 8px 32px -8px ${accentColor}33` }}>
+						<FileText className='h-10 w-10 opacity-50' style={{ color: accentColor }} />
 					</div>
-					<p className='text-muted-foreground mt-4 text-sm font-medium'>No drafts</p>
-					<p className='text-tertiary mt-1 text-xs'>Your saved drafts will appear here</p>
+					<p className='text-foreground/80 mt-6 text-sm font-medium'>No drafts</p>
+					<p className='text-tertiary mt-1.5 text-xs'>
+						Your saved drafts will appear here
+					</p>
 				</motion.div>
 			)}
 
@@ -107,8 +111,11 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 									style={{ borderColor: 'var(--border-faint)' }}>
 									{/* Left accent line on hover */}
 									<div
-										className='absolute top-1/2 left-0 h-0 w-[3px] -translate-y-1/2 rounded-r-full transition-all duration-200 group-hover:h-[60%]'
-										style={{ backgroundColor: accentColor }}
+										className='absolute top-1/2 left-0 h-0 w-[3px] -translate-y-1/2 rounded-r-full transition-all duration-300 group-hover:h-[60%]'
+										style={{
+											backgroundColor: accentColor,
+											boxShadow: `1px 0 8px ${accentColor}80`,
+										}}
 									/>
 
 									{/* Draft icon */}
@@ -157,13 +164,13 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 											{...(animationsEnabled
 												? {
 														whileHover: { scale: 1.1 },
-														whileTap: { scale: 0.85 },
+														whileTap: { scale: 0.9 },
 													}
 												: {})}>
 											<Button
 												variant='ghost'
 												size='icon'
-												className='text-muted-foreground hover:text-foreground h-7 w-7 hover:bg-[var(--surface-active)]'
+												className='text-muted-foreground hover:text-foreground h-7 w-7 transition-all hover:bg-[var(--surface-active)]'
 												onClick={(e) => {
 													e.stopPropagation()
 													onDraftClick(draft)
@@ -175,13 +182,13 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 											{...(animationsEnabled
 												? {
 														whileHover: { scale: 1.1 },
-														whileTap: { scale: 0.85 },
+														whileTap: { scale: 0.9 },
 													}
 												: {})}>
 											<Button
 												variant='ghost'
 												size='icon'
-												className='text-muted-foreground h-7 w-7 hover:bg-red-500/10 hover:text-red-400'
+												className='text-muted-foreground h-7 w-7 transition-all hover:bg-red-500/10 hover:text-red-400'
 												onClick={(e) => handleDelete(draft.id!, e)}>
 												<Trash2 className='h-[15px] w-[15px]' />
 											</Button>

@@ -114,10 +114,10 @@ const MailboxItem = memo(
 									},
 								}
 							: {})}
-						className='absolute inset-0 rounded-xl ring-1'
+						className='absolute inset-0 rounded-xl'
 						style={{
-							backgroundColor: `rgba(var(--accent-rgb), 0.1)`,
-							boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.15)`,
+							backgroundColor: `rgba(var(--accent-rgb), 0.15)`,
+							boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.2), 0 2px 8px -2px rgba(var(--accent-rgb), 0.1)`,
 						}}
 					/>
 				)}
@@ -272,9 +272,25 @@ export const Sidebar = ({
 				{/* Mailboxes */}
 				<div className='hover-scrollbar flex-1 space-y-0.5 overflow-x-hidden overflow-y-auto pt-1'>
 					{isLoading ? (
-						<div className='stagger-children flex flex-col gap-2 p-2'>
-							{[1, 2, 3].map((i) => (
-								<div key={i} className='skeleton h-10 rounded-xl' />
+						<div className='flex flex-col gap-2 p-2'>
+							{[1, 2, 3, 4, 5].map((i) => (
+								<div
+									key={i}
+									className='relative h-10 overflow-hidden rounded-xl bg-[var(--surface-active)]'>
+									<motion.div
+										className='absolute inset-0'
+										style={{
+											background: `linear-gradient(90deg, transparent, ${accentColor}15, transparent)`,
+										}}
+										animate={{ x: ['-100%', '100%'] }}
+										transition={{
+											duration: 1.5,
+											repeat: Infinity,
+											ease: 'easeInOut',
+											delay: i * 0.1,
+										}}
+									/>
+								</div>
 							))}
 						</div>
 					) : (
@@ -299,26 +315,17 @@ export const Sidebar = ({
 
 				{/* Resizer Handle */}
 				<div
-					className='absolute top-0 right-0 h-full w-1.5 cursor-col-resize transition-all'
-					style={{
-						backgroundColor: isResizing
-							? `rgba(var(--accent-rgb), 0.5)`
-							: 'transparent',
-					}}
-					onMouseEnter={(e) => {
-						if (!isResizing)
-							e.currentTarget.style.backgroundColor = `rgba(var(--accent-rgb), 0.3)`
-					}}
-					onMouseLeave={(e) => {
-						if (!isResizing) e.currentTarget.style.backgroundColor = 'transparent'
-					}}
+					className='group absolute top-0 right-[-3px] bottom-0 z-50 w-2 cursor-col-resize'
 					onMouseDown={startResizing}>
-					{/* Visual grip dots when hovering */}
-					<div className='pointer-events-none flex h-full flex-col items-center justify-center gap-1 opacity-0 transition-opacity hover:opacity-100'>
-						<div className='bg-muted-foreground h-1 w-1 rounded-full' />
-						<div className='bg-muted-foreground h-1 w-1 rounded-full' />
-						<div className='bg-muted-foreground h-1 w-1 rounded-full' />
-					</div>
+					<div
+						className={`absolute left-1/2 h-full w-[2px] -translate-x-1/2 transition-all duration-300 ${
+							isResizing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+						}`}
+						style={{
+							backgroundColor: accentColor,
+							boxShadow: `0 0 12px ${accentColor}`,
+						}}
+					/>
 				</div>
 			</motion.div>
 		</>

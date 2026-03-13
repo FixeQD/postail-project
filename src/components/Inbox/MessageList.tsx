@@ -78,19 +78,19 @@ const DateOrActions = memo(
 				{isHovered ? (
 					<motion.div
 						key='actions'
-						initial={{ opacity: 0, scale: 0.9 }}
-						animate={{ opacity: 1, scale: 1 }}
-						exit={{ opacity: 0, scale: 0.9 }}
-						transition={{ duration: 0.12 }}>
+						initial={{ opacity: 0, x: 8, filter: 'blur(2px)' }}
+						animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+						exit={{ opacity: 0, x: 8, filter: 'blur(2px)' }}
+						transition={{ duration: 0.15, ease: 'easeOut' }}>
 						{actions}
 					</motion.div>
 				) : (
 					<motion.span
 						key='date'
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						transition={{ duration: 0.1 }}
+						initial={{ opacity: 0, x: -8, filter: 'blur(2px)' }}
+						animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+						exit={{ opacity: 0, x: -8, filter: 'blur(2px)' }}
+						transition={{ duration: 0.15, ease: 'easeOut' }}
 						className={dateClass}>
 						{formattedDate}
 					</motion.span>
@@ -134,15 +134,28 @@ const MessageRow = memo(
 		}`
 		const snippetClass = 'text-xs leading-snug text-[var(--text-tertiary)]'
 
-		const rowBase = `message-unread-indicator group relative flex w-full cursor-pointer border-b text-left transition-all duration-150 outline-none ${
+		const rowBase = `message-unread-indicator group relative flex w-full cursor-pointer border-b text-left transition-all duration-200 outline-none ${
 			isUnread && !zenMode ? 'is-unread' : ''
 		} ${
 			isFocused
-				? 'bg-[var(--surface-active)] shadow-[inset_3px_0_0_0_var(--accent-color)]'
+				? 'z-10 shadow-sm'
 				: isUnread && !zenMode
-					? 'bg-[var(--surface-panel)] hover:bg-[var(--surface-hover)]'
-					: 'bg-transparent hover:bg-[var(--surface-panel)]'
+					? 'bg-[var(--surface-panel)] hover:bg-[var(--surface-hover)] hover:z-10 hover:shadow-sm'
+					: 'bg-transparent hover:bg-[var(--surface-panel)] hover:z-10 hover:shadow-sm'
 		}`
+
+		const focusedStyle = isFocused ? { backgroundColor: `${accentColor}10` } : {}
+
+		const activeIndicator = isFocused && (
+			<motion.div
+				layoutId='focused-row-indicator'
+				className='absolute top-0 bottom-0 left-0 w-[3px]'
+				style={{
+					backgroundColor: accentColor,
+					boxShadow: `1px 0 8px ${accentColor}80`,
+				}}
+			/>
+		)
 
 		const checkboxStar = (
 			<div className='flex shrink-0 items-center gap-2.5 pr-3'>
@@ -167,10 +180,10 @@ const MessageRow = memo(
 
 		const unreadDot = isUnread && !zenMode && (
 			<div
-				className='ml-2 h-2 w-2 shrink-0 self-center rounded-full'
+				className='ml-2 h-2.5 w-2.5 shrink-0 self-center rounded-full'
 				style={{
 					backgroundColor: accentColor,
-					boxShadow: `0 1px 3px rgba(var(--accent-rgb), 0.3)`,
+					boxShadow: `0 0 8px ${accentColor}80`,
 				}}
 			/>
 		)
@@ -191,7 +204,7 @@ const MessageRow = memo(
 						}
 					}}
 					className={`${rowBase} items-center px-4 py-3`}
-					style={{ borderColor: 'var(--border-faint)' }}
+					style={{ borderColor: 'var(--border-faint)', ...focusedStyle }}
 					whileHover={
 						animationsEnabled
 							? {
@@ -200,6 +213,7 @@ const MessageRow = memo(
 								}
 							: {}
 					}>
+					{activeIndicator}
 					{checkboxStar}
 
 					<div className='flex min-w-0 flex-1 items-center gap-3'>
@@ -247,7 +261,7 @@ const MessageRow = memo(
 					}
 				}}
 				className={`${rowBase} items-start px-4 py-3`}
-				style={{ borderColor: 'var(--border-faint)' }}
+				style={{ borderColor: 'var(--border-faint)', ...focusedStyle }}
 				whileHover={
 					animationsEnabled
 						? {
@@ -256,6 +270,7 @@ const MessageRow = memo(
 							}
 						: {}
 				}>
+				{activeIndicator}
 				{checkboxStar}
 
 				<div className='flex min-w-0 flex-1 flex-col gap-0.5'>
@@ -654,24 +669,63 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 
 	if (isLoading) {
 		return (
-			<div className='flex h-full items-center justify-center'>
-				<div className='flex flex-col items-center gap-3'>
-					<div className='relative h-10 w-10'>
-						<div
-							className='absolute inset-0 animate-spin rounded-full border-2 border-transparent'
-							style={{ borderTopColor: accentColor }}
-						/>
-						<div
-							className='absolute inset-1 animate-spin rounded-full border-2 border-transparent'
+			<div className='flex h-full flex-col overflow-hidden'>
+				{[...Array(15)].map((_, i) => (
+					<div
+						key={i}
+						className={`relative flex shrink-0 border-b border-[var(--border-faint)] bg-transparent px-4 py-3 ${
+							previewLines === 1 ? 'items-center' : 'items-start'
+						}`}>
+						<motion.div
+							className='absolute inset-0'
 							style={{
-								borderBottomColor: `rgba(var(--accent-rgb), 0.3)`,
-								animationDirection: 'reverse',
-								animationDuration: '1.5s',
+								background: `linear-gradient(90deg, transparent, ${accentColor}08, transparent)`,
+							}}
+							animate={{ x: ['-100%', '100%'] }}
+							transition={{
+								duration: 1.5,
+								repeat: Infinity,
+								ease: 'easeInOut',
+								delay: i * 0.05,
 							}}
 						/>
+						<div className='flex shrink-0 items-center gap-2.5 pr-3'>
+							<div className='h-[15px] w-[15px] rounded bg-[var(--surface-active)]' />
+							<div className='h-4 w-4 rounded bg-[var(--surface-active)]' />
+						</div>
+
+						{previewLines === 1 ? (
+							<>
+								<div className='flex min-w-0 flex-1 items-center gap-3'>
+									<div className='h-4 w-32 shrink-0 rounded bg-[var(--surface-active)]' />
+									<div className='flex min-w-0 flex-1 items-baseline gap-1.5'>
+										<div className='h-4 w-48 rounded bg-[var(--surface-active)]' />
+										<div className='h-3 w-64 rounded bg-[var(--surface-active)] opacity-60' />
+									</div>
+								</div>
+								<div className='ml-3 flex w-24 shrink-0 justify-end'>
+									<div className='h-3 w-12 rounded bg-[var(--surface-active)]' />
+								</div>
+							</>
+						) : (
+							<div className='flex min-w-0 flex-1 flex-col gap-1.5 py-0.5'>
+								<div className='flex items-center justify-between gap-2'>
+									<div className='h-4 w-32 rounded bg-[var(--surface-active)]' />
+									<div className='ml-2 flex shrink-0 items-center'>
+										<div className='h-3 w-12 rounded bg-[var(--surface-active)]' />
+									</div>
+								</div>
+								<div className='h-4 w-[60%] rounded bg-[var(--surface-active)]' />
+								<div className='mt-0.5 flex flex-col gap-1.5'>
+									<div className='h-3 w-[90%] rounded bg-[var(--surface-active)] opacity-60' />
+									{previewLines === 3 && (
+										<div className='h-3 w-[75%] rounded bg-[var(--surface-active)] opacity-60' />
+									)}
+								</div>
+							</div>
+						)}
 					</div>
-					<span className='text-muted-foreground text-sm'>Loading messages...</span>
-				</div>
+				))}
 			</div>
 		)
 	}
@@ -701,13 +755,15 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 							}
 						: {})}
 					className='flex flex-col items-center'>
-					<div className='flex h-24 w-24 items-center justify-center rounded-2xl bg-[var(--surface-panel)] ring-1 ring-[var(--border-subtle)]'>
-						<Mail className='text-muted-foreground/50 h-10 w-10' />
+					<div
+						className='flex h-24 w-24 items-center justify-center rounded-3xl bg-[var(--surface-panel)] shadow-xl ring-1 ring-[var(--border-subtle)]'
+						style={{ boxShadow: `0 8px 32px -8px ${accentColor}33` }}>
+						<Mail className='h-10 w-10 opacity-50' style={{ color: accentColor }} />
 					</div>
-					<p className='text-muted-foreground mt-5 text-sm font-medium'>
+					<p className='text-foreground/80 mt-6 text-sm font-medium'>
 						{t('inbox:messageList.empty.title')}
 					</p>
-					<p className='text-tertiary mt-1 text-xs'>
+					<p className='text-tertiary mt-1.5 text-xs'>
 						{t('inbox:messageList.empty.subtitle')}
 					</p>
 				</motion.div>
@@ -787,10 +843,8 @@ const ActionBtn = ({
 	return (
 		<motion.button
 			type='button'
-			{...(animationsEnabled
-				? { whileHover: { scale: 1.1 }, whileTap: { scale: 0.85 } }
-				: {})}
-			className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
+			{...(animationsEnabled ? { whileHover: { scale: 1.1 }, whileTap: { scale: 0.9 } } : {})}
+			className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all ${
 				destructive
 					? 'text-muted-foreground hover:bg-red-500/10 hover:text-red-400'
 					: 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-active)]'
