@@ -15,21 +15,26 @@ export const WelcomeScreen = ({
 		<div className='ambient-glow noise-overlay relative flex h-full flex-col items-center justify-center overflow-hidden p-8 text-center'>
 			{/* Background accent orbs */}
 			<div
-				className='pointer-events-none absolute top-1/4 left-1/4 h-96 w-96 rounded-full blur-[120px]'
-				style={{ backgroundColor: `rgba(var(--accent-rgb), 0.05)` }}
+				className='pointer-events-none absolute top-1/4 left-1/4 h-[500px] w-[500px] rounded-full'
+				style={{
+					background: `radial-gradient(circle, rgba(var(--accent-rgb), 0.05) 0%, transparent 70%)`,
+				}}
 			/>
 			<div
-				className='pointer-events-none absolute right-1/4 bottom-1/4 h-80 w-80 rounded-full blur-[100px]'
-				style={{ backgroundColor: `rgba(var(--accent-rgb), 0.03)` }}
+				className='pointer-events-none absolute right-1/4 bottom-1/4 h-[400px] w-[400px] rounded-full'
+				style={{
+					background: `radial-gradient(circle, rgba(var(--accent-rgb), 0.03) 0%, transparent 70%)`,
+				}}
 			/>
 
 			{/* Main Glass Card */}
 			<motion.div
-				initial={{ opacity: 0, y: 24, scale: 0.96, filter: 'blur(8px)' }}
-				animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+				initial={{ opacity: 0, y: 24, scale: 0.96 }}
+				animate={{ opacity: 1, y: 0, scale: 1 }}
 				transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-				className='relative z-10 flex flex-col items-center rounded-[2.5rem] border border-[var(--border-subtle)] p-12 shadow-2xl backdrop-blur-[64px]'
+				className='relative z-10 flex flex-col items-center rounded-[2.5rem] border border-[var(--border-subtle)] p-12 shadow-2xl backdrop-blur-[40px]'
 				style={{
+					willChange: 'transform, opacity',
 					backgroundColor: `var(--surface-glass)`,
 					backgroundImage: `linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 100%)`,
 					boxShadow:
@@ -40,14 +45,17 @@ export const WelcomeScreen = ({
 					initial={{ opacity: 0, scale: 0.8 }}
 					animate={{ opacity: 1, scale: 1 }}
 					transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+					style={{ willChange: 'transform, opacity' }}
 					className='relative z-10 mb-8'>
 					<div className='animate-subtle-float'>
 						<div className='relative flex h-24 w-24 items-center justify-center rounded-3xl bg-[var(--surface-panel)] shadow-xl ring-1 ring-[var(--border-subtle)]'>
 							<img src={icon} alt='Postail' className='h-16 w-16' />
-							{/* Glow behind logo */}
+							{/* Glow behind logo*/}
 							<div
-								className='animate-glow-breathe absolute -inset-3 -z-10 rounded-3xl blur-2xl'
-								style={{ backgroundColor: `rgba(var(--accent-rgb), 0.15)` }}
+								className='animate-glow-breathe absolute -inset-3 -z-10 rounded-3xl'
+								style={{
+									boxShadow: `0 0 32px 8px rgba(var(--accent-rgb), 0.15)`,
+								}}
 							/>
 						</div>
 					</div>
@@ -58,6 +66,7 @@ export const WelcomeScreen = ({
 					initial={{ opacity: 0, y: 16 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+					style={{ willChange: 'transform, opacity' }}
 					className='gradient-text relative z-10 mb-3 text-5xl font-bold tracking-tight'>
 					{t('welcome:title')}
 				</motion.h1>
@@ -67,6 +76,7 @@ export const WelcomeScreen = ({
 					initial={{ opacity: 0, y: 12 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 0.5, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+					style={{ willChange: 'transform, opacity' }}
 					className='text-muted-foreground relative z-10 text-lg'>
 					{t('welcome:subtitle')}
 				</motion.p>

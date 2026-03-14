@@ -290,10 +290,9 @@ function App() {
 					<AnimatePresence mode='wait'>
 						<motion.div
 							key={currentState}
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
+							initial={false}
 							exit={{ opacity: 0 }}
-							transition={{ duration: 0.2, ease: 'easeOut' }}
+							transition={{ duration: 0.12, ease: 'easeOut' }}
 							className='h-full'>
 							{renderCurrentScreen()}
 						</motion.div>
