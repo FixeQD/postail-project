@@ -52,7 +52,11 @@ const SettingsNavItem = memo(
 									},
 								}
 							: {})}
-						className='absolute inset-0 rounded-xl bg-[var(--surface-active)] ring-1 ring-[var(--border-subtle)]'
+						className='absolute inset-0 rounded-xl bg-[var(--surface-active)]'
+						style={{
+							backgroundColor: `rgba(var(--accent-rgb), 0.08)`,
+							boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.15), 0 4px 12px -4px rgba(var(--accent-rgb), 0.1)`
+						}}
 					/>
 				)}
 
@@ -156,7 +160,17 @@ export function SettingsScreen({
 	}, [activeSection, accounts, onRemoveAccount, onSyncAccount, onAccountAdded, t])
 
 	return (
-		<div className='text-foreground flex h-full'>
+		<div className='text-foreground ambient-glow noise-overlay relative flex h-full overflow-hidden'>
+			{/* Background accent orbs */}
+			<div
+				className='pointer-events-none absolute top-[-10%] right-[-5%] h-[500px] w-[500px] rounded-full blur-[120px]'
+				style={{ backgroundColor: `rgba(var(--accent-rgb), 0.04)` }}
+			/>
+			<div
+				className='pointer-events-none absolute bottom-[-10%] left-[10%] h-[600px] w-[600px] rounded-full blur-[100px]'
+				style={{ backgroundColor: `rgba(var(--accent-rgb), 0.03)` }}
+			/>
+
 			{showSidebar && (
 				<motion.div
 					{...(animationsEnabled

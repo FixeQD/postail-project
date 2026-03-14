@@ -117,6 +117,7 @@ export interface SettingCardProps {
 	description: string
 	icon: React.ComponentType<{ className?: string }>
 	children: React.ReactNode
+	disabled?: boolean
 }
 
 export interface AddAccountDialogProps {

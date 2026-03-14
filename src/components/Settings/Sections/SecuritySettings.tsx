@@ -9,6 +9,7 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { invoke } from '@tauri-apps/api/core'
 import { toast } from '../../ui/custom/Toaster'
+import { SettingCard } from '@/components/ui/custom/SettingCard'
 
 const CLIPBOARD_DELAY_OPTIONS = [
 	{ value: 0, labelKey: 'disabled' },
@@ -472,47 +473,17 @@ export function SecuritySettings() {
 							value={settings['encrypt-attachments']}
 							onChange={(val) => setSetting('encrypt-attachments', val)}
 						/>
-						<div className='flex items-center justify-between rounded-2xl border border-[var(--border-faint)] bg-[var(--surface-panel)] p-4 transition-all duration-200 hover:border-[var(--border-subtle)] hover:bg-[var(--surface-hover)]'>
-							<div className='flex items-center gap-4'>
-								<div
-									className='flex h-10 w-10 items-center justify-center rounded-xl ring-1 transition-all duration-200'
-									style={
-										settings['clear-clipboard-delay'] > 0
-											? {
-													backgroundColor: `rgba(var(--accent-rgb), 0.08)`,
-													boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.2)`,
-												}
-											: {
-													backgroundColor: 'var(--surface-active)',
-													boxShadow:
-														'inset 0 0 0 1px var(--border-subtle)',
-												}
-									}>
-									<ClipboardX
-										className='h-[18px] w-[18px] transition-colors duration-200'
-										style={
-											settings['clear-clipboard-delay'] > 0
-												? { color: accentColor }
-												: { color: 'var(--text-secondary)' }
-										}
-									/>
-								</div>
-								<div>
-									<h3 className='text-sm font-semibold text-[var(--text-primary)]'>
-										{t('settings:security.data.clearClipboard.label')}
-									</h3>
-									<p className='max-w-[320px] text-xs leading-relaxed text-[var(--text-secondary)]'>
-										{t('settings:security.data.clearClipboard.description')}
-									</p>
-								</div>
-							</div>
+						<SettingCard
+							icon={ClipboardX}
+							label={t('settings:security.data.clearClipboard.label')}
+							description={t('settings:security.data.clearClipboard.description')}>
 							<InlineSelect
 								value={settings['clear-clipboard-delay']}
 								options={clipboardOptions}
 								onChange={(v) => setSetting('clear-clipboard-delay', v)}
 								accentColor={accentColor}
 							/>
-						</div>
+						</SettingCard>
 					</div>
 				</section>
 			</div>

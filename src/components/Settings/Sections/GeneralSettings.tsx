@@ -24,22 +24,9 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { toast } from '../../ui/custom/Toaster'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 import { ToggleSetting } from '@/components/ui/toggle-setting'
-import type { SettingCardProps } from '@/types/components/shared'
+import { SettingCard } from '@/components/ui/custom/SettingCard'
 
-const SettingCard = ({ label, description, icon: Icon, children }: SettingCardProps) => (
-	<div className='flex items-center justify-between rounded-2xl border border-[var(--border-faint)] bg-[var(--surface-panel)] p-4 transition-colors hover:bg-[var(--surface-hover)]'>
-		<div className='flex items-center gap-4'>
-			<div className='flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-active)] ring-1 ring-[var(--border-subtle)]'>
-				<Icon className='h-5 w-5 text-[var(--text-secondary)]' />
-			</div>
-			<div>
-				<h3 className='text-sm font-semibold text-[var(--text-primary)]'>{label}</h3>
-				<p className='max-w-[400px] text-xs text-[var(--text-secondary)]'>{description}</p>
-			</div>
-		</div>
-		<div className='flex items-center gap-2'>{children}</div>
-	</div>
-)
+
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
 	return (

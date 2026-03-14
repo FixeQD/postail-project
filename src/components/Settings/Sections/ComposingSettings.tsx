@@ -10,6 +10,7 @@ import {
 	Paperclip,
 } from 'lucide-react'
 import { ToggleSetting } from '@/components/ui/toggle-setting'
+import { SettingCard } from '@/components/ui/custom/SettingCard'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -174,42 +175,12 @@ export function ComposingSettings() {
 							value={settings['read-receipts-enabled']}
 							onChange={(val) => setSetting('read-receipts-enabled', val)}
 						/>
-						<div className='flex items-center justify-between rounded-2xl border border-[var(--border-faint)] bg-[var(--surface-panel)] p-4 transition-all duration-200 hover:border-[var(--border-subtle)] hover:bg-[var(--surface-hover)]'>
-							<div className='flex items-center gap-4'>
-								<div
-									className='flex h-10 w-10 items-center justify-center rounded-xl ring-1 transition-all duration-200'
-									style={
-										settings['warn-large-attachment-mb'] > 0
-											? {
-													backgroundColor: `rgba(var(--accent-rgb), 0.08)`,
-													boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.2)`,
-												}
-											: {
-													backgroundColor: 'var(--surface-active)',
-													boxShadow:
-														'inset 0 0 0 1px var(--border-subtle)',
-												}
-									}>
-									<Paperclip
-										className='h-[18px] w-[18px] transition-colors duration-200'
-										style={
-											settings['warn-large-attachment-mb'] > 0
-												? { color: accentColor }
-												: { color: 'var(--text-secondary)' }
-										}
-									/>
-								</div>
-								<div>
-									<h3 className='text-sm font-semibold text-[var(--text-primary)]'>
-										{t('settings:composing.sending.warnLargeAttachment.label')}
-									</h3>
-									<p className='max-w-[320px] text-xs leading-relaxed text-[var(--text-secondary)]'>
-										{t(
-											'settings:composing.sending.warnLargeAttachment.description'
-										)}
-									</p>
-								</div>
-							</div>
+						<SettingCard
+							icon={Paperclip}
+							label={t('settings:composing.sending.warnLargeAttachment.label')}
+							description={t(
+								'settings:composing.sending.warnLargeAttachment.description'
+							)}>
 							<InlineSelect
 								value={settings['warn-large-attachment-mb']}
 								options={attachmentWarnOptions}
@@ -218,7 +189,7 @@ export function ComposingSettings() {
 								}
 								accentColor={accentColor}
 							/>
-						</div>
+						</SettingCard>
 					</div>
 				</motion.section>
 
@@ -247,10 +218,10 @@ export function ComposingSettings() {
 							value={settings['spell-check']}
 							onChange={(val) => setSetting('spell-check', val)}
 						/>
-						<div className='rounded-2xl border border-[var(--border-faint)] bg-[var(--surface-panel)] p-4'>
+						<div className='rounded-2xl border border-[var(--border-faint)] bg-[var(--surface-panel)] p-4 transition-all duration-200 hover:border-[var(--border-subtle)] hover:shadow-lg'>
 							<div className='mb-4 flex items-center gap-4'>
 								<div
-									className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1'
+									className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 transition-all duration-300'
 									style={{
 										backgroundColor: `rgba(var(--accent-rgb), 0.08)`,
 										boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.2)`,
@@ -260,7 +231,7 @@ export function ComposingSettings() {
 										style={{ color: accentColor }}
 									/>
 								</div>
-								<div>
+								<div className="flex flex-col gap-0.5">
 									<h3 className='text-sm font-semibold text-[var(--text-primary)]'>
 										{t('settings:composing.editor.replyPosition.label')}
 									</h3>

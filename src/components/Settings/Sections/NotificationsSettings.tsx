@@ -14,6 +14,7 @@ import {
 	BellOff,
 } from 'lucide-react'
 import { ToggleSetting } from '@/components/ui/toggle-setting'
+import { SettingCard } from '@/components/ui/custom/SettingCard'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useNotificationStore, MIN_COUNT_OPTIONS } from '@/stores/notificationStore'
@@ -39,23 +40,11 @@ function SelectSetting({
 }) {
 	const accentColor = useThemeStore((s) => s.accentColor)
 	return (
-		<div
-			className={`flex items-center justify-between rounded-2xl border border-[var(--border-faint)] bg-[var(--surface-panel)] p-4 transition-all duration-200 ${
-				disabled
-					? 'cursor-not-allowed opacity-50'
-					: 'hover:border-[var(--border-subtle)] hover:bg-[var(--surface-hover)]'
-			}`}>
-			<div className='flex items-center gap-4'>
-				<div
-					className='flex h-10 w-10 items-center justify-center rounded-xl ring-1 ring-white/[0.08]'
-					style={{ backgroundColor: `rgba(var(--accent-rgb), 0.08)` }}>
-					<Icon className='h-5 w-5' style={{ color: accentColor }} />
-				</div>
-				<div>
-					<p className='text-sm font-semibold text-[var(--text-primary)]'>{label}</p>
-					<p className='text-xs text-[var(--text-secondary)]'>{description}</p>
-				</div>
-			</div>
+		<SettingCard
+			icon={Icon}
+			label={label}
+			description={description}
+			disabled={disabled}>
 			<div className='flex gap-1'>
 				{options.map((opt) => (
 					<button
@@ -73,7 +62,7 @@ function SelectSetting({
 					</button>
 				))}
 			</div>
-		</div>
+		</SettingCard>
 	)
 }
 
