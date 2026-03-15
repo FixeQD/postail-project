@@ -101,9 +101,9 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 		}
 	}, [switchToRecovery])
 
-	const handleRecoveryVerified = useCallback(() => {
+	const handleRecoveryVerified = useCallback(async () => {
 		recoveryCompleted.current = true
-		onSuccess()
+		await onSuccess()
 		onClose()
 	}, [onSuccess, onClose])
 

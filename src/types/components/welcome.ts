@@ -20,6 +20,13 @@ export interface TPMUnlockFailedProps {
 export interface TPMInitDialogProps {
 	open: boolean
 	onClose: () => void
-	onSuccess: () => void
+	onSuccess: () => void | Promise<void>
 	requiresElevation?: boolean
 }
+
+export interface RecoveryStepProps {
+	onNext: (phrase: string) => void | Promise<void>
+	variant?: 'page' | 'embedded'
+	encryptionMethod?: 'tpm' | 'argon2'
+}
+

@@ -6,12 +6,7 @@ import { Copy, Download, Check, ShieldAlert, ArrowRight } from 'lucide-react'
 import DecryptedText from '../../DecryptedText'
 import { useThemeStore } from '@/stores/themeStore'
 import { RecoveryVerifyDialog } from './RecoveryVerifyDialog'
-
-type RecoveryStepProps = {
-	onNext: (phrase: string) => void
-	variant?: 'page' | 'embedded'
-	encryptionMethod?: 'tpm' | 'argon2'
-}
+import type { RecoveryStepProps } from '@/types/components/welcome'
 
 export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: RecoveryStepProps) => {
 	const { t } = useTranslation('welcome')
@@ -183,9 +178,9 @@ export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: Rec
 			<RecoveryVerifyDialog
 				open={verifyOpen}
 				onClose={() => setVerifyOpen(false)}
-				onVerified={() => {
+				onVerified={async () => {
+					await onNext(phrase)
 					setVerifyOpen(false)
-					onNext(phrase)
 				}}
 			/>
 		</>
