@@ -779,6 +779,32 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 					data={allMessages}
 					endReached={loadMore}
 					overscan={200}
+					components={{
+						Footer: () => {
+							if (!isFetchingNextPage) return null
+
+							return (
+								<div className='flex items-center justify-center py-4'>
+									<motion.div
+										{...(animationsEnabled
+											? {
+													initial: { opacity: 0, scale: 0.9 },
+													animate: { opacity: 1, scale: 1 },
+												}
+											: {})}
+										className='flex items-center gap-2'>
+										<div
+											className='h-4 w-4 animate-spin rounded-full border-2 border-transparent'
+											style={{ borderTopColor: accentColor }}
+										/>
+										<span className='text-muted-foreground text-xs'>
+											{t('inbox:messageList.loadingMore')}
+										</span>
+									</motion.div>
+								</div>
+							)
+						},
+					}}
 					itemContent={(_index, message) => {
 						const isUnread = !message.flags.includes('\\Seen')
 						const isHovered = hoveredMessageId === message.uid
@@ -803,26 +829,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 						)
 					}}
 				/>
-				{isFetchingNextPage && (
-					<div className='flex items-center justify-center py-4'>
-						<motion.div
-							{...(animationsEnabled
-								? {
-										initial: { opacity: 0, scale: 0.9 },
-										animate: { opacity: 1, scale: 1 },
-									}
-								: {})}
-							className='flex items-center gap-2'>
-							<div
-								className='h-4 w-4 animate-spin rounded-full border-2 border-transparent'
-								style={{ borderTopColor: accentColor }}
-							/>
-							<span className='text-muted-foreground text-xs'>
-								{t('inbox:messageList.loadingMore')}
-							</span>
-						</motion.div>
-					</div>
-				)}
+
 			</div>
 		</div>
 	)
