@@ -529,6 +529,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 			const queryKey = ['messages', account.id, mailbox] as const
 			const previousData = queryClient.getQueryData<{
 				pages: MailHeader[][]
+				pageParams: unknown[]
 			}>(queryKey)
 
 			if (previousData) {
@@ -553,6 +554,11 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 						queryKey: ['messages', account.id, trashMailbox.name],
 					})
 				}
+				
+				// Invalidate current mailbox to ensure it reflects the server state properly
+				queryClient.invalidateQueries({
+					queryKey,
+				})
 			} catch (error) {
 				// Rollback on error
 				if (previousData) {
