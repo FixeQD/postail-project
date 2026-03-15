@@ -550,6 +550,11 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 				})
 				const trashMailbox = mailboxes?.find((m) => m.role === 'trash')
 				if (trashMailbox) {
+					invoke('sync_single_mailbox', {
+						accountId: account.id,
+						mailbox: trashMailbox.name,
+					}).catch(console.error)
+					
 					queryClient.invalidateQueries({
 						queryKey: ['messages', account.id, trashMailbox.name],
 					})
