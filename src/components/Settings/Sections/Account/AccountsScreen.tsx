@@ -36,7 +36,7 @@ export function AccountsScreen({
 						{t('settings:accounts.subtitle')}
 					</p>
 				</div>
-				<AddAccountDialog>
+				<AddAccountDialog onAccountAdded={onAccountAdded}>
 					<motion.div
 						{...(animationsEnabled
 							? { whileHover: { scale: 1.03 }, whileTap: { scale: 0.97 } }
