@@ -72,12 +72,12 @@ export function useAppInitialization() {
 		(source?: AppState) => {
 			setRecoveryReencryptSource(source ?? currentState)
 			setIsRecoveryReencrypt(true)
-			setCurrentState('recovery-reencrypt')
+			setCurrentState('reencrypt')
 		},
 		[currentState]
 	)
 
-	// Called by EncryptionChoice when in recovery-reencrypt mode.
+	// Called by EncryptionChoice when in reencrypt mode.
 	const handleRecoveryReencrypt = async (method: string) => {
 		if (method === 'argon2') {
 			setIsRecoveryReencrypt(true)

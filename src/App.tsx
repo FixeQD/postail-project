@@ -210,7 +210,7 @@ function App() {
 						onRecoveryVerified={handleRecoveryPhraseVerified}
 					/>
 				)
-			case 'recovery-reencrypt':
+			case 'reencrypt':
 				return (
 					<EncryptionChoice
 						onChoiceSelected={handleRecoveryReencrypt}
