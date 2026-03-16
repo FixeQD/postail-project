@@ -254,6 +254,9 @@ function App() {
 						onAccountAdded={
 							currentState === 'accounts' ? handleAccountAdded : undefined
 						}
+						onReencrypt={() => {
+							handleRecoveryPhraseVerified()
+						}}
 					/>
 				)
 			case 'dashboard':

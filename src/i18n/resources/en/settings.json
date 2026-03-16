@@ -158,7 +158,12 @@
 					"confirmPlaceholder": "Confirm PIN",
 					"usePassword": "Use encryption password instead",
 					"newPinPlaceholder": "New PIN",
-					"confirmPinPlaceholder": "Confirm new PIN"
+					"confirmPinPlaceholder": "Confirm new PIN",
+					"changeTitle": "Change PIN",
+					"changeDescriptionPassphrase": "Set a new PIN or switch to your encryption password",
+					"changeDescriptionPin": "Set a new PIN for the lock screen",
+					"enable": "Enable",
+					"save": "Save"
 				}
 			}
 		},
@@ -177,6 +182,14 @@
 					"60": "After 1 minute"
 				}
 			}
+		},
+		"method": {
+			"title": "Security Method",
+			"label": "Current Method",
+			"description": "The method used to encrypt your local database and attachments.",
+			"change": "Change",
+			"confirmTitle": "Change Security Method or Password?",
+			"confirmDescription": "This will start the re-encryption process. You will need to verify your recovery phrase to continue."
 		}
 	},
 	"appearance": {

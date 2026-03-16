@@ -3,6 +3,7 @@ export interface SettingsScreenProps {
 	canGoBack?: boolean
 	showSidebar?: boolean
 	onAccountAdded?: () => void
+	onReencrypt?: () => void
 }
 
 export interface SettingsNavItemProps {

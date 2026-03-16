@@ -95,6 +95,7 @@ export function SettingsScreen({
 	canGoBack = true,
 	showSidebar = true,
 	onAccountAdded,
+	onReencrypt,
 }: SettingsScreenProps) {
 	const { accounts, removeAccount: onRemoveAccount } = useAccountStore()
 
@@ -141,7 +142,7 @@ export function SettingsScreen({
 			case 'privacy':
 				return <PrivacySettings />
 			case 'security':
-				return <SecuritySettings />
+				return <SecuritySettings onReencrypt={onReencrypt} />
 			case 'appearance':
 				return <AppearanceSettings />
 			case 'notifications':

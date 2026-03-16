@@ -10,6 +10,8 @@ import { useThemeStore } from '@/stores/themeStore'
 import { invoke } from '@tauri-apps/api/core'
 import { toast } from '../../ui/custom/Toaster'
 import { SettingCard } from '@/components/ui/custom/SettingCard'
+import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
+import { Shield } from 'lucide-react'
 
 const CLIPBOARD_DELAY_OPTIONS = [
 	{ value: 0, labelKey: 'disabled' },
@@ -104,13 +106,15 @@ function PinForm({ mode, usesPassphrase, isLoading, onSubmit, onCancel, t }: Pin
 		await onSubmit(pin, false)
 	}
 
-	const title = isSetup ? t('settings:security.session.autoLock.setupPin.title') : 'Change PIN'
+	const title = isSetup
+		? t('settings:security.session.autoLock.setupPin.title')
+		: t('settings:security.session.autoLock.setupPin.changeTitle')
 
 	const description = isSetup
 		? t('settings:security.session.autoLock.setupPin.description')
 		: usesPassphrase
-			? 'Set a new PIN or switch to your encryption password'
-			: 'Set a new PIN for the lock screen'
+			? t('settings:security.session.autoLock.setupPin.changeDescriptionPassphrase')
+			: t('settings:security.session.autoLock.setupPin.changeDescriptionPin')
 
 	return (
 		<motion.div
@@ -183,14 +187,18 @@ function PinForm({ mode, usesPassphrase, isLoading, onSubmit, onCancel, t }: Pin
 							background: `linear-gradient(135deg, var(--accent-color), var(--accent-dark))`,
 							color: 'var(--accent-text)',
 						}}>
-						{isLoading ? '...' : isSetup ? 'Enable' : 'Save'}
+						{isLoading
+							? '...'
+							: isSetup
+								? t('settings:security.session.autoLock.setupPin.enable')
+								: t('settings:security.session.autoLock.setupPin.save')}
 					</button>
 					<button
 						type='button'
 						disabled={isLoading}
 						onClick={onCancel}
 						className='flex-1 rounded-lg border border-[var(--border-subtle)] py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50'>
-						Cancel
+						{t('common:actions.cancel')}
 					</button>
 				</div>
 			</div>
@@ -198,7 +206,7 @@ function PinForm({ mode, usesPassphrase, isLoading, onSubmit, onCancel, t }: Pin
 	)
 }
 
-export function SecuritySettings() {
+export function SecuritySettings({ onReencrypt }: { onReencrypt?: () => void }) {
 	const { t } = useSettingsTranslation()
 	const animationsEnabled = useAnimationsEnabled()
 	const { isLoading, run } = useAsyncState()
@@ -216,6 +224,8 @@ export function SecuritySettings() {
 	const [usesPassphrase, setUsesPassphrase] = useState(false)
 	const [pinFormMode, setPinFormMode] = useState<PinFormMode>(null)
 	const [showTimeoutDropdown, setShowTimeoutDropdown] = useState(false)
+	const [securityMethod, setSecurityMethod] = useState<string | null>(null)
+	const [showReencryptConfirm, setShowReencryptConfirm] = useState(false)
 
 	useEffect(() => {
 		const load = async () => {
@@ -228,6 +238,7 @@ export function SecuritySettings() {
 				setLockTimeout(currentTimeout)
 				setLockConfigured(configured)
 				setLockEnabled(currentTimeout > 0 && configured)
+				setSecurityMethod(securityMethod)
 				setUsesPassphrase(securityMethod === 'argon2')
 			} catch (err) {
 				console.error('Failed to load security settings:', err)
@@ -442,7 +453,7 @@ export function SecuritySettings() {
 											type='button'
 											onClick={() => setPinFormMode('change')}
 											className='flex h-9 items-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-4 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
-											Change PIN
+											{t('settings:security.session.autoLock.setupPin.changeTitle')}
 										</button>
 									)}
 								</motion.div>
@@ -486,6 +497,41 @@ export function SecuritySettings() {
 						</SettingCard>
 					</div>
 				</section>
+
+				<section>
+					<SectionTitle>{t('settings:security.method.title')}</SectionTitle>
+					<div className='space-y-3'>
+						<SettingCard
+							icon={Shield}
+							label={t('settings:security.method.label')}
+							description={t('settings:security.method.description')}>
+							<div className='flex items-center gap-4'>
+								<span className='text-sm font-semibold text-[var(--text-primary)] capitalize'>
+									{securityMethod || '...'}
+								</span>
+								<button
+									type='button'
+									onClick={() => setShowReencryptConfirm(true)}
+									className='rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-hover)] px-4 py-2 text-sm font-medium transition-colors hover:bg-[var(--surface-active)]'>
+									{t('settings:security.method.change')}
+								</button>
+							</div>
+						</SettingCard>
+					</div>
+				</section>
+
+				<ConfirmationDialog
+					open={showReencryptConfirm}
+					onOpenChange={setShowReencryptConfirm}
+					title={t('settings:security.method.confirmTitle')}
+					description={t('settings:security.method.confirmDescription')}
+					confirmLabel={t('common:actions.continue')}
+					cancelLabel={t('common:actions.cancel')}
+					onConfirm={() => {
+						setShowReencryptConfirm(false)
+						onReencrypt?.()
+					}}
+				/>
 			</div>
 		</div>
 	)
