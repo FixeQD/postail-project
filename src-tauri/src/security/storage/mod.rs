@@ -2,8 +2,8 @@ use crate::error::Result;
 use crate::security::master_key::MasterKey;
 
 pub mod argon2;
+pub mod db;
 pub mod keyring;
-pub mod tpm;
 
 pub trait SecretStore: Send + Sync {
     fn store(&self, key: &MasterKey) -> Result<()>;

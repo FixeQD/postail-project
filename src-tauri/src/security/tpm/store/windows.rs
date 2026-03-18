@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use crate::error::{Result, SecurityError};
 use crate::security::master_key::MasterKey;
-use crate::security::stores::SecretStore;
+use crate::security::storage::SecretStore;
 
 use super::common;
 

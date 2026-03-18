@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use crate::security::stores::tpm::get_tpm_store;
-use crate::security::stores::StorageTier;
+use crate::security::tpm::store::get_tpm_store;
+use crate::security::storage::StorageTier;
 
 pub enum TpmAvailability {
     Available,
@@ -23,8 +23,8 @@ impl TpmInitializer {
     }
 
     pub fn check_availability(&self) -> TpmAvailability {
-        use crate::security::stores::tpm::linux::LinuxTpmStore;
-        use crate::security::stores::SecretStore;
+        use crate::security::tpm::store::linux::LinuxTpmStore;
+        use crate::security::storage::SecretStore;
 
         if Path::new("/dev/tpmrm0").exists() || Path::new("/dev/tpm0").exists() {
             if let Ok(store) = LinuxTpmStore::new() {
@@ -44,7 +44,7 @@ impl TpmInitializer {
         TpmAvailability::NotAvailable
     }
 
-    pub fn get_store(&self) -> Option<Box<dyn crate::security::stores::SecretStore + 'static>> {
+    pub fn get_store(&self) -> Option<Box<dyn crate::security::storage::SecretStore + 'static>> {
         get_tpm_store()
     }
 

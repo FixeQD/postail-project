@@ -1,5 +1,5 @@
-use crate::security::stores::SecretStore;
-use crate::security::tpm_protocol::{
+use crate::security::storage::SecretStore;
+use crate::security::tpm::protocol::{
     async_io::{receive_message_async, send_message_async},
     TpmRequest, TpmResponse,
 };
@@ -51,7 +51,7 @@ pub fn tpm_helper_init() -> Result<(), String> {
         }
 
         let storage_path = Arc::new(Mutex::new(
-            crate::security::stores::tpm::common::default_storage_path(),
+            crate::security::tpm::store::common::default_storage_path(),
         ));
 
         while let Ok((mut stream, _)) = listener.accept().await {
@@ -186,7 +186,7 @@ async fn handle_client(
         return Err("Unauthorized: Binary mismatch".to_string());
     }
 
-    use crate::security::stores::tpm::linux::LinuxTpmStore;
+    use crate::security::tpm::store::linux::LinuxTpmStore;
 
     loop {
         let req: TpmRequest = match receive_message_async(stream).await {

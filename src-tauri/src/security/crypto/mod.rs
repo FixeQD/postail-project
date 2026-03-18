@@ -8,6 +8,8 @@ use zeroize::Zeroize;
 use crate::error::{Result, SecurityError};
 use crate::security::master_key::MasterKey;
 
+pub mod helpers;
+
 pub const NONCE_LENGTH: usize = 12;
 
 pub struct Crypto {

@@ -1,3 +1,5 @@
+pub mod timer;
+
 use crate::db::settings::{get_setting, set_setting};
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},

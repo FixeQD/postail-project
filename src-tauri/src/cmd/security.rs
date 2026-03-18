@@ -1,9 +1,9 @@
 use crate::globals::{DB_CONN, SECURITY, SMTP_MANAGER};
 use crate::security::manager::PassphraseSecurityBuilder;
 use crate::security::recovery::RecoveryStore;
-use crate::security::stores::keyring::KeyringStore;
-use crate::security::stores::tpm::get_tpm_store;
-use crate::security::stores::{SecretStore, StorageTier};
+use crate::security::storage::keyring::KeyringStore;
+use crate::security::tpm::store::get_tpm_store;
+use crate::security::storage::{SecretStore, StorageTier};
 use crate::security::{DbEncryption, SecurityManager};
 use crate::utils::config::{load_config, save_config, AppConfig};
 use serde::Serialize;
@@ -289,7 +289,7 @@ async fn initialize_tpm_elevated() -> Result<(), TpmInitError> {
 
     // If socket already exists, try to PING it to check if it's really alive and has TPM access
     if socket_path.exists() {
-        use crate::security::stores::tpm::linux::LinuxTpmStore;
+        use crate::security::tpm::store::linux::LinuxTpmStore;
         if let Ok(store) = LinuxTpmStore::new() {
             if store.verify_proxy() {
                 tracing::info!(target: "postail", "TPM helper already running and healthy.");
@@ -616,7 +616,7 @@ pub async fn reset_security_setup() -> Result<(), String> {
     // 2. Reset the security manager to an uninitialized state
     {
         let mut security_guard = SECURITY.lock().await;
-        if let Some(tpm_store) = crate::security::stores::tpm::get_tpm_store() {
+        if let Some(tpm_store) = crate::security::tpm::store::get_tpm_store() {
             *security_guard = SecurityManager::with_store(tpm_store.into(), StorageTier::Tpm);
         } else if let Ok(keyring) = KeyringStore::new() {
             *security_guard = SecurityManager::with_store(Arc::new(keyring), StorageTier::Keyring);
@@ -742,9 +742,9 @@ pub async fn unlock_app(password: String) -> Result<(), String> {
         // Re-derive the master key from the provided passphrase and compare against the one currently held in memory
         let storage_path = crate::utils::config::get_data_dir().join("security");
         let store =
-            crate::security::stores::argon2::Argon2Store::new(storage_path, password.clone());
+            crate::security::storage::argon2::Argon2Store::new(storage_path, password.clone());
 
-        use crate::security::stores::SecretStore;
+        use crate::security::storage::SecretStore;
         let retrieved = store
             .retrieve()
             .map_err(|_| "Invalid password".to_string())?;

@@ -1,30 +1,35 @@
+// Crypto
 pub mod crypto;
-pub mod db_encryption;
-pub mod lock;
-pub mod lock_timer;
-pub mod manager;
-pub mod master_key;
-pub mod recovery;
-pub mod stores;
-#[cfg(all(target_os = "linux", feature = "tpm"))]
-pub mod tpm_helper;
-#[cfg(all(target_os = "linux", feature = "tpm"))]
-pub mod tpm_init;
-#[cfg(all(target_os = "linux", feature = "tpm"))]
-pub mod tpm_protocol;
-pub mod zeroize_helpers;
-
 pub use crypto::{decrypt_with_key, encrypt_with_key, Crypto};
-pub use db_encryption::{DbEncryption, DbEncryptionError};
+pub use crypto::helpers::{secure_zeroize, secure_zeroize_vec, ZeroizingBytes};
+
+// Lock
+pub mod lock;
 pub use lock::{
     get_timeout_minutes, is_lock_configured, is_locked, is_using_encryption_password,
     load_settings as load_lock_settings, lock, record_activity, set_pin, set_timeout, unlock,
     use_encryption_password,
 };
-pub use lock_timer::{start_lock_timer, stop_lock_timer};
+pub use lock::timer::{start_lock_timer, stop_lock_timer};
+
+// Manager & Master Key
+pub mod manager;
 pub use manager::{PassphraseSecurityBuilder, SecurityManager};
+
+pub mod master_key;
 pub use master_key::{MasterKey, MASTER_KEY_LENGTH};
-pub use stores::{SecretStore, StorageTier};
+
+// Recovery
+pub mod recovery;
+
+// Storage
+pub mod storage;
+pub use storage::db::{DbEncryption, DbEncryptionError};
+pub use storage::{SecretStore, StorageTier};
+
+// TPM
+pub mod tpm;
 #[cfg(all(target_os = "linux", feature = "tpm"))]
-pub use tpm_init::{TpmAvailability, TpmInitializer};
-pub use zeroize_helpers::{secure_zeroize, secure_zeroize_vec, ZeroizingBytes};
+pub use tpm::helper::tpm_helper_init;
+#[cfg(all(target_os = "linux", feature = "tpm"))]
+pub use tpm::init::{TpmAvailability, TpmInitializer};

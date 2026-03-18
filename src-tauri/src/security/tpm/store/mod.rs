@@ -12,11 +12,11 @@ pub mod pcr;
 
 use crate::error::{Result, SecurityError};
 use crate::security::master_key::MasterKey;
-use crate::security::stores::SecretStore;
+use crate::security::storage::SecretStore;
 
 #[cfg(all(target_os = "linux", feature = "tpm"))]
 pub fn get_tpm_store() -> Option<Box<dyn SecretStore>> {
-    use crate::security::stores::SecretStore;
+    use crate::security::storage::SecretStore;
     if std::path::Path::new("/dev/tpmrm0").exists() || std::path::Path::new("/dev/tpm0").exists() {
         linux::LinuxTpmStore::new()
             .ok()

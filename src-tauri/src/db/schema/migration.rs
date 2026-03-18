@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use tracing;
 
 use crate::error::DBError;
-use crate::security::db_encryption::DbEncryption;
+use crate::security::DbEncryption;
 
 pub fn check_db_encrypted(conn: &Connection) -> bool {
     conn.query_row("PRAGMA cipher_version", [], |_| Ok(()))

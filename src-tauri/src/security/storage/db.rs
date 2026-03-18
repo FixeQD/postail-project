@@ -16,6 +16,8 @@ const DB_ENC_KEY_INFO: &[u8] = b"postail-db-encryption-v1";
 const DB_ENC_SALT_SERVICE: &str = "postail";
 const DB_ENC_SALT_KEY: &str = "db-encryption-salt";
 
+pub type DbEncryption = DbEncryptionInner;
+
 #[derive(Debug, Error)]
 pub enum DbEncryptionError {
     #[error("keyring error: {0}")]
@@ -28,7 +30,7 @@ pub enum DbEncryptionError {
     Hkdf(String),
 }
 
-pub struct DbEncryption {
+pub struct DbEncryptionInner {
     cipher_key: [u8; 32],
 }
 

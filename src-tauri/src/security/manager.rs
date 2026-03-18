@@ -7,9 +7,9 @@ use argon2::password_hash::{rand_core::OsRng, SaltString};
 use crate::error::{Result, SecurityError};
 use crate::security::crypto::{decrypt_with_key, encrypt_with_key, Crypto};
 use crate::security::master_key::MasterKey;
-use crate::security::stores::keyring::KeyringStore;
-use crate::security::stores::tpm::get_tpm_store;
-use crate::security::stores::{SecretStore, StorageTier};
+use crate::security::storage::keyring::KeyringStore;
+use crate::security::tpm::store::get_tpm_store;
+use crate::security::storage::{SecretStore, StorageTier};
 
 struct NoSecureStorageStore;
 
@@ -247,7 +247,7 @@ impl PassphraseSecurityBuilder {
     }
 
     pub fn build(self) -> SecurityManager {
-        use crate::security::stores::argon2::Argon2Store;
+        use crate::security::storage::argon2::Argon2Store;
 
         let store = Argon2Store::new(self.storage_path, self.passphrase);
         SecurityManager::with_store(Arc::new(store), StorageTier::Passphrase)

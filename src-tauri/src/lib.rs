@@ -22,7 +22,7 @@ use tauri::Manager;
 /// TPM helper mode: Initialize TPM with elevated privileges (Linux only)
 #[cfg(all(target_os = "linux", feature = "tpm"))]
 pub fn tpm_helper_init() -> Result<(), String> {
-    crate::security::tpm_helper::tpm_helper_init()
+    crate::security::tpm_helper_init()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

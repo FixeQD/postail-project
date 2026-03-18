@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use crate::error::{Result, SecurityError};
 use crate::security::master_key::MasterKey;
-use crate::security::stores::SecretStore;
+use crate::security::storage::SecretStore;
 
 use super::common;
 
@@ -29,7 +29,7 @@ pub struct LinuxTpmStore {
 
 #[cfg(all(target_os = "linux", feature = "tpm"))]
 mod proxy {
-    pub use crate::security::tpm_protocol::{
+    pub use crate::security::tpm::protocol::{
         receive_message, send_message, TpmRequest, TpmResponse,
     };
     use std::os::unix::net::UnixStream;
