@@ -5,7 +5,7 @@ use postail_project_lib::security::{
     crypto::{decrypt_with_key, encrypt_with_key},
     manager::{PassphraseSecurityBuilder, SecurityManager},
     master_key::{MasterKey, MASTER_KEY_LENGTH},
-    stores::{argon2::Argon2Store, SecretStore, StorageTier},
+    storage::{argon2::Argon2Store, SecretStore, StorageTier},
 };
 use tempfile::tempdir;
 

@@ -203,7 +203,7 @@ pub fn test_manager() -> SecurityManager {
     use postail_project_lib::security::{
         manager::SecurityManager,
         master_key::MasterKey,
-        stores::{argon2::Argon2Store, StorageTier},
+        storage::{argon2::Argon2Store, StorageTier},
     };
 
     let temp_path = temp_dir().join("test_postail_key");
@@ -691,7 +691,7 @@ fn test_hkdf_key_derivation() {
 
 #[test]
 fn test_db_encryption_roundtrip() {
-    use postail_project_lib::security::db_encryption::DbEncryption;
+    use postail_project_lib::security::DbEncryption;
 
     let master_key = [0xab; 32];
 
@@ -709,7 +709,7 @@ fn test_db_encryption_roundtrip() {
 
 #[test]
 fn test_sqlcipher_encryption() {
-    use postail_project_lib::security::db_encryption::DbEncryption;
+    use postail_project_lib::security::DbEncryption;
     use rusqlite::Connection;
 
     let temp_file = NamedTempFile::new().unwrap();
