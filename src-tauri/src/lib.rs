@@ -6,6 +6,7 @@ pub mod error;
 pub mod globals;
 pub mod imap;
 pub mod maintenance;
+pub mod network;
 pub mod oauth;
 pub mod protocol;
 pub mod security;

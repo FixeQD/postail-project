@@ -294,3 +294,21 @@ impl From<AppError> for String {
         err.to_string()
     }
 }
+
+#[derive(Debug, Error)]
+pub enum NetworkError {
+    #[error("request failed: {0}")]
+    Request(#[from] reqwest::Error),
+
+    #[error("server returned {status} for {url}")]
+    BadStatus { status: u16, url: String },
+
+    #[error("resource at {url} exceeds size limit ({size} bytes)")]
+    TooLarge { url: String, size: usize },
+}
+
+impl From<NetworkError> for String {
+    fn from(err: NetworkError) -> Self {
+        err.to_string()
+    }
+}
