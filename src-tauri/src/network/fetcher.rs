@@ -1,4 +1,5 @@
 use crate::error::NetworkError;
+use rand::{distr::Alphanumeric, Rng};
 use reqwest::Client;
 use std::time::Duration;
 use tracing::{info, warn};
@@ -18,10 +19,19 @@ pub struct ResourceFetcher {
 
 impl ResourceFetcher {
     pub fn new() -> Self {
+        // Damn, tracking systems that use suffixes are cooked 💀
+        let suffix: String = rand::rng()
+            .sample_iter(Alphanumeric)
+            .take(8)
+            .map(char::from)
+            .collect();
+
+        let ua = format!("Postail/{}/{}", env!("CARGO_PKG_VERSION"), suffix);
+
         let client = Client::builder()
             .timeout(Duration::from_secs(FETCH_TIMEOUT_SECS))
             .redirect(reqwest::redirect::Policy::limited(MAX_REDIRECTS))
-            .user_agent(concat!("Postail/", env!("CARGO_PKG_VERSION")))
+            .user_agent(ua)
             .build()
             .unwrap_or_else(|e| {
                 warn!("resource fetcher: failed to build client with config: {e}, falling back to default");
