@@ -18,6 +18,7 @@ use std::sync::atomic::Ordering;
 use crate::globals::SMTP_MANAGER;
 use crate::imap::pool::init_pool;
 use crate::imap::sync_status::set_sync_status_app_handle;
+use crate::network::cache::{ResourceCache, RESOURCE_CACHE};
 use tauri::Manager;
 
 /// TPM helper mode: Initialize TPM with elevated privileges (Linux only)
@@ -49,6 +50,18 @@ pub fn run() {
         ))
         .setup(|app| {
             let handle = app.handle().clone();
+
+            // Initialize resource cache
+            {
+                let cache_dir = app
+                    .path()
+                    .app_data_dir()
+                    .expect("failed to resolve app data dir")
+                    .join("resource_cache");
+                RESOURCE_CACHE
+                    .set(ResourceCache::new(cache_dir))
+                    .unwrap_or_else(|_| tracing::warn!("resource cache already initialized"));
+            }
 
             // System tray
             {

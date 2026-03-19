@@ -3976,6 +3976,7 @@ dependencies = [
  "hkdf",
  "html5ever 0.25.2",
  "imap-proto",
+ "indexmap 2.13.0",
  "keyring",
  "kuchiki",
  "lazy_static",

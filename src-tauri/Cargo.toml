@@ -26,6 +26,7 @@ url = "2"
 base64 = "0.22"
 sha2 = "0.10"
 lazy_static = "1.5"
+indexmap = { version = "2", features = ["serde"] }
 
 # Security
 tss-esapi = { version = "7", optional = true }

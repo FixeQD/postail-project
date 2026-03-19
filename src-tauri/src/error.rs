@@ -312,3 +312,27 @@ impl From<NetworkError> for String {
         err.to_string()
     }
 }
+
+#[derive(Debug, Error)]
+pub enum CacheError {
+    #[error("encryption failed: {0}")]
+    Encryption(String),
+
+    #[error("decryption failed: {0}")]
+    Decryption(String),
+
+    #[error("io error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("security manager unavailable: {0}")]
+    SecurityUnavailable(String),
+
+    #[error("metadata serialization failed: {0}")]
+    Metadata(String),
+}
+
+impl From<CacheError> for String {
+    fn from(err: CacheError) -> Self {
+        err.to_string()
+    }
+}
