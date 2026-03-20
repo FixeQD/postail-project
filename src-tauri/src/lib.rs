@@ -12,6 +12,7 @@ pub mod protocol;
 pub mod security;
 pub mod smtp;
 pub mod utils;
+pub mod webview_policy;
 
 use std::sync::atomic::Ordering;
 
@@ -108,6 +109,11 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 init_pool().await;
             });
+
+            // Block all outbound http/https from the WebView at the engine level
+            if let Some(main_window) = app.get_webview_window("main") {
+                webview_policy::install_network_block(&main_window);
+            }
 
             Ok(())
         })
