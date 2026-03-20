@@ -412,7 +412,9 @@ export const MessageView = ({
 									disabled={loadingExternal}
 									onClick={() => setAllowExternalResources(true)}
 									className='text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50'>
-									{loadingExternal ? '…' : t('inbox:messageView.cspBlocked.allow')}
+									{loadingExternal
+										? '…'
+										: t('inbox:messageView.cspBlocked.allow')}
 								</button>
 							</div>
 						)}
@@ -423,15 +425,44 @@ export const MessageView = ({
 								title={t('inbox:messageView.renderError.title')}
 								description={t('inbox:messageView.renderError.description')}
 								fallbackText={t('inbox:messageView.renderError.fallback')}>
-								<MessageViewBody
-									htmlContent={data.body_html_safe}
-									plainContent={data.body_plain}
-									viewMode={viewMode}
-									allowExternalResources={allowExternalResources}
-									inline_images={data.inline_images}
-									onExternalDetected={() => setHasExternalResources(true)}
-								onLoadingChange={(loading) => setLoadingExternal(loading)}
-								/>
+								<div className='relative'>
+									{loadingExternal && (
+										<div className='absolute bottom-8 left-1/2 z-10 -translate-x-1/2'>
+											<div className='flex items-center gap-2 rounded-full bg-[var(--surface-panel)] px-3.5 py-2 shadow-lg ring-1 ring-[var(--border-faint)]'>
+												<svg
+													className='h-3.5 w-3.5 animate-spin text-[var(--text-tertiary)]'
+													viewBox='0 0 24 24'
+													fill='none'>
+													<circle
+														className='opacity-25'
+														cx='12'
+														cy='12'
+														r='10'
+														stroke='currentColor'
+														strokeWidth='3'
+													/>
+													<path
+														className='opacity-75'
+														fill='currentColor'
+														d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z'
+													/>
+												</svg>
+												<span className='text-[11px] font-medium text-[var(--text-tertiary)]'>
+													{t('inbox:messageView.loadingExternal')}
+												</span>
+											</div>
+										</div>
+									)}
+									<MessageViewBody
+										htmlContent={data.body_html_safe}
+										plainContent={data.body_plain}
+										viewMode={viewMode}
+										allowExternalResources={allowExternalResources}
+										inline_images={data.inline_images}
+										onExternalDetected={() => setHasExternalResources(true)}
+										onLoadingChange={(loading) => setLoadingExternal(loading)}
+									/>
+								</div>
 							</MessageViewErrorBoundary>
 							{data.attachments.length > 0 && (
 								<MessageViewAttachments

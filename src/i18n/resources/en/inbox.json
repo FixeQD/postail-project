@@ -70,6 +70,7 @@
 			"label": "Remote content blocked",
 			"allow": "Allow"
 		},
+		"loadingExternal": "Loading remote content…",
 		"readReceipt": {
 			"label": "Sender requested read receipt",
 			"send": "Send Receipt",
