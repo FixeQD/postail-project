@@ -108,7 +108,7 @@ export const ThreadView = ({
 										viewMode={viewMode}
 										allowExternalResources={!blockExternalImages}
 										inline_images={[]}
-										onCspBlocked={() => {}}
+										onExternalDetected={() => {}}
 									/>
 								</div>
 							</motion.div>

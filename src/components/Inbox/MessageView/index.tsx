@@ -47,7 +47,8 @@ export const MessageView = ({
 	const threadViewEnabled = useSettingsStore((s) => s.settings['thread-view'])
 
 	const [allowExternalResources, setAllowExternalResources] = useState(!blockExternalImages)
-	const [cspBlocked, setCspBlocked] = useState(false)
+	const [hasExternalResources, setHasExternalResources] = useState(false)
+	const [loadingExternal, setLoadingExternal] = useState(false)
 	const [receiptDismissed, setReceiptDismissed] = useState(false)
 	const [isSendingReceipt, setIsSendingReceipt] = useState(false)
 	const [noReplyAction, setNoReplyAction] = useState<'reply' | 'replyAll' | null>(null)
@@ -243,7 +244,8 @@ export const MessageView = ({
 			scrollContainerRef.current.scrollTo({ top: 0, behavior: 'auto' })
 		}
 		setLoading(true)
-		setCspBlocked(false)
+		setHasExternalResources(false)
+		setLoadingExternal(false)
 		setReceiptDismissed(false)
 		setIsSendingReceipt(false)
 		setAllowExternalResources(!blockExternalImages)
@@ -396,8 +398,8 @@ export const MessageView = ({
 							</div>
 						)}
 
-						{/* CSP-triggered banner - appears only when browser actually blocked something */}
-						{cspBlocked && !allowExternalResources && (
+						{/* External resources banner — shown when Rust detected external URLs and user hasn't loaded them yet */}
+						{hasExternalResources && !allowExternalResources && (
 							<div className='mx-5 mb-2 flex items-center justify-between gap-2 rounded-lg bg-[var(--surface-active)] px-3 py-2 ring-1 ring-[var(--border-faint)]'>
 								<div className='flex items-center gap-2'>
 									<div className='h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]' />
@@ -407,9 +409,10 @@ export const MessageView = ({
 								</div>
 								<button
 									type='button'
+									disabled={loadingExternal}
 									onClick={() => setAllowExternalResources(true)}
-									className='text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:text-[var(--text-primary)]'>
-									{t('inbox:messageView.cspBlocked.allow')}
+									className='text-[11px] font-medium text-[var(--text-primary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50'>
+									{loadingExternal ? '…' : t('inbox:messageView.cspBlocked.allow')}
 								</button>
 							</div>
 						)}
@@ -426,7 +429,8 @@ export const MessageView = ({
 									viewMode={viewMode}
 									allowExternalResources={allowExternalResources}
 									inline_images={data.inline_images}
-									onCspBlocked={() => setCspBlocked(true)}
+									onExternalDetected={() => setHasExternalResources(true)}
+								onLoadingChange={(loading) => setLoadingExternal(loading)}
 								/>
 							</MessageViewErrorBoundary>
 							{data.attachments.length > 0 && (
