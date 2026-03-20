@@ -1,4 +1,6 @@
 use crate::network::cache::RESOURCE_CACHE;
+use base64::{engine::general_purpose::STANDARD, Engine as _};
+use futures::future::join_all;
 use kuchiki::traits::TendrilSink;
 use std::collections::HashMap;
 use tracing::warn;
@@ -24,8 +26,7 @@ fn is_external(value: &str) -> bool {
     v.starts_with("http://") || v.starts_with("https://")
 }
 
-/// Collect all external URLs that need to be fetched from the HTML string.
-/// Returns a deduplicated list
+/// CPU-bound: parse HTML, collect deduplicated external URLs.
 fn collect_external_urls(html: &str) -> Vec<String> {
     let mut urls: Vec<String> = Vec::new();
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -51,13 +52,10 @@ fn collect_external_urls(html: &str) -> Vec<String> {
         }
     }
 
-    // Collect url() from style attributes and <style> elements via text scan
     collect_css_urls(html, &mut urls, &mut seen);
-
     urls
 }
 
-/// Scan raw HTML text for url(http...) occurrences
 fn collect_css_urls(
     html: &str,
     urls: &mut Vec<String>,
@@ -78,17 +76,15 @@ fn collect_css_urls(
     }
 }
 
-/// Replace all occurrences of external URLs in raw HTML with their data: equivalents.
-fn apply_replacements(html: &str, replacements: &HashMap<String, String>) -> String {
+/// CPU-bound: string replacement pass. Runs inside spawn_blocking.
+fn apply_replacements(html: String, replacements: HashMap<String, String>) -> String {
     if replacements.is_empty() {
-        return html.to_string();
+        return html;
     }
 
-    let mut out = html.to_string();
-    for (url, data_url) in replacements {
-        // Replace decoded form (e.g. from CSS url() or already-decoded attrs)
+    let mut out = html;
+    for (url, data_url) in &replacements {
         out = out.replace(url.as_str(), data_url.as_str());
-        // Replace HTML-entity-encoded form (& → &amp;) as found in raw HTML attributes
         let encoded = url.replace('&', "&amp;");
         if encoded != *url {
             out = out.replace(encoded.as_str(), data_url.as_str());
@@ -97,6 +93,7 @@ fn apply_replacements(html: &str, replacements: &HashMap<String, String>) -> Str
     out
 }
 
+/// CPU-bound detect — also offloaded via spawn_blocking at call site.
 fn detect_external(html: &str) -> bool {
     let document = kuchiki::parse_html().one(html);
 
@@ -126,7 +123,11 @@ fn detect_external(html: &str) -> bool {
 }
 
 pub async fn rewrite_external_resources(html: &str, allow_external: bool) -> RewriteResult {
-    let has_external = detect_external(html);
+    // Offload kuchiki parse + DOM walk to blocking thread pool
+    let html_owned = html.to_string();
+    let has_external = tokio::task::spawn_blocking(move || detect_external(&html_owned))
+        .await
+        .unwrap_or(false);
 
     if !allow_external || !has_external {
         return RewriteResult {
@@ -148,17 +149,29 @@ pub async fn rewrite_external_resources(html: &str, allow_external: bool) -> Rew
         }
     };
 
-    // --- Sync phase: collect all URLs, drop all DOM references ---
-    let urls = collect_external_urls(html);
+    // Offload URL collection (kuchiki parse + DOM walk) to blocking thread pool
+    let html_owned = html.to_string();
+    let urls = tokio::task::spawn_blocking(move || collect_external_urls(&html_owned))
+        .await
+        .unwrap_or_default();
 
-    // --- Async phase: fetch everything, no DOM refs in scope ---
+    // Fetch all URLs in parallel — no more sequential waterfall
+    let fetch_futures = urls.iter().map(|url| {
+        let url = url.clone();
+        async move {
+            let result = cache.get_or_fetch(&url).await;
+            (url, result)
+        }
+    });
+
+    let results = join_all(fetch_futures).await;
+
     let mut replacements: HashMap<String, String> = HashMap::new();
     let mut failed: Vec<String> = Vec::new();
 
-    for url in urls {
-        match cache.get_or_fetch(&url).await {
+    for (url, result) in results {
+        match result {
             Ok((data, mime)) => {
-                use base64::{engine::general_purpose::STANDARD, Engine as _};
                 let data_url = format!("data:{};base64,{}", mime, STANDARD.encode(data.as_ref()));
                 replacements.insert(url, data_url);
             }
@@ -169,8 +182,12 @@ pub async fn rewrite_external_resources(html: &str, allow_external: bool) -> Rew
         }
     }
 
-    // --- Sync phase: apply replacements to raw HTML string ---
-    let rewritten = apply_replacements(html, &replacements);
+    // Offload string replacement (potentially large HTML) to blocking thread pool
+    let html_owned = html.to_string();
+    let rewritten =
+        tokio::task::spawn_blocking(move || apply_replacements(html_owned, replacements))
+            .await
+            .unwrap_or_else(|_| html.to_string());
 
     RewriteResult {
         html: rewritten,
