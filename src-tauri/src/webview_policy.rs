@@ -17,52 +17,24 @@ pub fn install_network_block<R: Runtime>(window: &WebviewWindow<R>) {
 
 #[cfg(target_os = "linux")]
 fn install_linux<R: Runtime>(window: &WebviewWindow<R>) {
-    use webkit2gtk::glib::Cast;
-    use webkit2gtk::{
-        NavigationAction, NavigationPolicyDecision, NavigationPolicyDecisionExt, PolicyDecision,
-        PolicyDecisionExt, PolicyDecisionType, URIRequest, URIRequestExt, WebViewExt,
-    };
+    use webkit2gtk::{NetworkProxyMode, NetworkProxySettings, WebViewExt, WebsiteDataManagerExt};
 
     let result = window.with_webview(|webview| {
         let wk = webview.inner();
 
-        wk.connect_decide_policy(|_view, decision: &PolicyDecision, decision_type| {
-            match decision_type {
-                PolicyDecisionType::NavigationAction | PolicyDecisionType::NewWindowAction => {
-                    if let Some(nav) = decision.downcast_ref::<NavigationPolicyDecision>() {
-                        if let Some(action) = nav.navigation_action() {
-                            let action: NavigationAction = action;
-                            if let Some(req) = action.request() {
-                                let req: URIRequest = req;
-                                let uri = req.uri().unwrap_or_default();
-                                let uri_str = uri.as_str();
-                                if uri_str.starts_with("http://") || uri_str.starts_with("https://")
-                                {
-                                    if uri_str.starts_with("http://localhost")
-                                        || uri_str.starts_with("http://127.0.0.1")
-                                        || uri_str.starts_with("https://localhost")
-                                        || uri_str.starts_with("https://127.0.0.1")
-                                        || uri_str.contains(".localhost")
-                                    {
-                                        return false;
-                                    }
+        // Route ALL http/https/ws/wss through a proxy on port 1.
+        // Port 1 is reserved - nothing ever listens there. Every outbound request hits ECONNREFUSED at the TCP level before any data leaves the machine.
+        let mut proxy = NetworkProxySettings::new(
+            Some("http://127.0.0.1:1"),
+            &["localhost", "127.0.0.1", "::1"],
+        );
 
-                                    nav.ignore();
-                                    tracing::warn!(
-                                        "webview network block: blocked navigation to {uri_str}"
-                                    );
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                    false
-                }
-                _ => false,
-            }
-        });
-
-        info!("webview network block: installed on Linux (webkit2gtk decide-policy)");
+        if let Some(manager) = wk.website_data_manager() {
+            manager.set_network_proxy_settings(NetworkProxyMode::Custom, Some(&mut proxy));
+            info!("webview network block: installed via null-proxy (WebsiteDataManager)");
+        } else {
+            warn!("webview network block: could not get WebsiteDataManager");
+        }
     });
 
     if let Err(e) = result {
