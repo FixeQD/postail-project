@@ -86,8 +86,13 @@ fn apply_replacements(html: &str, replacements: &HashMap<String, String>) -> Str
 
     let mut out = html.to_string();
     for (url, data_url) in replacements {
-        // Replace bare occurrences: src="URL", href="URL", url(URL), url('URL'), url("URL")
+        // Replace decoded form (e.g. from CSS url() or already-decoded attrs)
         out = out.replace(url.as_str(), data_url.as_str());
+        // Replace HTML-entity-encoded form (& → &amp;) as found in raw HTML attributes
+        let encoded = url.replace('&', "&amp;");
+        if encoded != *url {
+            out = out.replace(encoded.as_str(), data_url.as_str());
+        }
     }
     out
 }
