@@ -46,8 +46,8 @@ fn run_sanitization_pipeline(
     }
 
     inline_css_styles_dom(&document);
-    convert_to_table_layout_dom(&document);
     scale_elements_for_email_dom(&document);
+    convert_to_table_layout_dom(&document);
 
     // ── Phase 3: Final Sanitization ───────────────────────────────────────
     strip_content_tags_dom(&document);
