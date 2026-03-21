@@ -13,7 +13,8 @@ export const MessageViewBody = ({
 	viewMode,
 	allowExternalResources = false,
 	inline_images = [],
-	onCspBlocked,
+	onExternalDetected,
+	onLoadingChange,
 }: MessageViewBodyProps) => {
 	const { t } = useTypedTranslation(['security', 'common'])
 	const accentColor = useThemeStore((s) => s.accentColor)
@@ -144,7 +145,8 @@ export const MessageViewBody = ({
 		const baseUrl = isWindows ? 'http://postail.localhost' : 'postail://localhost'
 
 		const src = `${baseUrl}/message/current?v=${Date.now()}`
-		invoke('set_email_view_content', {
+		onLoadingChange?.(true)
+		invoke<{ hasExternalResources: boolean; failedResources: string[] }>('set_email_view_content', {
 			html,
 			inlineImages: inline_images
 				.filter((img) => img.cid && img.cached_path)
@@ -154,8 +156,14 @@ export const MessageViewBody = ({
 					mimeType: img.mime_type,
 				})),
 			allowExternal: allowExternalResources,
-		}).then(() => {
+		}).then((result) => {
+			if (result.hasExternalResources) {
+				onExternalDetected?.()
+			}
 			setIframeSrc(src)
+			onLoadingChange?.(false)
+		}).catch(() => {
+			onLoadingChange?.(false)
 		})
 	}, [htmlContent, effectiveViewMode, accentColor, allowExternalResources, inline_images])
 
@@ -167,10 +175,6 @@ export const MessageViewBody = ({
 				iframeRef.current.style.height = `${e.data.height}px`
 				setIframeWidth('100%')
 				setIframeReady(true)
-			}
-
-			if (e.data?.type === 'csp-blocked') {
-				onCspBlocked?.()
 			}
 
 			if (e.data?.type === 'open-link' && e.data.url) {

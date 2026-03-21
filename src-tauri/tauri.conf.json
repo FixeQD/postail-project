@@ -15,11 +15,12 @@
 				"title": "Postail",
 				"maximized": true,
 				"decorations": false,
-				"transparent": true
+				"transparent": true,
+				"additionalBrowserArgs": "--proxy-server=http://127.0.0.1:18731 --proxy-bypass-list=localhost;127.0.0.1;::1;*.localhost;<local>"
 			}
 		],
 		"security": {
-			"csp": "default-src 'self' tauri: asset: https://asset.localhost; script-src 'self' blob: 'unsafe-eval'; style-src 'self' blob: 'unsafe-inline'; img-src 'self' https: data: blob: asset: https://asset.localhost tauri:; connect-src 'self' https: wss:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self' blob: postail: http://postail.localhost;",
+			"csp": "default-src 'self' tauri: asset: https://asset.localhost; script-src 'self' blob: 'unsafe-eval'; style-src 'self' blob: 'unsafe-inline'; img-src 'self' data: blob: asset: https://asset.localhost tauri:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self' blob: postail: http://postail.localhost;",
 			"assetProtocol": {
 				"enable": true,
 				"scope": [

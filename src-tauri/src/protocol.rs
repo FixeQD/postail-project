@@ -55,20 +55,12 @@ fn serve_email<R: Runtime>(context: &UriSchemeContext<R>) -> Response<Cow<'stati
         .and_then(|g| g.clone())
         .unwrap_or_default();
 
-    let allow_external = state
-        .allow_external
-        .lock()
-        .ok()
-        .map(|g| *g)
-        .unwrap_or(false);
-
-    let csp = if allow_external {
-        "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; \
-         img-src * data: cid: asset:; font-src * data: asset:; connect-src 'none';"
-    } else {
-        "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; \
-         img-src data: cid: asset:; font-src data: asset:; connect-src 'none';"
-    };
+    let csp = "default-src 'none'; \
+               script-src 'unsafe-inline'; \
+               style-src 'unsafe-inline'; \
+               img-src data: cid: asset:; \
+               font-src data: asset:; \
+               connect-src 'none';";
 
     Response::builder()
         .status(200)

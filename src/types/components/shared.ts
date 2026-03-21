@@ -105,7 +105,8 @@ export interface MessageViewBodyProps {
 	viewMode: 'html' | 'plain'
 	allowExternalResources?: boolean
 	inline_images?: import('../mail').AttachmentMeta[]
-	onCspBlocked?: () => void
+	onExternalDetected?: () => void
+	onLoadingChange?: (loading: boolean) => void
 }
 
 export interface MessageViewMetaProps {

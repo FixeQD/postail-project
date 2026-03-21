@@ -6,17 +6,20 @@ pub mod error;
 pub mod globals;
 pub mod imap;
 pub mod maintenance;
+pub mod network;
 pub mod oauth;
 pub mod protocol;
 pub mod security;
 pub mod smtp;
 pub mod utils;
+pub mod webview_policy;
 
 use std::sync::atomic::Ordering;
 
 use crate::globals::SMTP_MANAGER;
 use crate::imap::pool::init_pool;
 use crate::imap::sync_status::set_sync_status_app_handle;
+use crate::network::cache::{ResourceCache, RESOURCE_CACHE};
 use tauri::Manager;
 
 /// TPM helper mode: Initialize TPM with elevated privileges (Linux only)
@@ -48,6 +51,18 @@ pub fn run() {
         ))
         .setup(|app| {
             let handle = app.handle().clone();
+
+            // Initialize resource cache
+            {
+                let cache_dir = app
+                    .path()
+                    .app_data_dir()
+                    .expect("failed to resolve app data dir")
+                    .join("resource_cache");
+                RESOURCE_CACHE
+                    .set(ResourceCache::new(cache_dir))
+                    .unwrap_or_else(|_| tracing::warn!("resource cache already initialized"));
+            }
 
             // System tray
             {
@@ -94,6 +109,20 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 init_pool().await;
             });
+
+            // Start null proxy — accepts connections, always responds 502.
+            #[cfg(target_os = "windows")]
+            let proxy_port: u16 = 18731;
+            #[cfg(not(target_os = "windows"))]
+            let proxy_port: u16 = portpicker::pick_unused_port().unwrap_or(18731);
+
+            tauri::async_runtime::spawn(async move {
+                crate::network::null_proxy::start_on_port(proxy_port).await;
+            });
+
+            if let Some(main_window) = app.get_webview_window("main") {
+                webview_policy::install_network_block(&main_window, proxy_port);
+            }
 
             Ok(())
         })
@@ -183,7 +212,9 @@ pub fn run() {
             cmd::settings::get_default_data_dir,
             cmd::settings::get_theme_config,
             cmd::settings::set_theme_config,
-            cmd::settings::get_build_info
+            cmd::settings::get_build_info,
+            cmd::network::clear_resource_cache,
+            cmd::network::get_resource_cache_stats
         ])
         .register_uri_scheme_protocol("postail", protocol::handler)
         .build(tauri::generate_context!())

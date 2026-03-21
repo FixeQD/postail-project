@@ -1,10 +1,11 @@
 use crate::email_view::EmailViewState;
 use crate::globals::SECURITY;
+use crate::network::rewriter::rewrite_external_resources;
 use crate::utils::sanitizer::{
     auto_fix_email_html as sanitizer_fix, sanitize_email_html_with_details, SanitizeResult,
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tauri::{command, State};
 use tauri_plugin_notification::NotificationExt;
 
@@ -14,6 +15,13 @@ pub struct InlineImageInfo {
     pub cid: String,
     pub cached_path: String,
     pub mime_type: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetEmailViewResult {
+    pub has_external_resources: bool,
+    pub failed_resources: Vec<String>,
 }
 
 #[command]
@@ -47,7 +55,7 @@ pub async fn set_email_view_content(
     html: String,
     inline_images: Vec<InlineImageInfo>,
     allow_external: bool,
-) -> Result<(), String> {
+) -> Result<SetEmailViewResult, String> {
     let mut processed = html;
 
     if !inline_images.is_empty() {
@@ -78,8 +86,14 @@ pub async fn set_email_view_content(
         }
     }
 
+    let rewrite = rewrite_external_resources(&processed, allow_external).await;
+    processed = rewrite.html;
+
     *state.html.lock().map_err(|e| e.to_string())? = Some(processed);
     *state.allow_external.lock().map_err(|e| e.to_string())? = allow_external;
 
-    Ok(())
+    Ok(SetEmailViewResult {
+        has_external_resources: rewrite.has_external,
+        failed_resources: rewrite.failed,
+    })
 }
