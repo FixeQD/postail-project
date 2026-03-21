@@ -110,9 +110,18 @@ pub fn run() {
                 init_pool().await;
             });
 
-            // Block all outbound http/https from the WebView at the engine level
+            // Start null proxy — accepts connections, always responds 502.
+            #[cfg(target_os = "windows")]
+            let proxy_port: u16 = 18731;
+            #[cfg(not(target_os = "windows"))]
+            let proxy_port: u16 = portpicker::pick_unused_port().unwrap_or(18731);
+
+            tauri::async_runtime::spawn(async move {
+                crate::network::null_proxy::start_on_port(proxy_port).await;
+            });
+
             if let Some(main_window) = app.get_webview_window("main") {
-                webview_policy::install_network_block(&main_window);
+                webview_policy::install_network_block(&main_window, proxy_port);
             }
 
             Ok(())
