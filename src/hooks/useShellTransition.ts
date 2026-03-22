@@ -28,7 +28,10 @@ export function useShellTransition() {
 				requestAnimationFrame(() => requestAnimationFrame(() => r()))
 			)
 
+			shell.style.height = 'auto'
 			const newH = content.scrollHeight
+			shell.style.height = shell.offsetHeight + 'px'
+
 			await animateShell(shell, { height: newH }, { duration: 0.36, ease: [0.16, 1, 0.3, 1] })
 
 			shell.style.height = 'auto'
