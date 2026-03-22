@@ -2,49 +2,87 @@ import { useRef, useCallback } from 'react'
 import { useAnimate } from 'framer-motion'
 
 const DURATION = 360
-const EASING = 'cubic-bezier(0.16, 1, 0.3, 1)'
 
-async function animateHeight(shell: HTMLDivElement, fromH: number, toH: number): Promise<void> {
-	if (fromH === toH) return
+// Cubic bezier approximation of (0.16, 1, 0.3, 1) — spring-like ease out
+function easeOutSpring(t: number): number {
+	return 1 - Math.pow(1 - t, 3) * Math.cos(t * Math.PI * 2.5)
+}
 
-	await new Promise<void>((resolve) => {
-		// Hint compositor to promote the layer before animating, prevents layout-driven lag on WebKit2GTK and snap on WebView2.
-		shell.style.willChange = 'height'
+function animateHeightRaf(
+	shell: HTMLDivElement,
+	fromH: number,
+	toH: number,
+	signal: AbortSignal
+): Promise<void> {
+	if (fromH === toH) return Promise.resolve()
 
-		// Force a sync layout read so the browser commits fromH as the starting point before the transition kicks in.
-		void shell.offsetHeight
+	return new Promise<void>((resolve) => {
+		let start: number | null = null
+		let rafId: number
 
-		shell.style.transition = `height ${DURATION}ms ${EASING}`
-		shell.style.height = toH + 'px'
+		const tick = (now: number) => {
+			if (signal.aborted) {
+				shell.style.height = 'auto'
+				resolve()
+				return
+			}
 
-		const onEnd = (e: TransitionEvent) => {
-			if (e.propertyName !== 'height') return
-			shell.removeEventListener('transitionend', onEnd)
-			shell.style.willChange = ''
-			shell.style.transition = ''
-			resolve()
+			if (start === null) start = now
+			const elapsed = now - start
+			const t = Math.min(elapsed / DURATION, 1)
+			const eased = easeOutSpring(t)
+			shell.style.height = fromH + (toH - fromH) * eased + 'px'
+
+			if (t < 1) {
+				rafId = requestAnimationFrame(tick)
+			} else {
+				shell.style.height = 'auto'
+				resolve()
+			}
 		}
-		shell.addEventListener('transitionend', onEnd)
 
-		// Fallback if transitionend doesn't fire
-		setTimeout(() => {
-			shell.removeEventListener('transitionend', onEnd)
-			shell.style.willChange = ''
-			shell.style.transition = ''
-			resolve()
-		}, DURATION + 50)
+		rafId = requestAnimationFrame(tick)
+
+		signal.addEventListener(
+			'abort',
+			() => {
+				cancelAnimationFrame(rafId)
+				shell.style.height = 'auto'
+				resolve()
+			},
+			{ once: true }
+		)
 	})
 }
 
 export function useShellTransition() {
 	const transitioning = useRef(false)
+	const abortRef = useRef<AbortController | null>(null)
 	const [shellScope] = useAnimate()
 	const [contentScope, animateContent] = useAnimate()
+
+	const reset = useCallback(() => {
+		abortRef.current?.abort()
+		abortRef.current = null
+		transitioning.current = false
+
+		const shell = shellScope.current as HTMLDivElement | null
+		const content = contentScope.current as HTMLDivElement | null
+		if (shell) {
+			shell.style.height = 'auto'
+		}
+		if (content) {
+			content.style.opacity = '0'
+		}
+	}, [shellScope, contentScope])
 
 	const transition = useCallback(
 		async (swap: () => void | Promise<void>) => {
 			if (transitioning.current) return
 			transitioning.current = true
+
+			const ac = new AbortController()
+			abortRef.current = ac
 
 			const shell = shellScope.current as HTMLDivElement | null
 			const content = contentScope.current as HTMLDivElement | null
@@ -55,42 +93,36 @@ export function useShellTransition() {
 
 			try {
 				await animateContent(content, { opacity: 0 }, { duration: 0.15, ease: 'easeInOut' })
+				if (ac.signal.aborted) return
 
 				const fromH = shell.offsetHeight
 				shell.style.height = fromH + 'px'
 
 				await swap()
+				if (ac.signal.aborted) return
 
 				await new Promise<void>((r) =>
 					requestAnimationFrame(() => requestAnimationFrame(() => r()))
 				)
+				if (ac.signal.aborted) return
 
-				// Measure unconstrained so scrollHeight isn't clipped
 				shell.style.height = 'auto'
 				const toH = content.scrollHeight
 				shell.style.height = fromH + 'px'
 
-				await animateHeight(shell, fromH, toH)
-
-				shell.style.height = 'auto'
+				await animateHeightRaf(shell, fromH, toH, ac.signal)
+				if (ac.signal.aborted) return
 
 				await animateContent(content, { opacity: 1 }, { duration: 0.15, ease: 'easeInOut' })
 			} finally {
-				transitioning.current = false
+				if (!ac.signal.aborted) {
+					transitioning.current = false
+					abortRef.current = null
+				}
 			}
 		},
 		[animateContent, contentScope, shellScope]
 	)
-
-	const reset = useCallback(() => {
-		transitioning.current = false
-		const shell = shellScope.current as HTMLDivElement | null
-		if (shell) {
-			shell.style.willChange = ''
-			shell.style.transition = ''
-			shell.style.height = 'auto'
-		}
-	}, [shellScope])
 
 	return { shellScope, contentScope, transition, reset }
 }

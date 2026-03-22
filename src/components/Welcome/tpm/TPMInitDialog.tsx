@@ -110,19 +110,24 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 	const handleOpenChange = useCallback(
 		(o: boolean) => {
 			if (!o) {
+				reset()
 				if (showRecoveryStep && !recoveryCompleted.current) {
 					invoke('reset_security_setup').catch((e) =>
 						console.error('[TPMInitDialog] Failed to roll back security setup:', e)
 					)
 				}
-				recoveryCompleted.current = false
 				onClose()
-				setShowRecoveryStep(false)
-				reset()
 			}
 		},
 		[onClose, reset, showRecoveryStep]
 	)
+
+	const handleAnimationEnd = useCallback(() => {
+		if (!open) {
+			recoveryCompleted.current = false
+			setShowRecoveryStep(false)
+		}
+	}, [open])
 
 	// Go back to the elevation prompt so user can try authenticating again
 	const handleRetryFromCancelled = useCallback(() => {
@@ -315,6 +320,7 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 		<>
 			<Dialog open={open} onOpenChange={handleOpenChange}>
 				<DialogContent
+					onAnimationEnd={handleAnimationEnd}
 					className={cn(
 						'overflow-hidden border-black/10 bg-white/95 p-0 text-slate-900 backdrop-blur-xl sm:max-w-md dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-100',
 						showRecoveryStep && 'sm:max-w-2xl'

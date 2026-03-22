@@ -46,9 +46,9 @@ export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDi
 
 	const handleOpenChange = (o: boolean) => {
 		if (!o) {
+			reset()
 			setView('main')
 			setPreloadedMailboxes(null)
-			reset()
 		}
 		onOpenChange(o)
 	}

@@ -113,12 +113,17 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 	}
 
 	const handleOpenChange = (newOpen: boolean) => {
-		setOpen(newOpen)
 		if (!newOpen) {
+			reset()
+		}
+		setOpen(newOpen)
+	}
+
+	const handleAnimationEnd = () => {
+		if (!open) {
 			setView('providers')
 			setNewAccountId(null)
 			setLoading(null)
-			reset()
 		}
 	}
 
@@ -133,7 +138,9 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 				)}
 			</DialogTrigger>
 
-			<DialogContent className='overflow-hidden border-black/10 bg-white/95 p-0 text-slate-900 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-100'>
+			<DialogContent
+				onAnimationEnd={handleAnimationEnd}
+				className='overflow-hidden border-black/10 bg-white/95 p-0 text-slate-900 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-100'>
 				{/* Shell: we pin its height in px during the resize animation */}
 				<div ref={shellScope} className='w-full'>
 					{/* Content wrapper: we fade this independently */}
