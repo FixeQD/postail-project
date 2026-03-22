@@ -146,25 +146,30 @@ export const MessageViewBody = ({
 
 		const src = `${baseUrl}/message/current?v=${Date.now()}`
 		onLoadingChange?.(true)
-		invoke<{ hasExternalResources: boolean; failedResources: string[] }>('set_email_view_content', {
-			html,
-			inlineImages: inline_images
-				.filter((img) => img.cid && img.cached_path)
-				.map((img) => ({
-					cid: img.cid!,
-					cachedPath: img.cached_path!,
-					mimeType: img.mime_type,
-				})),
-			allowExternal: allowExternalResources,
-		}).then((result) => {
-			if (result.hasExternalResources) {
-				onExternalDetected?.()
+		invoke<{ hasExternalResources: boolean; failedResources: string[] }>(
+			'set_email_view_content',
+			{
+				html,
+				inlineImages: inline_images
+					.filter((img) => img.cid && img.cached_path)
+					.map((img) => ({
+						cid: img.cid!,
+						cachedPath: img.cached_path!,
+						mimeType: img.mime_type,
+					})),
+				allowExternal: allowExternalResources,
 			}
-			setIframeSrc(src)
-			onLoadingChange?.(false)
-		}).catch(() => {
-			onLoadingChange?.(false)
-		})
+		)
+			.then((result) => {
+				if (result.hasExternalResources) {
+					onExternalDetected?.()
+				}
+				setIframeSrc(src)
+				onLoadingChange?.(false)
+			})
+			.catch(() => {
+				onLoadingChange?.(false)
+			})
 	}, [htmlContent, effectiveViewMode, accentColor, allowExternalResources, inline_images])
 
 	useEffect(() => {
@@ -205,7 +210,10 @@ export const MessageViewBody = ({
 
 	return (
 		<>
-			<div ref={containerRef} className='overflow-x-auto px-5 py-5'>
+			<div
+				ref={containerRef}
+				className='overflow-x-auto px-5 py-5'
+				style={{ contain: 'content' }}>
 				<div
 					className={`overflow-hidden rounded-xl border border-[var(--border-faint)] transition-all duration-300 ease-out ${
 						iframeReady

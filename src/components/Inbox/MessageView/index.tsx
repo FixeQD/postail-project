@@ -332,7 +332,10 @@ export const MessageView = ({
 				onViewSource={handleViewSource}
 			/>
 
-			<div ref={scrollContainerRef} className='message-view-body flex-1 overflow-y-auto'>
+			<div
+				ref={scrollContainerRef}
+				className='message-view-body flex-1 overflow-y-auto'
+				style={{ willChange: 'transform' }}>
 				{threadViewEnabled && thread && thread.messages.length > 1 && !threadLoading ? (
 					<ThreadView
 						thread={thread}
