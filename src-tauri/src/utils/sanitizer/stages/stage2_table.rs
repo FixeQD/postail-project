@@ -4,8 +4,8 @@
 //! table-based HTML that renders consistently across all major email clients.
 
 use html5ever::QualName;
-use kuchiki::traits::*;
-use kuchiki::NodeRef;
+use kuchikiki::traits::*;
+use kuchikiki::NodeRef;
 use markup5ever::{namespace_url, ns};
 
 use crate::utils::sanitizer::config::COLLECTED_ISSUES;
@@ -331,7 +331,7 @@ pub fn convert_to_table_layout_dom(document: &NodeRef) {
 }
 
 pub fn convert_to_table_layout(html: &str) -> String {
-    let doc = kuchiki::parse_html().one(html);
+    let doc = kuchikiki::parse_html().one(html);
     convert_to_table_layout_dom(&doc);
     doc.to_string()
 }

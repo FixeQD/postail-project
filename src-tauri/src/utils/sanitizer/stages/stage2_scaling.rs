@@ -1,8 +1,8 @@
 //! Stage 2: Element scaling — clamp oversized elements to email-safe dimensions
 //! and convert viewport units to fixed pixels.
 
-use kuchiki::traits::*;
-use kuchiki::NodeRef;
+use kuchikiki::traits::*;
+use kuchikiki::NodeRef;
 
 use crate::utils::sanitizer::config::COLLECTED_ISSUES;
 use crate::utils::sanitizer::css::parser::{parse_css_declarations, parse_css_value};
@@ -43,7 +43,7 @@ pub fn scale_elements_for_email_dom(document: &NodeRef) {
 }
 
 pub fn scale_elements_for_email(html: &str) -> String {
-    let doc = kuchiki::parse_html().one(html);
+    let doc = kuchikiki::parse_html().one(html);
     scale_elements_for_email_dom(&doc);
     doc.to_string()
 }

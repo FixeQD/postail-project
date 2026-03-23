@@ -1,6 +1,6 @@
 //! DOM manipulation utilities
 
-use kuchiki::NodeRef;
+use kuchikiki::NodeRef;
 
 use crate::utils::sanitizer::config::ALLOWED_TAGS;
 use crate::utils::sanitizer::config::TAG_REGEX;
@@ -92,7 +92,7 @@ pub fn mark_positioned_elements_dom(document: &NodeRef) {
 }
 
 /// Check if element has visual content (background, borders, dimensions)
-pub fn has_visual_content_dom(element: &kuchiki::ElementData) -> bool {
+pub fn has_visual_content_dom(element: &kuchikiki::ElementData) -> bool {
     let attrs = element.attributes.borrow();
 
     if let Some(style) = attrs.get("style") {

@@ -3,8 +3,8 @@
 use std::collections::HashMap;
 
 use html5ever::QualName;
-use kuchiki::traits::TendrilSink;
-use kuchiki::NodeRef;
+use kuchikiki::traits::TendrilSink;
+use kuchikiki::NodeRef;
 use markup5ever::{namespace_url, ns};
 
 // ---------------------------------------------------------------------------
@@ -183,7 +183,7 @@ pub fn replace_body_with_div_dom(document: &NodeRef, body_styles: String) {
 }
 
 pub fn resolve_css_variables(html: &str) -> String {
-    let doc = kuchiki::parse_html().one(html);
+    let doc = kuchikiki::parse_html().one(html);
     resolve_css_variables_dom(&doc);
     doc.to_string()
 }

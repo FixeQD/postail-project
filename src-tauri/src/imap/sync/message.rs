@@ -176,8 +176,8 @@ fn make_snippet(plain: &str, html: &str) -> String {
     let source = if !plain.is_empty() {
         plain.to_string()
     } else {
-        use kuchiki::traits::TendrilSink;
-        let doc = kuchiki::parse_html().one(html);
+        use kuchikiki::traits::TendrilSink;
+        let doc = kuchikiki::parse_html().one(html);
         doc.text_contents()
     };
     source

@@ -1,6 +1,6 @@
 //! DOM serialization utilities
 
-use kuchiki::NodeRef;
+use kuchikiki::NodeRef;
 use regex::Regex;
 
 /// Serialize document and clean up empty attributes

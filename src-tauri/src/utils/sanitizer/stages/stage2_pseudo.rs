@@ -3,8 +3,8 @@
 use crate::utils::sanitizer::css::parser::parse_css_declarations;
 use crate::utils::sanitizer::types::PseudoRule;
 use html5ever::QualName;
-use kuchiki::traits::*;
-use kuchiki::NodeRef;
+use kuchikiki::traits::*;
+use kuchikiki::NodeRef;
 use markup5ever::{namespace_url, ns};
 use regex::Regex;
 use std::collections::HashSet;
@@ -142,8 +142,8 @@ pub fn expand_pseudo_elements_dom(document: &NodeRef) {
         let span = NodeRef::new_element(
             QualName::new(None, ns!(html), "span".into()),
             vec![(
-                kuchiki::ExpandedName::new(ns!(), "class"),
-                kuchiki::Attribute {
+                kuchikiki::ExpandedName::new(ns!(), "class"),
+                kuchikiki::Attribute {
                     prefix: None,
                     value: span_class.to_string(),
                 },
@@ -172,7 +172,7 @@ pub fn expand_pseudo_elements_dom(document: &NodeRef) {
 }
 
 pub fn expand_pseudo_elements(html: &str) -> String {
-    let document = kuchiki::parse_html().one(html);
+    let document = kuchikiki::parse_html().one(html);
     expand_pseudo_elements_dom(&document);
     document.to_string()
 }

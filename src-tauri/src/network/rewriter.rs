@@ -1,7 +1,7 @@
 use crate::network::cache::RESOURCE_CACHE;
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use futures::future::join_all;
-use kuchiki::traits::TendrilSink;
+use kuchikiki::traits::TendrilSink;
 use std::collections::HashMap;
 use tracing::warn;
 
@@ -31,7 +31,7 @@ fn collect_external_urls(html: &str) -> Vec<String> {
     let mut urls: Vec<String> = Vec::new();
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
 
-    let document = kuchiki::parse_html().one(html);
+    let document = kuchikiki::parse_html().one(html);
 
     for &(tag, attr) in SRC_ATTRS {
         let selector = if attr == "href" {
@@ -95,7 +95,7 @@ fn apply_replacements(html: String, replacements: HashMap<String, String>) -> St
 
 /// CPU-bound detect — also offloaded via spawn_blocking at call site.
 fn detect_external(html: &str) -> bool {
-    let document = kuchiki::parse_html().one(html);
+    let document = kuchikiki::parse_html().one(html);
 
     for &(tag, attr) in SRC_ATTRS {
         let selector = if attr == "href" {
@@ -123,7 +123,7 @@ fn detect_external(html: &str) -> bool {
 }
 
 pub async fn rewrite_external_resources(html: &str, allow_external: bool) -> RewriteResult {
-    // Offload kuchiki parse + DOM walk to blocking thread pool
+    // Offload kuchikiki parse + DOM walk to blocking thread pool
     let html_owned = html.to_string();
     let has_external = tokio::task::spawn_blocking(move || detect_external(&html_owned))
         .await
@@ -149,7 +149,7 @@ pub async fn rewrite_external_resources(html: &str, allow_external: bool) -> Rew
         }
     };
 
-    // Offload URL collection (kuchiki parse + DOM walk) to blocking thread pool
+    // Offload URL collection (kuchikiki parse + DOM walk) to blocking thread pool
     let html_owned = html.to_string();
     let urls = tokio::task::spawn_blocking(move || collect_external_urls(&html_owned))
         .await

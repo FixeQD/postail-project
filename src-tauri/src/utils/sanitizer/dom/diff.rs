@@ -1,5 +1,5 @@
 use crate::utils::sanitizer::types::HtmlDiff;
-use kuchiki::NodeRef;
+use kuchikiki::NodeRef;
 use std::collections::{HashMap, HashSet};
 
 /// Track changes between two DOM trees (or states of the same tree)

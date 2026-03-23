@@ -2,8 +2,8 @@
 
 use crate::utils::sanitizer::css::parser::parse_css_declarations;
 pub use crate::utils::sanitizer::types::{FONT_FACE_REGEX, IMPORT_REGEX};
-use kuchiki::traits::*;
-use kuchiki::NodeRef;
+use kuchikiki::traits::*;
+use kuchikiki::NodeRef;
 use regex::Regex;
 use std::collections::HashMap;
 
@@ -33,7 +33,7 @@ pub fn inline_css_styles_dom(document: &NodeRef) {
     let final_html = strip_animation_from_inline_styles(&inlined);
 
     // Parse back into the document
-    let new_doc = kuchiki::parse_html().one(final_html);
+    let new_doc = kuchikiki::parse_html().one(final_html);
     for child in document.children().collect::<Vec<_>>() {
         child.detach();
     }
@@ -43,7 +43,7 @@ pub fn inline_css_styles_dom(document: &NodeRef) {
 }
 
 pub fn inline_css_styles(html: &str) -> String {
-    let document = kuchiki::parse_html().one(html);
+    let document = kuchikiki::parse_html().one(html);
     inline_css_styles_dom(&document);
     document.to_string()
 }
