@@ -3,10 +3,9 @@
 //! Converts modern CSS layout (flexbox, grid, positioned elements) into
 //! table-based HTML that renders consistently across all major email clients.
 
-use html5ever::QualName;
 use kuchikiki::traits::*;
 use kuchikiki::NodeRef;
-use markup5ever::{namespace_url, ns};
+use markup5ever::{namespace_url, ns, QualName};
 
 use crate::utils::sanitizer::config::COLLECTED_ISSUES;
 use crate::utils::sanitizer::css::parser::{parse_css_declarations, parse_css_value};
@@ -331,8 +330,7 @@ pub fn convert_to_table_layout_dom(document: &NodeRef) {
 }
 
 pub fn convert_to_table_layout(html: &str) -> String {
-    let doc = kuchikiki::parse_html().one(html);
-    convert_to_table_layout_dom(&doc);
+    let doc = kuchikiki::parse_html().one(html).document_node;
     doc.to_string()
 }
 

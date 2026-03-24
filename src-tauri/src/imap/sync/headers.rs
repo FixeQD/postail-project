@@ -95,7 +95,10 @@ fn decode_part_preview(raw: &[u8], mime_type: &str, charset: &str, encoding: &st
 
     let plain = if mime_type.contains("html") {
         use kuchikiki::traits::TendrilSink;
-        kuchikiki::parse_html().one(text.as_str()).text_contents()
+        kuchikiki::parse_html()
+            .one(text.as_str())
+            .document_node
+            .text_contents()
     } else {
         text
     };

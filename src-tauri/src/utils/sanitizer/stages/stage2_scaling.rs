@@ -43,7 +43,7 @@ pub fn scale_elements_for_email_dom(document: &NodeRef) {
 }
 
 pub fn scale_elements_for_email(html: &str) -> String {
-    let doc = kuchikiki::parse_html().one(html);
+    let doc = kuchikiki::parse_html().one(html).document_node;
     scale_elements_for_email_dom(&doc);
     doc.to_string()
 }

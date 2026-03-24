@@ -31,7 +31,7 @@ fn collect_external_urls(html: &str) -> Vec<String> {
     let mut urls: Vec<String> = Vec::new();
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
 
-    let document = kuchikiki::parse_html().one(html);
+    let document = kuchikiki::parse_html().one(html).document_node;
 
     for &(tag, attr) in SRC_ATTRS {
         let selector = if attr == "href" {
@@ -95,7 +95,7 @@ fn apply_replacements(html: String, replacements: HashMap<String, String>) -> St
 
 /// CPU-bound detect — also offloaded via spawn_blocking at call site.
 fn detect_external(html: &str) -> bool {
-    let document = kuchikiki::parse_html().one(html);
+    let document = kuchikiki::parse_html().one(html).document_node;
 
     for &(tag, attr) in SRC_ATTRS {
         let selector = if attr == "href" {
@@ -104,12 +104,14 @@ fn detect_external(html: &str) -> bool {
             format!("{}[{}]", tag, attr)
         };
 
-        if document.select(&selector).into_iter().flatten().any(|n| {
-            n.as_node()
-                .as_element()
-                .and_then(|e| e.attributes.borrow().get(attr).map(|v| is_external(v)))
-                .unwrap_or(false)
-        }) {
+        if document.select(&selector).into_iter().flatten().any(
+            |n: kuchikiki::NodeDataRef<kuchikiki::ElementData>| {
+                n.as_node()
+                    .as_element()
+                    .and_then(|e| e.attributes.borrow().get(attr).map(|v| is_external(v)))
+                    .unwrap_or(false)
+            },
+        ) {
             return true;
         }
     }
@@ -123,7 +125,7 @@ fn detect_external(html: &str) -> bool {
 }
 
 pub async fn rewrite_external_resources(html: &str, allow_external: bool) -> RewriteResult {
-    // Offload kuchikiki parse + DOM walk to blocking thread pool
+    // Offload kuchiki parse + DOM walk to blocking thread pool
     let html_owned = html.to_string();
     let has_external = tokio::task::spawn_blocking(move || detect_external(&html_owned))
         .await
@@ -149,7 +151,7 @@ pub async fn rewrite_external_resources(html: &str, allow_external: bool) -> Rew
         }
     };
 
-    // Offload URL collection (kuchikiki parse + DOM walk) to blocking thread pool
+    // Offload URL collection (kuchiki parse + DOM walk) to blocking thread pool
     let html_owned = html.to_string();
     let urls = tokio::task::spawn_blocking(move || collect_external_urls(&html_owned))
         .await

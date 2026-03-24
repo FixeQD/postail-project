@@ -10,8 +10,8 @@ pub mod stage4_postprocessing;
 
 // Re-export all stage functions
 pub use stage1_preprocessing::*;
-pub use stage2_inline::*;
-pub use stage2_pseudo::*;
+pub use stage2_inline::{inline_css_styles, inline_css_styles_dom, FONT_FACE_REGEX, IMPORT_REGEX};
+pub use stage2_pseudo::{expand_pseudo_elements, expand_pseudo_elements_dom};
 pub use stage2_scaling::*;
 pub use stage2_table::*;
 pub use stage3_sanitization::*;

@@ -17,7 +17,7 @@ fn run_sanitization_pipeline(
 ) -> (String, HtmlDiff) {
     // ── Phase 1: Pre-processing (DOM-based) ──────────────────────────────
     // Initial DOM parse
-    let document = parse_html().one(html);
+    let document = parse_html().one(html).document_node;
 
     // Snapshot for diffing before we start changing things
     let diff_tracker = DiffTracker::new(&document);
@@ -66,7 +66,7 @@ fn run_sanitization_pipeline(
     let sanitized = builder.clean(&content_for_ammonia).to_string();
 
     // Final DOM cleanup of the sanitized output
-    let document_final = parse_html().one(sanitized);
+    let document_final = parse_html().one(sanitized).document_node;
     strip_dead_elements_dom(&document_final);
 
     // Final diff calculation

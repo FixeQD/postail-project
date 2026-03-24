@@ -8,7 +8,7 @@ fn make_snippet(plain: &str, html: &str) -> String {
         plain.to_string()
     } else {
         use kuchikiki::traits::TendrilSink;
-        let doc = kuchikiki::parse_html().one(html);
+        let doc = kuchikiki::parse_html().one(html).document_node;
         doc.text_contents()
     };
     source

@@ -2,10 +2,9 @@
 
 use crate::utils::sanitizer::css::parser::parse_css_declarations;
 use crate::utils::sanitizer::types::PseudoRule;
-use html5ever::QualName;
 use kuchikiki::traits::*;
 use kuchikiki::NodeRef;
-use markup5ever::{namespace_url, ns};
+use markup5ever::{namespace_url, ns, QualName};
 use regex::Regex;
 use std::collections::HashSet;
 
@@ -172,7 +171,7 @@ pub fn expand_pseudo_elements_dom(document: &NodeRef) {
 }
 
 pub fn expand_pseudo_elements(html: &str) -> String {
-    let document = kuchikiki::parse_html().one(html);
+    let document = kuchikiki::parse_html().one(html).document_node;
     expand_pseudo_elements_dom(&document);
     document.to_string()
 }

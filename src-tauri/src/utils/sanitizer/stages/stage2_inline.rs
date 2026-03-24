@@ -33,7 +33,7 @@ pub fn inline_css_styles_dom(document: &NodeRef) {
     let final_html = strip_animation_from_inline_styles(&inlined);
 
     // Parse back into the document
-    let new_doc = kuchikiki::parse_html().one(final_html);
+    let new_doc = kuchikiki::parse_html().one(final_html).document_node;
     for child in document.children().collect::<Vec<_>>() {
         child.detach();
     }
@@ -43,7 +43,7 @@ pub fn inline_css_styles_dom(document: &NodeRef) {
 }
 
 pub fn inline_css_styles(html: &str) -> String {
-    let document = kuchikiki::parse_html().one(html);
+    let document = kuchikiki::parse_html().one(html).document_node;
     inline_css_styles_dom(&document);
     document.to_string()
 }
