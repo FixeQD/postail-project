@@ -11,6 +11,7 @@ import {
 	Lock,
 	PenLine,
 	Info,
+	Keyboard,
 } from 'lucide-react'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
@@ -22,6 +23,7 @@ import { AppearanceSettings } from './Sections/AppearanceSettings'
 import { NotificationsSettings } from './Sections/NotificationsSettings'
 import { ComposingSettings } from './Sections/ComposingSettings'
 import { AboutSettings } from './Sections/AboutSettings'
+import { KeyboardShortcutsSettings } from './Sections/KeyboardShortcutsSettings'
 import { invoke } from '@tauri-apps/api/core'
 import { useAccountStore } from '@/stores/accountStore'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
@@ -55,7 +57,7 @@ const SettingsNavItem = memo(
 						className='absolute inset-0 rounded-xl bg-[var(--surface-active)]'
 						style={{
 							backgroundColor: `rgba(var(--accent-rgb), 0.08)`,
-							boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.15), 0 4px 12px -4px rgba(var(--accent-rgb), 0.1)`
+							boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.15), 0 4px 12px -4px rgba(var(--accent-rgb), 0.1)`,
 						}}
 					/>
 				)}
@@ -121,6 +123,7 @@ export function SettingsScreen({
 			{ id: 'appearance', label: t('settings:sections.appearance'), icon: Palette },
 			{ id: 'notifications', label: t('settings:sections.notifications'), icon: Bell },
 			{ id: 'composing', label: t('settings:sections.composing'), icon: PenLine },
+			{ id: 'shortcuts', label: 'Shortcuts', icon: Keyboard },
 			{ id: 'about', label: 'About', icon: Info },
 		],
 		[t]
@@ -149,6 +152,8 @@ export function SettingsScreen({
 				return <NotificationsSettings />
 			case 'composing':
 				return <ComposingSettings />
+			case 'shortcuts':
+				return <KeyboardShortcutsSettings />
 			case 'about':
 				return <AboutSettings />
 			default:
