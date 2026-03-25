@@ -75,10 +75,87 @@ export function getShortcutsForScope(scope: 'global' | 'compose' | 'inbox'): Sho
 	return shortcutsByScope[scope]
 }
 
-export function loadShortcutsConfig(): ShortcutDefinition[] {
-	// TODO: Load from localStorage or settings DB or idk
-	return defaultShortcuts
+// ─── Persistence ──────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = 'postail_custom_shortcuts'
+
+/** Load overrides: { action -> key } */
+export function loadShortcutOverrides(): Record<string, string> {
+	try {
+		const raw = localStorage.getItem(STORAGE_KEY)
+		if (!raw) return {}
+		return JSON.parse(raw) as Record<string, string>
+	} catch {
+		return {}
+	}
 }
+
+/** Save a single override */
+export function saveShortcutOverride(action: string, key: string): void {
+	const overrides = loadShortcutOverrides()
+	overrides[action] = key
+	localStorage.setItem(STORAGE_KEY, JSON.stringify(overrides))
+}
+
+/** Remove a single override (revert to default) */
+export function resetShortcutOverride(action: string): void {
+	const overrides = loadShortcutOverrides()
+	delete overrides[action]
+	localStorage.setItem(STORAGE_KEY, JSON.stringify(overrides))
+}
+
+/** Clear all overrides */
+export function resetAllShortcutOverrides(): void {
+	localStorage.removeItem(STORAGE_KEY)
+}
+
+/** Merge defaults with saved overrides */
+export function loadShortcutsConfig(): ShortcutDefinition[] {
+	const overrides = loadShortcutOverrides()
+	return defaultShortcuts.map((s) =>
+		overrides[s.action] ? { ...s, key: overrides[s.action] } : s
+	)
+}
+
+// ─── Key capture ──────────────────────────────────────────────────────────────
+
+const IGNORED_KEYS = new Set([
+	'Control',
+	'Meta',
+	'Shift',
+	'Alt',
+	'CapsLock',
+	'NumLock',
+	'ScrollLock',
+	'Unidentified',
+])
+
+/** Convert a KeyboardEvent to a shortcut string like "ctrl+shift+k" */
+export function eventToShortcutKey(e: KeyboardEvent): string | null {
+	if (IGNORED_KEYS.has(e.key)) return null
+
+	const parts: string[] = []
+	if (e.ctrlKey || e.metaKey) parts.push('ctrl')
+	if (e.shiftKey) parts.push('shift')
+	if (e.altKey) parts.push('alt')
+
+	let key = e.key.toLowerCase()
+	if (key === 'escape') key = 'esc'
+	else if (key === 'enter') key = 'enter'
+	else if (key === ' ') key = 'space'
+	else if (key === 'backspace') key = 'backspace'
+	else if (key === 'delete') key = 'delete'
+	else if (key === ',') key = 'comma'
+	else if (key === 'arrowup') key = 'up'
+	else if (key === 'arrowdown') key = 'down'
+	else if (key === 'arrowleft') key = 'left'
+	else if (key === 'arrowright') key = 'right'
+
+	parts.push(key)
+	return parts.join('+')
+}
+
+// ─── Descriptions & formatting ────────────────────────────────────────────────
 
 export const shortcutDescriptions: Record<string, string> = {
 	new_message: 'New message',
@@ -120,7 +197,12 @@ export function formatShortcutKey(key: string): string {
 			if (trimmed === 'esc') return 'Esc'
 			if (trimmed === 'space') return 'Space'
 			if (trimmed === 'delete') return 'Del'
+			if (trimmed === 'backspace') return '⌫'
 			if (trimmed === 'comma') return ','
+			if (trimmed === 'up') return '↑'
+			if (trimmed === 'down') return '↓'
+			if (trimmed === 'left') return '←'
+			if (trimmed === 'right') return '→'
 			if (trimmed === '#') return '#'
 			return trimmed.charAt(0).toUpperCase() + trimmed.slice(1)
 		})
