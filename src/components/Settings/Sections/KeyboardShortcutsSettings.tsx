@@ -165,7 +165,7 @@ function ShortcutRow({
 	overrideKey: string | undefined
 	conflict: boolean
 	onEdit: () => void
-	onReset: (action: string) => void
+	onReset: () => void
 }) {
 	const animationsEnabled = useAnimationsEnabled()
 	const accentColor = useThemeStore((s) => s.accentColor)
@@ -235,7 +235,7 @@ function ShortcutRow({
 						exit={{ opacity: 0, width: 0 }}
 						transition={{ duration: 0.15 }}
 						type='button'
-						onClick={() => onReset(shortcut.action)}
+						onClick={() => onReset()}
 						className='flex items-center justify-center rounded-lg p-1.5 text-[var(--text-tertiary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
 						title='Reset to default'>
 						<RotateCcw className='h-3.5 w-3.5' />
@@ -275,14 +275,14 @@ function ScopeSection({
 	onEdit: (scopedKey: string) => void
 	onCapture: (action: string, key: string) => void
 	onCancelEdit: () => void
-	onReset: (action: string) => void
+	onReset: (scopedKey: string) => void
 }) {
 	const [open, setOpen] = useState(defaultOpen)
 	const animationsEnabled = useAnimationsEnabled()
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const meta = SCOPE_META[scope]
 	const Icon = meta.icon
-	const modifiedCount = shortcuts.filter((s) => overrides[s.action]).length
+	const modifiedCount = shortcuts.filter((s) => overrides[`${scope}:${s.action}`]).length
 	const conflictCount = shortcuts.filter((s) => conflicts.has(`${scope}:${s.action}`)).length
 
 	return (
@@ -342,7 +342,7 @@ function ScopeSection({
 								editingAction === `${scope}:${s.action}` ? (
 									<RecordingInput
 										key={`${scope}:${s.action}`}
-										onCapture={(key) => onCapture(s.action, key)}
+										onCapture={(key) => onCapture(`${scope}:${s.action}`, key)}
 										onCancel={onCancelEdit}
 									/>
 								) : (
@@ -350,10 +350,10 @@ function ScopeSection({
 										key={`${scope}:${s.action}`}
 										shortcut={s}
 										index={i}
-										overrideKey={overrides[s.action]}
+										overrideKey={overrides[`${scope}:${s.action}`]}
 										conflict={conflicts.has(`${scope}:${s.action}`)}
 										onEdit={() => onEdit(`${scope}:${s.action}`)}
-										onReset={onReset}
+										onReset={() => onReset(`${scope}:${s.action}`)}
 									/>
 								)
 							)}
@@ -386,16 +386,18 @@ export function KeyboardShortcutsSettings() {
 	const [editingAction, setEditingAction] = useState<string | null>(null)
 	const [savedBadge, setSavedBadge] = useState(false)
 
+	// Detect conflicts
 	const conflicts = useCallback(() => {
 		const result = new Set<string>()
 		const keyMap: Record<string, string[]> = {}
 
 		for (const s of defaultShortcuts) {
-			const key = overrides[s.action] ?? s.key
+			const scopedKey = `${s.scope}:${s.action}`
+			const key = overrides[scopedKey] ?? s.key
 			const primary = key.split(',')[0].trim()
 			const mapKey = `${s.scope}:${primary}`
 			if (!keyMap[mapKey]) keyMap[mapKey] = []
-			keyMap[mapKey].push(`${s.scope}:${s.action}`)
+			keyMap[mapKey].push(scopedKey)
 		}
 
 		for (const scopedActions of Object.values(keyMap)) {
@@ -408,16 +410,16 @@ export function KeyboardShortcutsSettings() {
 	const handleEdit = (scopedKey: string) => setEditingAction(scopedKey)
 	const handleCancelEdit = () => setEditingAction(null)
 
-	const handleCapture = (action: string, key: string) => {
-		saveShortcutOverride(action, key)
+	const handleCapture = (scopedKey: string, key: string) => {
+		saveShortcutOverride(scopedKey, key)
 		setOverrides(loadShortcutOverrides())
 		setEditingAction(null)
 		setSavedBadge(true)
 		setTimeout(() => setSavedBadge(false), 1800)
 	}
 
-	const handleReset = (action: string) => {
-		resetShortcutOverride(action)
+	const handleReset = (scopedKey: string) => {
+		resetShortcutOverride(scopedKey)
 		setOverrides(loadShortcutOverrides())
 	}
 
