@@ -1,7 +1,7 @@
 //! Stage 2: CSS Processing - Inline styles and animations
 
-use crate::utils::sanitizer::css::parser::parse_css_declarations;
-pub use crate::utils::sanitizer::types::{FONT_FACE_REGEX, IMPORT_REGEX};
+use crate::css::parser::parse_css_declarations;
+pub use crate::types::{FONT_FACE_REGEX, IMPORT_REGEX};
 use kuchikiki::traits::*;
 use kuchikiki::NodeRef;
 use regex::Regex;

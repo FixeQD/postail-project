@@ -4,9 +4,9 @@
 use kuchikiki::traits::*;
 use kuchikiki::NodeRef;
 
-use crate::utils::sanitizer::config::COLLECTED_ISSUES;
-use crate::utils::sanitizer::css::parser::{parse_css_declarations, parse_css_value};
-use crate::utils::sanitizer::types::{IssueSeverity, SanitizeIssue};
+use crate::config::COLLECTED_ISSUES;
+use crate::css::parser::{parse_css_declarations, parse_css_value};
+use crate::types::{IssueSeverity, SanitizeIssue};
 
 /// Email max content width in pixels.
 const MAX_EMAIL_WIDTH: f32 = 580.0;

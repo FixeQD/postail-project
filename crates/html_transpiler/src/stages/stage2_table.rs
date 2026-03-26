@@ -7,9 +7,9 @@ use kuchikiki::traits::*;
 use kuchikiki::NodeRef;
 use markup5ever::{namespace_url, ns, QualName};
 
-use crate::utils::sanitizer::config::COLLECTED_ISSUES;
-use crate::utils::sanitizer::css::parser::{parse_css_declarations, parse_css_value};
-use crate::utils::sanitizer::types::{IssueSeverity, PositionInfo, SanitizeIssue};
+use crate::config::COLLECTED_ISSUES;
+use crate::css::parser::{parse_css_declarations, parse_css_value};
+use crate::types::{IssueSeverity, PositionInfo, SanitizeIssue};
 
 const EMAIL_MAX_WIDTH: f32 = 600.0;
 

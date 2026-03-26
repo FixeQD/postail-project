@@ -2,9 +2,9 @@
 //!
 //! Orchestrates all stages: preprocessing → CSS processing → sanitization → postprocessing
 
-use crate::utils::sanitizer::config::COLLECTED_ISSUES;
-use crate::utils::sanitizer::stages::*;
-use crate::utils::sanitizer::types::*;
+use crate::config::COLLECTED_ISSUES;
+use crate::stages::*;
+use crate::types::*;
 use kuchikiki::parse_html;
 use kuchikiki::traits::TendrilSink;
 use kuchikiki::NodeRef;

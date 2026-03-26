@@ -1,6 +1,6 @@
 //! Font mapping and fallback utilities
 
-use crate::utils::sanitizer::config::WEB_SAFE_FONTS;
+use crate::config::WEB_SAFE_FONTS;
 
 /// Map custom font names to web-safe fallback fonts
 pub fn map_custom_font_to_safe(font: &str) -> Option<&'static str> {

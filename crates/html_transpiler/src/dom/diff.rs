@@ -1,4 +1,4 @@
-use crate::utils::sanitizer::types::HtmlDiff;
+use crate::types::HtmlDiff;
 use kuchikiki::NodeRef;
 use std::collections::{HashMap, HashSet};
 

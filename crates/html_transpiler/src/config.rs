@@ -9,9 +9,9 @@ use std::sync::LazyLock;
 use ammonia::Builder;
 use maplit::{hashmap, hashset};
 
-use crate::utils::sanitizer::css::fonts::ensure_web_safe_font_fallback;
-use crate::utils::sanitizer::css::parser::parse_css_declarations;
-use crate::utils::sanitizer::types::{IssueSeverity, SanitizeIssue, StyleSanitizeResult};
+use crate::css::fonts::ensure_web_safe_font_fallback;
+use crate::css::parser::parse_css_declarations;
+use crate::types::{IssueSeverity, SanitizeIssue, StyleSanitizeResult};
 
 pub static TAG_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
     regex::Regex::new(r"<([a-zA-Z][a-zA-Z0-9]*)[^>]*>").expect("invalid TAG_REGEX")

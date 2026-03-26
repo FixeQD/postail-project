@@ -1,7 +1,7 @@
 use crate::email_view::EmailViewState;
 use crate::globals::SECURITY;
 use crate::network::rewriter::rewrite_external_resources;
-use crate::utils::sanitizer::{
+use html_transpiler::{
     auto_fix_email_html as sanitizer_fix, sanitize_email_html_with_details, SanitizeResult,
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};

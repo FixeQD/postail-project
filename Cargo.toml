@@ -1,0 +1,8 @@
+[workspace]
+members = [
+  "src-tauri",
+  "crates/html_transpiler",
+]
+resolver = "2"
+
+default-members = ["src-tauri"]

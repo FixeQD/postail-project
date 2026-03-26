@@ -1,11 +1,13 @@
-//! HTML Sanitizer for email content
+//! html_transpiler - email-safe HTML transpiler
 //!
-//! This module provides email-safe HTML sanitization including:
-//! - CSS variable resolution
-//! - Pseudo-element expansion
-//! - Positioned element conversion to table layout
-//! - Ammonia-based sanitization
-//! - Dead element removal
+//! Converts modern HTML (flexbox, grid, CSS variables, animations) into
+//! table-based, email-client-compatible markup. Also provides an
+//! Ammonia-based sanitization pass for incoming email content.
+//!
+//! ## Main API
+//! - [`sanitize_email_html_with_details`] — sanitize with issue tracking
+//! - [`auto_fix_email_html`] — auto-fix and return clean HTML
+//! - [`sanitize_email_html`] — sanitize without issue tracking
 
 pub mod config;
 pub mod css;

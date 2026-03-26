@@ -1,0 +1,16 @@
+[package]
+name = "html_transpiler"
+version = "0.1.0"
+edition = "2021"
+description = "HTML transpiler for email-safe output — converts modern HTML to table-based, email-client-compatible markup"
+authors = ["FixeQD"]
+
+[dependencies]
+ammonia = "4"
+css-inline = "0.20"
+kuchikiki = "0.8.8-speedreader"
+lazy_static = "1.5"
+maplit = "1.0.2"
+markup5ever = "0.14"
+regex = "1"
+serde = { version = "1", features = ["derive"] }

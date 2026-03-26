@@ -1,7 +1,7 @@
 //! Stage 2: Pseudo-element expansion
 
-use crate::utils::sanitizer::css::parser::parse_css_declarations;
-use crate::utils::sanitizer::types::PseudoRule;
+use crate::css::parser::parse_css_declarations;
+use crate::types::PseudoRule;
 use kuchikiki::traits::*;
 use kuchikiki::NodeRef;
 use markup5ever::{namespace_url, ns, QualName};

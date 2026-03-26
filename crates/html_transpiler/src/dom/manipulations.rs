@@ -2,9 +2,9 @@
 
 use kuchikiki::NodeRef;
 
-use crate::utils::sanitizer::config::ALLOWED_TAGS;
-use crate::utils::sanitizer::config::TAG_REGEX;
-use crate::utils::sanitizer::css::parser::parse_css_declarations;
+use crate::config::ALLOWED_TAGS;
+use crate::config::TAG_REGEX;
+use crate::css::parser::parse_css_declarations;
 
 /// Remove content tags (head, script, style, title, noscript) from document
 pub fn strip_content_tags_dom(document: &NodeRef) {
