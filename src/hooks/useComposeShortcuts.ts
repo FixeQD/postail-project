@@ -1,4 +1,5 @@
 import { useHotkeys } from 'react-hotkeys-hook'
+import { useShortcutKeys } from './useShortcutKeys'
 
 interface UseComposeShortcutsProps {
 	onSend: () => void
@@ -11,18 +12,6 @@ interface UseComposeShortcutsProps {
 	enabled?: boolean
 }
 
-/**
- * Compose screen keyboard shortcuts hook
- *
- * Shortcuts:
- * - Ctrl/Cmd+Enter: Send message
- * - Ctrl/Cmd+S: Save draft
- * - Esc: Close/Discard
- * - Ctrl/Cmd+Shift+A: Attach file
- * - Ctrl/Cmd+K: Insert link
- * - Ctrl/Cmd+Shift+C: Toggle Cc field
- * - Ctrl/Cmd+Shift+B: Toggle Bcc field
- */
 export function useComposeShortcuts({
 	onSend,
 	onSaveDraft,
@@ -33,108 +22,69 @@ export function useComposeShortcuts({
 	onToggleBcc,
 	enabled = true,
 }: UseComposeShortcutsProps) {
-	// Ctrl/Cmd+Enter - Send message
+	const getKey = useShortcutKeys()
+
 	useHotkeys(
-		'ctrl+enter, meta+enter',
+		getKey('compose', 'send', 'ctrl+enter, meta+enter'),
 		(e) => {
 			e.preventDefault()
 			onSend()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onSend]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onSend, getKey]
 	)
-
-	// Ctrl/Cmd+S - Save draft
 	useHotkeys(
-		'ctrl+s, meta+s',
+		getKey('compose', 'save_draft', 'ctrl+s, meta+s'),
 		(e) => {
 			e.preventDefault()
 			onSaveDraft()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onSaveDraft]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onSaveDraft, getKey]
 	)
-
-	// Esc - Close/Discard
 	useHotkeys(
-		'esc',
+		getKey('compose', 'close', 'esc'),
 		(e) => {
 			e.preventDefault()
 			onClose()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onClose]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onClose, getKey]
 	)
-
-	// Ctrl/Cmd+Shift+A - Attach file
 	useHotkeys(
-		'ctrl+shift+a, meta+shift+a',
+		getKey('compose', 'attach_file', 'ctrl+shift+a, meta+shift+a'),
 		(e) => {
 			e.preventDefault()
 			onAttachFile()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onAttachFile]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onAttachFile, getKey]
 	)
-
-	// Ctrl/Cmd+K - Insert link
 	useHotkeys(
-		'ctrl+k, meta+k',
+		getKey('compose', 'insert_link', 'ctrl+k, meta+k'),
 		(e) => {
 			e.preventDefault()
 			onInsertLink()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onInsertLink]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onInsertLink, getKey]
 	)
-
-	// Ctrl/Cmd+Shift+C - Toggle Cc field
 	useHotkeys(
-		'ctrl+shift+c, meta+shift+c',
+		getKey('compose', 'toggle_cc', 'ctrl+shift+c, meta+shift+c'),
 		(e) => {
 			e.preventDefault()
 			onToggleCc()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onToggleCc]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onToggleCc, getKey]
 	)
-
-	// Ctrl/Cmd+Shift+B - Toggle Bcc field
 	useHotkeys(
-		'ctrl+shift+b, meta+shift+b',
+		getKey('compose', 'toggle_bcc', 'ctrl+shift+b, meta+shift+b'),
 		(e) => {
 			e.preventDefault()
 			onToggleBcc()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onToggleBcc]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onToggleBcc, getKey]
 	)
 }

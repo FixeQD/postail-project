@@ -1,4 +1,5 @@
 import { useHotkeys } from 'react-hotkeys-hook'
+import { useShortcutKeys } from './useShortcutKeys'
 
 interface UseGlobalShortcutsProps {
 	onNewMessage: () => void
@@ -12,19 +13,6 @@ interface UseGlobalShortcutsProps {
 	enabled?: boolean
 }
 
-/**
- * Global keyboard shortcuts hook
- *
- * Shortcuts:
- * - Ctrl/Cmd+N: New message
- * - Ctrl/Cmd+F: Focus search
- * - Ctrl/Cmd+R: Refresh/sync
- * - Ctrl/Cmd+1: Go to Inbox
- * - Ctrl/Cmd+2: Go to Outbox
- * - Ctrl/Cmd+3: Go to Drafts
- * - Ctrl/Cmd+4: Go to Accounts
- * - Ctrl/Cmd+Comma: Open settings
- */
 export function useGlobalShortcuts({
 	onNewMessage,
 	onFocusSearch,
@@ -36,123 +24,78 @@ export function useGlobalShortcuts({
 	onOpenSettings,
 	enabled = true,
 }: UseGlobalShortcutsProps) {
-	// Ctrl/Cmd+N - New message
+	const getKey = useShortcutKeys()
+
 	useHotkeys(
-		'ctrl+n, meta+n',
+		getKey('global', 'new_message', 'ctrl+n, meta+n'),
 		(e) => {
 			e.preventDefault()
 			onNewMessage()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onNewMessage]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onNewMessage, getKey]
 	)
-
-	// Ctrl/Cmd+F - Focus search
 	useHotkeys(
-		'ctrl+f, meta+f',
+		getKey('global', 'focus_search', 'ctrl+f, meta+f'),
 		(e) => {
 			e.preventDefault()
 			onFocusSearch()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onFocusSearch]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onFocusSearch, getKey]
 	)
-
-	// Ctrl/Cmd+R - Refresh
 	useHotkeys(
-		'ctrl+r, meta+r',
+		getKey('global', 'refresh', 'ctrl+r, meta+r'),
 		(e) => {
 			e.preventDefault()
 			onRefresh()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onRefresh]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onRefresh, getKey]
 	)
-
-	// Ctrl/Cmd+1 - Go to Inbox
 	useHotkeys(
-		'ctrl+1, meta+1',
+		getKey('global', 'go_inbox', 'ctrl+1, meta+1'),
 		(e) => {
 			e.preventDefault()
 			onGoToInbox()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onGoToInbox]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onGoToInbox, getKey]
 	)
-
-	// Ctrl/Cmd+2 - Go to Outbox
 	useHotkeys(
-		'ctrl+2, meta+2',
+		getKey('global', 'go_outbox', 'ctrl+2, meta+2'),
 		(e) => {
 			e.preventDefault()
 			onGoToOutbox()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onGoToOutbox]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onGoToOutbox, getKey]
 	)
-
-	// Ctrl/Cmd+3 - Go to Drafts
 	useHotkeys(
-		'ctrl+3, meta+3',
+		getKey('global', 'go_drafts', 'ctrl+3, meta+3'),
 		(e) => {
 			e.preventDefault()
 			onGoToDrafts()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onGoToDrafts]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onGoToDrafts, getKey]
 	)
-
-	// Ctrl/Cmd+4 - Go to Accounts
 	useHotkeys(
-		'ctrl+4, meta+4',
+		getKey('global', 'go_accounts', 'ctrl+4, meta+4'),
 		(e) => {
 			e.preventDefault()
 			onGoToAccounts()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onGoToAccounts]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onGoToAccounts, getKey]
 	)
-
-	// Ctrl/Cmd+Comma - Open settings
 	useHotkeys(
-		'ctrl+comma, meta+comma',
+		getKey('global', 'open_settings', 'ctrl+comma, meta+comma'),
 		(e) => {
 			e.preventDefault()
 			onOpenSettings()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onOpenSettings]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onOpenSettings, getKey]
 	)
 }

@@ -1,4 +1,5 @@
 import { useHotkeys } from 'react-hotkeys-hook'
+import { useShortcutKeys } from './useShortcutKeys'
 
 interface UseInboxShortcutsProps {
 	onNextMessage: () => void
@@ -16,23 +17,6 @@ interface UseInboxShortcutsProps {
 	enabled?: boolean
 }
 
-/**
- * Inbox keyboard shortcuts hook (Gmail-style)
- *
- * Shortcuts:
- * - J: Next message
- * - K: Previous message
- * - Enter/Space: Open selected message
- * - Delete/#: Move to trash
- * - R: Reply
- * - Shift+R: Reply all
- * - F: Forward
- * - N: New message (alias for Ctrl+N)
- * - U: Toggle read/unread
- * - Shift+U: Mark as unread
- * - S: Toggle star/flag
- * - /: Focus search
- */
 export function useInboxShortcuts({
 	onNextMessage,
 	onPrevMessage,
@@ -48,183 +32,114 @@ export function useInboxShortcuts({
 	onFocusSearch,
 	enabled = true,
 }: UseInboxShortcutsProps) {
-	// J - Next message
+	const getKey = useShortcutKeys()
+
 	useHotkeys(
-		'j',
+		getKey('inbox', 'next_message', 'j'),
 		(e) => {
 			e.preventDefault()
 			onNextMessage()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onNextMessage]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onNextMessage, getKey]
 	)
-
-	// K - Previous message
 	useHotkeys(
-		'k',
+		getKey('inbox', 'prev_message', 'k'),
 		(e) => {
 			e.preventDefault()
 			onPrevMessage()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onPrevMessage]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onPrevMessage, getKey]
 	)
-
-	// Enter/Space - Open message
 	useHotkeys(
-		'enter, space',
+		getKey('inbox', 'open_message', 'enter, space'),
 		(e) => {
 			e.preventDefault()
 			onOpenMessage()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onOpenMessage]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onOpenMessage, getKey]
 	)
-
-	// Delete/# - Move to trash
 	useHotkeys(
-		'delete, #',
+		getKey('inbox', 'delete_message', 'delete, #'),
 		(e) => {
 			e.preventDefault()
 			onDeleteMessage()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onDeleteMessage]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onDeleteMessage, getKey]
 	)
-
-	// R - Reply
 	useHotkeys(
-		'r',
+		getKey('inbox', 'reply', 'r'),
 		(e) => {
 			e.preventDefault()
 			onReply()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onReply]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onReply, getKey]
 	)
-
-	// Shift+R - Reply all
 	useHotkeys(
-		'shift+r',
+		getKey('inbox', 'reply_all', 'shift+r'),
 		(e) => {
 			e.preventDefault()
 			onReplyAll()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onReplyAll]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onReplyAll, getKey]
 	)
-
-	// F - Forward
 	useHotkeys(
-		'f',
+		getKey('inbox', 'forward', 'f'),
 		(e) => {
 			e.preventDefault()
 			onForward()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onForward]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onForward, getKey]
 	)
-
-	// N - New message (Gmail style, in addition to Ctrl+N)
 	useHotkeys(
-		'n',
+		getKey('inbox', 'new_message', 'n'),
 		(e) => {
 			e.preventDefault()
 			onNewMessage()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onNewMessage]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onNewMessage, getKey]
 	)
-
-	// U - Toggle read/unread
 	useHotkeys(
-		'u',
+		getKey('inbox', 'toggle_read', 'u'),
 		(e) => {
 			e.preventDefault()
 			onToggleRead()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onToggleRead]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onToggleRead, getKey]
 	)
-
-	// Shift+U - Mark as unread
 	useHotkeys(
-		'shift+u',
+		getKey('inbox', 'mark_unread', 'shift+u'),
 		(e) => {
 			e.preventDefault()
 			onMarkUnread()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onMarkUnread]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onMarkUnread, getKey]
 	)
-
-	// S - Toggle star
 	useHotkeys(
-		's',
+		getKey('inbox', 'toggle_star', 's'),
 		(e) => {
 			e.preventDefault()
 			onToggleStar()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onToggleStar]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onToggleStar, getKey]
 	)
-
-	// / - Focus search
 	useHotkeys(
-		'/',
+		getKey('inbox', 'focus_search', '/'),
 		(e) => {
 			e.preventDefault()
 			onFocusSearch()
 		},
-		{
-			enabled,
-			enableOnFormTags: true,
-			enableOnContentEditable: true,
-		},
-		[onFocusSearch]
+		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		[onFocusSearch, getKey]
 	)
 }

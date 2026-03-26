@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
+import { dispatchShortcutsUpdated } from '@/hooks/useShortcutKeys'
 import {
 	defaultShortcuts,
 	shortcutDescriptions,
@@ -415,18 +416,21 @@ export function KeyboardShortcutsSettings() {
 		setOverrides(loadShortcutOverrides())
 		setEditingAction(null)
 		setSavedBadge(true)
+		dispatchShortcutsUpdated()
 		setTimeout(() => setSavedBadge(false), 1800)
 	}
 
 	const handleReset = (scopedKey: string) => {
 		resetShortcutOverride(scopedKey)
 		setOverrides(loadShortcutOverrides())
+		dispatchShortcutsUpdated()
 	}
 
 	const handleResetAll = () => {
 		resetAllShortcutOverrides()
 		setOverrides({})
 		setSavedBadge(true)
+		dispatchShortcutsUpdated()
 		setTimeout(() => setSavedBadge(false), 1800)
 	}
 
