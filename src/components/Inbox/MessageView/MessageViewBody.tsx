@@ -174,7 +174,10 @@ export const MessageViewBody = ({
 
 	useEffect(() => {
 		const handler = (e: MessageEvent) => {
-			if (!iframeRef.current) return
+			const validOrigins = ['http://postail.localhost', 'postail://localhost']
+			if (!validOrigins.includes(e.origin) || e.source !== iframeRef.current?.contentWindow) {
+				return
+			}
 
 			if (e.data?.type === 'resize' && typeof e.data.height === 'number') {
 				iframeRef.current.style.height = `${e.data.height}px`
