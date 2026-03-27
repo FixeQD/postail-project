@@ -211,6 +211,69 @@ async fn handle_client(
                     TpmResponse::Err("TPM hardware not accessible by helper".to_string())
                 }
             }
+            TpmRequest::Seal { key } => {
+                use crate::security::tpm::store::common::{self, create_primary_key};
+                match MasterKey::from_bytes(&key) {
+                    Ok(mk) => match store.create_context() {
+                        Ok(mut ctx) => {
+                            let primary = match create_primary_key(&mut ctx) {
+                                Ok(p) => p,
+                                Err(e) => {
+                                    send_message_async(stream, &TpmResponse::Err(e.to_string())).await?;
+                                    continue;
+                                }
+                            };
+                            match common::seal_data(&mut ctx, primary.key_handle, mk.as_bytes()) {
+                                Ok(sealed) => {
+                                    let _ = ctx.flush_context(primary.key_handle.into());
+                                    send_message_async(stream, &TpmResponse::Ok { key: Some(sealed) }).await?;
+                                    continue;
+                                }
+                                Err(e) => {
+                                    let _ = ctx.flush_context(primary.key_handle.into());
+                                    send_message_async(stream, &TpmResponse::Err(e.to_string())).await?;
+                                    continue;
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            send_message_async(stream, &TpmResponse::Err(e.to_string())).await?;
+                            continue;
+                        }
+                    },
+                    Err(e) => TpmResponse::Err(e.to_string()),
+                }
+            }
+            TpmRequest::Unseal { data } => {
+                use crate::security::tpm::store::common::{self, create_primary_key};
+                match store.create_context() {
+                    Ok(mut ctx) => {
+                        let primary = match create_primary_key(&mut ctx) {
+                            Ok(p) => p,
+                            Err(e) => {
+                                send_message_async(stream, &TpmResponse::Err(e.to_string())).await?;
+                                continue;
+                            }
+                        };
+                        match common::unseal_data(&mut ctx, primary.key_handle, &data) {
+                            Ok(unsealed) => {
+                                let _ = ctx.flush_context(primary.key_handle.into());
+                                send_message_async(stream, &TpmResponse::Ok { key: Some(unsealed) }).await?;
+                                continue;
+                            }
+                            Err(e) => {
+                                let _ = ctx.flush_context(primary.key_handle.into());
+                                send_message_async(stream, &TpmResponse::Err(e.to_string())).await?;
+                                continue;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        send_message_async(stream, &TpmResponse::Err(e.to_string())).await?;
+                        continue;
+                    }
+                }
+            }
             TpmRequest::Store { key } => match MasterKey::from_bytes(&key) {
                 Ok(mk) => match store.store(&mk) {
                     Ok(_) => TpmResponse::Ok { key: None },
@@ -231,6 +294,19 @@ async fn handle_client(
             TpmRequest::UpdateDataDir { path } => {
                 *storage_path.lock().await = PathBuf::from(&path).join("security");
                 TpmResponse::Ok { key: None }
+            }
+            TpmRequest::StoreFile { path, data } => {
+                match fs::write(&path, data) {
+                    Ok(_) => TpmResponse::Ok { key: None },
+                    Err(e) => TpmResponse::Err(e.to_string()),
+                }
+            }
+            TpmRequest::DeleteFile { path } => {
+                match fs::remove_file(&path) {
+                    Ok(_) => TpmResponse::Ok { key: None },
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => TpmResponse::Ok { key: None },
+                    Err(e) => TpmResponse::Err(e.to_string()),
+                }
             }
         };
 

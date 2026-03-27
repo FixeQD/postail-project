@@ -1,13 +1,18 @@
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
+use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum TpmRequest {
     Ping,
     Store { key: Vec<u8> },
+    Seal { key: Vec<u8> },
+    Unseal { data: Vec<u8> },
     Retrieve,
     Delete,
     UpdateDataDir { path: String },
+    StoreFile { path: PathBuf, data: Vec<u8> },
+    DeleteFile { path: PathBuf },
 }
 
 #[derive(Serialize, Deserialize, Debug)]

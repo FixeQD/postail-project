@@ -95,7 +95,7 @@ impl LinuxTpmStore {
     // ── Context & availability ─────────────────────────────────────
 
     #[cfg(feature = "tpm")]
-    fn create_context(&self) -> Result<Context> {
+    pub fn create_context(&self) -> Result<Context> {
         Context::new(self.tcti.clone()).map_err(common::tpm_err)
     }
 
@@ -153,14 +153,26 @@ impl LinuxTpmStore {
 impl SecretStore for LinuxTpmStore {
     #[cfg(feature = "tpm")]
     fn store(&self, key: &MasterKey) -> Result<()> {
+        #[cfg(target_os = "linux")]
+        {
+            if std::env::var("POSTAIL_TPM_HELPER").is_ok() {
+                let mut ctx = self.create_context()?;
+                let primary = common::create_primary_key(&mut ctx)?;
+                let sealed = common::seal_data(&mut ctx, primary.key_handle, key.as_bytes())?;
+
+                fs::write(self.get_sealed_path(), sealed)?;
+
+                ctx.flush_context(primary.key_handle.into())
+                    .map_err(common::tpm_err)?;
+                return Ok(());
+            }
+        }
+
         match self.create_context() {
             Ok(mut ctx) => {
                 let primary = common::create_primary_key(&mut ctx)?;
                 let sealed = common::seal_data(&mut ctx, primary.key_handle, key.as_bytes())?;
 
-                if let Some(parent) = self.get_sealed_path().parent() {
-                    fs::create_dir_all(parent)?;
-                }
                 fs::write(self.get_sealed_path(), sealed)?;
 
                 ctx.flush_context(primary.key_handle.into())
@@ -169,12 +181,18 @@ impl SecretStore for LinuxTpmStore {
             }
             Err(_) => {
                 #[cfg(target_os = "linux")]
-                if std::env::var("POSTAIL_TPM_HELPER").is_err() && proxy::is_socket_alive() {
-                    return proxy::call_proxy(proxy::TpmRequest::Store {
+                if proxy::is_socket_alive() {
+                    let sealed = proxy::call_proxy(proxy::TpmRequest::Seal {
                         key: key.as_bytes().to_vec(),
                     })
-                    .map(|_| ())
-                    .map_err(SecurityError::Tpm);
+                    .map_err(SecurityError::Tpm)?
+                    .ok_or_else(|| {
+                        SecurityError::Tpm("No sealed data returned from helper".into())
+                    })?;
+
+                    fs::write(self.get_sealed_path(), sealed)?;
+
+                    return Ok(());
                 }
 
                 Err(SecurityError::Tpm(
@@ -212,9 +230,19 @@ impl SecretStore for LinuxTpmStore {
             Err(_) => {
                 #[cfg(target_os = "linux")]
                 if std::env::var("POSTAIL_TPM_HELPER").is_err() && proxy::is_socket_alive() {
-                    let key_bytes = proxy::call_proxy(proxy::TpmRequest::Retrieve)
+                    let sealed = fs::read(self.get_sealed_path()).map_err(|e| {
+                        if e.kind() == std::io::ErrorKind::NotFound {
+                            SecurityError::MasterKeyNotFound
+                        } else {
+                            SecurityError::Io(e)
+                        }
+                    })?;
+
+                    let key_bytes = proxy::call_proxy(proxy::TpmRequest::Unseal { data: sealed })
                         .map_err(SecurityError::Tpm)?
-                        .ok_or_else(|| SecurityError::Tpm("No key returned from proxy".into()))?;
+                        .ok_or_else(|| {
+                            SecurityError::Tpm("No unsealed data returned from helper".into())
+                        })?;
                     return MasterKey::from_bytes(&key_bytes);
                 }
 
@@ -232,16 +260,15 @@ impl SecretStore for LinuxTpmStore {
 
     fn delete(&self) -> Result<()> {
         let path = self.get_sealed_path();
-        if path.exists() {
-            fs::remove_file(&path)?;
-        }
 
         #[cfg(target_os = "linux")]
-        if self.create_context().is_err()
-            && std::env::var("POSTAIL_TPM_HELPER").is_err()
-            && proxy::is_socket_alive()
-        {
-            let _ = proxy::call_proxy(proxy::TpmRequest::Delete);
+        if std::env::var("POSTAIL_TPM_HELPER").is_err() && proxy::is_socket_alive() {
+            let _ = proxy::call_proxy(proxy::TpmRequest::DeleteFile { path: path.clone() });
+            return Ok(());
+        }
+
+        if path.exists() {
+            fs::remove_file(&path)?;
         }
 
         Ok(())

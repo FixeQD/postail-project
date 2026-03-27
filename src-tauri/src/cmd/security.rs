@@ -2,8 +2,8 @@ use crate::globals::{get_db_pool, DB_CONN, SECURITY, SMTP_MANAGER};
 use crate::security::manager::PassphraseSecurityBuilder;
 use crate::security::recovery::RecoveryStore;
 use crate::security::storage::keyring::KeyringStore;
-use crate::security::tpm::store::get_tpm_store;
 use crate::security::storage::{SecretStore, StorageTier};
+use crate::security::tpm::store::get_tpm_store;
 use crate::security::{DbEncryption, SecurityManager};
 use crate::utils::config::{load_config, save_config, AppConfig};
 use serde::Serialize;
@@ -300,6 +300,12 @@ async fn initialize_tpm_elevated() -> Result<(), TpmInitError> {
         // If it exists but is stale/unhealthy, try to restart it
         let _ = std::fs::remove_file(&socket_path);
     }
+
+    let security_dir = crate::utils::config::get_data_dir().join("security");
+    std::fs::create_dir_all(&security_dir).map_err(|e| TpmInitError {
+        error_type: TpmErrorType::Other,
+        message: format!("Failed to create security directory: {}", e),
+    })?;
 
     let exe_path = get_executable_path()
         .map_err(|e| TpmInitError {
