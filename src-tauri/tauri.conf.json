@@ -20,7 +20,7 @@
 			}
 		],
 		"security": {
-			"csp": "default-src 'self' tauri: asset: https://asset.localhost; script-src 'self' blob: 'unsafe-eval'; style-src 'self' blob: 'unsafe-inline'; img-src 'self' data: blob: asset: https://asset.localhost tauri:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self' blob: postail: http://postail.localhost;",
+			"csp": "default-src 'self' tauri: asset: https://asset.localhost; script-src 'self' blob: 'unsafe-eval'; style-src 'self' blob: 'unsafe-inline'; img-src 'self' data: blob: asset: https://asset.localhost tauri: postail: http://postail.localhost; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self' blob: postail: http://postail.localhost;",
 			"assetProtocol": {
 				"enable": true,
 				"scope": [

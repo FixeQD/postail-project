@@ -57,8 +57,8 @@ fn serve_email<R: Runtime>(context: &UriSchemeContext<R>) -> Response<Cow<'stati
 
     let csp = "default-src 'none'; \
                script-src 'unsafe-inline'; \
-               style-src 'unsafe-inline'; \
-               img-src data: cid: asset:; \
+               style-src 'unsafe-inline' data:; \
+               img-src data: cid: asset: postail: http://postail.localhost; \
                font-src data: asset:; \
                connect-src 'none';";
 
