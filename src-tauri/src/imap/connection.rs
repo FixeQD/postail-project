@@ -44,10 +44,8 @@ impl Authenticator for Xoauth2Authenticator {
 impl super::ImapManager {
     async fn get_credentials(&self, account_id: &str) -> Result<String, ImapError> {
         let creds_path: String = {
-            let conn_guard = self.conn.lock().await;
-            let conn = conn_guard.as_ref().ok_or(ImapError::CredentialsFetch(
-                "Database not initialized".to_string(),
-            ))?;
+            let pool = crate::globals::get_db_pool().await.map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
+            let conn = pool.get().map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
             let mut stmt = conn
                 .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
                 .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
@@ -117,10 +115,8 @@ impl super::ImapManager {
 
                         let security = self.security.lock().await;
                         let creds_path: String = {
-                            let conn_guard = self.conn.lock().await;
-                            let conn = conn_guard.as_ref().ok_or(ImapError::CredentialsFetch(
-                                "Database not initialized".to_string(),
-                            ))?;
+                            let pool = crate::globals::get_db_pool().await.map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
+                            let conn = pool.get().map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
                             let mut stmt = conn
                                 .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
                                 .map_err(|e| ImapError::CredentialsFetch(e.to_string()))?;
@@ -155,10 +151,8 @@ impl super::ImapManager {
         tracing::debug!(target: "postail", "[IMAP] connect_imap: starting for {}", account_id);
 
         let (host, port, use_tls, auth_type, email) = {
-            let conn_guard = self.conn.lock().await;
-            let conn = conn_guard.as_ref().ok_or(ImapError::Connection(
-                "Database not initialized".to_string(),
-            ))?;
+            let pool = crate::globals::get_db_pool().await.map_err(|e| ImapError::Connection(e.to_string()))?;
+            let conn = pool.get().map_err(|e| ImapError::Connection(e.to_string()))?;
             let mut stmt = conn
                 .prepare("SELECT imap_host, imap_port, imap_tls, auth_type, email FROM accounts WHERE id = ?")
                 .map_err(|e| ImapError::Connection(e.to_string()))?;

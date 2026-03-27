@@ -6,6 +6,7 @@ use tracing;
 use tauri::Emitter;
 
 use crate::db::update_outbox_status;
+use crate::globals::get_db_pool;
 use crate::oauth;
 use crate::oauth::ProviderKind;
 use crate::smtp::SmtpManager;
@@ -83,20 +84,23 @@ impl SmtpManager {
         let now = chrono::Utc::now().timestamp();
 
         let pending_items = {
-            let conn_guard = self.conn.lock().await;
-            if let Some(conn) = conn_guard.as_ref() {
-                let mut stmt = conn
-                    .prepare("SELECT id, account_id, raw_eml_path FROM outbox WHERE status = 'PENDING' OR (status = 'RETRY' AND next_retry < ?)")
-                    .map_err(|e| e.to_string())?;
-                let items: Vec<(String, String, String)> = stmt
-                    .query_map([now], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
-                    .map_err(|e| e.to_string())?
-                    .filter_map(|r| r.ok())
-                    .collect();
-                items
-            } else {
-                return Ok(()); // DB not ready
-            }
+            let pool = match get_db_pool().await {
+                Ok(p) => p,
+                Err(_) => return Ok(()), // DB not ready
+            };
+            let conn = match pool.get() {
+                Ok(c) => c,
+                Err(_) => return Ok(()), // DB not ready
+            };
+            let mut stmt = conn
+                .prepare("SELECT id, account_id, raw_eml_path FROM outbox WHERE status = 'PENDING' OR (status = 'RETRY' AND next_retry < ?)")
+                .map_err(|e| e.to_string())?;
+            let items: Vec<(String, String, String)> = stmt
+                .query_map([now], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+                .map_err(|e| e.to_string())?
+                .filter_map(|r| r.ok())
+                .collect();
+            items
         };
 
         for (outbox_id, account_id, eml_path) in pending_items {
@@ -136,9 +140,9 @@ impl SmtpManager {
         };
 
         {
-            let conn_guard = self.conn.lock().await;
-            let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-            update_outbox_status(conn, outbox_id, "PROCESSING", None).map_err(|e| e.to_string())?;
+            let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+            let conn = pool.get().map_err(|e| e.to_string())?;
+            update_outbox_status(&*conn, outbox_id, "PROCESSING", None).map_err(|e| e.to_string())?;
         }
 
         self.emit_outbox_event("outbox:message:processing", outbox_id, account_id, None)
@@ -150,10 +154,8 @@ impl SmtpManager {
     }
 
     async fn mark_outbox_sent(&self, outbox_id: &str, account_id: &str) -> Result<(), String> {
-        let conn_guard = self.conn.lock().await;
-        let conn = conn_guard
-            .as_ref()
-            .ok_or("Database not initialized".to_string())?;
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
         conn.execute(
             "UPDATE outbox SET status = 'SENT' WHERE id = ?",
             [outbox_id],
@@ -173,10 +175,8 @@ impl SmtpManager {
     ) -> Result<(), String> {
         use crate::db::calculate_backoff;
 
-        let conn_guard = self.conn.lock().await;
-        let conn = conn_guard
-            .as_ref()
-            .ok_or("Database not initialized".to_string())?;
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
         let attempts: u32 = conn
             .query_row(
                 "SELECT attempts FROM outbox WHERE id = ?",
@@ -274,8 +274,8 @@ impl SmtpManager {
                         ));
 
                         let creds_path: String = {
-                            let conn_guard = self.conn.lock().await;
-                            let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+                            let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+                            let conn = pool.get().map_err(|e| e.to_string())?;
                             let mut stmt = conn
                                 .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
                                 .map_err(|e| e.to_string())?;

@@ -11,6 +11,7 @@ use tokio::net::TcpStream;
 use tokio_native_tls::native_tls::TlsConnector as NativeTlsConnector;
 use tokio_native_tls::TlsConnector;
 
+use crate::globals::get_db_pool;
 use crate::smtp::EncryptionType;
 
 struct SmtpSendConfig<'a> {
@@ -26,8 +27,8 @@ struct SmtpSendConfig<'a> {
 impl super::SmtpManager {
     pub(crate) async fn get_credentials(&self, account_id: &str) -> Result<String, String> {
         let creds_path: String = {
-            let conn_guard = self.conn.lock().await;
-            let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+            let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+            let conn = pool.get().map_err(|e| e.to_string())?;
             let mut stmt = conn
                 .prepare("SELECT creds_blob_path FROM accounts WHERE id = ?")
                 .map_err(|e| e.to_string())?;
@@ -52,8 +53,8 @@ impl super::SmtpManager {
     pub async fn send_email(&self, account_id: &str, eml_content: &[u8]) -> Result<(), String> {
         // Extract account data in a separate scope to ensure lock is dropped before await
         let (host, port, tls_enabled, auth_type, account_email) = {
-            let conn_guard = self.conn.lock().await;
-            let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+            let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+            let conn = pool.get().map_err(|e| e.to_string())?;
             let mut stmt = conn
                 .prepare("SELECT smtp_host, smtp_port, smtp_tls, auth_type, email FROM accounts WHERE id = ?")
                 .map_err(|e| e.to_string())?;

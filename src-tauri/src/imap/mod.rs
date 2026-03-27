@@ -1,8 +1,8 @@
+use crate::db::{DbPool, PooledConn};
 use crate::error::AppError;
 use crate::imap::connection::ImapSession;
 use crate::imap::sync_status::{mark_sync_complete, update_sync_status, SYNC_STATUS_MANAGER};
 use crate::security::SecurityManager;
-use rusqlite::Connection;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -42,20 +42,25 @@ impl Drop for SessionGuard {
 }
 
 pub struct ImapManager {
-    conn: Arc<Mutex<Option<Connection>>>,
+    conn: Arc<Mutex<Option<DbPool>>>,
     security: Arc<Mutex<SecurityManager>>,
 }
 
 impl ImapManager {
     pub fn new(
-        conn: Arc<Mutex<Option<Connection>>>,
+        conn: Arc<Mutex<Option<DbPool>>>,
         security: Arc<Mutex<SecurityManager>>,
     ) -> Self {
         Self { conn, security }
     }
 
-    pub fn get_conn(&self) -> Arc<Mutex<Option<Connection>>> {
+    pub fn get_conn(&self) -> Arc<Mutex<Option<DbPool>>> {
         Arc::clone(&self.conn)
+    }
+
+    pub async fn get_db(&self) -> Result<PooledConn, crate::error::DBError> {
+        let pool = crate::globals::get_db_pool().await?;
+        pool.get().map_err(|e| crate::error::DBError::Pool(e.to_string()))
     }
 
     /// Syncs messages for a single mailbox

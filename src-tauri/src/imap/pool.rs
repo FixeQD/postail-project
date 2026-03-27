@@ -340,15 +340,16 @@ impl ConnectionPool {
     }
 
     async fn detect_provider(&self, account_id: &str) -> Result<ProviderKind, AppError> {
-        let db_conn = crate::globals::DB_CONN.lock().await;
-        if let Some(conn) = db_conn.as_ref() {
-            let mut stmt = conn
-                .prepare("SELECT provider_type FROM accounts WHERE id = ?")
-                .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        if let Ok(pool) = crate::globals::get_db_pool().await {
+            if let Ok(conn) = pool.get() {
+                let mut stmt = conn
+                    .prepare("SELECT provider_type FROM accounts WHERE id = ?")
+                    .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
-            if let Ok(provider_type) = stmt.query_row([account_id], |row| row.get::<_, String>(0)) {
-                if let Some(kind) = ProviderKind::parse(&provider_type) {
-                    return Ok(kind);
+                if let Ok(provider_type) = stmt.query_row([account_id], |row| row.get::<_, String>(0)) {
+                    if let Some(kind) = ProviderKind::parse(&provider_type) {
+                        return Ok(kind);
+                    }
                 }
             }
         }
@@ -358,16 +359,20 @@ impl ConnectionPool {
     }
 
     async fn get_mailbox_role(&self, account_id: &str, mailbox: &str) -> Option<String> {
-        let db_conn = crate::globals::DB_CONN.lock().await;
-        if let Some(conn) = db_conn.as_ref() {
-            let result: Result<String, _> = conn.query_row(
-                "SELECT role FROM mailboxes WHERE account_id = ? AND name = ?",
-                [account_id, mailbox],
-                |row| row.get(0),
-            );
-            return result.ok();
-        }
-        None
+        let pool = match crate::globals::get_db_pool().await {
+            Ok(p) => p,
+            Err(_) => return None,
+        };
+        let conn = match pool.get() {
+            Ok(c) => c,
+            Err(_) => return None,
+        };
+        let result: Result<String, _> = conn.query_row(
+            "SELECT role FROM mailboxes WHERE account_id = ? AND name = ?",
+            [account_id, mailbox],
+            |row| row.get(0),
+        );
+        result.ok()
     }
 
     fn detect_provider_sync(&self, _account_id: &str) -> ProviderKind {

@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 use crate::db::compose::outbox_db::extract_headers_from_raw;
 use crate::db::{enqueue_message, list_outbox, OutboxItem};
+use crate::globals::get_db_pool;
 
 impl super::SmtpManager {
     pub async fn enqueue_message(
@@ -36,14 +37,12 @@ impl super::SmtpManager {
         })?;
         tracing::info!(target: "postail", "[Outbox] EML file written successfully");
 
-        let conn_guard = self.conn.lock().await;
-        let conn = conn_guard
-            .as_ref()
-            .ok_or("Database not initialized".to_string())?;
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
 
         let (subject, recipient) = extract_headers_from_raw(raw_eml);
         match enqueue_message(
-            conn,
+            &*conn,
             account_id,
             &eml_path.to_string_lossy(),
             subject.as_deref(),
@@ -61,18 +60,14 @@ impl super::SmtpManager {
     }
 
     pub async fn list_outbox(&self, account_id: &str) -> Result<Vec<OutboxItem>, String> {
-        let conn_guard = self.conn.lock().await;
-        let conn = conn_guard
-            .as_ref()
-            .ok_or("Database not initialized".to_string())?;
-        list_outbox(conn, account_id).map_err(|e| e.to_string())
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
+        list_outbox(&*conn, account_id).map_err(|e| e.to_string())
     }
 
     pub async fn retry_sending(&self, outbox_id: &str) -> Result<(), String> {
-        let conn_guard = self.conn.lock().await;
-        let conn = conn_guard
-            .as_ref()
-            .ok_or("Database not initialized".to_string())?;
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
         conn.execute(
             "UPDATE outbox SET status = 'PENDING', next_retry = NULL WHERE id = ?",
             [outbox_id],
@@ -82,10 +77,8 @@ impl super::SmtpManager {
     }
 
     pub async fn cancel_sending(&self, outbox_id: &str) -> Result<(), String> {
-        let conn_guard = self.conn.lock().await;
-        let conn = conn_guard
-            .as_ref()
-            .ok_or("Database not initialized".to_string())?;
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
         let mut stmt = conn
             .prepare("SELECT raw_eml_path FROM outbox WHERE id = ?")
             .map_err(|e| e.to_string())?;

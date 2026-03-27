@@ -1,4 +1,4 @@
-use crate::globals::{DB_CONN, SECURITY, SMTP_MANAGER};
+use crate::globals::{get_db_pool, DB_CONN, SECURITY, SMTP_MANAGER};
 use crate::security::manager::PassphraseSecurityBuilder;
 use crate::security::recovery::RecoveryStore;
 use crate::security::storage::keyring::KeyringStore;
@@ -248,7 +248,8 @@ pub async fn initialize_security_and_database(
         *db_guard = Some(db);
     }
 
-    crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    crate::maintenance::start_maintenance_scheduler(pool);
     SMTP_MANAGER.lock().await.start_outbox_worker();
 
     let existing_theme = load_config().and_then(|c| c.theme);
@@ -596,13 +597,14 @@ pub async fn reset_security_setup() -> Result<(), String> {
 
     // Safety: refuse if accounts already exist - this is only for initial setup rollback
     {
-        let conn_guard = DB_CONN.lock().await;
-        if let Some(conn) = conn_guard.as_ref() {
-            let count: i64 = conn
-                .query_row("SELECT COUNT(*) FROM accounts", [], |r| r.get(0))
-                .unwrap_or(0);
-            if count > 0 {
-                return Err("Cannot reset: accounts already exist.".to_string());
+        if let Ok(pool) = get_db_pool().await {
+            if let Ok(conn) = pool.get() {
+                let count: i64 = conn
+                    .query_row("SELECT COUNT(*) FROM accounts", [], |r| r.get(0))
+                    .unwrap_or(0);
+                if count > 0 {
+                    return Err("Cannot reset: accounts already exist.".to_string());
+                }
             }
         }
     }
@@ -708,7 +710,8 @@ pub async fn unlock_with_recovery_phrase(phrase: String) -> Result<(), String> {
         *db_guard = Some(db);
     }
 
-    crate::maintenance::start_maintenance_scheduler(Arc::clone(&DB_CONN));
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    crate::maintenance::start_maintenance_scheduler(pool);
     SMTP_MANAGER.lock().await.start_outbox_worker();
     crate::security::load_lock_settings().await;
 

@@ -7,7 +7,7 @@ use crate::db::{
     AccountInput, AccountMeta, Credentials, ImapConfig, ManualServerConfig, OAuthCredentials,
     PasswordCredentials, SmtpConfig,
 };
-use crate::globals::{DB_CONN, IMAP_MANAGER, SECURITY};
+use crate::globals::{get_db_pool, IMAP_MANAGER, SECURITY};
 use crate::oauth;
 use crate::utils::oauth_server;
 use async_imap::Client as ImapClient;
@@ -31,13 +31,13 @@ const CONNECTION_TIMEOUT_SECS: Duration = Duration::from_secs(10);
 #[command]
 pub async fn add_account(input: AccountInput) -> Result<AccountMeta, String> {
     let account = {
-        let (conn_guard, security) = {
-            let conn_guard = DB_CONN.lock().await;
+        let (pool, security) = {
+            let pool = get_db_pool().await.map_err(|e| e.to_string())?;
             let security = SECURITY.lock().await;
-            (conn_guard, security)
+            (pool, security)
         };
-        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-        db_add_account(conn, input, &security).map_err(|e| e.to_string())?
+        let conn = pool.get().map_err(|e| e.to_string())?;
+        db_add_account(&conn, input, &security).map_err(|e| e.to_string())?
     };
 
     // Only sync folder list
@@ -285,13 +285,13 @@ pub async fn add_custom_account(config: ManualServerConfig) -> Result<AccountMet
     };
 
     let account = {
-        let (conn_guard, security) = {
-            let conn_guard = DB_CONN.lock().await;
+        let (pool, security) = {
+            let pool = get_db_pool().await.map_err(|e| e.to_string())?;
             let security = SECURITY.lock().await;
-            (conn_guard, security)
+            (pool, security)
         };
-        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-        db_add_account(conn, account_input, &security).map_err(|e| e.to_string())?
+        let conn = pool.get().map_err(|e| e.to_string())?;
+        db_add_account(&conn, account_input, &security).map_err(|e| e.to_string())?
     };
 
     if let Err(e) = {
@@ -308,9 +308,9 @@ pub async fn add_custom_account(config: ManualServerConfig) -> Result<AccountMet
 
 #[command]
 pub async fn update_account_name(id: String, name: String) -> Result<(), String> {
-    let conn_guard = DB_CONN.lock().await;
-    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-    db_update_account_name(conn, &id, &name).map_err(|e| e.to_string())
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+    db_update_account_name(&conn, &id, &name).map_err(|e| e.to_string())
 }
 
 #[command]
@@ -356,17 +356,17 @@ pub async fn update_custom_account(
         },
     };
 
-    let (conn_guard, security) = {
-        let conn_guard = DB_CONN.lock().await;
+    let (pool, security) = {
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
         let security = SECURITY.lock().await;
-        (conn_guard, security)
+        (pool, security)
     };
-    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
 
-    db_update_account_config(conn, &id, account_input, &security).map_err(|e| e.to_string())?;
+    db_update_account_config(&conn, &id, account_input, &security).map_err(|e| e.to_string())?;
 
     // Return the updated meta
-    let accounts = db_list_accounts(conn).map_err(|e| e.to_string())?;
+    let accounts = db_list_accounts(&conn).map_err(|e| e.to_string())?;
     accounts
         .into_iter()
         .find(|a| a.id == id)
@@ -375,16 +375,16 @@ pub async fn update_custom_account(
 
 #[command]
 pub async fn list_accounts() -> Result<Vec<AccountMeta>, String> {
-    let conn_guard = DB_CONN.lock().await;
-    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-    db_list_accounts(conn).map_err(|e| e.to_string())
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+    db_list_accounts(&conn).map_err(|e| e.to_string())
 }
 
 #[command]
 pub async fn remove_account(id: String) -> Result<(), String> {
-    let conn_guard = DB_CONN.lock().await;
-    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-    db_remove_account(conn, &id).map_err(|e| e.to_string())
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+    db_remove_account(&conn, &id).map_err(|e| e.to_string())
 }
 
 #[derive(Serialize)]
@@ -485,13 +485,13 @@ pub async fn complete_oauth_flow(
     };
 
     let account = {
-        let (conn_guard, security) = {
-            let conn_guard = DB_CONN.lock().await;
+        let (pool, security) = {
+            let pool = get_db_pool().await.map_err(|e| e.to_string())?;
             let security = SECURITY.lock().await;
-            (conn_guard, security)
+            (pool, security)
         };
-        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-        db_add_account(conn, account_input, &security).map_err(|e| e.to_string())?
+        let conn = pool.get().map_err(|e| e.to_string())?;
+        db_add_account(&conn, account_input, &security).map_err(|e| e.to_string())?
     };
 
     // Only sync folder list
@@ -529,9 +529,9 @@ pub async fn complete_reauth_flow(
 
     // Verify email matches existing account
     let existing_email = {
-        let conn_guard = DB_CONN.lock().await;
-        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-        crate::db::accounts::get_account_email(conn, &account_id)
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
+        crate::db::accounts::get_account_email(&conn, &account_id)
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Account not found".to_string())?
     };
@@ -544,14 +544,14 @@ pub async fn complete_reauth_flow(
     }
 
     // Update account with new credentials
-    let (conn_guard, security) = {
-        let conn_guard = DB_CONN.lock().await;
+    let (pool, security) = {
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
         let security = SECURITY.lock().await;
-        (conn_guard, security)
+        (pool, security)
     };
-    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
 
-    let existing_account = db_list_accounts(conn)
+    let existing_account = db_list_accounts(&conn)
         .map_err(|e| e.to_string())?
         .into_iter()
         .find(|a| a.id == account_id)
@@ -585,11 +585,11 @@ pub async fn complete_reauth_flow(
         },
     };
 
-    db_update_account_config(conn, &account_id, account_input, &security)
+    db_update_account_config(&conn, &account_id, account_input, &security)
         .map_err(|e| e.to_string())?;
 
     // Return the updated meta
-    let accounts = db_list_accounts(conn).map_err(|e| e.to_string())?;
+    let accounts = db_list_accounts(&conn).map_err(|e| e.to_string())?;
     accounts
         .into_iter()
         .find(|a| a.id == account_id)

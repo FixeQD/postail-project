@@ -10,6 +10,7 @@ use tracing;
 
 use crate::db::accounts::get_account_email;
 use crate::error::{AppError, ImapError};
+use crate::globals::get_db_pool;
 use crate::imap::sync_status::{
     mark_sync_complete, mark_sync_error, start_sync_status_tracking, update_sync_status,
     SYNC_STATUS_MANAGER,
@@ -44,11 +45,9 @@ impl crate::imap::ImapManager {
         }
 
         let account_email = {
-            let conn_guard = self.conn.lock().await;
-            let conn = conn_guard
-                .as_ref()
-                .ok_or_else(|| AppError::from("Database not initialized"))?;
-            crate::db::accounts::get_account_email(conn, account_id)
+            let pool = get_db_pool().await.map_err(|e| AppError::from(e.to_string()))?;
+            let conn = pool.get().map_err(|e| AppError::from(e.to_string()))?;
+            crate::db::accounts::get_account_email(&*conn, account_id)
                 .map_err(|e| AppError::from(e.to_string()))?
                 .unwrap_or_else(|| account_id.to_string())
         };
@@ -129,11 +128,9 @@ impl crate::imap::ImapManager {
 
         // Register account for status tracking so frontend gets events
         let account_email = {
-            let conn_guard = self.conn.lock().await;
-            let conn = conn_guard
-                .as_ref()
-                .ok_or_else(|| AppError::from("Database not initialized"))?;
-            get_account_email(conn, account_id)
+            let pool = get_db_pool().await.map_err(|e| AppError::from(e.to_string()))?;
+            let conn = pool.get().map_err(|e| AppError::from(e.to_string()))?;
+            get_account_email(&*conn, account_id)
                 .map_err(|e| AppError::from(e.to_string()))?
                 .unwrap_or_else(|| account_id.to_string())
         };
@@ -586,10 +583,8 @@ impl crate::imap::ImapManager {
         account_id: &str,
         mailbox_name: &str,
     ) -> Result<u32, AppError> {
-        let conn_guard = self.conn.lock().await;
-        let conn = conn_guard
-            .as_ref()
-            .ok_or(AppError::from("Database not initialized"))?;
+        let pool = get_db_pool().await.map_err(|e| AppError::from(e.to_string()))?;
+        let conn = pool.get().map_err(|e| AppError::from(e.to_string()))?;
         let mut stmt = conn
             .prepare("SELECT last_synced_uid FROM mailboxes WHERE account_id = ? AND name = ?")
             .map_err(|e| AppError::from(e.to_string()))?;
@@ -645,10 +640,8 @@ impl crate::imap::ImapManager {
 
         update_sync_status(account_id, mailbox_name, total, total).await;
 
-        let conn_guard = self.conn.lock().await;
-        let conn = conn_guard
-            .as_ref()
-            .ok_or(AppError::from("Database not initialized"))?;
+        let pool = get_db_pool().await.map_err(|e| AppError::from(e.to_string()))?;
+        let conn = pool.get().map_err(|e| AppError::from(e.to_string()))?;
         let mut stmt = conn
             .prepare("UPDATE mailboxes SET last_synced_uid = ? WHERE account_id = ? AND name = ?")
             .map_err(|e| AppError::from(e.to_string()))?;

@@ -1,6 +1,7 @@
 use futures::StreamExt;
 
 use crate::db::{fetch_mailboxes as db_fetch_mailboxes, upsert_mailbox, Mailbox};
+use crate::globals::get_db_pool;
 
 fn detect_mailbox_role_from_attributes(
     attributes: &[async_imap::types::NameAttribute],
@@ -22,11 +23,9 @@ fn detect_mailbox_role_from_attributes(
 
 impl crate::imap::ImapManager {
     pub async fn fetch_mailboxes_sync(&self, account_id: &str) -> Result<Vec<Mailbox>, String> {
-        let conn_guard = self.conn.lock().await;
-        let conn = conn_guard
-            .as_ref()
-            .ok_or("Database not initialized".to_string())?;
-        db_fetch_mailboxes(conn, account_id).map_err(|e| e.to_string())
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
+        db_fetch_mailboxes(&*conn, account_id).map_err(|e| e.to_string())
     }
 
     pub async fn fetch_mailboxes(&self, account_id: &str) -> Result<Vec<Mailbox>, String> {
@@ -55,11 +54,9 @@ impl crate::imap::ImapManager {
                     last_synced_uid: None,
                 };
                 {
-                    let conn_guard = self.conn.lock().await;
-                    let conn = conn_guard
-                        .as_ref()
-                        .ok_or("Database not initialized".to_string())?;
-                    upsert_mailbox(conn, account_id, &mailbox).map_err(|e| e.to_string())?;
+                    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+                    let conn = pool.get().map_err(|e| e.to_string())?;
+                    upsert_mailbox(&*conn, account_id, &mailbox).map_err(|e| e.to_string())?;
                 }
                 result.push(mailbox);
             }

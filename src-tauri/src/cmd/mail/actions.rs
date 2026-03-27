@@ -1,5 +1,5 @@
 use crate::db;
-use crate::globals::{DB_CONN, IMAP_MANAGER};
+use crate::globals::{get_db_pool, IMAP_MANAGER};
 use tauri::command;
 
 #[command]
@@ -9,10 +9,10 @@ pub async fn search_messages(
     query: String,
     limit: u32,
 ) -> Result<Vec<db::search::SearchResult>, String> {
-    let conn_guard = DB_CONN.lock().await;
-    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
     db::search_messages(
-        conn,
+        &conn,
         account_id.as_deref(),
         mailbox.as_deref(),
         &query,
@@ -35,14 +35,14 @@ pub async fn mark_read(
     let uids = uids?;
 
     {
-        let conn_guard = DB_CONN.lock().await;
-        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-        db::mark_read(conn, &account_id, &mailbox, &uids, read).map_err(|e| e.to_string())?;
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
+        db::mark_read(&conn, &account_id, &mailbox, &uids, read).map_err(|e| e.to_string())?;
 
         let operation = if read { "add" } else { "remove" };
         for uid in &uids {
             db::enqueue_flag_change(
-                conn,
+                &conn,
                 &account_id,
                 &mailbox,
                 *uid,
@@ -65,9 +65,9 @@ pub async fn mark_read(
 
 async fn process_flag_queue(account_id: &str) -> Result<(), String> {
     let ops = {
-        let conn_guard = DB_CONN.lock().await;
-        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-        db::get_pending_flag_operations(conn, account_id, 5).map_err(|e| e.to_string())?
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
+        db::get_pending_flag_operations(&conn, account_id, 5).map_err(|e| e.to_string())?
     };
 
     let imap_manager = IMAP_MANAGER.lock().await;
@@ -98,12 +98,12 @@ async fn process_flag_queue(account_id: &str) -> Result<(), String> {
             }
         };
 
-        let conn_guard = DB_CONN.lock().await;
-        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
 
         match result {
             Ok(_) => {
-                db::mark_flag_operation_success(conn, op.id).map_err(|e| e.to_string())?;
+                db::mark_flag_operation_success(&conn, op.id).map_err(|e| e.to_string())?;
                 tracing::debug!(target: "postail",
                     "{} sync success: {}@{} uid={}",
                     op.operation_type, op.mailbox, op.account_id, op.uid
@@ -111,7 +111,7 @@ async fn process_flag_queue(account_id: &str) -> Result<(), String> {
             }
             Err(e) => {
                 let error_msg = e.to_string();
-                db::mark_flag_operation_failed(conn, op.id, &error_msg)
+                db::mark_flag_operation_failed(&conn, op.id, &error_msg)
                     .map_err(|e| e.to_string())?;
                 tracing::warn!(target: "postail",
                     "{} sync failed: {}@{} uid={} - {}",
@@ -137,17 +137,17 @@ pub async fn delete_messages(
     let uids = uids?;
 
     {
-        let conn_guard = DB_CONN.lock().await;
-        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
 
-        let trash_mailbox = db::get_mailbox_by_role(conn, &account_id, "trash")
+        let trash_mailbox = db::get_mailbox_by_role(&conn, &account_id, "trash")
             .map_err(|e| e.to_string())?
             .ok_or("Trash mailbox not found")?;
 
-        db::move_to_trash(conn, &account_id, &mailbox, &uids).map_err(|e| e.to_string())?;
+        db::move_to_trash(&conn, &account_id, &mailbox, &uids).map_err(|e| e.to_string())?;
 
         for uid in &uids {
-            db::enqueue_move_operation(conn, &account_id, &mailbox, &trash_mailbox, *uid)
+            db::enqueue_move_operation(&conn, &account_id, &mailbox, &trash_mailbox, *uid)
                 .map_err(|e| e.to_string())?;
         }
     }

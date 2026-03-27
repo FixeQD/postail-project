@@ -74,6 +74,9 @@ pub enum DBError {
     #[error("SQLite error: {0}")]
     Sqlite(#[from] rusqlite::Error),
 
+    #[error("Connection pool error: {0}")]
+    Pool(String),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
@@ -249,6 +252,12 @@ impl From<OAuthError> for AppError {
     }
 }
 
+impl From<r2d2::Error> for DBError {
+    fn from(err: r2d2::Error) -> Self {
+        DBError::Pool(err.to_string())
+    }
+}
+
 impl From<DBError> for AppError {
     fn from(err: DBError) -> Self {
         match err {
@@ -260,6 +269,7 @@ impl From<DBError> for AppError {
             DBError::Cache(e) => AppError::IoError(format!("Cache error: {}", e)),
             DBError::EmlCache(e) => AppError::IoError(format!("EML cache error: {}", e)),
             DBError::BodyCache(e) => AppError::IoError(format!("Body cache error: {}", e)),
+            DBError::Pool(e) => AppError::DatabaseError(format!("Pool error: {}", e)),
         }
     }
 }

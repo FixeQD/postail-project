@@ -6,8 +6,10 @@ pub mod search;
 pub mod sql_helpers;
 
 use std::fs;
+use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
+use r2d2::{ManageConnection, Pool, PooledConnection};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
@@ -18,6 +20,56 @@ pub use crate::db::schema::*;
 pub use crate::db::search::*;
 pub use crate::db::sql_helpers::*;
 use crate::error::DBError;
+
+// ── Connection pool ────────────────────────────────────────────────────────
+
+/// r2d2 connection manager for SQLCipher-encrypted SQLite databases
+pub struct SqlCipherConnectionManager {
+    path: PathBuf,
+    hex_key: String,
+}
+
+impl SqlCipherConnectionManager {
+    pub fn new(path: PathBuf, hex_key: String) -> Self {
+        Self { path, hex_key }
+    }
+}
+
+impl ManageConnection for SqlCipherConnectionManager {
+    type Connection = Connection;
+    type Error = rusqlite::Error;
+
+    fn connect(&self) -> rusqlite::Result<Connection> {
+        let conn = Connection::open(&self.path)?;
+        // PRAGMA key must be first
+        let pragmas = [
+            format!("PRAGMA key = \"x'{}'\"", self.hex_key),
+            "PRAGMA journal_mode = WAL".to_string(),
+            "PRAGMA synchronous = NORMAL".to_string(),
+            "PRAGMA cache_size = -64000".to_string(),
+        ];
+        for pragma in &pragmas {
+            match conn.execute(pragma, ()) {
+                Ok(_) | Err(rusqlite::Error::ExecuteReturnedResults) => {}
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(conn)
+    }
+
+    fn is_valid(&self, conn: &mut Connection) -> rusqlite::Result<()> {
+        conn.execute_batch("SELECT 1")
+    }
+
+    fn has_broken(&self, _: &mut Connection) -> bool {
+        false
+    }
+}
+
+/// A pool of SQLCipher connections
+pub type DbPool = Pool<SqlCipherConnectionManager>;
+/// A checked-out connection from the pool
+pub type PooledConn = PooledConnection<SqlCipherConnectionManager>;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ImapConfig {
@@ -242,74 +294,56 @@ pub async fn init_db() -> Result<(), DBError> {
             ),
         ));
     }
-    let conn = init_db_with_key(&key)?;
+    let pool = init_db_with_key(&key)?;
 
     // Save to global DB_CONN
     let mut db_guard = crate::globals::DB_CONN.lock().await;
-    *db_guard = Some(conn);
+    *db_guard = Some(pool);
 
     Ok(())
 }
 
-fn apply_sqlcipher_key(conn: &Connection, hex_key: &str) -> Result<(), DBError> {
-    let pragmas = [
-        format!("PRAGMA key = \"x'{hex_key}'\""),
-        "PRAGMA journal_mode = WAL".to_string(),
-        "PRAGMA synchronous = NORMAL".to_string(),
-        "PRAGMA cache_size = -64000".to_string(),
-    ];
-
-    for pragma in pragmas {
-        execute_pragma(conn, &pragma)?;
-    }
-
-    tracing::info!(target: "postail", "[DB] All database pragmas applied");
-    Ok(())
-}
-
-fn execute_pragma(conn: &Connection, pragma: &str) -> Result<(), DBError> {
-    match conn.execute(pragma, ()) {
-        Ok(_) => Ok(()),
-        Err(rusqlite::Error::ExecuteReturnedResults) => Ok(()),
-        Err(e) => Err(e.into()),
-    }
-}
-
-pub fn init_db_with_key(hex_key: &str) -> Result<Connection, DBError> {
+/// Create a fresh encrypted database and return a connection pool.
+/// Tables, indexes, FTS triggers, and migrations are applied once on the
+/// first connection; all subsequent pool connections pick up the schema.
+pub fn init_db_with_key(hex_key: &str) -> Result<DbPool, DBError> {
     tracing::info!(target: "postail", "[DB] Creating data directory...");
     let data_dir = crate::utils::config::get_data_dir();
     fs::create_dir_all(&data_dir).map_err(DBError::Io)?;
     let db_path = data_dir.join("postail.db");
-    tracing::info!(target: "postail", "[DB] Opening database at {:?}", db_path);
+    tracing::info!(target: "postail", "[DB] Opening database pool at {:?}", db_path);
 
-    let conn = Connection::open(&db_path)?;
-    tracing::info!(target: "postail", "[DB] Database opened, applying key...");
+    let manager = SqlCipherConnectionManager::new(db_path, hex_key.to_string());
+    // 4 connections is plenty for a desktop email client running under WAL mode.
+    // WAL allows concurrent readers; writers serialize automatically.
+    let pool = Pool::builder().max_size(4).build(manager)?;
 
-    apply_sqlcipher_key(&conn, hex_key)?;
-    tracing::info!(target: "postail", "[DB] Key applied, creating tables...");
+    tracing::info!(target: "postail", "[DB] Pool created, running schema init on first connection...");
+    {
+        let conn = pool.get()?;
+        tables::create_tables(&conn)?;
+        tracing::info!(target: "postail", "[DB] Tables created, creating indexes...");
+        tables::create_indexes(&conn)?;
+        tracing::info!(target: "postail", "[DB] Indexes created, creating FTS triggers...");
+        tables::create_fts_triggers(&conn)?;
+        tracing::info!(target: "postail", "[DB] FTS triggers created, running migrations...");
+        run_migrations(&conn)?;
+        tracing::info!(target: "postail", "[DB] Migrations complete!");
+    }
 
-    tables::create_tables(&conn)?;
-    tracing::info!(target: "postail", "[DB] Tables created, creating indexes...");
-
-    tables::create_indexes(&conn)?;
-    tracing::info!(target: "postail", "[DB] Indexes created, creating FTS triggers...");
-
-    tables::create_fts_triggers(&conn)?;
-    tracing::info!(target: "postail", "[DB] FTS triggers created, running migrations...");
-
-    run_migrations(&conn)?;
-    tracing::info!(target: "postail", "[DB] Migrations complete!");
-
-    Ok(conn)
+    Ok(pool)
 }
 
-pub fn connect_db_with_key(hex_key: &str) -> Result<Connection, DBError> {
+/// Open an existing encrypted database and return a connection pool.
+/// No schema initialization is performed — the database must already exist.
+pub fn connect_db_with_key(hex_key: &str) -> Result<DbPool, DBError> {
     let data_dir = crate::utils::config::get_data_dir();
     let db_path = data_dir.join("postail.db");
 
-    let conn = Connection::open(&db_path)?;
-    apply_sqlcipher_key(&conn, hex_key)?;
-    Ok(conn)
+    let manager = SqlCipherConnectionManager::new(db_path, hex_key.to_string());
+    let pool = Pool::builder().max_size(4).build(manager)?;
+
+    Ok(pool)
 }
 
 fn save_creds_blob(id: &str, data: &[u8]) -> Result<String, DBError> {

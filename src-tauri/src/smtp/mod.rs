@@ -2,9 +2,9 @@ use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use rusqlite::Connection;
 use tauri::AppHandle;
 
+use crate::db::DbPool;
 use crate::security::SecurityManager;
 
 pub mod mdn;
@@ -34,14 +34,14 @@ impl FromStr for EncryptionType {
 }
 
 pub struct SmtpManager {
-    conn: Arc<Mutex<Option<Connection>>>,
+    conn: Arc<Mutex<Option<DbPool>>>,
     security: Arc<Mutex<SecurityManager>>,
     app_handle: Arc<Mutex<Option<AppHandle>>>,
 }
 
 impl SmtpManager {
     pub fn new(
-        conn: Arc<Mutex<Option<Connection>>>,
+        conn: Arc<Mutex<Option<DbPool>>>,
         security: Arc<Mutex<SecurityManager>>,
     ) -> Self {
         Self {

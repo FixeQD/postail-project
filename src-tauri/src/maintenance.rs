@@ -1,12 +1,10 @@
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::task;
 use tracing;
 
-use rusqlite::Connection;
-
-use crate::db::run_maintenance;
+use crate::db::{run_maintenance, DbPool};
+use crate::globals::get_db_pool;
 
 const WAL_CHECKPOINT_INTERVAL: Duration = Duration::from_secs(3600);
 const WEEKLY_VACUUM_INTERVAL: Duration = Duration::from_secs(7 * 24 * 3600);
@@ -14,7 +12,7 @@ const WEEKLY_VACUUM_INTERVAL: Duration = Duration::from_secs(7 * 24 * 3600);
 static MAINTENANCE_RUNNING: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
-pub fn start_maintenance_scheduler(db_conn: Arc<Mutex<Option<Connection>>>) {
+pub fn start_maintenance_scheduler(_db_pool: DbPool) {
     if MAINTENANCE_RUNNING
         .compare_exchange(
             false,
@@ -60,16 +58,17 @@ pub fn start_maintenance_scheduler(db_conn: Arc<Mutex<Option<Connection>>>) {
             if should_checkpoint {
                 tracing::info!(target: "postail", "[Maintenance] Running WAL checkpoint...");
                 let result = {
-                    let conn_guard = db_conn.lock().await;
-                    if let Some(conn) = conn_guard.as_ref() {
-                        conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
-                            let busy: i32 = row.get(0)?;
-                            let log: i32 = row.get(1)?;
-                            let checkpointed: i32 = row.get(2)?;
-                            Ok((busy, log, checkpointed))
-                        })
-                    } else {
-                        Ok((0, 0, 0))
+                    match get_db_pool().await {
+                        Ok(pool) => match pool.get() {
+                            Ok(conn) => conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                                let busy: i32 = row.get(0)?;
+                                let log: i32 = row.get(1)?;
+                                let checkpointed: i32 = row.get(2)?;
+                                Ok((busy, log, checkpointed))
+                            }),
+                            Err(_) => Ok((0, 0, 0)),
+                        },
+                        Err(_) => Ok((0, 0, 0)),
                     }
                 };
 
@@ -84,11 +83,16 @@ pub fn start_maintenance_scheduler(db_conn: Arc<Mutex<Option<Connection>>>) {
             }
 
             if last_weekly_maintenance.elapsed() >= WEEKLY_VACUUM_INTERVAL {
-                let db_conn_clone = Arc::clone(&db_conn);
                 task::spawn(async move {
-                    let conn_guard = db_conn_clone.lock().await;
-                    if let Some(conn) = conn_guard.as_ref() {
-                        if let Err(e) = run_maintenance(conn) {
+                    match get_db_pool().await {
+                        Ok(pool) => {
+                            if let Ok(conn) = pool.get() {
+                                if let Err(e) = run_maintenance(&*conn) {
+                                    tracing::error!(target: "postail", "Weekly maintenance failed: {}", e);
+                                }
+                            }
+                        }
+                        Err(e) => {
                             tracing::error!(target: "postail", "Weekly maintenance failed: {}", e);
                         }
                     }

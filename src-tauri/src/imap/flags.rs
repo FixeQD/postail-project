@@ -1,5 +1,4 @@
 use crate::error::AppError;
-use crate::globals::DB_CONN;
 use crate::imap::ImapManager;
 use futures::StreamExt;
 
@@ -140,10 +139,8 @@ impl ImapManager {
         drop(fetches);
         session.logout().await.map_err(AppError::from)?;
 
-        let conn_guard = DB_CONN.lock().await;
-        let conn = conn_guard
-            .as_ref()
-            .ok_or_else(|| AppError::from("Database not initialized"))?;
+        let pool = crate::globals::get_db_pool().await.map_err(|e| AppError::from(e.to_string()))?;
+        let conn = pool.get().map_err(|e| AppError::from(e.to_string()))?;
 
         let update_count = flag_updates.len();
 
@@ -192,7 +189,7 @@ impl ImapManager {
         );
 
         // Cleanup old synced operations (older than 10 seconds)
-        let deleted = crate::db::cleanup_old_synced_operations(conn)
+        let deleted = crate::db::cleanup_old_synced_operations(&conn)
             .map_err(|e| AppError::from(e.to_string()))?;
 
         if deleted > 0 {

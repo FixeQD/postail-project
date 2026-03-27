@@ -3,6 +3,7 @@ use futures::StreamExt;
 use crate::db;
 use crate::db::eml_cache::{self, CachedBody};
 use crate::db::messages::sync_message_attachments_flag;
+use crate::globals::get_db_pool;
 use crate::security::SecurityManager;
 
 impl crate::imap::ImapManager {
@@ -13,11 +14,9 @@ impl crate::imap::ImapManager {
         mailbox: &str,
         uid: u32,
     ) -> Result<Option<crate::db::MessageFull>, String> {
-        let conn_guard = self.conn.lock().await;
-        let conn = conn_guard
-            .as_ref()
-            .ok_or("Database not initialized".to_string())?;
-        db::fetch_message_full(conn, account_id, mailbox, uid).map_err(|e| e.to_string())
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
+        db::fetch_message_full(&*conn, account_id, mailbox, uid).map_err(|e| e.to_string())
     }
 
     /// Fetches EML (or reuses disk cache), parses body + attachments, saves everything.
@@ -99,29 +98,28 @@ impl crate::imap::ImapManager {
         // ── Step 4b: backfill snippet + extract inline images ────────────────
         {
             let security = self.security.lock().await;
-            let conn_guard = self.conn.lock().await;
-            if let Some(conn) = conn_guard.as_ref() {
-                if let Ok(Some(table_id)) = db::get_message_table_id(conn, account_id, mailbox, uid)
-                {
-                    // Write snippet derived from body so MessageList can show it
-                    let snippet = make_snippet(&body_plain, &body_html);
-                    let _ = conn.execute(
-                        "UPDATE messages SET snippet = ? WHERE id = ? AND (snippet IS NULL OR snippet = '')",
-                        rusqlite::params![snippet, table_id],
-                    );
+            let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+            let conn = pool.get().map_err(|e| e.to_string())?;
+            if let Ok(Some(table_id)) = db::get_message_table_id(&*conn, account_id, mailbox, uid)
+            {
+                // Write snippet derived from body so MessageList can show it
+                let snippet = make_snippet(&body_plain, &body_html);
+                let _ = conn.execute(
+                    "UPDATE messages SET snippet = ? WHERE id = ? AND (snippet IS NULL OR snippet = '')",
+                    rusqlite::params![snippet, table_id],
+                );
 
-                    save_attachments_from_eml(
-                        conn, &security, account_id, mailbox, uid, table_id, &raw_eml,
-                    );
-                }
+                save_attachments_from_eml(
+                    &*conn, &security, account_id, mailbox, uid, table_id, &raw_eml,
+                );
             }
         }
 
         // ── Step 5: return full assembled message ──────────────────────────
-        let conn_guard = self.conn.lock().await;
-        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
         let mut msg =
-            db::fetch_message_full(conn, account_id, mailbox, uid).map_err(|e| e.to_string())?;
+            db::fetch_message_full(&*conn, account_id, mailbox, uid).map_err(|e| e.to_string())?;
 
         // Inject body + receipt header from file cache
         if let Some(ref mut m) = msg {

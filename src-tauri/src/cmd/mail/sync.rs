@@ -1,5 +1,5 @@
 use crate::db::SyncStatusEnum;
-use crate::globals::IMAP_MANAGER;
+use crate::globals::{get_db_pool, IMAP_MANAGER};
 use crate::imap::pool::CONNECTION_POOL;
 use crate::imap::sync_status::{
     mark_sync_complete, mark_sync_error, update_sync_status, SYNC_STATUS_MANAGER,
@@ -54,11 +54,9 @@ pub async fn sync_single_mailbox(account_id: String, mailbox: String) -> Result<
     tracing::info!(target: "postail", "[UI] sync_single_mailbox called for {}@{}", mailbox, account_id);
 
     let account_email = {
-        let imap = IMAP_MANAGER.lock().await;
-        let conn_guard = imap.get_conn();
-        let conn_guard = conn_guard.lock().await;
-        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-        crate::db::accounts::get_account_email(conn, &account_id)
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
+        crate::db::accounts::get_account_email(&conn, &account_id)
             .map_err(|e| e.to_string())?
             .unwrap_or_else(|| account_id.clone())
     };
@@ -132,11 +130,11 @@ pub async fn record_mailbox_activity(account_id: String, mailbox: String) -> Res
 
 #[command]
 pub async fn get_inbox_baseline_uids() -> Result<Vec<serde_json::Value>, String> {
-    use crate::globals::DB_CONN;
+    use crate::globals::get_db_pool;
     use serde_json::json;
 
-    let conn_guard = DB_CONN.lock().await;
-    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
 
     let mut stmt = conn
         .prepare(

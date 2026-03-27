@@ -1,6 +1,5 @@
 use crate::db::Contact;
-use crate::globals::{DB_CONN, SECURITY};
-use std::sync::Arc;
+use crate::globals::{get_db_pool, SECURITY};
 use tauri::command;
 
 fn make_snippet(plain: &str, html: &str) -> String {
@@ -63,47 +62,40 @@ pub async fn dev_reset_data(
     clear_settings: bool,
     clear_outbox: bool,
 ) -> Result<Vec<String>, String> {
-    let db_conn = Arc::clone(&DB_CONN);
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
 
-    let mut log: Vec<String> = tokio::task::spawn_blocking(move || {
-        let mut log: Vec<String> = Vec::new();
-        let conn_guard = db_conn.blocking_lock();
-        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+    let mut log: Vec<String> = Vec::new();
 
-        if clear_messages {
-            conn.execute_batch("DELETE FROM messages; DELETE FROM attachments;")
-                .map_err(|e| e.to_string())?;
-            log.push("Cleared messages + attachments table".into());
-        }
+    if clear_messages {
+        conn.execute_batch("DELETE FROM messages; DELETE FROM attachments;")
+            .map_err(|e| e.to_string())?;
+        log.push("Cleared messages + attachments table".into());
+    }
 
-        if clear_attachments && !clear_messages {
-            conn.execute("DELETE FROM attachments", [])
-                .map_err(|e| e.to_string())?;
-            log.push("Cleared attachments table".into());
-        }
+    if clear_attachments && !clear_messages {
+        conn.execute("DELETE FROM attachments", [])
+            .map_err(|e| e.to_string())?;
+        log.push("Cleared attachments table".into());
+    }
 
-        if clear_contacts {
-            conn.execute("DELETE FROM contacts", [])
-                .map_err(|e| e.to_string())?;
-            log.push("Cleared contacts table".into());
-        }
+    if clear_contacts {
+        conn.execute("DELETE FROM contacts", [])
+            .map_err(|e| e.to_string())?;
+        log.push("Cleared contacts table".into());
+    }
 
-        if clear_settings {
-            conn.execute("DELETE FROM settings", [])
-                .map_err(|e| e.to_string())?;
-            log.push("Cleared settings table".into());
-        }
+    if clear_settings {
+        conn.execute("DELETE FROM settings", [])
+            .map_err(|e| e.to_string())?;
+        log.push("Cleared settings table".into());
+    }
 
-        if clear_outbox {
-            conn.execute("DELETE FROM outbox", [])
-                .map_err(|e| e.to_string())?;
-            log.push("Cleared outbox table".into());
-        }
-
-        Ok::<Vec<String>, String>(log)
-    })
-    .await
-    .map_err(|e| e.to_string())??;
+    if clear_outbox {
+        conn.execute("DELETE FROM outbox", [])
+            .map_err(|e| e.to_string())?;
+        log.push("Cleared outbox table".into());
+    }
 
     // File cache ops outside spawn_blocking (they're sync fs but quick)
     let cache_dir = crate::db::eml_cache::get_eml_cache_dir();
@@ -163,62 +155,43 @@ pub async fn dev_reset_data(
 
 #[command]
 pub async fn export_backup(passphrase: Option<String>) -> Result<String, String> {
-    let db_conn = Arc::clone(&DB_CONN);
-    let security = Arc::clone(&SECURITY);
-    let passphrase_clone = passphrase;
-    tokio::task::spawn_blocking(move || {
-        let conn_guard = db_conn.blocking_lock();
-        let conn = conn_guard.as_ref().expect("Database not initialized");
-        let sec = security.blocking_lock();
-        crate::db::export_backup(conn, &sec, passphrase_clone)
-            .map(|p| p.to_string_lossy().to_string())
-            .map_err(|e| e.to_string())
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+    let security = SECURITY.lock().await;
+    crate::db::export_backup(&conn, &security, passphrase)
+        .map(|p| p.to_string_lossy().to_string())
+        .map_err(|e| e.to_string())
 }
 
 #[command]
 pub async fn import_backup(backup_path: String, passphrase: Option<String>) -> Result<(), String> {
-    let db_conn = Arc::clone(&DB_CONN);
-    let security = Arc::clone(&SECURITY);
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+    let security = SECURITY.lock().await;
     let path = std::path::PathBuf::from(backup_path);
-    let passphrase_clone = passphrase;
-    tokio::task::spawn_blocking(move || {
-        let conn_guard = db_conn.blocking_lock();
-        let conn = conn_guard.as_ref().expect("Database not initialized");
-        let sec = security.blocking_lock();
-        crate::db::import_backup(conn, &sec, &path, passphrase_clone).map_err(|e| e.to_string())
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    crate::db::import_backup(&conn, &security, &path, passphrase).map_err(|e| e.to_string())
 }
 
 #[command]
 pub async fn run_maintenance() -> Result<(), String> {
-    let db_conn = Arc::clone(&DB_CONN);
-    tokio::task::spawn_blocking(move || {
-        let conn_guard = db_conn.blocking_lock();
-        let conn = conn_guard.as_ref().expect("Database not initialized");
-        crate::db::run_maintenance(conn).map_err(|e| e.to_string())
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+    crate::db::run_maintenance(&conn).map_err(|e| e.to_string())
 }
 
 #[command]
 pub async fn search_contacts(query: String, limit: u32) -> Result<Vec<Contact>, String> {
-    let conn_guard = DB_CONN.lock().await;
-    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-    crate::db::search_contacts(conn, &query, limit).map_err(|e| e.to_string())
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+    crate::db::search_contacts(&conn, &query, limit).map_err(|e| e.to_string())
 }
 
 #[command]
 pub async fn backfill_snippets(account_id: String, mailbox: String) -> Result<u32, String> {
     // Find messages with no snippet but a body cache file on disk
     let rows: Vec<(i64, u32)> = {
-        let conn_guard = DB_CONN.lock().await;
-        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, uid FROM messages
@@ -254,8 +227,8 @@ pub async fn backfill_snippets(account_id: String, mailbox: String) -> Result<u3
             continue;
         }
 
-        let conn_guard = DB_CONN.lock().await;
-        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
         let rows_changed = conn
             .execute(
                 "UPDATE messages SET snippet = ? WHERE id = ? AND (snippet IS NULL OR snippet = '')",

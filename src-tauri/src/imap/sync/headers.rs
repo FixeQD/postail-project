@@ -2,6 +2,7 @@ use chrono::{TimeZone, Utc};
 use futures::StreamExt;
 
 use crate::db::{MailHeader, MessageBatchItem, DEFAULT_BATCH_SIZE};
+use crate::globals::get_db_pool;
 
 fn flag_to_string(flag: &async_imap::types::Flag) -> String {
     match flag {
@@ -189,11 +190,9 @@ impl crate::imap::ImapManager {
         anchor: Option<u32>,
         limit: u32,
     ) -> Result<Vec<MailHeader>, String> {
-        let conn_guard = self.conn.lock().await;
-        let conn = conn_guard
-            .as_ref()
-            .ok_or("Database not initialized".to_string())?;
-        crate::db::fetch_headers(conn, account_id, mailbox, anchor, limit)
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
+        crate::db::fetch_headers(&*conn, account_id, mailbox, anchor, limit)
             .map_err(|e| e.to_string())
     }
 
@@ -298,10 +297,10 @@ impl crate::imap::ImapManager {
                 headers.push(header);
 
                 if batch_items.len() >= DEFAULT_BATCH_SIZE {
-                    let mut conn_guard = self.conn.lock().await;
-                    let conn = conn_guard.as_mut().ok_or("Database not initialized")?;
+                    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+                    let mut conn = pool.get().map_err(|e| e.to_string())?;
                     crate::db::batch_insert_messages(
-                        conn,
+                        &mut *conn,
                         account_id,
                         mailbox,
                         &batch_items,
@@ -318,10 +317,10 @@ impl crate::imap::ImapManager {
         }
 
         if !batch_items.is_empty() {
-            let mut conn_guard = self.conn.lock().await;
-            let conn = conn_guard.as_mut().ok_or("Database not initialized")?;
+            let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+            let mut conn = pool.get().map_err(|e| e.to_string())?;
             crate::db::batch_insert_messages(
-                conn,
+                &mut *conn,
                 account_id,
                 mailbox,
                 &batch_items,
@@ -337,7 +336,6 @@ impl crate::imap::ImapManager {
             &mut headers,
             account_id,
             mailbox,
-            &self.conn,
         )
         .await;
 
@@ -353,9 +351,9 @@ impl crate::imap::ImapManager {
         limit: u32,
     ) -> Result<Vec<MailHeader>, String> {
         let mut headers = {
-            let conn_guard = self.conn.lock().await;
-            let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
-            crate::db::fetch_headers(conn, account_id, mailbox, anchor, limit)
+            let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+            let conn = pool.get().map_err(|e| e.to_string())?;
+            crate::db::fetch_headers(&*conn, account_id, mailbox, anchor, limit)
                 .map_err(|e| e.to_string())?
         };
 
@@ -446,7 +444,6 @@ impl crate::imap::ImapManager {
                             &mut headers,
                             account_id,
                             mailbox,
-                            &self.conn,
                         )
                         .await;
                     }
@@ -600,10 +597,10 @@ impl crate::imap::ImapManager {
         }
 
         if !batch_items.is_empty() {
-            let mut conn_guard = self.conn.lock().await;
-            let conn = conn_guard.as_mut().ok_or("Database not initialized")?;
+            let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+            let mut conn = pool.get().map_err(|e| e.to_string())?;
             crate::db::batch_insert_messages(
-                conn,
+                &mut *conn,
                 account_id,
                 mailbox,
                 &batch_items,
@@ -619,7 +616,6 @@ impl crate::imap::ImapManager {
             &mut headers,
             account_id,
             mailbox,
-            &self.conn,
         )
         .await;
 
@@ -636,13 +632,28 @@ async fn fetch_snippets_pass2(
     headers: &mut Vec<MailHeader>,
     account_id: &str,
     mailbox: &str,
-    conn: &tokio::sync::Mutex<Option<rusqlite::Connection>>,
 ) {
     use std::collections::HashMap;
 
     if targets.is_empty() {
         return;
     }
+
+    let pool = match get_db_pool().await {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::warn!(target: "postail", "[Snippet] Failed to get DB pool: {}", e);
+            return;
+        }
+    };
+
+    let conn = match pool.get() {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!(target: "postail", "[Snippet] Failed to get DB connection: {}", e);
+            return;
+        }
+    };
 
     // Group targets by section string so one uid_fetch covers all messages
     let mut by_section: HashMap<&str, Vec<&SnippetTarget>> = HashMap::new();
@@ -692,15 +703,12 @@ async fn fetch_snippets_pass2(
                 if let Some(h) = headers.iter_mut().find(|h| h.uid == uid) {
                     h.snippet = Some(s.clone());
                 }
-                let conn_guard = conn.lock().await;
-                if let Some(conn) = conn_guard.as_ref() {
-                    let _ = conn.execute(
-                        "UPDATE messages SET snippet = ? \
-                         WHERE account_id = ? AND mailbox = ? AND uid = ? \
-                         AND (snippet IS NULL OR snippet = '')",
-                        rusqlite::params![s, account_id, mailbox, uid],
-                    );
-                }
+                let _ = conn.execute(
+                    "UPDATE messages SET snippet = ? \
+                     WHERE account_id = ? AND mailbox = ? AND uid = ? \
+                     AND (snippet IS NULL OR snippet = '')",
+                    rusqlite::params![s, account_id, mailbox, uid],
+                );
             }
         }
     }

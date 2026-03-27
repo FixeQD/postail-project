@@ -1,5 +1,5 @@
 use crate::db::{AttachmentMeta, MailHeader, Mailbox, MessageFull};
-use crate::globals::{DB_CONN, IMAP_MANAGER};
+use crate::globals::{get_db_pool, IMAP_MANAGER};
 use crate::oauth;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
@@ -54,8 +54,8 @@ pub async fn fetch_mailboxes(account_id: String) -> Result<Vec<Mailbox>, String>
     let mut mailboxes = imap.fetch_mailboxes_sync(&account_id).await?;
 
     let provider_kind = {
-        let conn_guard = DB_CONN.lock().await;
-        if let Some(conn) = conn_guard.as_ref() {
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        if let Ok(conn) = pool.get() {
             let mut stmt = conn
                 .prepare("SELECT provider_type, imap_host FROM accounts WHERE id = ?")
                 .map_err(|e| e.to_string())?;
@@ -154,8 +154,8 @@ pub async fn update_mailbox_role(
         return Err(format!("Invalid role: {}", role));
     }
 
-    let conn_guard = DB_CONN.lock().await;
-    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
 
     conn.execute(
         "UPDATE mailboxes SET role = ?, role_customized = 1 WHERE account_id = ? AND name = ?",
@@ -214,9 +214,9 @@ pub async fn fetch_message_full(
 
     if body_on_disk {
         // Load header from DB (tiny read, no large blobs)
-        let conn_guard = crate::globals::DB_CONN.lock().await;
-        if let Some(conn) = conn_guard.as_ref() {
-            let mut msg = crate::db::fetch_message_full(conn, &account_id, &mailbox, uid_u32)
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        if let Ok(conn) = pool.get() {
+            let mut msg = crate::db::fetch_message_full(&conn, &account_id, &mailbox, uid_u32)
                 .map_err(|e| e.to_string())?;
 
             if let Some(ref mut m) = msg {
@@ -329,8 +329,8 @@ pub async fn fetch_thread(
 
     // Collect UIDs first without holding guard
     let thread_uids: Vec<u32> = {
-        let conn_guard = DB_CONN.lock().await;
-        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
 
         // Get current message's message_id
         let current_message_id: Option<String> = conn
@@ -389,11 +389,11 @@ pub async fn fetch_thread(
     let mut thread_messages = vec![];
 
     for thread_uid in thread_uids {
-        let conn_guard = DB_CONN.lock().await;
-        let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
 
         // Fetch full message
-        let msg = crate::db::fetch_message_full(conn, &account_id, &mailbox, thread_uid)
+        let msg = crate::db::fetch_message_full(&conn, &account_id, &mailbox, thread_uid)
             .map_err(|e| e.to_string())?;
 
         if let Some(mut msg) = msg {
@@ -438,12 +438,12 @@ pub async fn save_attachment(
     uid: u64,
     part_id: String,
 ) -> Result<AttachmentMeta, String> {
-    use crate::globals::DB_CONN;
+    use crate::globals::get_db_pool;
 
     let uid_u32: u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
 
-    let conn_guard = DB_CONN.lock().await;
-    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
 
     let row = conn
         .query_row(
