@@ -37,6 +37,7 @@ export default defineConfig(
 		build: {
 			minify: 'esbuild',
 			chunkSizeWarningLimit: 4000,
+			modulePreload: { polyfill: false },
 			rollupOptions: {
 				treeshake: {
 					moduleSideEffects: false,
@@ -44,15 +45,28 @@ export default defineConfig(
 					tryCatchDeoptimization: false,
 				},
 				output: {
-					manualChunks: {
-						monaco: [
-							'monaco-editor/esm/vs/editor/editor.api',
-							'monaco-editor/esm/vs/language/html/monaco.contribution',
-							'monaco-editor/esm/vs/language/css/monaco.contribution',
-						],
-						lexical: ['lexical', '@lexical/html'],
-						icons: ['lucide-react'],
-						vendor: ['react', 'react-dom', 'framer-motion'],
+					manualChunks: (id) => {
+						if (id.includes('monaco-editor') || id.includes('@monaco-editor')) {
+							return 'monaco'
+						}
+						if (id.includes('/lexical/') || id.includes('@lexical/')) {
+							return 'lexical'
+						}
+						if (id.includes('js-beautify')) {
+							return 'beautify'
+						}
+						if (id.includes('lucide-react')) {
+							return 'icons'
+						}
+						if (
+							id.includes('node_modules/react/') ||
+							id.includes('node_modules/react-dom/')
+						) {
+							return 'react'
+						}
+						if (id.includes('framer-motion') || id.includes('/motion/')) {
+							return 'motion'
+						}
 					},
 				},
 			},

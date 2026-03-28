@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { invoke } from '@tauri-apps/api/core'
-import { html_beautify } from 'js-beautify'
 import { parseAddress, parseAddresses } from '@/lib/parseAddress'
 import i18n from '@/i18n'
 import { useAccountStore } from '@/stores/accountStore'
@@ -12,19 +11,6 @@ import type {
 	SanitizeIssue,
 } from '@/types/compose'
 import type { DraftFromRust } from '@/types/stores'
-
-const formatOptions: import('js-beautify').HTMLBeautifyOptions = {
-	indent_size: 1,
-	indent_char: '\t',
-	max_preserve_newlines: 1,
-	preserve_newlines: true,
-	wrap_line_length: 0,
-	wrap_attributes: 'auto',
-	wrap_attributes_indent_size: 1,
-	end_with_newline: false,
-	indent_inner_html: true,
-	extra_liners: [],
-}
 
 let validationTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -721,6 +707,19 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		try {
 			const fixedHtml = await invoke<string>('auto_fix_email_html', { html })
 
+			const { html_beautify } = await import('js-beautify')
+			const formatOptions: import('js-beautify').HTMLBeautifyOptions = {
+				indent_size: 1,
+				indent_char: '\t',
+				max_preserve_newlines: 1,
+				preserve_newlines: true,
+				wrap_line_length: 0,
+				wrap_attributes: 'auto',
+				wrap_attributes_indent_size: 1,
+				end_with_newline: false,
+				indent_inner_html: true,
+				extra_liners: [],
+			}
 			const formattedHtml = html_beautify(fixedHtml, formatOptions)
 
 			// Update draft body with fixed HTML

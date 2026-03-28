@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TitleBar } from './components/TitleBar'
 import { WelcomeScreen } from './components/Welcome/WelcomeScreen'
@@ -9,8 +9,6 @@ import { Argon2Setup } from './components/Welcome/encryption/Argon2Setup'
 import { Argon2Unlock } from './components/Welcome/encryption/Argon2Unlock'
 import { RecoveryStep } from './components/Welcome/recovery/RecoveryStep'
 import { TPMUnlockFailed } from './components/Welcome/tpm/TPMUnlockFailed'
-import { SettingsScreen } from './components/Settings/SettingsScreen'
-import { InboxScreen } from './components/Inbox/InboxScreen'
 import { OutboxPanel } from './components/Outbox/OutboxPanel'
 import { StatusBar } from './components/StatusBar'
 import { LockScreen } from './components/LockScreen'
@@ -27,6 +25,13 @@ import { useAccountStore } from '@/stores/accountStore'
 import { MailboxRoleDialog } from './components/Settings/Sections/Account/MailboxRoleDialog'
 import icon from './assets/icon.png'
 import './i18n'
+
+const InboxScreen = lazy(() =>
+	import('./components/Inbox/InboxScreen').then((m) => ({ default: m.InboxScreen }))
+)
+const SettingsScreen = lazy(() =>
+	import('./components/Settings/SettingsScreen').then((m) => ({ default: m.SettingsScreen }))
+)
 
 function App() {
 	const loadSettings = useSettingsStore((s) => s.loadSettings)
@@ -95,6 +100,14 @@ function App() {
 	useEffect(() => {
 		document.documentElement.setAttribute('data-animations', animationsEnabled ? 'on' : 'off')
 	}, [animationsEnabled])
+
+	useEffect(() => {
+		const preloadable = ['dashboard', 'accounts', 'settings']
+		if (preloadable.includes(currentState)) {
+			import('./components/Inbox/InboxScreen')
+			import('./components/Settings/SettingsScreen')
+		}
+	}, [currentState])
 
 	const [outboxOpen, setOutboxOpen] = useState(false)
 
@@ -255,22 +268,26 @@ function App() {
 			case 'accounts':
 			case 'settings':
 				return (
-					<SettingsScreen
-						onBack={() => setCurrentState('dashboard')}
-						canGoBack={currentState === 'settings'}
-						showSidebar={currentState === 'settings'}
-						onAccountAdded={
-							currentState === 'accounts' ? handleAccountAdded : undefined
-						}
-						onReencrypt={() => {
-							handleRecoveryPhraseVerified()
-						}}
-					/>
+					<Suspense fallback={null}>
+						<SettingsScreen
+							onBack={() => setCurrentState('dashboard')}
+							canGoBack={currentState === 'settings'}
+							showSidebar={currentState === 'settings'}
+							onAccountAdded={
+								currentState === 'accounts' ? handleAccountAdded : undefined
+							}
+							onReencrypt={() => {
+								handleRecoveryPhraseVerified()
+							}}
+						/>
+					</Suspense>
 				)
 			case 'dashboard':
 				return (
 					<>
-						<InboxScreen onOpenSettings={() => setCurrentState('settings')} />
+						<Suspense fallback={null}>
+							<InboxScreen onOpenSettings={() => setCurrentState('settings')} />
+						</Suspense>
 						{outboxOpen && activeAccount && (
 							<OutboxPanel
 								accountId={activeAccount.id}
