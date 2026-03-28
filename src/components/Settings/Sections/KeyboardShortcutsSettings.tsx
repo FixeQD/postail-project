@@ -279,7 +279,6 @@ function ScopeSection({
 	onReset: (scopedKey: string) => void
 }) {
 	const [open, setOpen] = useState(defaultOpen)
-	const animationsEnabled = useAnimationsEnabled()
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const meta = SCOPE_META[scope]
 	const Icon = meta.icon
@@ -380,7 +379,6 @@ const itemVariants: Variants = {
 
 export function KeyboardShortcutsSettings() {
 	const animationsEnabled = useAnimationsEnabled()
-	const accentColor = useThemeStore((s) => s.accentColor)
 	const [overrides, setOverrides] = useState<Record<string, string>>(() =>
 		loadShortcutOverrides()
 	)
