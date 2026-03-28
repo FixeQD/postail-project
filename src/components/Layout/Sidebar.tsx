@@ -103,18 +103,8 @@ const MailboxItem = memo(
 				style={isActive ? { color: accentColor } : undefined}>
 				{/* Active background */}
 				{isActive && (
-					<motion.div
-						{...(animationsEnabled
-							? {
-									layoutId: 'sidebar-active-bg',
-									transition: {
-										type: 'spring',
-										stiffness: 350,
-										damping: 30,
-									},
-								}
-							: {})}
-						className='absolute inset-0 rounded-xl'
+					<div
+						className='absolute inset-0 rounded-xl transition-all duration-200 ease-out'
 						style={{
 							backgroundColor: `rgba(var(--accent-rgb), 0.15)`,
 							boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.2), 0 2px 8px -2px rgba(var(--accent-rgb), 0.1)`,
@@ -132,7 +122,7 @@ const MailboxItem = memo(
 									exit: { scaleY: 0, opacity: 0 },
 									transition: {
 										type: 'spring',
-										stiffness: 400,
+										stiffness: 200,
 										damping: 25,
 									},
 								}
@@ -277,19 +267,7 @@ export const Sidebar = ({
 								<div
 									key={i}
 									className='relative h-10 overflow-hidden rounded-xl bg-[var(--surface-active)]'>
-									<motion.div
-										className='absolute inset-0'
-										style={{
-											background: `linear-gradient(90deg, transparent, ${accentColor}15, transparent)`,
-										}}
-										animate={{ x: ['-100%', '100%'] }}
-										transition={{
-											duration: 1.5,
-											repeat: Infinity,
-											ease: 'easeInOut',
-											delay: i * 0.1,
-										}}
-									/>
+									<div className='skeleton-shimmer' />
 								</div>
 							))}
 						</div>

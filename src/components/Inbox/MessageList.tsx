@@ -78,18 +78,18 @@ const DateOrActions = memo(
 				{isHovered ? (
 					<motion.div
 						key='actions'
-						initial={{ opacity: 0, x: 8, filter: 'blur(2px)' }}
-						animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
-						exit={{ opacity: 0, x: 8, filter: 'blur(2px)' }}
+						initial={{ opacity: 0, x: 8 }}
+						animate={{ opacity: 1, x: 0 }}
+						exit={{ opacity: 0, x: 8 }}
 						transition={{ duration: 0.15, ease: 'easeOut' }}>
 						{actions}
 					</motion.div>
 				) : (
 					<motion.span
 						key='date'
-						initial={{ opacity: 0, x: -8, filter: 'blur(2px)' }}
-						animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
-						exit={{ opacity: 0, x: -8, filter: 'blur(2px)' }}
+						initial={{ opacity: 0, x: -8 }}
+						animate={{ opacity: 1, x: 0 }}
+						exit={{ opacity: 0, x: -8 }}
 						transition={{ duration: 0.15, ease: 'easeOut' }}
 						className={dateClass}>
 						{formattedDate}
@@ -147,9 +147,8 @@ const MessageRow = memo(
 		const focusedStyle = isFocused ? { backgroundColor: `${accentColor}10` } : {}
 
 		const activeIndicator = isFocused && (
-			<motion.div
-				layoutId='focused-row-indicator'
-				className='absolute top-0 bottom-0 left-0 w-[3px]'
+			<div
+				className='absolute top-0 bottom-0 left-0 w-[3px] transition-all duration-150'
 				style={{
 					backgroundColor: accentColor,
 					boxShadow: `1px 0 8px ${accentColor}80`,
@@ -203,16 +202,8 @@ const MessageRow = memo(
 							onMessageClick(message.uid)
 						}
 					}}
-					className={`${rowBase} items-center px-4 py-3`}
-					style={{ borderColor: 'var(--border-faint)', ...focusedStyle }}
-					whileHover={
-						animationsEnabled
-							? {
-									scale: 1.01,
-									transition: { type: 'spring', damping: 20, stiffness: 300 },
-								}
-							: {}
-					}>
+					className={`${rowBase} items-center px-4 py-3 hover:scale-[1.01] transition-transform duration-150`}
+					style={{ borderColor: 'var(--border-faint)', ...focusedStyle }}>
 					{activeIndicator}
 					{checkboxStar}
 
@@ -260,16 +251,8 @@ const MessageRow = memo(
 						onMessageClick(message.uid)
 					}
 				}}
-				className={`${rowBase} items-start px-4 py-3`}
-				style={{ borderColor: 'var(--border-faint)', ...focusedStyle }}
-				whileHover={
-					animationsEnabled
-						? {
-								scale: 1.005,
-								transition: { type: 'spring', damping: 20, stiffness: 300 },
-							}
-						: {}
-				}>
+				className={`${rowBase} items-start px-4 py-3 hover:scale-[1.005] transition-transform duration-150`}
+				style={{ borderColor: 'var(--border-faint)', ...focusedStyle }}>
 				{activeIndicator}
 				{checkboxStar}
 
@@ -687,19 +670,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 						className={`relative flex shrink-0 border-b border-[var(--border-faint)] bg-transparent px-4 py-3 ${
 							previewLines === 1 ? 'items-center' : 'items-start'
 						}`}>
-						<motion.div
-							className='absolute inset-0'
-							style={{
-								background: `linear-gradient(90deg, transparent, ${accentColor}08, transparent)`,
-							}}
-							animate={{ x: ['-100%', '100%'] }}
-							transition={{
-								duration: 1.5,
-								repeat: Infinity,
-								ease: 'easeInOut',
-								delay: i * 0.05,
-							}}
-						/>
+						<div className='skeleton-shimmer' />
 						<div className='flex shrink-0 items-center gap-2.5 pr-3'>
 							<div className='h-[15px] w-[15px] rounded bg-[var(--surface-active)]' />
 							<div className='h-4 w-4 rounded bg-[var(--surface-active)]' />

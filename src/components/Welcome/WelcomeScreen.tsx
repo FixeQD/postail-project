@@ -1,5 +1,5 @@
-import { motion } from 'framer-motion'
 import { useWelcomeTranslation } from '@/hooks/useTypedTranslation'
+import { motion } from 'framer-motion'
 import icon from '@/assets/icon.png'
 
 export const WelcomeScreen = ({
@@ -12,126 +12,70 @@ export const WelcomeScreen = ({
 	const { t } = useWelcomeTranslation()
 
 	return (
-		<div className='ambient-glow noise-overlay relative flex h-full flex-col items-center justify-center overflow-hidden p-8 text-center'>
-			{/* Background accent orbs */}
-			<div
-				className='pointer-events-none absolute top-1/4 left-1/4 h-[500px] w-[500px] rounded-full'
+		<div className="relative flex min-h-full flex-col items-center justify-center p-6 bg-[var(--app-bg)] overflow-hidden">
+			{/* Subtle background glow - simple CSS gradient, no blur */}
+			<div 
+				className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] pointer-events-none opacity-30"
 				style={{
-					background: `radial-gradient(circle, rgba(var(--accent-rgb), 0.05) 0%, transparent 70%)`,
-				}}
-			/>
-			<div
-				className='pointer-events-none absolute right-1/4 bottom-1/4 h-[400px] w-[400px] rounded-full'
-				style={{
-					background: `radial-gradient(circle, rgba(var(--accent-rgb), 0.03) 0%, transparent 70%)`,
+					background: 'radial-gradient(ellipse at center, rgba(var(--accent-rgb), 0.12) 0%, transparent 60%)',
 				}}
 			/>
 
-			{/* Main Glass Card */}
+			{/* Soft grid background */}
+			<div 
+				className="absolute inset-0 pointer-events-none opacity-[0.15]"
+				style={{
+					backgroundImage: 'radial-gradient(circle, var(--border-subtle) 1px, transparent 1px)',
+					backgroundSize: '32px 32px',
+					maskImage: 'radial-gradient(ellipse 60% 60% at 50% 50%, black 20%, transparent 100%)',
+					WebkitMaskImage: 'radial-gradient(ellipse 60% 60% at 50% 50%, black 20%, transparent 100%)',
+				}}
+			/>
+
 			<motion.div
-				initial={{ opacity: 0, y: 24, scale: 0.96 }}
-				animate={{ opacity: 1, y: 0, scale: 1 }}
-				transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-				className='relative z-10 flex flex-col items-center rounded-[2.5rem] border border-[var(--border-subtle)] p-12 shadow-2xl backdrop-blur-[40px]'
-				style={{
-					willChange: 'transform, opacity',
-					backgroundColor: `var(--surface-glass)`,
-					backgroundImage: `linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 100%)`,
-					boxShadow:
-						'0 32px 80px -16px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.12), inset 0 -1px 1px rgba(0,0,0,0.1)',
-				}}>
-				{/* Logo */}
-				<motion.div
-					initial={{ opacity: 0, scale: 0.8 }}
-					animate={{ opacity: 1, scale: 1 }}
-					transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-					style={{ willChange: 'transform, opacity' }}
-					className='relative z-10 mb-8'>
-					<div className='animate-subtle-float'>
-						<div className='relative flex h-24 w-24 items-center justify-center rounded-3xl bg-[var(--surface-panel)] shadow-xl ring-1 ring-[var(--border-subtle)]'>
-							<img src={icon} alt='Postail' className='h-16 w-16' />
-							{/* Glow behind logo*/}
-							<div
-								className='animate-glow-breathe absolute -inset-3 -z-10 rounded-3xl'
-								style={{
-									boxShadow: `0 0 32px 8px rgba(var(--accent-rgb), 0.15)`,
-								}}
-							/>
-						</div>
-					</div>
-				</motion.div>
+				initial={{ opacity: 0, y: 16 }}
+				animate={{ opacity: 1, y: 0 }}
+				transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+				className="relative z-10 flex w-full max-w-[420px] flex-col items-center text-center"
+			>
+				{/* Large, elegant app icon */}
+				<div className="mb-8 flex h-28 w-28 items-center justify-center rounded-[2rem] bg-[var(--surface-panel)] border border-[var(--border-subtle)] shadow-2xl relative">
+					<div className="absolute inset-0 rounded-[2rem] border border-white/10 dark:border-white/5" />
+					<img src={icon} alt="Postail" className="h-16 w-16 drop-shadow-lg" />
+				</div>
 
-				{/* Title */}
-				<motion.h1
-					initial={{ opacity: 0, y: 16 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-					style={{ willChange: 'transform, opacity' }}
-					className='gradient-text relative z-10 mb-3 text-5xl font-bold tracking-tight'>
+				{/* Clean typography */}
+				<h1 className="mb-3 text-[2.5rem] font-bold tracking-tight text-[var(--text-primary)] leading-none">
 					{t('welcome:title')}
-				</motion.h1>
+				</h1>
 
-				{/* Subtitle */}
-				<motion.p
-					initial={{ opacity: 0, y: 12 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ duration: 0.5, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-					style={{ willChange: 'transform, opacity' }}
-					className='text-muted-foreground relative z-10 text-lg'>
+				<p className="mb-10 text-[1.05rem] leading-relaxed text-[var(--text-secondary)]">
 					{t('welcome:subtitle')}
-				</motion.p>
+				</p>
 
-				{/* Description */}
-				<motion.div
-					initial={{ opacity: 0, y: 12 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ duration: 0.5, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-					className='relative z-10 mt-4 mb-10 max-w-md'>
-					<p className='text-muted-foreground/70 leading-relaxed'>
-						{t('welcome:description')}
-					</p>
-				</motion.div>
+				{/* Simple, prominent actions */}
+				<div className="flex w-full flex-col gap-3 px-2">
+					<button
+						type="button"
+						onClick={onGetStarted}
+						className="group relative flex w-full items-center justify-center rounded-xl px-6 py-4 text-[0.95rem] font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--accent-color)] focus:ring-offset-[var(--app-bg)]"
+						style={{
+							background: 'linear-gradient(180deg, var(--accent-light) 0%, var(--accent-color) 100%)',
+							boxShadow: '0 8px 24px -8px rgba(var(--accent-rgb), 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.25)'
+						}}
+					>
+						{t('welcome:getStarted')}
+					</button>
 
-				{/* CTA Button */}
-				<motion.button
-					type='button'
-					onClick={onGetStarted}
-					initial={{ opacity: 0, y: 16, scale: 0.95 }}
-					animate={{ opacity: 1, y: 0, scale: 1 }}
-					transition={{ duration: 0.5, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
-					whileHover={{ scale: 1.05, y: -2 }}
-					whileTap={{ scale: 0.95 }}
-					className='text-accent-contrast relative z-10 rounded-2xl px-12 py-4 text-sm font-semibold shadow-xl transition-all focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--app-bg)] focus:outline-none'
-					style={{
-						background: `linear-gradient(135deg, var(--accent-dark), var(--accent-color))`,
-						boxShadow: `0 12px 32px -8px rgba(var(--accent-rgb), 0.4)`,
-					}}
-					title={t('welcome:getStarted')}>
-					{t('welcome:getStarted')}
-				</motion.button>
-
-				{/* Existing data link */}
-				<motion.button
-					type='button'
-					onClick={onExistingData}
-					initial={{ opacity: 0 }}
-					animate={{ opacity: 1 }}
-					transition={{ duration: 0.4, delay: 0.65, ease: 'easeOut' }}
-					className='text-tertiary hover:text-muted-foreground relative z-10 mt-6 text-sm transition-colors focus:outline-none'>
-					{t('welcome:existingData')}
-				</motion.button>
+					<button
+						type="button"
+						onClick={onExistingData}
+						className="rounded-xl px-6 py-3.5 text-[0.9rem] font-medium text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-subtle)]"
+					>
+						{t('welcome:existingData')}
+					</button>
+				</div>
 			</motion.div>
-
-			{/* Decorative bottom gradient line */}
-			<motion.div
-				initial={{ scaleX: 0, opacity: 0 }}
-				animate={{ scaleX: 1, opacity: 1 }}
-				transition={{ duration: 0.8, delay: 0.7, ease: [0.16, 1, 0.3, 1] }}
-				className='absolute bottom-0 left-0 h-px w-full origin-center'
-				style={{
-					background: `linear-gradient(to right, transparent, rgba(var(--accent-rgb), 0.2), transparent)`,
-				}}
-			/>
 		</div>
 	)
 }

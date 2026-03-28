@@ -91,7 +91,7 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 				<motion.div
 					initial={{ scale: 0 }}
 					animate={{ scale: 1 }}
-					transition={{ type: 'spring', stiffness: 500, damping: 20 }}>
+					transition={{ type: 'spring', stiffness: 200, damping: 20 }}>
 					<CheckCircle className='h-3 w-3 text-green-400' />
 				</motion.div>
 			)
@@ -243,11 +243,11 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 							className='text-muted-foreground hover:text-foreground relative z-10 h-5 gap-1.5 px-2 text-xs transition-colors hover:bg-[var(--surface-hover)]'>
 							{getGlobalSyncIcon()}
 							<span>{getGlobalSyncText()}</span>
-							<motion.div
-								animate={{ rotate: isSyncMenuOpen ? 180 : 0 }}
-								transition={{ duration: 0.2, ease: 'easeOut' }}>
+							<div
+								className='transition-transform duration-200 ease-out'
+								style={{ transform: `rotate(${isSyncMenuOpen ? 180 : 0}deg)` }}>
 								<ChevronUp className='h-3 w-3' />
-							</motion.div>
+							</div>
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent

@@ -52,10 +52,10 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 		<div className='noise-overlay relative flex h-full flex-col'>
 			{/* Header */}
 			<motion.div
-				initial={{ opacity: 0, y: -20, filter: 'blur(8px)' }}
-				animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+				initial={{ opacity: 0, y: -20 }}
+				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-				className='relative border-b border-black/5 bg-white/10 px-4 py-6 shadow-sm backdrop-blur-[32px] dark:border-white/5 dark:bg-black/20'>
+				className='glass relative border-b border-black/5 bg-white/10 px-4 py-6 shadow-sm dark:border-white/5 dark:bg-black/20'>
 				<div className='pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[var(--accent-color)] to-transparent opacity-20' />
 
 				<div className='container mx-auto'>
@@ -95,8 +95,8 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 				<div className='mx-auto max-w-2xl space-y-10'>
 					{/* Accent color section */}
 					<motion.section
-						initial={{ opacity: 0, y: 24, filter: 'blur(4px)' }}
-						animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+						initial={{ opacity: 0, y: 24 }}
+						animate={{ opacity: 1, y: 0 }}
 						transition={{ delay: 0.1, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}>
 						<h2 className='text-muted-foreground mb-1 text-sm font-bold tracking-widest uppercase'>
 							{t('welcome:customize.accentColor')}
@@ -208,7 +208,7 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 									transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
 									className='overflow-hidden'>
 									<div
-										className='flex items-start gap-6 rounded-2xl border bg-[var(--surface-panel)] p-5 shadow-inner backdrop-blur-md'
+										className='glass flex items-start gap-6 rounded-2xl border bg-[var(--surface-panel)] p-5 shadow-inner'
 										style={{ borderColor: 'var(--border-subtle)' }}>
 										<ColorPicker
 											color={customColor}
@@ -568,7 +568,7 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 				initial={{ opacity: 0, y: 16 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ delay: 0.5, duration: 0.4 }}
-				className='relative border-t border-black/5 bg-white/10 px-4 py-5 backdrop-blur-[32px] dark:border-white/5 dark:bg-black/20'>
+				className='glass relative border-t border-black/5 bg-white/10 px-4 py-5 dark:border-white/5 dark:bg-black/20'>
 				<div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-black/[0.05] to-transparent dark:via-white/[0.06]' />
 				<div className='container mx-auto flex justify-end'>
 					<motion.button

@@ -141,7 +141,7 @@ export function AppearanceSettings() {
 															exit={{ scale: 0 }}
 															transition={{
 																type: 'spring',
-																stiffness: 500,
+																stiffness: 200,
 																damping: 25,
 															}}>
 															<Check className='text-accent-contrast h-4 w-4 drop-shadow-md' />

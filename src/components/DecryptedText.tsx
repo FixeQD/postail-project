@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { motion } from 'motion/react'
+import { useAnimationsEnabled } from '@/hooks/useMotion'
 import type { DecryptedTextProps } from '@/types/components/shared'
 
 const scrambleText = (text: string, chars: string): string =>
@@ -33,6 +34,15 @@ export default function DecryptedText({
 	const [revealedIndices, setRevealedIndices] = useState<Set<number>>(new Set())
 	const [hasAnimated, setHasAnimated] = useState<boolean>(false)
 	const containerRef = useRef<HTMLSpanElement>(null)
+	const animationsEnabled = useAnimationsEnabled()
+
+	if (!animationsEnabled) {
+		return (
+			<motion.span className={parentClassName}>
+				<span className={className}>{text}</span>
+			</motion.span>
+		)
+	}
 
 	useEffect(() => {
 		let interval: ReturnType<typeof setInterval>

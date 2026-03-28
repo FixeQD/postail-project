@@ -55,10 +55,10 @@ export const DataDirStep = ({ onBack, onDataDirSet }: DataDirStepProps) => {
 		<div className='noise-overlay relative flex h-full flex-col'>
 			{/* Header */}
 			<motion.div
-				initial={{ opacity: 0, y: -20, filter: 'blur(8px)' }}
-				animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+				initial={{ opacity: 0, y: -20 }}
+				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-				className='relative border-b border-black/5 bg-white/10 px-4 py-6 shadow-sm backdrop-blur-[32px] dark:border-white/5 dark:bg-black/20'>
+				className='glass relative border-b border-black/5 bg-white/10 px-4 py-6 shadow-sm dark:border-white/5 dark:bg-black/20'>
 				<div className='pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[var(--accent-color)] to-transparent opacity-20' />
 
 				<div className='container mx-auto'>
@@ -97,8 +97,8 @@ export const DataDirStep = ({ onBack, onDataDirSet }: DataDirStepProps) => {
 			<div className='container mx-auto flex flex-1 items-center justify-center px-4 py-8'>
 				<div className='w-full max-w-lg space-y-8'>
 					<motion.div
-						initial={{ opacity: 0, y: 24, filter: 'blur(4px)' }}
-						animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+						initial={{ opacity: 0, y: 24 }}
+						animate={{ opacity: 1, y: 0 }}
 						transition={{ delay: 0.1, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}>
 						{/* Info card */}
 						<div className='mb-8 flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-5 shadow-lg'>
@@ -197,7 +197,7 @@ export const DataDirStep = ({ onBack, onDataDirSet }: DataDirStepProps) => {
 				initial={{ opacity: 0, y: 16 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ delay: 0.3, duration: 0.4 }}
-				className='relative border-t border-black/[0.06] bg-white/30 px-4 py-5 backdrop-blur-lg dark:border-white/[0.06] dark:bg-slate-900/30'>
+				className='glass relative border-t border-black/[0.06] bg-white/30 px-4 py-5 dark:border-white/[0.06] dark:bg-slate-900/30'>
 				<div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-black/[0.06] to-transparent dark:via-white/[0.06]' />
 				<div className='container mx-auto flex justify-end'>
 					<motion.button

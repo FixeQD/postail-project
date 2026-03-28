@@ -118,6 +118,7 @@
 	/* Semantic surface tokens (light defaults) */
 	--surface-glass: rgba(248, 250, 252, 0.85);
 	--surface-glass-subtle: rgba(248, 250, 252, 0.6);
+	--surface-glass-solid: rgba(248, 250, 252, 0.98);
 	--surface-panel: rgba(0, 0, 0, 0.02);
 	--surface-hover: rgba(0, 0, 0, 0.04);
 	--surface-active: rgba(0, 0, 0, 0.07);
@@ -161,6 +162,7 @@
 	/* Override surface tokens for dark mode */
 	--surface-glass: rgba(2, 6, 23, 0.7);
 	--surface-glass-subtle: rgba(2, 6, 23, 0.5);
+	--surface-glass-solid: rgba(2, 6, 23, 0.96);
 	--surface-panel: rgba(255, 255, 255, 0.03);
 	--surface-hover: rgba(255, 255, 255, 0.04);
 	--surface-active: rgba(255, 255, 255, 0.08);
@@ -351,6 +353,15 @@
 	}
 }
 
+@keyframes shimmer-slide {
+	0% {
+		transform: translateX(-100%);
+	}
+	100% {
+		transform: translateX(100%);
+	}
+}
+
 @keyframes gradient-shift {
 	0%,
 	100% {
@@ -452,12 +463,20 @@
 
 /* ─── Glass morphism utility ─── */
 .glass {
+	background: var(--surface-glass-solid);
+}
+
+.glass-subtle {
+	background: var(--surface-glass-solid);
+}
+
+:root:not([data-renderer='gtk']) .glass {
 	background: var(--surface-glass);
 	backdrop-filter: blur(16px) saturate(1.4);
 	-webkit-backdrop-filter: blur(16px) saturate(1.4);
 }
 
-.glass-subtle {
+:root:not([data-renderer='gtk']) .glass-subtle {
 	background: var(--surface-glass-subtle);
 	backdrop-filter: blur(8px) saturate(1.2);
 	-webkit-backdrop-filter: blur(8px) saturate(1.2);
@@ -610,7 +629,6 @@
 	pointer-events: none;
 	z-index: 0;
 	border-radius: 50%;
-	filter: blur(60px);
 }
 
 /* ─── Light mode: invert noise overlay opacity ─── */
@@ -691,20 +709,43 @@ textarea:focus {
 	opacity: 0;
 	animation: status-pulse 2s ease-in-out infinite;
 	z-index: -1;
-	filter: blur(4px);
+	box-shadow: 0 0 8px 2px currentColor;
 }
 
 /* ─── Skeleton loading ─── */
 .skeleton {
+	position: relative;
+	overflow: hidden;
+	background: var(--skeleton-from);
+	border-radius: 8px;
+}
+.skeleton::after {
+	content: '';
+	position: absolute;
+	inset: 0;
 	background: linear-gradient(
 		90deg,
-		var(--skeleton-from) 25%,
+		transparent 0%,
 		var(--skeleton-to) 50%,
-		var(--skeleton-from) 75%
+		transparent 100%
 	);
-	background-size: 200% 100%;
-	animation: shimmer 1.5s ease-in-out infinite;
-	border-radius: 8px;
+	transform: translateX(-100%);
+	animation: shimmer-slide 1.5s ease-in-out infinite;
+	will-change: transform;
+}
+
+.skeleton-shimmer {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(
+		90deg,
+		transparent,
+		rgba(var(--accent-rgb), 0.08),
+		transparent
+	);
+	transform: translateX(-100%);
+	animation: shimmer-slide 1.5s ease-in-out infinite;
+	will-change: transform;
 }
 
 /* ─── Prevent FOUC on initial load ─── */
@@ -811,4 +852,20 @@ body.is-dragging *::after {
 body.is-dragging .compose-drag-root,
 body.is-dragging .compose-drag-root * {
 	pointer-events: auto !important;
+}
+
+/* Respect system reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-subtle-float,
+  .animate-subtle-pulse-ring,
+  .animate-shimmer,
+  .animate-gradient-shift,
+  .animate-glow-breathe,
+  .animate-status-pulse,
+  .badge-pulse::after,
+  .skeleton,
+  .skeleton-shimmer,
+  .skeleton::after {
+    animation: none !important;
+  }
 }

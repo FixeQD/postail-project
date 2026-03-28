@@ -49,7 +49,7 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 
 	return (
 		<div
-			className='relative z-50 flex h-14 shrink-0 items-center justify-between border-b bg-white/80 backdrop-blur-xl transition-colors select-none dark:bg-[#0a0a0c]/80'
+			className='glass relative z-50 flex h-14 shrink-0 items-center justify-between border-b transition-colors select-none'
 			style={{ borderColor: 'var(--border-subtle)' }}
 			onMouseDown={startDrag}>
 			{/* Subtle top highlight gradient */}

@@ -1,5 +1,6 @@
 import { useRef, useCallback } from 'react'
 import { useAnimate } from 'framer-motion'
+import { useAnimationsEnabled } from './useMotion'
 
 const DURATION = 360
 
@@ -14,7 +15,10 @@ function animateHeightRaf(
 	toH: number,
 	signal: AbortSignal
 ): Promise<void> {
-	if (fromH === toH) return Promise.resolve()
+	if (fromH === toH) {
+		shell.style.height = 'auto'
+		return Promise.resolve()
+	}
 
 	return new Promise<void>((resolve) => {
 		let start: number | null = null
@@ -58,6 +62,7 @@ function animateHeightRaf(
 export function useShellTransition() {
 	const transitioning = useRef(false)
 	const abortRef = useRef<AbortController | null>(null)
+	const animationsEnabled = useAnimationsEnabled()
 	const [shellScope] = useAnimate()
 	const [contentScope, animateContent] = useAnimate()
 
@@ -72,7 +77,7 @@ export function useShellTransition() {
 			shell.style.height = 'auto'
 		}
 		if (content) {
-			content.style.opacity = '0'
+			content.style.opacity = '1'
 		}
 	}, [shellScope, contentScope])
 
@@ -80,6 +85,12 @@ export function useShellTransition() {
 		async (swap: () => void | Promise<void>) => {
 			if (transitioning.current) return
 			transitioning.current = true
+
+			if (!animationsEnabled) {
+				await swap()
+				transitioning.current = false
+				return
+			}
 
 			const ac = new AbortController()
 			abortRef.current = ac
@@ -107,7 +118,7 @@ export function useShellTransition() {
 				if (ac.signal.aborted) return
 
 				shell.style.height = 'auto'
-				const toH = content.scrollHeight
+				const toH = shell.offsetHeight
 				shell.style.height = fromH + 'px'
 
 				await animateHeightRaf(shell, fromH, toH, ac.signal)
@@ -121,7 +132,7 @@ export function useShellTransition() {
 				}
 			}
 		},
-		[animateContent, contentScope, shellScope]
+		[animateContent, contentScope, shellScope, animationsEnabled]
 	)
 
 	return { shellScope, contentScope, transition, reset }

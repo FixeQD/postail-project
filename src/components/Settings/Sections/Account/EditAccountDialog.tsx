@@ -100,7 +100,7 @@ export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDi
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className='overflow-hidden border-slate-800 bg-slate-900/95 p-0 text-slate-100 backdrop-blur-xl sm:max-w-md'>
+			<DialogContent className='glass overflow-hidden border-[var(--border-subtle)] bg-[var(--surface-glass)] p-0 text-[var(--text-primary)] sm:max-w-md'>
 				<div ref={shellScope} className='w-full'>
 					<div ref={contentScope} className='p-6'>
 						{view === 'mailbox-roles' ? (

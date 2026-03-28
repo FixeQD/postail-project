@@ -72,12 +72,12 @@ function ToastItem({ t, onRemove }: { t: Toast; onRemove: (id: string) => void }
 		<motion.div
 			key={t.id}
 			layout='position'
-			initial={{ opacity: 0, scale: 0.9, y: 20, filter: 'blur(8px)' }}
-			animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
+			initial={{ opacity: 0, scale: 0.9, y: 20 }}
+			animate={{ opacity: 1, scale: 1, y: 0 }}
 			exit={{ opacity: 0, scale: 0.85, y: 10, transition: { duration: 0.15 } }}
 			transition={{ type: 'spring', stiffness: 400, damping: 30, restDelta: 0.01 }}
-			style={{ willChange: 'transform, opacity, filter' }}
-			className='pointer-events-auto relative max-w-md min-w-[320px] cursor-default overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-glass)] p-4 shadow-2xl backdrop-blur-2xl transition-shadow select-none'>
+			style={{ willChange: 'transform, opacity' }}
+			className='glass pointer-events-auto relative max-w-md min-w-[320px] cursor-default overflow-hidden rounded-2xl border border-[var(--border-subtle)] p-4 shadow-2xl transition-shadow select-none'>
 			<div
 				className='absolute inset-0 -z-10 opacity-20'
 				style={{

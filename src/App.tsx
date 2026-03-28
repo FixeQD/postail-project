@@ -60,6 +60,14 @@ function App() {
 	}, [loadTheme])
 
 	useEffect(() => {
+		const ua = navigator.userAgent
+		const isWebKitGTK =
+			ua.includes('WebKitGTK') ||
+			(ua.includes('Linux') && ua.includes('WebKit') && !ua.includes('Chrome'))
+		document.documentElement.setAttribute('data-renderer', isWebKitGTK ? 'gtk' : 'webkit')
+	}, [])
+
+	useEffect(() => {
 		if (darkMode) {
 			document.documentElement.classList.add('dark')
 			document.documentElement.classList.remove('light')
@@ -279,7 +287,7 @@ function App() {
 
 	return (
 		<div
-			className='noise-overlay text-foreground relative flex h-screen flex-col transition-colors duration-500 ease-in-out'
+			className='noise-overlay text-foreground relative flex h-screen flex-col transition-colors duration-200 ease-out'
 			style={{ backgroundColor: 'var(--app-bg, #020617)' }}>
 			<TitleBar
 				isDashboard={currentState === 'dashboard'}

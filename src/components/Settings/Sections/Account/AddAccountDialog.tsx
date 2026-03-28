@@ -140,7 +140,7 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 
 			<DialogContent
 				onAnimationEnd={handleAnimationEnd}
-				className='overflow-hidden border-black/10 bg-white/95 p-0 text-slate-900 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-100'>
+				className='glass overflow-hidden border-[var(--border-subtle)] bg-[var(--surface-glass)] p-0 text-[var(--text-primary)]'>
 				{/* Shell: we pin its height in px during the resize animation */}
 				<div ref={shellScope} className='w-full'>
 					{/* Content wrapper: we fade this independently */}

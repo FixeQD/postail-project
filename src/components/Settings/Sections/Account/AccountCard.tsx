@@ -113,7 +113,7 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 						transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
 					}
 				: {})}>
-			<Card className='group relative overflow-visible border-black/[0.06] bg-black/[0.02] backdrop-blur-md transition-all duration-300 hover:border-black/[0.1] hover:bg-black/[0.04] hover:shadow-xl hover:shadow-black/10 dark:border-white/[0.06] dark:bg-white/[0.03] dark:hover:border-white/[0.1] dark:hover:bg-white/[0.06] dark:hover:shadow-black/30'>
+			<Card className='glass group relative overflow-visible border-[var(--border-subtle)] bg-[var(--surface-panel)] transition-all duration-300 hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:shadow-xl hover:shadow-black/10 dark:hover:shadow-black/30'>
 				{/* Hover gradient overlay */}
 				<div className='pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-white/[0.04] via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100' />
 
@@ -191,7 +191,7 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 										exit={{ opacity: 0, scaleY: 0.8, y: -4 }}
 										transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
 										style={{ transformOrigin: 'top right' }}
-										className='absolute top-full right-0 z-50 mt-1 w-48 overflow-hidden rounded-lg border border-black/[0.08] bg-white/95 py-1 shadow-xl shadow-black/10 backdrop-blur-xl dark:border-white/[0.06] dark:bg-slate-900/95 dark:shadow-black/40'>
+										className='glass absolute top-full right-0 z-50 mt-1 w-48 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-glass)] py-1 shadow-xl shadow-black/10 dark:shadow-black/40'>
 										<p className='px-3 py-1.5 text-xs font-medium text-slate-400 dark:text-slate-500'>
 											Actions
 										</p>
