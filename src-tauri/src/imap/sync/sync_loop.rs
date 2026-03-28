@@ -1,10 +1,10 @@
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::LazyLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use tokio::sync::Mutex;
-use tokio::task::JoinHandle;
-use tokio::time::{timeout, Duration};
+use tokio::time::{Duration, timeout};
 
 use tracing;
 
@@ -12,23 +12,22 @@ use crate::db::accounts::get_account_email;
 use crate::error::{AppError, ImapError};
 use crate::globals::get_db_pool;
 use crate::imap::sync_status::{
-    mark_sync_complete, mark_sync_error, start_sync_status_tracking, update_sync_status,
-    SYNC_STATUS_MANAGER,
+    SYNC_STATUS_MANAGER, mark_sync_complete, mark_sync_error, start_sync_status_tracking,
+    update_sync_status,
 };
 
 const RFC_IDLE_TIMEOUT_SECS: u64 = 29 * 60;
 const POLL_INTERVAL_SECS: u64 = 60;
 
-lazy_static::lazy_static! {
-    static ref SYNC_TASKS: Mutex<Vec<JoinHandle<()>>> = Mutex::new(Vec::new());
-    static ref SYNC_THREADS: Mutex<HashMap<String, Vec<JoinHandle<()>>>> = Mutex::new(HashMap::new());
-    static ref STOP_FLAGS: Mutex<HashMap<String, Arc<AtomicBool>>> = Mutex::new(HashMap::new());
-    static ref IDLE_INTERRUPTS: Mutex<HashMap<String, stop_token::StopSource>> = Mutex::new(HashMap::new());
+static STOP_FLAGS: LazyLock<Mutex<HashMap<String, Arc<AtomicBool>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+static IDLE_INTERRUPTS: LazyLock<Mutex<HashMap<String, stop_token::StopSource>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
-    // Per-account mailbox watch
-    static ref WATCH_TASKS: Mutex<HashMap<String, JoinHandle<()>>> = Mutex::new(HashMap::new());
-    static ref WATCH_STOP_FLAGS: Mutex<HashMap<String, Arc<AtomicBool>>> = Mutex::new(HashMap::new());
-}
+// Per-account mailbox watch
+
+static WATCH_STOP_FLAGS: LazyLock<Mutex<HashMap<String, Arc<AtomicBool>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 impl crate::imap::ImapManager {
     pub async fn start_sync(&self, account_id: &str) -> Result<(), AppError> {
@@ -45,7 +44,9 @@ impl crate::imap::ImapManager {
         }
 
         let account_email = {
-            let pool = get_db_pool().await.map_err(|e| AppError::from(e.to_string()))?;
+            let pool = get_db_pool()
+                .await
+                .map_err(|e| AppError::from(e.to_string()))?;
             let conn = pool.get().map_err(|e| AppError::from(e.to_string()))?;
             crate::db::accounts::get_account_email(&*conn, account_id)
                 .map_err(|e| AppError::from(e.to_string()))?
@@ -128,7 +129,9 @@ impl crate::imap::ImapManager {
 
         // Register account for status tracking so frontend gets events
         let account_email = {
-            let pool = get_db_pool().await.map_err(|e| AppError::from(e.to_string()))?;
+            let pool = get_db_pool()
+                .await
+                .map_err(|e| AppError::from(e.to_string()))?;
             let conn = pool.get().map_err(|e| AppError::from(e.to_string()))?;
             get_account_email(&*conn, account_id)
                 .map_err(|e| AppError::from(e.to_string()))?
@@ -583,7 +586,9 @@ impl crate::imap::ImapManager {
         account_id: &str,
         mailbox_name: &str,
     ) -> Result<u32, AppError> {
-        let pool = get_db_pool().await.map_err(|e| AppError::from(e.to_string()))?;
+        let pool = get_db_pool()
+            .await
+            .map_err(|e| AppError::from(e.to_string()))?;
         let conn = pool.get().map_err(|e| AppError::from(e.to_string()))?;
         let mut stmt = conn
             .prepare("SELECT last_synced_uid FROM mailboxes WHERE account_id = ? AND name = ?")
@@ -640,7 +645,9 @@ impl crate::imap::ImapManager {
 
         update_sync_status(account_id, mailbox_name, total, total).await;
 
-        let pool = get_db_pool().await.map_err(|e| AppError::from(e.to_string()))?;
+        let pool = get_db_pool()
+            .await
+            .map_err(|e| AppError::from(e.to_string()))?;
         let conn = pool.get().map_err(|e| AppError::from(e.to_string()))?;
         let mut stmt = conn
             .prepare("UPDATE mailboxes SET last_synced_uid = ? WHERE account_id = ? AND name = ?")

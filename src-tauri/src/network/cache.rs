@@ -1,13 +1,13 @@
 use crate::error::{CacheError, NetworkError};
 use crate::globals::SECURITY;
 use crate::network::fetcher::{ResourceFetcher, ResourceResponse};
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use indexmap::IndexMap;
-use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Instant, SystemTime};
@@ -18,7 +18,7 @@ const DISK_LIMIT: u64 = 512 * 1024 * 1024; // 512 MB
 const RAM_TIER_MAX: usize = 512 * 1024; // files > 512 KB go disk-only
 const METADATA_FILE: &str = "resource_cache_meta.json";
 
-pub static RESOURCE_CACHE: OnceCell<ResourceCache> = OnceCell::new();
+pub static RESOURCE_CACHE: OnceLock<ResourceCache> = OnceLock::new();
 
 struct RamEntry {
     data: Arc<Vec<u8>>,

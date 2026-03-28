@@ -3,6 +3,7 @@ use crate::globals::IMAP_MANAGER;
 use crate::oauth::{ProviderInfo, ProviderKind};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
@@ -530,9 +531,8 @@ impl ConnectionPool {
     }
 }
 
-lazy_static::lazy_static! {
-    pub static ref CONNECTION_POOL: Arc<Mutex<ConnectionPool>> = Arc::new(Mutex::new(ConnectionPool::new()));
-}
+pub static CONNECTION_POOL: LazyLock<Arc<Mutex<ConnectionPool>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(ConnectionPool::new())));
 
 async fn polling_worker() {
     let mut interval = tokio::time::interval(Duration::from_secs(60));

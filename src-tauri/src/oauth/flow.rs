@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::LazyLock;
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -47,9 +48,8 @@ impl From<ProviderKind> for Provider {
     }
 }
 
-lazy_static::lazy_static! {
-    static ref PENDING_FLOWS: Mutex<HashMap<String, (Provider, PkceData)>> = Mutex::new(HashMap::new());
-}
+static PENDING_FLOWS: LazyLock<Mutex<HashMap<String, (Provider, PkceData)>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 pub fn start_oauth_flow(provider: Provider) -> Result<(String, u16), OAuthError> {
     let config = provider.config()?;

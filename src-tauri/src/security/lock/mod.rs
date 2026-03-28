@@ -2,10 +2,10 @@ pub mod timer;
 
 use crate::db::settings::{get_setting, set_setting};
 use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -30,8 +30,8 @@ impl Default for LockState {
     }
 }
 
-pub static LOCK_STATE: Lazy<Arc<Mutex<LockState>>> =
-    Lazy::new(|| Arc::new(Mutex::new(LockState::default())));
+pub static LOCK_STATE: LazyLock<Arc<Mutex<LockState>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(LockState::default())));
 
 pub async fn load_settings() {
     let timeout_str = get_setting("lock_timeout_minutes").await.ok().flatten();

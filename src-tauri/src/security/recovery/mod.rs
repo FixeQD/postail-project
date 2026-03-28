@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use lazy_static::lazy_static;
+use std::sync::LazyLock;
 use std::sync::Mutex;
 
 use bip39::{Language, Mnemonic, MnemonicType};
@@ -11,7 +11,7 @@ use zeroize::Zeroize;
 
 use crate::error::{Result, SecurityError};
 use crate::security::crypto::{decrypt_with_key, encrypt_with_key};
-use crate::security::master_key::{MasterKey, MASTER_KEY_LENGTH};
+use crate::security::master_key::{MASTER_KEY_LENGTH, MasterKey};
 use crate::security::storage::SecretStore;
 
 pub struct RecoveryKeyHolder {
@@ -58,9 +58,7 @@ impl SecretStore for RecoveryKeyHolder {
     }
 }
 
-lazy_static! {
-    static ref PENDING_PHRASE: Mutex<Option<String>> = Mutex::new(None);
-}
+static PENDING_PHRASE: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
 
 pub fn store_pending_phrase(phrase: String) {
     let mut guard = PENDING_PHRASE.lock().unwrap();

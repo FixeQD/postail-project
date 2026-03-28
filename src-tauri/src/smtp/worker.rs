@@ -1,4 +1,5 @@
 use std::fs;
+use std::sync::LazyLock;
 use std::time::Duration;
 use tokio::task;
 use tracing;
@@ -14,10 +15,10 @@ use rusqlite::params;
 
 const WORKER_INTERVAL_SECS: u64 = 10;
 
-lazy_static::lazy_static! {
-    static ref OUTBOX_WORKER_RUNNING: std::sync::Mutex<bool> = std::sync::Mutex::new(false);
-    static ref OUTBOX_WORKER_HANDLE: std::sync::Mutex<Option<tokio::task::JoinHandle<()>>> = std::sync::Mutex::new(None);
-}
+static OUTBOX_WORKER_RUNNING: LazyLock<std::sync::Mutex<bool>> =
+    LazyLock::new(|| std::sync::Mutex::new(false));
+static OUTBOX_WORKER_HANDLE: LazyLock<std::sync::Mutex<Option<tokio::task::JoinHandle<()>>>> =
+    LazyLock::new(|| std::sync::Mutex::new(None));
 
 impl SmtpManager {
     pub fn start_outbox_worker(&self) {
@@ -142,7 +143,8 @@ impl SmtpManager {
         {
             let pool = get_db_pool().await.map_err(|e| e.to_string())?;
             let conn = pool.get().map_err(|e| e.to_string())?;
-            update_outbox_status(&*conn, outbox_id, "PROCESSING", None).map_err(|e| e.to_string())?;
+            update_outbox_status(&*conn, outbox_id, "PROCESSING", None)
+                .map_err(|e| e.to_string())?;
         }
 
         self.emit_outbox_event("outbox:message:processing", outbox_id, account_id, None)

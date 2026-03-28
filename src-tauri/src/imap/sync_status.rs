@@ -1,6 +1,6 @@
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 use tauri::{AppHandle, Emitter};
 use tokio::sync::Mutex as AsyncMutex;
 
@@ -302,9 +302,8 @@ impl SyncStatusManager {
     }
 }
 
-lazy_static::lazy_static! {
-    pub static ref SYNC_STATUS_MANAGER: SyncStatusManager = SyncStatusManager::new();
-}
+pub static SYNC_STATUS_MANAGER: LazyLock<SyncStatusManager> =
+    LazyLock::new(|| SyncStatusManager::new());
 
 pub async fn update_sync_status(
     account_id: &str,
