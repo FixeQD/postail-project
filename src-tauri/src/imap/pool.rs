@@ -277,8 +277,13 @@ impl ConnectionPool {
 
         // Spawn IDLE task
         let task = tokio::spawn(async move {
-            if let Err(e) =
-                Self::idle_loop(&account_id_owned, &mailbox_owned, stop_notify_clone).await
+            if let Err(e) = Self::idle_loop(
+                &account_id_owned,
+                &mailbox_owned,
+                provider_kind,
+                stop_notify_clone,
+            )
+            .await
             {
                 tracing::error!(target: "postail", "[Pool] IDLE loop error for {}@{}: {}", mailbox_owned, account_id_owned, e);
             }
@@ -346,7 +351,9 @@ impl ConnectionPool {
                     .prepare("SELECT provider_type FROM accounts WHERE id = ?")
                     .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
-                if let Ok(provider_type) = stmt.query_row([account_id], |row| row.get::<_, String>(0)) {
+                if let Ok(provider_type) =
+                    stmt.query_row([account_id], |row| row.get::<_, String>(0))
+                {
                     if let Some(kind) = ProviderKind::parse(&provider_type) {
                         return Ok(kind);
                     }
@@ -392,10 +399,11 @@ impl ConnectionPool {
     async fn idle_loop(
         account_id: &str,
         mailbox: &str,
+        provider_kind: ProviderKind,
         stop_notify: Arc<tokio::sync::Notify>,
     ) -> Result<(), AppError> {
         let manager = IMAP_MANAGER.lock().await.clone();
-        let provider = ProviderInfo::get(ProviderKind::Gmail); // TODO: Get actual provider
+        let provider = ProviderInfo::get(provider_kind);
 
         loop {
             tokio::select! {
