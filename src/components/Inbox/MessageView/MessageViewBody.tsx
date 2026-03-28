@@ -174,7 +174,7 @@ export const MessageViewBody = ({
 
 	useEffect(() => {
 		const handler = (e: MessageEvent) => {
-			const validOrigins = ['http://postail.localhost', 'postail://localhost']
+			const validOrigins = ['http://postail.localhost', 'postail://localhost', 'null']
 			if (!validOrigins.includes(e.origin) || e.source !== iframeRef.current?.contentWindow) {
 				return
 			}
