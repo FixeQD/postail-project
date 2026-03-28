@@ -20,12 +20,16 @@ tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-# OAuth
-reqwest = { version = "0.13", features = ["json", "form"] }
+reqwest = { version = "0.13", default-features = false, features = [
+    "json",
+    "form",
+    "http2",
+    "native-tls",
+] }
 url = "2"
 base64 = "0.22"
 sha2 = "0.10"
-lazy_static = "1.5"
+lazy_static = "1.5" # TODO: Migrate to std::sync::LazyLock/OnceLock
 indexmap = { version = "2", features = ["serde"] }
 
 # Security
@@ -44,10 +48,9 @@ hex = "0.4"
 rusqlite = { version = "0.38", features = ["bundled-sqlcipher", "unlock_notify", "backup"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }
-walkdir = "2"
-zip = "7"
+zip = { version = "7", default-features = false, features = ["deflate"] }
+r2d2 = "0.8"
 
-# Async runtime
 tokio = { version = "1", features = ["full"] }
 portpicker = "0.1.1"
 tiny_http = "0.12.0"
@@ -61,21 +64,19 @@ stop-token = "0.7"
 mailparse = "0.16"
 ammonia = "4"
 utf7-imap = "0.3.2"
-maplit = "1.0.2"
 regex = "1"
 async-smtp = "0.10.2"
 lettre = { version = "0.11.19", default-features = false, features = ["builder"] }
 tokio-native-tls = "0.3.1"
 kuchikiki = "0.8.8-speedreader"
 markup5ever = "0.14"
-once_cell = "1.21.3"
+once_cell = "1.21.3" # TODO: Migrate to std::sync::OnceLock
 tiny-bip39 = "2.0.0"
 futures = "0.3.31"
 tokio-util = { version = "0.7.18", features = ["compat"] }
 native-tls = "0.2.16"
 imap-proto = "0.16.6"
 encoding_rs = "0.8.35"
-r2d2 = "0.8.10"
 
 # Linux-specific deps
 [target.'cfg(target_os = "linux")'.dependencies]
@@ -97,3 +98,10 @@ tempfile = "3"
 [features]
 default = ["tpm"]
 tpm = ["tss-esapi"]
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+opt-level = "s"
+panic = "abort"
