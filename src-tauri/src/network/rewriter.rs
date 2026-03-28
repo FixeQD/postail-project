@@ -1,5 +1,5 @@
 use crate::network::cache::RESOURCE_CACHE;
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use futures::future::join_all;
 use kuchikiki::traits::TendrilSink;
 use std::collections::HashMap;
@@ -26,10 +26,16 @@ fn is_external(value: &str) -> bool {
     v.starts_with("http://") || v.starts_with("https://")
 }
 
-/// CPU-bound: parse HTML, collect deduplicated external URLs.
-fn collect_external_urls(html: &str) -> Vec<String> {
+struct AnalysisResult {
+    pub has_external: bool,
+    pub urls: Vec<String>,
+}
+
+/// CPU-bound: parse HTML once, both detect external resources and collect URLs.
+fn analyze_html(html: &str) -> AnalysisResult {
     let mut urls: Vec<String> = Vec::new();
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut has_external = false;
 
     let document = kuchikiki::parse_html().one(html).document_node;
 
@@ -44,22 +50,26 @@ fn collect_external_urls(html: &str) -> Vec<String> {
             if let Some(element) = node_data.as_node().as_element() {
                 let attrs = element.attributes.borrow();
                 if let Some(val) = attrs.get(attr) {
-                    if is_external(val) && seen.insert(val.to_string()) {
-                        urls.push(val.to_string());
+                    if is_external(val) {
+                        has_external = true;
+                        if seen.insert(val.to_string()) {
+                            urls.push(val.to_string());
+                        }
                     }
                 }
             }
         }
     }
 
-    collect_css_urls(html, &mut urls, &mut seen);
-    urls
+    collect_css_urls(html, &mut urls, &mut seen, &mut has_external);
+    AnalysisResult { has_external, urls }
 }
 
 fn collect_css_urls(
     html: &str,
     urls: &mut Vec<String>,
     seen: &mut std::collections::HashSet<String>,
+    has_external: &mut bool,
 ) {
     let mut rest = html;
     while let Some(pos) = rest.find("url(") {
@@ -69,8 +79,11 @@ fn collect_css_urls(
             .trim()
             .trim_matches(|c| c == '\'' || c == '"')
             .trim();
-        if is_external(inner) && seen.insert(inner.to_string()) {
-            urls.push(inner.to_string());
+        if is_external(inner) {
+            *has_external = true;
+            if seen.insert(inner.to_string()) {
+                urls.push(inner.to_string());
+            }
         }
         rest = &rest[end + 1..];
     }
@@ -93,48 +106,20 @@ fn apply_replacements(html: String, replacements: HashMap<String, String>) -> St
     out
 }
 
-/// CPU-bound detect — also offloaded via spawn_blocking at call site.
-fn detect_external(html: &str) -> bool {
-    let document = kuchikiki::parse_html().one(html).document_node;
-
-    for &(tag, attr) in SRC_ATTRS {
-        let selector = if attr == "href" {
-            "link[rel='stylesheet'][href]".to_string()
-        } else {
-            format!("{}[{}]", tag, attr)
-        };
-
-        if document.select(&selector).into_iter().flatten().any(
-            |n: kuchikiki::NodeDataRef<kuchikiki::ElementData>| {
-                n.as_node()
-                    .as_element()
-                    .and_then(|e| e.attributes.borrow().get(attr).map(|v| is_external(v)))
-                    .unwrap_or(false)
-            },
-        ) {
-            return true;
-        }
-    }
-
-    html.contains("url(http://")
-        || html.contains("url(https://")
-        || html.contains("url('http")
-        || html.contains("url('https")
-        || html.contains("url(\"http")
-        || html.contains("url(\"https")
-}
-
 pub async fn rewrite_external_resources(html: &str, allow_external: bool) -> RewriteResult {
-    // Offload kuchiki parse + DOM walk to blocking thread pool
+    // Single analysis pass - parse HTML once to both detect and collect external URLs
     let html_owned = html.to_string();
-    let has_external = tokio::task::spawn_blocking(move || detect_external(&html_owned))
+    let analysis = tokio::task::spawn_blocking(move || analyze_html(&html_owned))
         .await
-        .unwrap_or(false);
+        .unwrap_or(AnalysisResult {
+            has_external: false,
+            urls: Vec::new(),
+        });
 
-    if !allow_external || !has_external {
+    if !allow_external || !analysis.has_external {
         return RewriteResult {
             html: html.to_string(),
-            has_external,
+            has_external: analysis.has_external,
             failed: vec![],
         };
     }
@@ -145,17 +130,13 @@ pub async fn rewrite_external_resources(html: &str, allow_external: bool) -> Rew
             warn!("rewriter: resource cache not initialized, skipping rewrite");
             return RewriteResult {
                 html: html.to_string(),
-                has_external,
+                has_external: analysis.has_external,
                 failed: vec![],
             };
         }
     };
 
-    // Offload URL collection (kuchiki parse + DOM walk) to blocking thread pool
-    let html_owned = html.to_string();
-    let urls = tokio::task::spawn_blocking(move || collect_external_urls(&html_owned))
-        .await
-        .unwrap_or_default();
+    let urls = analysis.urls;
 
     // Fetch all URLs in parallel — no more sequential waterfall
     let fetch_futures = urls.iter().map(|url| {
@@ -193,7 +174,7 @@ pub async fn rewrite_external_resources(html: &str, allow_external: bool) -> Rew
 
     RewriteResult {
         html: rewritten,
-        has_external,
+        has_external: analysis.has_external,
         failed,
     }
 }
