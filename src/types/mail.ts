@@ -19,6 +19,7 @@ export interface MailHeader {
 	flags: string[]
 	snippet?: string
 	has_attachments: boolean
+	starred: boolean
 }
 
 export interface ParsedAddress {

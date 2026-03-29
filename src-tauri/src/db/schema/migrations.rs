@@ -67,6 +67,11 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         set_db_version(conn, 6)?;
     }
 
+    if current_version < 7 {
+        migrate_to_v7(conn)?;
+        set_db_version(conn, 7)?;
+    }
+
     Ok(())
 }
 
@@ -176,6 +181,22 @@ fn migrate_to_v6(conn: &Connection) -> Result<(), DBError> {
             [],
         )?;
     }
+
+    Ok(())
+}
+
+fn migrate_to_v7(conn: &Connection) -> Result<(), DBError> {
+    if !column_exists(conn, "messages", "starred")? {
+        conn.execute(
+            "ALTER TABLE messages ADD COLUMN starred INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_messages_starred ON messages(account_id, starred) WHERE starred = 1",
+        [],
+    )?;
 
     Ok(())
 }

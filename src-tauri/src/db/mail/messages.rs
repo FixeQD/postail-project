@@ -1,10 +1,10 @@
-use crate::db::upsert_from_address_string;
 use crate::db::AttachmentMeta;
 use crate::db::MailHeader;
 use crate::db::MessageFull;
+use crate::db::upsert_from_address_string;
 use crate::error::DBError;
 use chrono::{DateTime, TimeZone, Utc};
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 
 pub const DEFAULT_BATCH_SIZE: usize = 50;
 
@@ -106,13 +106,13 @@ pub fn fetch_headers(
 ) -> Result<Vec<MailHeader>, DBError> {
     let (query, params) = if let Some(anchor) = anchor {
         (
-            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments
+            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred
              FROM messages WHERE account_id = ? AND mailbox = ? AND uid > ? ORDER BY uid DESC LIMIT ?",
             vec![account_id.to_string(), mailbox.to_string(), anchor.to_string(), limit.to_string()],
         )
     } else {
         (
-            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments
+            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred
              FROM messages WHERE account_id = ? AND mailbox = ? ORDER BY uid DESC LIMIT ?",
             vec![account_id.to_string(), mailbox.to_string(), limit.to_string()],
         )
@@ -144,6 +144,7 @@ pub fn fetch_headers(
             flags,
             snippet: row.get(8)?,
             has_attachments: row.get::<_, i64>(9)? != 0,
+            starred: row.get::<_, i64>(10)? != 0,
         })
     })?;
 
@@ -175,7 +176,7 @@ pub fn fetch_message_full(
     // Load header only
     let header = conn
         .query_row(
-            "SELECT id, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments
+            "SELECT id, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred
              FROM messages
              WHERE account_id = ? AND mailbox = ? AND uid = ?",
             params![account_id, mailbox, uid],
@@ -204,6 +205,7 @@ pub fn fetch_message_full(
                     flags,
                     snippet: row.get(8)?,
                     has_attachments: row.get::<_, i64>(9)? != 0,
+                    starred: row.get::<_, i64>(10)? != 0,
                 })
             },
         )
@@ -420,4 +422,88 @@ pub fn refresh_all_attachments_flags(conn: &Connection) -> Result<usize, DBError
         [],
     )?;
     Ok(conn.changes() as usize)
+}
+
+/// Toggle the starred flag for a single message and return the new state.
+pub fn toggle_starred(
+    conn: &Connection,
+    account_id: &str,
+    mailbox: &str,
+    uid: u32,
+) -> Result<bool, DBError> {
+    conn.execute(
+        "UPDATE messages SET starred = CASE WHEN starred = 1 THEN 0 ELSE 1 END
+         WHERE account_id = ? AND mailbox = ? AND uid = ?",
+        params![account_id, mailbox, uid],
+    )?;
+
+    let new_state: i64 = conn.query_row(
+        "SELECT starred FROM messages WHERE account_id = ? AND mailbox = ? AND uid = ?",
+        params![account_id, mailbox, uid],
+        |row| row.get(0),
+    )?;
+
+    Ok(new_state != 0)
+}
+
+/// Explicitly set the starred flag
+pub fn set_starred(
+    conn: &Connection,
+    account_id: &str,
+    mailbox: &str,
+    uid: u32,
+    starred: bool,
+) -> Result<(), DBError> {
+    conn.execute(
+        "UPDATE messages SET starred = ? WHERE account_id = ? AND mailbox = ? AND uid = ?",
+        params![if starred { 1i64 } else { 0i64 }, account_id, mailbox, uid],
+    )?;
+    Ok(())
+}
+
+/// Fetch all starred messages for an account
+pub fn fetch_starred_headers(
+    conn: &Connection,
+    account_id: &str,
+    limit: u32,
+) -> Result<Vec<MailHeader>, DBError> {
+    let mut stmt = conn.prepare(
+        "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred, mailbox
+         FROM messages
+         WHERE account_id = ? AND starred = 1
+         ORDER BY internal_date DESC
+         LIMIT ?",
+    )?;
+
+    let headers_iter = stmt.query_map(params![account_id, limit], |row| {
+        let to_json: Option<String> = row.get(5)?;
+        let to: Vec<String> = to_json
+            .map(|s| serde_json::from_str(&s).unwrap_or_default())
+            .unwrap_or_default();
+        let cc_json: Option<String> = row.get(6)?;
+        let cc: Vec<String> = cc_json
+            .map(|s| serde_json::from_str(&s).unwrap_or_default())
+            .unwrap_or_default();
+        let flags_json: Option<String> = row.get(7)?;
+        let flags: Vec<String> = flags_json
+            .map(|s| serde_json::from_str(&s).unwrap_or_default())
+            .unwrap_or_default();
+        Ok(MailHeader {
+            uid: row.get::<_, u32>(0)?,
+            message_id: row.get(1)?,
+            internal_date: safe_timestamp_from_utc(row.get::<_, i64>(2)?)
+                .ok_or_else(|| rusqlite::Error::InvalidColumnName("internal_date".into()))?,
+            subject: row.get(3)?,
+            from: vec![row.get::<_, Option<String>>(4)?.unwrap_or_default()],
+            to,
+            cc,
+            flags,
+            snippet: row.get(8)?,
+            has_attachments: row.get::<_, i64>(9)? != 0,
+            starred: row.get::<_, i64>(10)? != 0,
+        })
+    })?;
+
+    let headers: Result<Vec<MailHeader>, _> = headers_iter.collect();
+    headers.map_err(DBError::Sqlite)
 }

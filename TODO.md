@@ -65,7 +65,7 @@
     - [x] 10.30 — UI: Polish: Add sending animations, success/error toasts, and focus management
 
 - [ ] 11 - Flags & Labels
-    - [ ] 12.1 - DB: Add `starred` column to messages table (separate flag, not IMAP \Flagged)
+    - [x] 12.1 - DB: Add `starred` column to messages table (separate flag, not IMAP \Flagged)
     - [ ] 12.2 - IMAP: Sync \Flagged ↔ starred both ways
     - [ ] 12.3 - UI: Star button in MessageList and MessageView with animation
     - [ ] 12.4 - UI: "Starred" filter in sidebar as virtual mailbox

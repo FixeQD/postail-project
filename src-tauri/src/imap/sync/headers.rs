@@ -1,7 +1,7 @@
 use chrono::{TimeZone, Utc};
 use futures::StreamExt;
 
-use crate::db::{MailHeader, MessageBatchItem, DEFAULT_BATCH_SIZE};
+use crate::db::{DEFAULT_BATCH_SIZE, MailHeader, MessageBatchItem};
 use crate::globals::get_db_pool;
 
 fn flag_to_string(flag: &async_imap::types::Flag) -> String {
@@ -279,6 +279,7 @@ impl crate::imap::ImapManager {
                     flags: flags.clone(),
                     snippet: None,
                     has_attachments: false,
+                    starred: false,
                 };
 
                 batch_items.push(MessageBatchItem {
@@ -577,6 +578,7 @@ impl crate::imap::ImapManager {
                     flags: flags.clone(),
                     snippet: None,
                     has_attachments: false,
+                    starred: false,
                 };
 
                 batch_items.push(MessageBatchItem {

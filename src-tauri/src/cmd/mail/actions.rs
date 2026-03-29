@@ -1,5 +1,5 @@
 use crate::db;
-use crate::globals::{get_db_pool, IMAP_MANAGER};
+use crate::globals::{IMAP_MANAGER, get_db_pool};
 use tauri::command;
 
 #[command]
@@ -160,4 +160,13 @@ pub async fn delete_messages(
     });
 
     Ok(())
+}
+
+/// Toggle starred flag for a message. Returns the new starred state
+#[command]
+pub async fn toggle_starred(account_id: String, mailbox: String, uid: u64) -> Result<bool, String> {
+    let uid_u32: u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+    db::toggle_starred(&conn, &account_id, &mailbox, uid_u32).map_err(|e| e.to_string())
 }

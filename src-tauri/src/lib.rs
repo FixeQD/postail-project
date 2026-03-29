@@ -19,7 +19,7 @@ use std::sync::atomic::Ordering;
 use crate::globals::SMTP_MANAGER;
 use crate::imap::pool::init_pool;
 use crate::imap::sync_status::set_sync_status_app_handle;
-use crate::network::cache::{ResourceCache, RESOURCE_CACHE};
+use crate::network::cache::{RESOURCE_CACHE, ResourceCache};
 use tauri::Manager;
 
 /// TPM helper mode: Initialize TPM with elevated privileges (Linux only)
@@ -183,6 +183,7 @@ pub fn run() {
             cmd::mail::listing::fetch_raw_eml_text,
             cmd::mail::listing::fetch_thread,
             cmd::mail::actions::delete_messages,
+            cmd::mail::actions::toggle_starred,
             cmd::smtp::enqueue_message,
             cmd::smtp::list_outbox,
             cmd::smtp::retry_sending,

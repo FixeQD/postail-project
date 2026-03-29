@@ -63,6 +63,7 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
             ("snippet", "TEXT"),
             ("flags_json", "TEXT"),
             ("has_attachments", "INTEGER NOT NULL DEFAULT 0"),
+            ("starred", "INTEGER NOT NULL DEFAULT 0"),
             ("cached_structure_json", "TEXT"),
             ("UNIQUE(account_id, mailbox, uid)", ""),
             (
@@ -250,6 +251,14 @@ pub fn create_indexes(conn: &Connection) -> Result<(), DBError> {
         "idx_flag_sync_queue_account",
         "flag_sync_queue",
         &["account_id", "attempts"],
+        false,
+    )?;
+
+    create_index_if_not_exists(
+        conn,
+        "idx_messages_starred",
+        "messages",
+        &["account_id", "starred"],
         false,
     )?;
 
