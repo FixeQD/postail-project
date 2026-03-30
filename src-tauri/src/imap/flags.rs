@@ -139,7 +139,9 @@ impl ImapManager {
         drop(fetches);
         session.logout().await.map_err(AppError::from)?;
 
-        let pool = crate::globals::get_db_pool().await.map_err(|e| AppError::from(e.to_string()))?;
+        let pool = crate::globals::get_db_pool()
+            .await
+            .map_err(|e| AppError::from(e.to_string()))?;
         let conn = pool.get().map_err(|e| AppError::from(e.to_string()))?;
 
         let update_count = flag_updates.len();
@@ -169,9 +171,11 @@ impl ImapManager {
             let flags_json =
                 serde_json::to_string(&flags).map_err(|e| AppError::from(e.to_string()))?;
 
+            let server_flagged = flags.iter().any(|f| f == "\\Flagged");
+
             let rows_updated = conn.execute(
-                "UPDATE messages SET flags_json = ? WHERE account_id = ? AND mailbox = ? AND uid = ?",
-                rusqlite::params![flags_json, account_id, mailbox, uid],
+                "UPDATE messages SET flags_json = ?, starred = ? WHERE account_id = ? AND mailbox = ? AND uid = ?",
+                rusqlite::params![flags_json, if server_flagged { 1i64 } else { 0i64 }, account_id, mailbox, uid],
             )
             .map_err(|e| AppError::from(e.to_string()))?;
 

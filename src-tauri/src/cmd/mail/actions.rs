@@ -166,7 +166,34 @@ pub async fn delete_messages(
 #[command]
 pub async fn toggle_starred(account_id: String, mailbox: String, uid: u64) -> Result<bool, String> {
     let uid_u32: u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
-    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
-    let conn = pool.get().map_err(|e| e.to_string())?;
-    db::toggle_starred(&conn, &account_id, &mailbox, uid_u32).map_err(|e| e.to_string())
+
+    let new_starred = {
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
+
+        let starred =
+            db::toggle_starred(&conn, &account_id, &mailbox, uid_u32).map_err(|e| e.to_string())?;
+
+        let imap_operation = if starred { "add" } else { "remove" };
+        db::enqueue_flag_change(
+            &conn,
+            &account_id,
+            &mailbox,
+            uid_u32,
+            imap_operation,
+            &[String::from("\\Flagged")],
+        )
+        .map_err(|e| e.to_string())?;
+
+        starred
+    };
+
+    let account_id_clone = account_id.clone();
+    tokio::spawn(async move {
+        if let Err(e) = process_flag_queue(&account_id_clone).await {
+            tracing::error!(target: "postail", "[Star] Failed to sync \\Flagged to server: {}", e);
+        }
+    });
+
+    Ok(new_starred)
 }

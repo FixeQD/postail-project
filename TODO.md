@@ -66,7 +66,7 @@
 
 - [ ] 11 - Flags & Labels
     - [x] 12.1 - DB: Add `starred` column to messages table (separate flag, not IMAP \Flagged)
-    - [ ] 12.2 - IMAP: Sync \Flagged ↔ starred both ways
+    - [x] 12.2 - IMAP: Sync \Flagged ↔ starred both ways
     - [ ] 12.3 - UI: Star button in MessageList and MessageView with animation
     - [ ] 12.4 - UI: "Starred" filter in sidebar as virtual mailbox
     - [ ] 12.5 - DB+UI: Per-message tags/labels system (`message_tags` table, multiple tags per message)
