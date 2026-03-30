@@ -207,6 +207,20 @@ const MessageRow = memo(
 			/>
 		)
 
+		const tagPills = message.tags?.length > 0 && (
+			<div className='mt-1.5 flex flex-wrap gap-1'>
+				{message.tags
+					.filter((tag) => tag && tag !== 'null')
+					.map((tag) => (
+						<span
+							key={tag}
+							className='rounded bg-[var(--surface-active)] px-1.5 py-0.5 text-[10px] whitespace-nowrap font-medium text-tertiary ring-1 ring-[var(--border-subtle)]'>
+							{tag}
+						</span>
+					))}
+			</div>
+		)
+
 		// ── 1-line compact layout ──────────────────────────────────────
 		if (previewLines === 1) {
 			return (
@@ -235,6 +249,20 @@ const MessageRow = memo(
 							</span>
 							{snippet && (
 								<span className={`truncate ${snippetClass}`}>— {snippet}</span>
+							)}
+							{message.tags?.length > 0 && (
+								<div className='ml-2 flex gap-1 opacity-80'>
+									{message.tags
+										.filter((t) => t && t !== 'null')
+										.map((tag) => (
+											<div
+												key={tag}
+												className='h-1.5 w-1.5 rounded-full'
+												style={{ backgroundColor: accentColor }}
+												title={tag}
+											/>
+										))}
+								</div>
 							)}
 						</div>
 					</div>
@@ -271,7 +299,6 @@ const MessageRow = memo(
 						onMessageClick(message.uid, message.mailbox)
 					}
 				}}
-
 				className={`${rowBase} items-start px-4 py-3 transition-transform duration-150 hover:scale-[1.005]`}
 				style={{ borderColor: 'var(--border-faint)', ...focusedStyle }}>
 				{activeIndicator}
@@ -306,6 +333,9 @@ const MessageRow = memo(
 					{snippet && previewLines === 3 && (
 						<p className={`${snippetClass} line-clamp-2`}>{snippet}</p>
 					)}
+
+					{/* Tags Row */}
+					{tagPills}
 				</div>
 			</motion.div>
 		)

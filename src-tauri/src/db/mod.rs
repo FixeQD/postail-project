@@ -239,6 +239,7 @@ pub struct MailHeader {
     pub snippet: Option<String>,
     pub has_attachments: bool,
     pub starred: bool,
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -69,12 +69,13 @@
     - [x] 12.2 - IMAP: Sync \Flagged ↔ starred both ways
     - [x] 12.3 - UI: Star button in MessageList and MessageView with animation
     - [x] 12.4 - UI: "Starred" filter in sidebar as virtual mailbox
-    - [ ] 12.5 - DB+UI: Per-message tags/labels system (`message_tags` table, multiple tags per message)
+    - [x] 12.5 - DB+UI: Per-message tags/labels system (`message_tags` table, multiple tags per message)
     - [ ] 12.6 - UI: Tag picker in MessageView — add/remove tag with one click
     - [ ] 12.7 - UI: Tag list in sidebar as virtual mailboxes (click = filter)
-    - [ ] 12.8 - DB: Migration adding `tags` and `message_tags` tables
+    - [x] 12.8 - DB: Migration adding `tags` and `message_tags` tables
     - [ ] 12.9 - UI: Tag management in settings (name, color, delete)
     - [ ] 12.10 - Rust: IMAP STORE for \Flagged when toggling star
+    - [ ] 12.11 - IMAP: Sync Tags ↔ Keywords
 
 - [ ] 12 - Filters & Rules
     - [ ] 13.1 - DB: `filter_rules` table (conditions: from/to/subject/body, actions: move/tag/star/mark read/delete)

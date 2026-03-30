@@ -106,14 +106,16 @@ pub fn fetch_headers(
 ) -> Result<Vec<MailHeader>, DBError> {
     let (query, params) = if let Some(anchor) = anchor {
         (
-            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred, mailbox
-             FROM messages WHERE account_id = ? AND mailbox = ? AND uid > ? ORDER BY uid DESC LIMIT ?",
+            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred, mailbox,
+             (SELECT json_group_array(tag) FROM message_tags mt WHERE mt.message_id = m.id) as tags_json
+             FROM messages m WHERE account_id = ? AND mailbox = ? AND uid > ? ORDER BY uid DESC LIMIT ?",
             vec![account_id.to_string(), mailbox.to_string(), anchor.to_string(), limit.to_string()],
         )
     } else {
         (
-            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred, mailbox
-             FROM messages WHERE account_id = ? AND mailbox = ? ORDER BY uid DESC LIMIT ?",
+            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred, mailbox,
+             (SELECT json_group_array(tag) FROM message_tags mt WHERE mt.message_id = m.id) as tags_json
+             FROM messages m WHERE account_id = ? AND mailbox = ? ORDER BY uid DESC LIMIT ?",
             vec![account_id.to_string(), mailbox.to_string(), limit.to_string()],
         )
     };
@@ -132,6 +134,11 @@ pub fn fetch_headers(
         let flags: Vec<String> = flags_json
             .map(|s| serde_json::from_str(&s).unwrap_or_default())
             .unwrap_or_default();
+        let tags_json: Option<String> = row.get(12)?;
+        let tags: Vec<String> = tags_json
+            .map(|s| serde_json::from_str(&s).unwrap_or_default())
+            .unwrap_or_default();
+
         Ok(MailHeader {
             uid: row.get::<_, u32>(0)?,
             mailbox: row.get(11)?,
@@ -146,6 +153,7 @@ pub fn fetch_headers(
             snippet: row.get(8)?,
             has_attachments: row.get::<_, i64>(9)? != 0,
             starred: row.get::<_, i64>(10)? != 0,
+            tags,
         })
     })?;
 
@@ -177,8 +185,9 @@ pub fn fetch_message_full(
     // Load header only
     let header = conn
         .query_row(
-            "SELECT id, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred, mailbox
-             FROM messages
+            "SELECT id, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred, mailbox,
+             (SELECT json_group_array(tag) FROM message_tags mt WHERE mt.message_id = m.id) as tags_json
+             FROM messages m
              WHERE account_id = ? AND mailbox = ? AND uid = ?",
             params![account_id, mailbox, uid],
             |row| {
@@ -194,6 +203,11 @@ pub fn fetch_message_full(
                 let flags: Vec<String> = flags_json
                     .map(|s| serde_json::from_str(&s).unwrap_or_default())
                     .unwrap_or_default();
+                let tags_json: Option<String> = row.get(12)?;
+                let tags: Vec<String> = tags_json
+                    .map(|s| serde_json::from_str(&s).unwrap_or_default())
+                    .unwrap_or_default();
+
                 Ok(MailHeader {
                     uid,
                     mailbox: row.get(11)?,
@@ -208,6 +222,7 @@ pub fn fetch_message_full(
                     snippet: row.get(8)?,
                     has_attachments: row.get::<_, i64>(9)? != 0,
                     starred: row.get::<_, i64>(10)? != 0,
+                    tags,
                 })
             },
         )
@@ -470,8 +485,9 @@ pub fn fetch_starred_headers(
     limit: u32,
 ) -> Result<Vec<MailHeader>, DBError> {
     let mut stmt = conn.prepare(
-        "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred, mailbox
-         FROM messages
+        "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred, mailbox,
+         (SELECT json_group_array(tag) FROM message_tags mt WHERE mt.message_id = m.id) as tags_json
+         FROM messages m
          WHERE account_id = ? AND starred = 1
          ORDER BY internal_date DESC
          LIMIT ?",
@@ -490,6 +506,11 @@ pub fn fetch_starred_headers(
         let flags: Vec<String> = flags_json
             .map(|s| serde_json::from_str(&s).unwrap_or_default())
             .unwrap_or_default();
+        let tags_json: Option<String> = row.get(12)?;
+        let tags: Vec<String> = tags_json
+            .map(|s| serde_json::from_str(&s).unwrap_or_default())
+            .unwrap_or_default();
+
         Ok(MailHeader {
             uid: row.get::<_, u32>(0)?,
             mailbox: row.get(11)?,
@@ -504,9 +525,46 @@ pub fn fetch_starred_headers(
             snippet: row.get(8)?,
             has_attachments: row.get::<_, i64>(9)? != 0,
             starred: row.get::<_, i64>(10)? != 0,
+            tags,
         })
     })?;
 
     let headers: Result<Vec<MailHeader>, _> = headers_iter.collect();
     headers.map_err(DBError::Sqlite)
+}
+
+pub fn add_tag(
+    conn: &Connection,
+    account_id: &str,
+    mailbox: &str,
+    uid: u32,
+    tag: &str,
+) -> Result<(), DBError> {
+    let message_id = get_message_table_id(conn, account_id, mailbox, uid)?
+        .ok_or_else(|| DBError::Migration("Message not found".to_string()))?;
+
+    conn.execute(
+        "INSERT OR IGNORE INTO message_tags (message_id, tag) VALUES (?, ?)",
+        params![message_id, tag],
+    )?;
+
+    Ok(())
+}
+
+pub fn remove_tag(
+    conn: &Connection,
+    account_id: &str,
+    mailbox: &str,
+    uid: u32,
+    tag: &str,
+) -> Result<(), DBError> {
+    let message_id = get_message_table_id(conn, account_id, mailbox, uid)?
+        .ok_or_else(|| DBError::Migration("Message not found".to_string()))?;
+
+    conn.execute(
+        "DELETE FROM message_tags WHERE message_id = ? AND tag = ?",
+        params![message_id, tag],
+    )?;
+
+    Ok(())
 }

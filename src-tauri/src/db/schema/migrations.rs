@@ -72,6 +72,11 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         set_db_version(conn, 7)?;
     }
 
+    if current_version < 8 {
+        migrate_to_v8(conn)?;
+        set_db_version(conn, 8)?;
+    }
+
     Ok(())
 }
 
@@ -201,6 +206,25 @@ fn migrate_to_v7(conn: &Connection) -> Result<(), DBError> {
     Ok(())
 }
 
+fn migrate_to_v8(conn: &Connection) -> Result<(), DBError> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS message_tags (
+            message_id INTEGER NOT NULL,
+            tag TEXT NOT NULL,
+            PRIMARY KEY(message_id, tag),
+            FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_message_tags_tag ON message_tags(tag)",
+        [],
+    )?;
+
+    Ok(())
+}
+
 // Whitelist of allowed table names to prevent SQL injection
 const ALLOWED_TABLES: &[&str] = &[
     "messages",
@@ -215,6 +239,7 @@ const ALLOWED_TABLES: &[&str] = &[
     "outbox",
     "schema_versions",
     "settings",
+    "message_tags",
 ];
 
 fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool, DBError> {

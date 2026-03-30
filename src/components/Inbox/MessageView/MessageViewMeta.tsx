@@ -78,17 +78,33 @@ export const MessageViewMeta = ({ header }: MessageViewMetaProps) => {
 				</div>
 
 				{/* Row 2: to summary + expand toggle */}
-				<button
-					type='button'
-					onClick={() => setExpanded((e) => !e)}
-					className='mt-0.5 flex items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]'>
-					<span>to {recipientSummary}</span>
-					<motion.div
-						animate={{ rotate: expanded ? 180 : 0 }}
-						transition={{ duration: 0.2 }}>
-						<ChevronDown className='h-3 w-3' />
-					</motion.div>
-				</button>
+				<div className='mt-0.5 flex flex-wrap items-center gap-2'>
+					<button
+						type='button'
+						onClick={() => setExpanded((e) => !e)}
+						className='flex items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]'>
+						<span>to {recipientSummary}</span>
+						<motion.div
+							animate={{ rotate: expanded ? 180 : 0 }}
+							transition={{ duration: 0.2 }}>
+							<ChevronDown className='h-3 w-3' />
+						</motion.div>
+					</button>
+
+					{header.tags?.length > 0 && (
+						<div className='flex flex-wrap gap-1'>
+							{header.tags
+								.filter((tag) => tag && tag !== 'null')
+								.map((tag) => (
+									<span
+										key={tag}
+										className='rounded bg-[var(--surface-active)] px-1.5 py-0.5 text-[10px] font-medium text-tertiary ring-1 ring-[var(--border-subtle)]'>
+										{tag}
+									</span>
+								))}
+						</div>
+					)}
+				</div>
 
 				{/* Expanded details */}
 				<AnimatePresence>

@@ -281,6 +281,7 @@ impl crate::imap::ImapManager {
                     snippet: None,
                     has_attachments: false,
                     starred: false,
+                    tags: Vec::new(),
                 };
 
                 batch_items.push(MessageBatchItem {
@@ -581,6 +582,7 @@ impl crate::imap::ImapManager {
                     snippet: None,
                     has_attachments: false,
                     starred: false,
+                    tags: Vec::new(),
                 };
 
                 batch_items.push(MessageBatchItem {

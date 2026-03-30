@@ -198,6 +198,20 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
         ],
     )?;
 
+    create_table_if_not_exists(
+        conn,
+        "message_tags",
+        &[
+            ("message_id", "INTEGER NOT NULL"),
+            ("tag", "TEXT NOT NULL"),
+            ("PRIMARY KEY(message_id, tag)", ""),
+            (
+                "FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE",
+                "",
+            ),
+        ],
+    )?;
+
     Ok(())
 }
 

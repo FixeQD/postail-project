@@ -21,6 +21,7 @@ export interface MailHeader {
 	snippet?: string
 	has_attachments: boolean
 	starred: boolean
+	tags: string[]
 }
 
 export interface ParsedAddress {

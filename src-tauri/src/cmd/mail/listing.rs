@@ -477,3 +477,39 @@ pub async fn save_attachment(
 
     Ok(row)
 }
+
+#[tauri::command]
+pub async fn add_message_tag(
+    account_id: String,
+    mailbox: String,
+    uid: u32,
+    tag: String,
+) -> Result<(), String> {
+    use crate::globals::get_db_pool;
+    use crate::db::mail::messages::add_tag;
+
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+
+    add_tag(&conn, &account_id, &mailbox, uid, &tag).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn remove_message_tag(
+    account_id: String,
+    mailbox: String,
+    uid: u32,
+    tag: String,
+) -> Result<(), String> {
+    use crate::globals::get_db_pool;
+    use crate::db::mail::messages::remove_tag;
+
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+
+    remove_tag(&conn, &account_id, &mailbox, uid, &tag).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
