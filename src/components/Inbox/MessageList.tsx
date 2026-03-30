@@ -115,6 +115,7 @@ const MessageRow = memo(
 		onMouseLeave,
 		onDelete,
 		onToggleRead,
+		onToggleStar,
 		isFocused,
 	}: MessageRowProps) => {
 		const { t } = useTypedTranslation()
@@ -164,16 +165,35 @@ const MessageRow = memo(
 					style={{ accentColor, color: accentColor }}
 					onClick={(e) => e.stopPropagation()}
 				/>
-				<span
-					role='button'
-					tabIndex={0}
-					className='text-muted-foreground/40 rounded-md p-0.5 transition-colors hover:text-amber-400 focus:outline-none'
-					onClick={(e) => e.stopPropagation()}
-					onKeyDown={(e) => {
-						if (e.key === 'Enter' || e.key === ' ') e.preventDefault()
-					}}>
-					<Star className='h-4 w-4' />
-				</span>
+				<motion.button
+					type='button'
+					{...(animationsEnabled ? { whileTap: { scale: 0.75 } } : {})}
+					className={`rounded-md p-0.5 transition-colors focus:outline-none ${
+						message.starred
+							? 'text-amber-400 hover:text-amber-300'
+							: 'text-muted-foreground/40 hover:text-amber-400'
+					}`}
+					onClick={(e) => {
+						e.stopPropagation()
+						onToggleStar()
+					}}
+					aria-label={message.starred ? 'Unstar message' : 'Star message'}
+					aria-pressed={message.starred}>
+					<motion.div
+						{...(animationsEnabled
+							? {
+									animate: message.starred
+										? { scale: [1, 1.35, 1], rotate: [0, 15, -10, 0] }
+										: { scale: 1, rotate: 0 },
+									transition: { duration: 0.35, ease: 'easeOut' },
+								}
+							: {})}>
+						<Star
+							className='h-4 w-4'
+							fill={message.starred ? 'currentColor' : 'none'}
+						/>
+					</motion.div>
+				</motion.button>
 			</div>
 		)
 
@@ -202,7 +222,7 @@ const MessageRow = memo(
 							onMessageClick(message.uid)
 						}
 					}}
-					className={`${rowBase} items-center px-4 py-3 hover:scale-[1.01] transition-transform duration-150`}
+					className={`${rowBase} items-center px-4 py-3 transition-transform duration-150 hover:scale-[1.01]`}
 					style={{ borderColor: 'var(--border-faint)', ...focusedStyle }}>
 					{activeIndicator}
 					{checkboxStar}
@@ -251,7 +271,7 @@ const MessageRow = memo(
 						onMessageClick(message.uid)
 					}
 				}}
-				className={`${rowBase} items-start px-4 py-3 hover:scale-[1.005] transition-transform duration-150`}
+				className={`${rowBase} items-start px-4 py-3 transition-transform duration-150 hover:scale-[1.005]`}
 				style={{ borderColor: 'var(--border-faint)', ...focusedStyle }}>
 				{activeIndicator}
 				{checkboxStar}
@@ -537,12 +557,12 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 						accountId: account.id,
 						mailbox: trashMailbox.name,
 					}).catch(console.error)
-					
+
 					queryClient.invalidateQueries({
 						queryKey: ['messages', account.id, trashMailbox.name],
 					})
 				}
-				
+
 				// Invalidate current mailbox to ensure it reflects the server state properly
 				queryClient.invalidateQueries({
 					queryKey,
@@ -576,6 +596,39 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 				toast.error(`Failed to mark message as ${currentlyUnread ? 'read' : 'unread'}`, {
 					description: String(error),
 				})
+			}
+		},
+		[account.id, mailbox, queryClient]
+	)
+
+	const handleToggleStar = useCallback(
+		async (uid: number) => {
+			const queryKey = ['messages', account.id, mailbox]
+			const previousData = queryClient.getQueryData(queryKey)
+
+			queryClient.setQueryData(queryKey, (old: unknown) => {
+				if (!old || typeof old !== 'object') return old
+				const typedOld = old as { pages: MailHeader[][] }
+				return {
+					...typedOld,
+					pages: typedOld.pages.map((page) =>
+						page.map((msg) =>
+							msg.uid === uid ? { ...msg, starred: !msg.starred } : msg
+						)
+					),
+				}
+			})
+
+			try {
+				await invoke('toggle_starred', {
+					accountId: account.id,
+					mailbox,
+					uid,
+				})
+			} catch (error) {
+				// Roll back on failure
+				queryClient.setQueryData(queryKey, previousData)
+				toast.error('Failed to toggle star', { description: String(error) })
 			}
 		},
 		[account.id, mailbox, queryClient]
@@ -807,11 +860,11 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 								onMouseLeave={() => setHoveredMessageId(null)}
 								onDelete={() => handleDeleteMessage(message.uid)}
 								onToggleRead={() => handleToggleReadStatus(message.uid, isUnread)}
+								onToggleStar={() => handleToggleStar(message.uid)}
 							/>
 						)
 					}}
 				/>
-
 			</div>
 		</div>
 	)

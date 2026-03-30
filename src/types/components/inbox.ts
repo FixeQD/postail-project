@@ -24,5 +24,5 @@ export interface MessageRowProps {
 	onMouseLeave: () => void
 	onDelete: () => void
 	onToggleRead: () => void
-	onToggleStar?: () => void
+	onToggleStar: () => void
 }

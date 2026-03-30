@@ -87,9 +87,11 @@ export interface MessageViewHeaderProps {
 	onForward: () => void
 	onDelete: () => void
 	onMarkUnread: () => void
+	onToggleStar: () => void
 	onViewSource?: () => void
 	hasHtml?: boolean
 	isDeleting?: boolean
+	isStarred?: boolean
 }
 
 export interface MessageViewAttachmentsProps {

@@ -1,4 +1,4 @@
-import { ArrowLeft, Reply, ReplyAll, Forward, Trash2, MailOpen, Code2 } from 'lucide-react'
+import { ArrowLeft, Reply, ReplyAll, Forward, Trash2, MailOpen, Code2, Star } from 'lucide-react'
 import { motion, type Variants } from 'framer-motion'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
@@ -12,8 +12,10 @@ export const MessageViewHeader = ({
 	onForward,
 	onDelete,
 	onMarkUnread,
+	onToggleStar,
 	onViewSource,
 	isDeleting = false,
+	isStarred = false,
 }: MessageViewHeaderProps) => {
 	const { t } = useTypedTranslation(['common', 'inbox'])
 	const animationsEnabled = useAnimationsEnabled()
@@ -114,12 +116,47 @@ export const MessageViewHeader = ({
 				<motion.div variants={item} className='h-4 w-px bg-[var(--border-subtle)]' />
 
 				{/* Secondary actions */}
-				<motion.div variants={item}>
+				<motion.div variants={item} className='flex items-center gap-0.5'>
 					<ActionBtn
 						icon={<MailOpen className='h-4 w-4' />}
 						tooltip={t('inbox:messageView.actions.markUnread')}
 						onClick={onMarkUnread}
 					/>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<motion.button
+								type='button'
+								{...(animationsEnabled
+									? { whileHover: { scale: 1.05 }, whileTap: { scale: 0.75 } }
+									: {})}
+								className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+									isStarred
+										? 'text-amber-400 hover:text-amber-300 bg-amber-400/10'
+										: 'text-muted-foreground hover:text-amber-400 hover:bg-[var(--surface-hover)]'
+								}`}
+								onClick={onToggleStar}
+								aria-label={isStarred ? 'Unstar message' : 'Star message'}
+								aria-pressed={isStarred}>
+								<motion.div
+									{...(animationsEnabled
+										? {
+												animate: isStarred
+													? { scale: [1, 1.4, 1], rotate: [0, 20, -10, 0] }
+													: { scale: 1, rotate: 0 },
+												transition: { duration: 0.35, ease: 'easeOut' },
+											}
+										: {})}>
+									<Star
+										className='h-4 w-4'
+										fill={isStarred ? 'currentColor' : 'none'}
+									/>
+								</motion.div>
+							</motion.button>
+						</TooltipTrigger>
+						<TooltipContent sideOffset={6}>
+							{isStarred ? 'Unstar' : 'Star'}
+						</TooltipContent>
+					</Tooltip>
 				</motion.div>
 
 				{/* Spacer */}
