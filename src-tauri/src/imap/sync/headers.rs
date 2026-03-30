@@ -267,6 +267,7 @@ impl crate::imap::ImapManager {
 
                 let header = MailHeader {
                     uid,
+                    mailbox: mailbox.to_string(),
                     message_id: envelope
                         .message_id
                         .as_ref()
@@ -566,6 +567,7 @@ impl crate::imap::ImapManager {
 
                 let header = MailHeader {
                     uid,
+                    mailbox: mailbox.to_string(),
                     message_id: envelope
                         .message_id
                         .as_ref()

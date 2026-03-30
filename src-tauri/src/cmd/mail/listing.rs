@@ -174,6 +174,15 @@ pub async fn fetch_headers(
     limit: u32,
 ) -> Result<Vec<MailHeader>, String> {
     tracing::info!(target: "postail", "[API] fetch_headers called for {}@{} anchor={:?} limit={}", mailbox, account_id, anchor, limit);
+
+    // Handle virtual starred mailbox
+    if mailbox == "Virtual_Starred" {
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
+        return crate::db::fetch_starred_headers(&conn, &account_id, limit)
+            .map_err(|e| e.to_string());
+    }
+
     let anchor: Option<u32> = anchor
         .map(|a| a.try_into().map_err(|_| "Anchor too large".to_string()))
         .transpose()?;
@@ -189,6 +198,7 @@ pub async fn fetch_headers(
     }
     result
 }
+
 
 #[command]
 pub async fn fetch_message_full(

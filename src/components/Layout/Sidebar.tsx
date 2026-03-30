@@ -181,6 +181,18 @@ export const Sidebar = ({
 		})
 	}
 
+	// Add virtual Starred mailbox if not present natively
+	if (!allMailboxes.some((m) => m.role === 'flagged')) {
+		allMailboxes.push({
+			name: 'Virtual_Starred',
+			display_name: t('inbox:sidebar.mailboxes.starred'),
+			role: 'flagged',
+			uid_validity: undefined,
+			highest_modseq: undefined,
+			last_synced_uid: undefined,
+		})
+	}
+
 	const startResizing = (e: React.MouseEvent) => {
 		e.preventDefault()
 		setIsResizing(true)
@@ -212,10 +224,14 @@ export const Sidebar = ({
 
 	const sortedMailboxes = useMemo(() => {
 		const sorted = [...allMailboxes].sort((a, b) => {
-			if (a.name.toLowerCase() === 'inbox') return -1
-			if (b.name.toLowerCase() === 'inbox') return 1
-			if (a.role === 'drafts') return 1
-			if (b.role === 'drafts') return -1
+			const roleOrder = ['inbox', 'flagged', 'sent', 'drafts', 'archive', 'junk', 'trash']
+			const scoreA = roleOrder.indexOf(a.role)
+			const scoreB = roleOrder.indexOf(b.role)
+
+			if (scoreA !== -1 && scoreB !== -1) return scoreA - scoreB
+			if (scoreA !== -1) return -1
+			if (scoreB !== -1) return 1
+
 			return a.name.localeCompare(b.name)
 		})
 		return sorted

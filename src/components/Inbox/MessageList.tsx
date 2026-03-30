@@ -215,11 +215,11 @@ const MessageRow = memo(
 					tabIndex={0}
 					onMouseEnter={onMouseEnter}
 					onMouseLeave={onMouseLeave}
-					onClick={() => onMessageClick(message.uid)}
+					onClick={() => onMessageClick(message.uid, message.mailbox)}
 					onKeyDown={(e) => {
 						if (e.key === 'Enter' || e.key === ' ') {
 							e.preventDefault()
-							onMessageClick(message.uid)
+							onMessageClick(message.uid, message.mailbox)
 						}
 					}}
 					className={`${rowBase} items-center px-4 py-3 transition-transform duration-150 hover:scale-[1.01]`}
@@ -264,13 +264,14 @@ const MessageRow = memo(
 				tabIndex={0}
 				onMouseEnter={onMouseEnter}
 				onMouseLeave={onMouseLeave}
-				onClick={() => onMessageClick(message.uid)}
+				onClick={() => onMessageClick(message.uid, message.mailbox)}
 				onKeyDown={(e) => {
 					if (e.key === 'Enter' || e.key === ' ') {
 						e.preventDefault()
-						onMessageClick(message.uid)
+						onMessageClick(message.uid, message.mailbox)
 					}
 				}}
+
 				className={`${rowBase} items-start px-4 py-3 transition-transform duration-150 hover:scale-[1.005]`}
 				style={{ borderColor: 'var(--border-faint)', ...focusedStyle }}>
 				{activeIndicator}
@@ -337,6 +338,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 	const currentMailbox = mailboxes?.find((m) => m.name === mailbox)
 
 	const needsSync = (() => {
+		if (mailbox === 'Virtual_Starred') return false
 		if (syncedRef.current.has(mailboxKey)) return false
 		if (mailboxesLoading || !mailboxes) return true
 		if (!currentMailbox) return true
@@ -348,7 +350,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 		setIsSyncing(false)
 		setSyncError(null)
 
-		if (!needsSync) return
+		if (!needsSync || mailbox === 'Virtual_Starred') return
 
 		let cancelled = false
 		const doSync = async () => {
@@ -383,7 +385,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 	}, [needsSync, account.id, mailbox, mailboxKey, queryClient])
 
 	useEffect(() => {
-		if (isSyncing || syncError || needsSync) return
+		if (isSyncing || syncError || needsSync || mailbox === 'Virtual_Starred') return
 
 		let stopped = false
 
@@ -528,7 +530,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 	}, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
 	const handleDeleteMessage = useCallback(
-		async (uid: number) => {
+		async (uid: number, msgMailbox: string) => {
 			const queryKey = ['messages', account.id, mailbox] as const
 			const previousData = queryClient.getQueryData<{
 				pages: MailHeader[][]
@@ -548,7 +550,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 			try {
 				await invoke('delete_messages', {
 					accountId: account.id,
-					mailbox,
+					mailbox: msgMailbox,
 					uids: [uid],
 				})
 				const trashMailbox = mailboxes?.find((m) => m.role === 'trash')
@@ -581,11 +583,11 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 	)
 
 	const handleToggleReadStatus = useCallback(
-		async (uid: number, currentlyUnread: boolean) => {
+		async (uid: number, currentlyUnread: boolean, msgMailbox: string) => {
 			try {
 				await invoke('mark_read', {
 					accountId: account.id,
-					mailbox,
+					mailbox: msgMailbox,
 					uids: [uid],
 					read: currentlyUnread,
 				})
@@ -602,7 +604,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 	)
 
 	const handleToggleStar = useCallback(
-		async (uid: number) => {
+		async (uid: number, msgMailbox: string) => {
 			const queryKey = ['messages', account.id, mailbox]
 			const previousData = queryClient.getQueryData(queryKey)
 
@@ -622,7 +624,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 			try {
 				await invoke('toggle_starred', {
 					accountId: account.id,
-					mailbox,
+					mailbox: msgMailbox,
 					uid,
 				})
 			} catch (error) {
@@ -858,9 +860,11 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 								onMessageClick={onMessageClick}
 								onMouseEnter={() => setHoveredMessageId(message.uid)}
 								onMouseLeave={() => setHoveredMessageId(null)}
-								onDelete={() => handleDeleteMessage(message.uid)}
-								onToggleRead={() => handleToggleReadStatus(message.uid, isUnread)}
-								onToggleStar={() => handleToggleStar(message.uid)}
+								onDelete={() => handleDeleteMessage(message.uid, message.mailbox)}
+								onToggleRead={() =>
+									handleToggleReadStatus(message.uid, isUnread, message.mailbox)
+								}
+								onToggleStar={() => handleToggleStar(message.uid, message.mailbox)}
 							/>
 						)
 					}}

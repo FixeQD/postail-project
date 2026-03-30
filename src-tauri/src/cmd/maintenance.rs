@@ -188,6 +188,9 @@ pub async fn search_contacts(query: String, limit: u32) -> Result<Vec<Contact>, 
 
 #[command]
 pub async fn backfill_snippets(account_id: String, mailbox: String) -> Result<u32, String> {
+    if mailbox == "Virtual_Starred" {
+        return Ok(0);
+    }
     // Find messages with no snippet but a body cache file on disk
     let rows: Vec<(i64, u32)> = {
         let pool = get_db_pool().await.map_err(|e| e.to_string())?;

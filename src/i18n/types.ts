@@ -106,6 +106,7 @@ export interface InboxTranslations {
 			drafts: string
 			trash: string
 			archive: string
+			starred: string
 		}
 	}
 	search: {

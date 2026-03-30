@@ -6,7 +6,7 @@ export interface MessageListProps {
 	account: import('../../types/accounts').AccountMeta
 	mailbox: string
 	focusedUid?: number | null
-	onMessageClick: (messageId: number) => void
+	onMessageClick: (uid: number, mailbox: string) => void
 }
 
 export interface MessageRowProps {
@@ -19,7 +19,7 @@ export interface MessageRowProps {
 	animationsEnabled: boolean
 	previewLines: number
 	formatDate: (date: string) => string
-	onMessageClick: (uid: number) => void
+	onMessageClick: (uid: number, mailbox: string) => void
 	onMouseEnter: () => void
 	onMouseLeave: () => void
 	onDelete: () => void

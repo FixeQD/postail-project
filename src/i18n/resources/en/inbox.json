@@ -2,7 +2,8 @@
 	"sidebar": {
 		"newMessage": "New Message",
 		"mailboxes": {
-			"drafts": "Drafts"
+			"drafts": "Drafts",
+			"starred": "Starred"
 		}
 	},
 	"search": {

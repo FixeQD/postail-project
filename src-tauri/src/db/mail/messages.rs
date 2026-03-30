@@ -106,13 +106,13 @@ pub fn fetch_headers(
 ) -> Result<Vec<MailHeader>, DBError> {
     let (query, params) = if let Some(anchor) = anchor {
         (
-            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred
+            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred, mailbox
              FROM messages WHERE account_id = ? AND mailbox = ? AND uid > ? ORDER BY uid DESC LIMIT ?",
             vec![account_id.to_string(), mailbox.to_string(), anchor.to_string(), limit.to_string()],
         )
     } else {
         (
-            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred
+            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred, mailbox
              FROM messages WHERE account_id = ? AND mailbox = ? ORDER BY uid DESC LIMIT ?",
             vec![account_id.to_string(), mailbox.to_string(), limit.to_string()],
         )
@@ -134,6 +134,7 @@ pub fn fetch_headers(
             .unwrap_or_default();
         Ok(MailHeader {
             uid: row.get::<_, u32>(0)?,
+            mailbox: row.get(11)?,
             message_id: row.get(1)?,
             internal_date: safe_timestamp_from_utc(row.get::<_, i64>(2)?)
                 .ok_or_else(|| rusqlite::Error::InvalidColumnName("internal_date".into()))?,
@@ -176,7 +177,7 @@ pub fn fetch_message_full(
     // Load header only
     let header = conn
         .query_row(
-            "SELECT id, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred
+            "SELECT id, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred, mailbox
              FROM messages
              WHERE account_id = ? AND mailbox = ? AND uid = ?",
             params![account_id, mailbox, uid],
@@ -195,6 +196,7 @@ pub fn fetch_message_full(
                     .unwrap_or_default();
                 Ok(MailHeader {
                     uid,
+                    mailbox: row.get(11)?,
                     message_id: row.get(1)?,
                     internal_date: safe_timestamp_from_utc(row.get::<_, i64>(2)?)
                         .ok_or_else(|| rusqlite::Error::InvalidColumnName("internal_date".into()))?,
@@ -490,6 +492,7 @@ pub fn fetch_starred_headers(
             .unwrap_or_default();
         Ok(MailHeader {
             uid: row.get::<_, u32>(0)?,
+            mailbox: row.get(11)?,
             message_id: row.get(1)?,
             internal_date: safe_timestamp_from_utc(row.get::<_, i64>(2)?)
                 .ok_or_else(|| rusqlite::Error::InvalidColumnName("internal_date".into()))?,
