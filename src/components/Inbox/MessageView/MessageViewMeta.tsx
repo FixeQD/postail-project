@@ -148,6 +148,7 @@ const TagPicker = ({
 	)
 
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+		e.stopPropagation()
 		if (e.key === 'Enter' && trimmed) {
 			e.preventDefault()
 			// If there's exactly one suggestion use it, otherwise create new
