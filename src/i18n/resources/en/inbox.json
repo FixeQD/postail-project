@@ -38,6 +38,7 @@
 		"markUnreadError": "Failed to mark as unread",
 		"from": "From",
 		"to": "To",
+		"toLabel": "to {{name}}",
 		"cc": "Cc",
 		"date": "Date",
 		"attachments": {

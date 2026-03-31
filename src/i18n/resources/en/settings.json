@@ -25,7 +25,9 @@
 			"description": "This will remove the tag from all messages. This cannot be undone.",
 			"confirm": "Delete",
 			"cancel": "Cancel"
-		}
+		},
+		"formatToast": "Tag name formatted",
+		"formatDesc": "Spaces were replaced with underscores for IMAP compatibility."
 	},
 	"general": {
 		"title": "General Settings",
