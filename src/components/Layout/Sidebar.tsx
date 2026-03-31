@@ -10,6 +10,7 @@ import {
 	Star,
 	AlertTriangle,
 	Layers,
+	Tag,
 } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
 import { useQuery } from '@tanstack/react-query'
@@ -77,6 +78,8 @@ const MailboxItem = memo(
 					return <Star className={cls} />
 				case 'all':
 					return <Layers className={cls} />
+				case 'tag':
+					return <Tag className={cls} />
 				default:
 					return <File className={cls} />
 			}
@@ -165,6 +168,12 @@ export const Sidebar = ({
 	const { data: mailboxes, isLoading } = useQuery({
 		queryKey: ['mailboxes', activeAccount?.id],
 		queryFn: () => invoke<Mailbox[]>('fetch_mailboxes', { accountId: activeAccount?.id }),
+		enabled: !!activeAccount,
+	})
+
+	const { data: tags } = useQuery({
+		queryKey: ['account-tags', activeAccount?.id],
+		queryFn: () => invoke<string[]>('get_account_tags', { accountId: activeAccount?.id }),
 		enabled: !!activeAccount,
 	})
 
@@ -303,6 +312,33 @@ export const Sidebar = ({
 									onSelect={onMailboxSelect}
 								/>
 							))}
+
+							{tags && tags.length > 0 && (
+								<div className='mt-4 space-y-0.5'>
+									{!isCollapsed && (
+										<div className='px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50'>
+											Tags
+										</div>
+									)}
+									{tags.map((tag) => (
+										<MailboxItem
+											key={tag}
+											mailbox={
+												{
+													name: `Virtual_Tag:${tag}`,
+													display_name: tag,
+													role: 'tag',
+												} as any
+											}
+											isActive={activeMailbox === `Virtual_Tag:${tag}`}
+											isCollapsed={isCollapsed}
+											accentColor={accentColor}
+											animationsEnabled={animationsEnabled}
+											onSelect={onMailboxSelect}
+										/>
+									))}
+								</div>
+							)}
 						</motion.div>
 					)}
 				</div>

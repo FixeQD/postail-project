@@ -175,12 +175,23 @@ pub async fn fetch_headers(
 ) -> Result<Vec<MailHeader>, String> {
     tracing::info!(target: "postail", "[API] fetch_headers called for {}@{} anchor={:?} limit={}", mailbox, account_id, anchor, limit);
 
-    // Handle virtual starred mailbox
-    if mailbox == "Virtual_Starred" {
+    if mailbox.starts_with("Virtual_") {
         let pool = get_db_pool().await.map_err(|e| e.to_string())?;
         let conn = pool.get().map_err(|e| e.to_string())?;
-        return crate::db::fetch_starred_headers(&conn, &account_id, limit)
-            .map_err(|e| e.to_string());
+
+        let res = if mailbox == "Virtual_Starred" {
+            crate::db::fetch_starred_headers(&conn, &account_id, limit)
+        } else if let Some(tag) = mailbox.strip_prefix("Virtual_Tag:") {
+            crate::db::mail::messages::fetch_tag_headers(&conn, &account_id, tag, limit)
+        } else {
+            return Err(format!("Unknown virtual mailbox: {}", mailbox));
+        };
+
+        return res.map_err(|e| {
+            let err_msg = format!("Failed to fetch virtual headers for {}: {}", mailbox, e);
+            tracing::error!(target: "postail", "{}", err_msg);
+            err_msg
+        });
     }
 
     let anchor: Option<u32> = anchor
@@ -535,6 +546,8 @@ pub async fn get_account_tags(account_id: String) -> Result<Vec<String>, String>
         .map_err(|e| e.to_string())?
         .filter_map(|r| r.ok())
         .collect();
+
+    tracing::info!(target: "postail", "[DB] get_account_tags for account_id={} returned {} tags: {:?}", account_id, tags.len(), tags);
 
     Ok(tags)
 }

@@ -188,7 +188,7 @@ pub async fn search_contacts(query: String, limit: u32) -> Result<Vec<Contact>, 
 
 #[command]
 pub async fn backfill_snippets(account_id: String, mailbox: String) -> Result<u32, String> {
-    if mailbox == "Virtual_Starred" {
+    if mailbox.starts_with("Virtual_") {
         return Ok(0);
     }
     // Find messages with no snippet but a body cache file on disk

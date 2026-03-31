@@ -368,7 +368,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 	const currentMailbox = mailboxes?.find((m) => m.name === mailbox)
 
 	const needsSync = (() => {
-		if (mailbox === 'Virtual_Starred') return false
+		if (mailbox.startsWith('Virtual_')) return false
 		if (syncedRef.current.has(mailboxKey)) return false
 		if (mailboxesLoading || !mailboxes) return true
 		if (!currentMailbox) return true
@@ -380,7 +380,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 		setIsSyncing(false)
 		setSyncError(null)
 
-		if (!needsSync || mailbox === 'Virtual_Starred') return
+		if (!needsSync || mailbox.startsWith('Virtual_')) return
 
 		let cancelled = false
 		const doSync = async () => {
@@ -415,7 +415,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 	}, [needsSync, account.id, mailbox, mailboxKey, queryClient])
 
 	useEffect(() => {
-		if (isSyncing || syncError || needsSync || mailbox === 'Virtual_Starred') return
+		if (isSyncing || syncError || needsSync || mailbox.startsWith('Virtual_')) return
 
 		let stopped = false
 
@@ -455,12 +455,14 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 			},
 			initialPageParam: undefined as number | undefined,
 			getNextPageParam: (lastPage: MailHeader[]) => {
+				if (mailbox.startsWith('Virtual_')) return undefined
 				if (lastPage.length < BATCH_SIZE) return undefined
 				const lastMessage = lastPage[lastPage.length - 1]
 				return lastMessage?.uid
 			},
 
 			enabled: !needsSync && !isSyncing,
+			staleTime: 1000,
 		})
 
 	const allMessages = useMemo(() => data?.pages.flatMap((page) => page) ?? [], [data?.pages])
@@ -472,7 +474,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 
 	// After first page loads, backfill snippets for messages that are missing them
 	useEffect(() => {
-		if (!data?.pages[0]?.length) return
+		if (!data?.pages[0]?.length || mailbox.startsWith('Virtual_')) return
 		const hasMissingSnippets = data.pages[0].some((m) => !m.snippet)
 		if (!hasMissingSnippets) return
 

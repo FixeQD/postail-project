@@ -298,7 +298,7 @@ export const MessageViewMeta = ({
 
 	const invalidate = () => {
 		queryClient.invalidateQueries({ queryKey: ['message', accountId, mailbox, header.uid] })
-		queryClient.invalidateQueries({ queryKey: ['messages', accountId, mailbox] })
+		queryClient.invalidateQueries({ queryKey: ['messages', accountId] })
 		queryClient.invalidateQueries({ queryKey: ['account-tags', accountId] })
 	}
 
