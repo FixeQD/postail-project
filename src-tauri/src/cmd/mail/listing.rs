@@ -1,5 +1,5 @@
 use crate::db::{AttachmentMeta, MailHeader, Mailbox, MessageFull};
-use crate::globals::{get_db_pool, IMAP_MANAGER};
+use crate::globals::{IMAP_MANAGER, get_db_pool};
 use crate::oauth;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
@@ -199,7 +199,6 @@ pub async fn fetch_headers(
     result
 }
 
-
 #[command]
 pub async fn fetch_message_full(
     account_id: String,
@@ -248,7 +247,7 @@ pub async fn fetch_message_full(
                                 &mailbox,
                                 uid_u32,
                             ) {
-                                use mailparse::{parse_mail, MailHeaderMap};
+                                use mailparse::{MailHeaderMap, parse_mail};
                                 if let Ok(parsed) = parse_mail(&raw_eml) {
                                     let receipt = parsed
                                         .headers
@@ -485,8 +484,8 @@ pub async fn add_message_tag(
     uid: u32,
     tag: String,
 ) -> Result<(), String> {
-    use crate::globals::get_db_pool;
     use crate::db::mail::messages::add_tag;
+    use crate::globals::get_db_pool;
 
     let pool = get_db_pool().await.map_err(|e| e.to_string())?;
     let conn = pool.get().map_err(|e| e.to_string())?;
@@ -503,8 +502,8 @@ pub async fn remove_message_tag(
     uid: u32,
     tag: String,
 ) -> Result<(), String> {
-    use crate::globals::get_db_pool;
     use crate::db::mail::messages::remove_tag;
+    use crate::globals::get_db_pool;
 
     let pool = get_db_pool().await.map_err(|e| e.to_string())?;
     let conn = pool.get().map_err(|e| e.to_string())?;
@@ -512,4 +511,30 @@ pub async fn remove_message_tag(
     remove_tag(&conn, &account_id, &mailbox, uid, &tag).map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn get_account_tags(account_id: String) -> Result<Vec<String>, String> {
+    use crate::globals::get_db_pool;
+
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT DISTINCT mt.tag
+             FROM message_tags mt
+             JOIN messages m ON m.id = mt.message_id
+             WHERE m.account_id = ?
+             ORDER BY mt.tag ASC",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let tags: Vec<String> = stmt
+        .query_map([&account_id], |row| row.get(0))
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(tags)
 }

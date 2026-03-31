@@ -361,7 +361,18 @@ export const MessageView = ({
 					</div>
 				) : (
 					<>
-						<MessageViewMeta header={data.header} />
+						<MessageViewMeta
+							header={data.header}
+							accountId={accountId}
+							mailbox={mailbox}
+							onTagsChange={(tags) => {
+								queryClient.setQueryData(
+									['message', accountId, mailbox, uid],
+									(old: import('@/types/mail').MessageFull | null | undefined) =>
+										old ? { ...old, header: { ...old.header, tags } } : old
+								)
+							}}
+						/>
 
 						{/* Read receipt request banner */}
 						{data.read_receipt_to && !blockReadReceipts && !receiptDismissed && (

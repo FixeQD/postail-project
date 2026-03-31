@@ -165,6 +165,7 @@ pub fn run() {
             cmd::mail::listing::save_attachment,
             cmd::mail::listing::add_message_tag,
             cmd::mail::listing::remove_message_tag,
+            cmd::mail::listing::get_account_tags,
             cmd::mail::sync::start_sync,
             cmd::mail::sync::get_inbox_baseline_uids,
             cmd::mail::sync::stop_sync,

@@ -113,6 +113,9 @@ export interface MessageViewBodyProps {
 
 export interface MessageViewMetaProps {
 	header: import('../mail').MailHeader
+	accountId?: string
+	mailbox?: string
+	onTagsChange?: (tags: string[]) => void
 }
 
 export interface SettingCardProps {
