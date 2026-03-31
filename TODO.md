@@ -64,7 +64,7 @@
           + N (New), U/Shift+U (Read/Unread), S (Star), / (Search focus)
     - [x] 10.30 — UI: Polish: Add sending animations, success/error toasts, and focus management
 
-- [ ] 11 - Flags & Labels
+- [x] 11 - Flags & Labels
     - [x] 12.1 - DB: Add `starred` column to messages table (separate flag, not IMAP \Flagged)
     - [x] 12.2 - IMAP: Sync \Flagged ↔ starred both ways
     - [x] 12.3 - UI: Star button in MessageList and MessageView with animation
