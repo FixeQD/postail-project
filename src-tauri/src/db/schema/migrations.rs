@@ -77,6 +77,11 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         set_db_version(conn, 8)?;
     }
 
+    if current_version < 9 {
+        migrate_to_v9(conn)?;
+        set_db_version(conn, 9)?;
+    }
+
     Ok(())
 }
 
@@ -225,6 +230,17 @@ fn migrate_to_v8(conn: &Connection) -> Result<(), DBError> {
     Ok(())
 }
 
+fn migrate_to_v9(conn: &Connection) -> Result<(), DBError> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS tag_colors (
+            tag TEXT PRIMARY KEY,
+            hue INTEGER NOT NULL DEFAULT 200
+        )",
+        [],
+    )?;
+    Ok(())
+}
+
 // Whitelist of allowed table names to prevent SQL injection
 const ALLOWED_TABLES: &[&str] = &[
     "messages",
@@ -240,6 +256,7 @@ const ALLOWED_TABLES: &[&str] = &[
     "schema_versions",
     "settings",
     "message_tags",
+    "tag_colors",
 ];
 
 fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool, DBError> {

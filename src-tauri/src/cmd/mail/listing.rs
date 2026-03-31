@@ -551,3 +551,111 @@ pub async fn get_account_tags(account_id: String) -> Result<Vec<String>, String>
 
     Ok(tags)
 }
+
+/// Get hue (0-359) for all tags on an account. Returns {tag: hue} map.
+#[tauri::command]
+pub async fn get_tag_colors(
+    account_id: String,
+) -> Result<std::collections::HashMap<String, i64>, String> {
+    use crate::globals::get_db_pool;
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+
+    // Get all tags for this account with their colors (defaulting to 200 if not set)
+    let mut stmt = conn
+        .prepare(
+            "SELECT DISTINCT mt.tag, COALESCE(tc.hue, 200) as hue
+             FROM message_tags mt
+             JOIN messages m ON m.id = mt.message_id
+             LEFT JOIN tag_colors tc ON tc.tag = mt.tag
+             WHERE m.account_id = ?
+             ORDER BY mt.tag ASC",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let map: std::collections::HashMap<String, i64> = stmt
+        .query_map([&account_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+        })
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(map)
+}
+
+/// Set hue (0-359) for a tag.
+#[tauri::command]
+pub async fn set_tag_color(tag: String, hue: i64) -> Result<(), String> {
+    use crate::globals::get_db_pool;
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT INTO tag_colors (tag, hue) VALUES (?, ?) ON CONFLICT(tag) DO UPDATE SET hue = excluded.hue",
+        rusqlite::params![tag, hue],
+    ).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Rename a tag across all messages.
+#[tauri::command]
+pub async fn rename_tag(
+    old_tag: String,
+    new_tag: String,
+    account_id: String,
+) -> Result<(), String> {
+    use crate::globals::get_db_pool;
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+
+    let new_tag = new_tag.trim().to_string();
+    if new_tag.is_empty() {
+        return Err("Tag name cannot be empty".to_string());
+    }
+
+    // Update all message_tags rows for this account
+    conn.execute(
+        "UPDATE message_tags SET tag = ?
+         WHERE tag = ? AND message_id IN (SELECT id FROM messages WHERE account_id = ?)",
+        rusqlite::params![new_tag, old_tag, account_id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    // Migrate color entry
+    conn.execute(
+        "INSERT INTO tag_colors (tag, hue)
+         SELECT ?, hue FROM tag_colors WHERE tag = ?
+         ON CONFLICT(tag) DO NOTHING",
+        rusqlite::params![new_tag, old_tag],
+    )
+    .map_err(|e| e.to_string())?;
+    conn.execute(
+        "DELETE FROM tag_colors WHERE tag = ?",
+        rusqlite::params![old_tag],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+/// Delete a tag from all messages on an account.
+#[tauri::command]
+pub async fn delete_tag(tag: String, account_id: String) -> Result<(), String> {
+    use crate::globals::get_db_pool;
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "DELETE FROM message_tags WHERE tag = ?
+         AND message_id IN (SELECT id FROM messages WHERE account_id = ?)",
+        rusqlite::params![tag, account_id],
+    )
+    .map_err(|e| e.to_string())?;
+    conn.execute(
+        "DELETE FROM tag_colors WHERE tag = ?",
+        rusqlite::params![tag],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
