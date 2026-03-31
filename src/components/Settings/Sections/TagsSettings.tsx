@@ -75,12 +75,21 @@ const TagRow = ({
 	})
 
 	const commitRename = () => {
-		const t = draft.trim()
+		let t = draft.trim()
 		if (!t || t === tag) {
 			setEditing(false)
 			setDraft(tag)
 			return
 		}
+
+		if (t.includes(' ')) {
+			t = t.replace(/ /g, '_')
+			const { toast } = require('@/stores/toastStore')
+			toast.info('Tag name formatted', {
+				description: 'Spaces were replaced with underscores for IMAP compatibility.',
+			})
+		}
+
 		renameTag.mutate(t)
 	}
 

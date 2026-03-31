@@ -26,6 +26,7 @@ pub struct MessageBatchItem {
     pub subject: Option<String>,
     pub snippet: Option<String>,
     pub flags: Vec<String>,
+    pub tags: Vec<String>,
     pub structure_json: Option<String>,
 }
 
@@ -76,6 +77,24 @@ pub fn batch_insert_messages(
                     item.uid,
                 ],
             )?;
+        }
+
+        total_inserted += 1;
+
+        // Sync Tags to local DB
+        if !item.tags.is_empty() {
+            let message_id: i64 = tx.query_row(
+                "SELECT id FROM messages WHERE account_id = ? AND mailbox = ? AND uid = ?",
+                params![account_id, mailbox, item.uid],
+                |row| row.get(0),
+            )?;
+
+            for tag in &item.tags {
+                tx.execute(
+                    "INSERT OR IGNORE INTO message_tags (message_id, tag) VALUES (?, ?)",
+                    params![message_id, tag],
+                )?;
+            }
         }
 
         if let Some(from) = &item.from {

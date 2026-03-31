@@ -243,10 +243,21 @@ impl crate::imap::ImapManager {
                     .as_deref()
                     .map(|a| parse_address_list!(a))
                     .unwrap_or_default();
-                let flags = fetch
+                let all_flags = fetch
                     .flags()
                     .map(|f| flag_to_string(&f))
                     .collect::<Vec<_>>();
+
+                let mut system_flags = Vec::new();
+                let mut tags = Vec::new();
+                for f in all_flags {
+                    if f.starts_with('\\') {
+                        system_flags.push(f);
+                    } else {
+                        tags.push(f);
+                    }
+                }
+
                 let internal_date = fetch.internal_date().ok_or("No internal date")?;
                 let internal_date = Utc
                     .timestamp_opt(internal_date.timestamp(), 0)
@@ -277,11 +288,11 @@ impl crate::imap::ImapManager {
                     from: from.clone(),
                     to: to.clone(),
                     cc: cc.clone(),
-                    flags: flags.clone(),
+                    flags: system_flags.clone(),
                     snippet: None,
                     has_attachments: false,
-                    starred: false,
-                    tags: Vec::new(),
+                    starred: system_flags.iter().any(|f| f == "\\Flagged"),
+                    tags: tags.clone(),
                 };
 
                 batch_items.push(MessageBatchItem {
@@ -293,7 +304,8 @@ impl crate::imap::ImapManager {
                     cc,
                     subject: header.subject.clone(),
                     snippet: None,
-                    flags,
+                    flags: system_flags,
+                    tags,
                     structure_json: None,
                 });
 
@@ -544,10 +556,21 @@ impl crate::imap::ImapManager {
                     .as_deref()
                     .map(|a| parse_address_list!(a))
                     .unwrap_or_default();
-                let flags = fetch
+                let all_flags = fetch
                     .flags()
                     .map(|f| flag_to_string(&f))
                     .collect::<Vec<_>>();
+
+                let mut system_flags = Vec::new();
+                let mut tags = Vec::new();
+                for f in all_flags {
+                    if f.starts_with('\\') {
+                        system_flags.push(f);
+                    } else {
+                        tags.push(f);
+                    }
+                }
+
                 let internal_date = fetch.internal_date().ok_or("No internal date")?;
                 let internal_date = Utc
                     .timestamp_opt(internal_date.timestamp(), 0)
@@ -578,11 +601,11 @@ impl crate::imap::ImapManager {
                     from: from.clone(),
                     to: to.clone(),
                     cc: cc.clone(),
-                    flags: flags.clone(),
+                    flags: system_flags.clone(),
                     snippet: None,
                     has_attachments: false,
-                    starred: false,
-                    tags: Vec::new(),
+                    starred: system_flags.iter().any(|f| f == "\\Flagged"),
+                    tags: tags.clone(),
                 };
 
                 batch_items.push(MessageBatchItem {
@@ -594,7 +617,8 @@ impl crate::imap::ImapManager {
                     cc,
                     subject: header.subject.clone(),
                     snippet: None,
-                    flags,
+                    flags: system_flags,
+                    tags,
                     structure_json: None,
                 });
 

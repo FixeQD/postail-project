@@ -75,7 +75,7 @@
     - [x] 12.8 - DB: Migration adding `tags` and `message_tags` tables
     - [x] 12.9 - UI: Tag management in settings (name, color, delete)
     - [x] 12.10 - Rust: IMAP STORE for \Flagged when toggling star
-    - [ ] 12.11 - IMAP: Sync Tags ↔ Keywords
+    - [x] 12.11 - IMAP: Sync Tags ↔ Keywords
 
 - [ ] 12 - Filters & Rules
     - [ ] 13.1 - DB: `filter_rules` table (conditions: from/to/subject/body, actions: move/tag/star/mark read/delete)

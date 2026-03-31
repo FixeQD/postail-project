@@ -140,8 +140,18 @@ const TagPicker = ({
 
 	const handleAdd = useCallback(
 		(tag: string) => {
-			if (!tag.trim()) return
-			onAdd(tag.trim())
+			let t = tag.trim()
+			if (!t) return
+
+			if (t.includes(' ')) {
+				t = t.replace(/ /g, '_')
+				const { toast } = require('@/stores/toastStore')
+				toast.info('Tag name formatted', {
+					description: 'Spaces were replaced with underscores for IMAP compatibility.',
+				})
+			}
+
+			onAdd(t)
 			setInput('')
 		},
 		[onAdd]

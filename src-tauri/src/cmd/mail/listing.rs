@@ -501,7 +501,27 @@ pub async fn add_message_tag(
     let pool = get_db_pool().await.map_err(|e| e.to_string())?;
     let conn = pool.get().map_err(|e| e.to_string())?;
 
-    add_tag(&conn, &account_id, &mailbox, uid, &tag).map_err(|e| e.to_string())?;
+    let safe_tag = tag.replace(" ", "_");
+
+    add_tag(&conn, &account_id, &mailbox, uid, &safe_tag).map_err(|e| e.to_string())?;
+
+    // Enqueue for IMAP sync
+    crate::db::mail::flag_queue::enqueue_flag_change(
+        &conn,
+        &account_id,
+        &mailbox,
+        uid,
+        "add",
+        &[safe_tag],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let account_id_clone = account_id.clone();
+    tokio::spawn(async move {
+        if let Err(e) = crate::cmd::mail::actions::process_flag_queue(&account_id_clone).await {
+            tracing::error!(target: "postail", "Failed to process flag queue: {}", e);
+        }
+    });
 
     Ok(())
 }
@@ -519,7 +539,27 @@ pub async fn remove_message_tag(
     let pool = get_db_pool().await.map_err(|e| e.to_string())?;
     let conn = pool.get().map_err(|e| e.to_string())?;
 
-    remove_tag(&conn, &account_id, &mailbox, uid, &tag).map_err(|e| e.to_string())?;
+    let safe_tag = tag.replace(" ", "_");
+
+    remove_tag(&conn, &account_id, &mailbox, uid, &safe_tag).map_err(|e| e.to_string())?;
+
+    // Enqueue for IMAP sync
+    crate::db::mail::flag_queue::enqueue_flag_change(
+        &conn,
+        &account_id,
+        &mailbox,
+        uid,
+        "remove",
+        &[safe_tag],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let account_id_clone = account_id.clone();
+    tokio::spawn(async move {
+        if let Err(e) = crate::cmd::mail::actions::process_flag_queue(&account_id_clone).await {
+            tracing::error!(target: "postail", "Failed to process flag queue: {}", e);
+        }
+    });
 
     Ok(())
 }

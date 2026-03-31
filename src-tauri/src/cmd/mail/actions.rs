@@ -63,7 +63,7 @@ pub async fn mark_read(
     Ok(())
 }
 
-async fn process_flag_queue(account_id: &str) -> Result<(), String> {
+pub async fn process_flag_queue(account_id: &str) -> Result<(), String> {
     let ops = {
         let pool = get_db_pool().await.map_err(|e| e.to_string())?;
         let conn = pool.get().map_err(|e| e.to_string())?;
