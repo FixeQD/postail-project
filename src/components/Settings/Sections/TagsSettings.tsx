@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { Tag, Pencil, Trash2, Check, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
+import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { useAccountStore } from '@/stores/accountStore'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 import { SettingCard } from '@/components/ui/custom/SettingCard'
@@ -43,6 +44,7 @@ const TagRow = ({
 }) => {
 	const qc = useQueryClient()
 	const animationsEnabled = useAnimationsEnabled()
+	const { t } = useTypedTranslation(['common', 'settings'])
 	const [editing, setEditing] = useState(false)
 	const [draft, setDraft] = useState(tag)
 	const [localHue, setLocalHue] = useState(hue)
@@ -75,22 +77,22 @@ const TagRow = ({
 	})
 
 	const commitRename = () => {
-		let t = draft.trim()
-		if (!t || t === tag) {
+		let t_str = draft.trim()
+		if (!t_str || t_str === tag) {
 			setEditing(false)
 			setDraft(tag)
 			return
 		}
 
-		if (t.includes(' ')) {
-			t = t.replace(/ /g, '_')
+		if (t_str.includes(' ')) {
+			t_str = t_str.replace(/ /g, '_')
 			const { toast } = require('@/stores/toastStore')
-			toast.info('Tag name formatted', {
-				description: 'Spaces were replaced with underscores for IMAP compatibility.',
+			toast.info(t('settings:tags.formatToast'), {
+				description: t('settings:tags.formatDesc'),
 			})
 		}
 
-		renameTag.mutate(t)
+		renameTag.mutate(t_str)
 	}
 
 	const commitColor = () => saveColor.mutate(localHue)
@@ -171,7 +173,7 @@ const TagRow = ({
 							onClick={commitColor}
 							disabled={localHue === hue || saveColor.isPending}
 							className='rounded-lg px-2 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] disabled:opacity-30'>
-							Save
+							{t('common:actions.save')}
 						</button>
 						<button
 							type='button'
@@ -192,10 +194,10 @@ const TagRow = ({
 			<ConfirmationDialog
 				open={confirmDelete}
 				onOpenChange={setConfirmDelete}
-				title={`Delete tag "${tag}"?`}
-				description='This will remove the tag from all messages. This cannot be undone.'
-				confirmLabel='Delete'
-				cancelLabel='Cancel'
+				title={t('settings:tags.deleteConfirm.title', { tag })}
+				description={t('settings:tags.deleteConfirm.description')}
+				confirmLabel={t('settings:tags.deleteConfirm.confirm')}
+				cancelLabel={t('settings:tags.deleteConfirm.cancel')}
 				onConfirm={() => deleteTag.mutate()}
 				confirmClassName='bg-red-500 text-white hover:bg-red-600'
 			/>
@@ -215,25 +217,26 @@ export const TagsSettings = () => {
 	})
 
 	const tags = Object.keys(tagColors).sort()
+	const { t } = useTypedTranslation(['common', 'settings'])
 
 	return (
 		<div className='space-y-6 p-6'>
 			<div>
 				<h2 className='text-sm font-bold tracking-widest text-[var(--text-secondary)] uppercase'>
-					Tags
+					{t('settings:tags.title')}
 				</h2>
 				<p className='mt-1 text-xs text-[var(--text-tertiary)]'>
-					Rename tags, change their colour, or delete them across all messages.
+					{t('settings:tags.subtitle')}
 				</p>
 			</div>
 
-			{isLoading && <p className='text-sm text-[var(--text-tertiary)]'>Loading…</p>}
+			{isLoading && <p className='text-sm text-[var(--text-tertiary)]'>{t('settings:tags.loading')}</p>}
 
 			{!isLoading && tags.length === 0 && (
 				<SettingCard
 					icon={Tag}
-					label='No tags yet'
-					description='Tags appear here once you apply them to messages in the message view.'>
+					label={t('settings:tags.noTags')}
+					description={t('settings:tags.noTagsDesc')}>
 					{null}
 				</SettingCard>
 			)}

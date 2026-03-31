@@ -7,6 +7,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useThemeStore } from '@/stores/themeStore'
 import i18n from '@/i18n'
+import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import type { MessageViewMetaProps } from '@/types/components/shared'
 
 // Deterministic hue from tag string so the same tag always has the same colour.
@@ -104,6 +105,7 @@ const TagPicker = ({
 	const popoverRef = useRef<HTMLDivElement>(null)
 	const inputRef = useRef<HTMLInputElement>(null)
 	const animationsEnabled = useAnimationsEnabled()
+	const { t } = useTypedTranslation(['common', 'inbox'])
 
 	const { data: allTags = [] } = useQuery<string[]>({
 		queryKey: ['account-tags', accountId],
@@ -131,30 +133,30 @@ const TagPicker = ({
 
 	const trimmed = input.trim().toLowerCase()
 	const suggestions = allTags.filter(
-		(t) => !activeTags.includes(t) && t.toLowerCase().includes(trimmed)
+		(tag) => !activeTags.includes(tag) && tag.toLowerCase().includes(trimmed)
 	)
 	const canCreate =
 		trimmed.length > 0 &&
-		!allTags.some((t) => t.toLowerCase() === trimmed) &&
-		!activeTags.some((t) => t.toLowerCase() === trimmed)
+		!allTags.some((tag) => tag.toLowerCase() === trimmed) &&
+		!activeTags.some((tag) => tag.toLowerCase() === trimmed)
 
 	const handleAdd = useCallback(
 		(tag: string) => {
-			let t = tag.trim()
-			if (!t) return
+			let trimmedTag = tag.trim()
+			if (!trimmedTag) return
 
-			if (t.includes(' ')) {
-				t = t.replace(/ /g, '_')
+			if (trimmedTag.includes(' ')) {
+				trimmedTag = trimmedTag.replace(/ /g, '_')
 				const { toast } = require('@/stores/toastStore')
-				toast.info('Tag name formatted', {
-					description: 'Spaces were replaced with underscores for IMAP compatibility.',
+				toast.info(t('inbox:messageView.tags.formatToast'), {
+					description: t('inbox:messageView.tags.formatDesc'),
 				})
 			}
 
-			onAdd(t)
+			onAdd(trimmedTag)
 			setInput('')
 		},
-		[onAdd]
+		[onAdd, t]
 	)
 
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -180,10 +182,10 @@ const TagPicker = ({
 				type='button'
 				onClick={() => setOpen((v) => !v)}
 				className='flex items-center gap-1.5 rounded-full border border-dashed border-[var(--border-subtle)] px-2.5 py-0.5 text-[10px] font-medium text-[var(--text-tertiary)] transition-all hover:border-[var(--border-stronger)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)] active:scale-95'
-				aria-label='Add tag'
+				aria-label={t('inbox:messageView.tags.addAria')}
 				style={{ borderColor: open ? accentColor : undefined, color: open ? accentColor : undefined }}>
 				<Plus className='h-3 w-3' />
-				<span>Add tag</span>
+				<span>{t('inbox:messageView.tags.add')}</span>
 			</button>
 
 			<AnimatePresence>
@@ -204,7 +206,7 @@ const TagPicker = ({
 								value={input}
 								onChange={(e) => setInput(e.target.value)}
 								onKeyDown={handleKeyDown}
-								placeholder='Add tag…'
+								placeholder={t('inbox:messageView.tags.placeholder')}
 								maxLength={40}
 								className='min-w-0 flex-1 bg-transparent text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none'
 							/>
@@ -215,7 +217,7 @@ const TagPicker = ({
 							{activeTags.length > 0 && (
 								<>
 									<p className='px-3 py-1 text-[9px] font-bold tracking-widest text-[var(--text-tertiary)] uppercase'>
-										Applied
+										{t('inbox:messageView.tags.applied')}
 									</p>
 									{activeTags.map((tag) => (
 										<button
@@ -239,7 +241,7 @@ const TagPicker = ({
 							{suggestions.length > 0 && (
 								<>
 									<p className='px-3 py-1 text-[9px] font-bold tracking-widest text-[var(--text-tertiary)] uppercase'>
-										{activeTags.length > 0 ? 'More tags' : 'Tags'}
+										{activeTags.length > 0 ? t('inbox:messageView.tags.more') : t('inbox:messageView.tags.title')}
 									</p>
 									{suggestions.map((tag) => (
 										<button
@@ -264,17 +266,14 @@ const TagPicker = ({
 									className='flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors hover:bg-[var(--surface-hover)]'>
 									<Plus className='h-3 w-3 shrink-0 text-[var(--text-tertiary)]' />
 									<span className='text-[var(--text-secondary)]'>
-										Create{' '}
-										<span style={{ color: `hsl(${tagHue(trimmed)} 80% 75%)` }}>
-											"{trimmed}"
-										</span>
+										{t('inbox:messageView.tags.create', { tag: trimmed })}
 									</span>
 								</button>
 							)}
 
 							{activeTags.length === 0 && suggestions.length === 0 && !canCreate && (
 								<p className='px-3 py-2 text-xs text-[var(--text-tertiary)]'>
-									{trimmed ? 'No matching tags' : 'Type to create a tag'}
+									{trimmed ? t('inbox:messageView.tags.noMatch') : t('inbox:messageView.tags.empty')}
 								</p>
 							)}
 						</div>
@@ -292,6 +291,7 @@ export const MessageViewMeta = ({
 	mailbox = '',
 	onTagsChange,
 }: MessageViewMetaProps) => {
+	const { t } = useTypedTranslation(['common', 'inbox'])
 	const animationsEnabled = useAnimationsEnabled()
 	const [expanded, setExpanded] = useState(false)
 	const queryClient = useQueryClient()
@@ -371,7 +371,7 @@ export const MessageViewMeta = ({
 						type='button'
 						onClick={() => setExpanded((e) => !e)}
 						className='flex items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]'>
-						<span>to {recipientSummary}</span>
+						<span>{t('inbox:messageView.toLabel', { name: recipientSummary })}</span>
 						<motion.div
 							animate={{ rotate: expanded ? 180 : 0 }}
 							transition={{ duration: 0.2 }}>
@@ -414,7 +414,7 @@ export const MessageViewMeta = ({
 							}}
 							className='overflow-hidden'>
 							<div className='mt-2.5 flex flex-col gap-1.5 rounded-lg border border-[var(--border-faint)] bg-[var(--surface-panel)] px-3 py-2.5 text-xs'>
-								<MetaRow label='From'>
+								<MetaRow label={t('inbox:messageView.from')}>
 									<span className='text-[var(--text-primary)]'>
 										{from?.name}{' '}
 										<span className='text-[var(--text-secondary)]'>
@@ -422,7 +422,7 @@ export const MessageViewMeta = ({
 										</span>
 									</span>
 								</MetaRow>
-								<MetaRow label='To'>
+								<MetaRow label={t('inbox:messageView.to')}>
 									<span className='text-[var(--text-primary)]'>
 										{to.map((r, i) => (
 											<span key={i}>
@@ -442,7 +442,7 @@ export const MessageViewMeta = ({
 									</span>
 								</MetaRow>
 								{cc.length > 0 && (
-									<MetaRow label='Cc'>
+									<MetaRow label={t('inbox:messageView.cc')}>
 										<span className='text-[var(--text-primary)]'>
 											{cc.map((r, i) => (
 												<span key={i}>
@@ -453,7 +453,7 @@ export const MessageViewMeta = ({
 										</span>
 									</MetaRow>
 								)}
-								<MetaRow label='Date'>
+								<MetaRow label={t('inbox:messageView.date')}>
 									<span className='text-[var(--text-primary)]'>{dateStr}</span>
 								</MetaRow>
 							</div>

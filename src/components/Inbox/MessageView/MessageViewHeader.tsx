@@ -135,7 +135,7 @@ export const MessageViewHeader = ({
 										: 'text-muted-foreground hover:text-amber-400 hover:bg-[var(--surface-hover)]'
 								}`}
 								onClick={onToggleStar}
-								aria-label={isStarred ? 'Unstar message' : 'Star message'}
+								aria-label={isStarred ? t('inbox:messageView.actions.unstar') : t('inbox:messageView.actions.star')}
 								aria-pressed={isStarred}>
 								<motion.div
 									{...(animationsEnabled
@@ -154,7 +154,7 @@ export const MessageViewHeader = ({
 							</motion.button>
 						</TooltipTrigger>
 						<TooltipContent sideOffset={6}>
-							{isStarred ? 'Unstar' : 'Star'}
+							{isStarred ? t('inbox:messageView.actions.unstar') : t('inbox:messageView.actions.star')}
 						</TooltipContent>
 					</Tooltip>
 				</motion.div>
@@ -168,7 +168,7 @@ export const MessageViewHeader = ({
 					className='opacity-0 transition-opacity duration-150 group-hover/toolbar:opacity-100'>
 					<ActionBtn
 						icon={<Code2 className='h-4 w-4' />}
-						tooltip='View source (EML)'
+						tooltip={t('inbox:messageView.actions.viewSource')}
 						onClick={onViewSource}
 					/>
 				</motion.div>
