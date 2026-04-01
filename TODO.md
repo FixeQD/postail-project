@@ -78,7 +78,7 @@
     - [x] 12.11 - IMAP: Sync Tags ↔ Keywords
 
 - [ ] 12 - Filters & Rules
-    - [ ] 13.1 - DB: `filter_rules` table (conditions: from/to/subject/body, actions: move/tag/star/mark read/delete)
+    - [x] 13.1 - DB: `filter_rules` table (conditions: from/to/subject/body, actions: move/tag/star/mark read/delete)
     - [ ] 13.2 - Rust: Rules engine — run on new message sync
     - [ ] 13.3 - UI: Rules editor in settings — add/edit/delete/reorder
     - [ ] 13.4 - UI: Condition builder (AND/OR, field, operator, value)
@@ -93,7 +93,7 @@
     - [ ] 14.3 - IMAP: Delete folder (DELETE) with confirmation
     - [ ] 14.4 - UI: Context menu on sidebar folder (rename/delete/create subfolder)
     - [ ] 14.5 - IMAP: Move messages between folders via drag & drop in sidebar
-    - [ ] 14.6 - UI: Drag & drop messages from list to folder in sidebar
+    - [ ] 14.6 - UI: Drag & drop messages from 5zzlist to folder in sidebar
     - [ ] 14.7 - UI: "Move to..." button in MessageView with folder list
     - [ ] 14.8 - IMAP: Archive (COPY to Archive + STORE \Deleted) with one shortcut
     - [ ] 14.9 - UI: Keyboard shortcut `E` = archive (like Gmail)
