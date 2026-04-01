@@ -11,7 +11,8 @@
 		"appearance": "Appearance",
 		"notifications": "Notifications",
 		"composing": "Composing",
-		"tags": "Tags"
+		"tags": "Tags",
+		"filters": "Filters & Rules"
 	},
 	"tags": {
 		"title": "Tags",
@@ -28,6 +29,59 @@
 		},
 		"formatToast": "Tag name formatted",
 		"formatDesc": "Spaces were replaced with underscores for IMAP compatibility."
+	},
+	"filters": {
+		"title": "Filters & Rules",
+		"subtitle": "Automatically process incoming messages based on rules you define.",
+		"add": "Add New Rule",
+		"noRules": "No filters defined yet",
+		"noRulesDesc": "Create your first rule to automate tagging, moving, or deleting messages.",
+		"loading": "Loading filters...",
+		"enabled": "Rule enabled",
+		"priority": "Reorder rules to change execution priority.",
+		"runNow": "Run rules now",
+		"runBatch": "Select a mailbox to apply filters to all current messages.",
+		"editor": {
+			"title": "Rule Editor",
+			"name": "Rule Name",
+			"nameHint": "Give your rule a descriptive name.",
+			"matchMode": "When a message arrives that matches:",
+			"all": "All conditions",
+			"any": "Any condition",
+			"conditions": "If",
+			"actions": "Then",
+			"addCondition": "Add Condition",
+			"addAction": "Add Action",
+			"save": "Save Rule",
+			"cancel": "Cancel"
+		},
+		"fields": {
+			"from": "From",
+			"to": "To",
+			"subject": "Subject",
+			"body": "Body"
+		},
+		"operators": {
+			"contains": "contains",
+			"not_contains": "does not contain",
+			"equals": "is exactly",
+			"not_equals": "is not",
+			"starts_with": "starts with",
+			"ends_with": "ends with"
+		},
+		"actionTypes": {
+			"move_to": "Move to",
+			"add_tag": "Add Tag",
+			"star": "Star message",
+			"mark_read": "Mark as read",
+			"delete": "Move to Trash"
+		},
+		"deleteConfirm": {
+			"title": "Delete rule \"{{name}}\"?",
+			"description": "This rule will no longer process incoming messages.",
+			"confirm": "Delete",
+			"cancel": "Cancel"
+		}
 	},
 	"general": {
 		"title": "General Settings",
