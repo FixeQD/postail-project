@@ -84,7 +84,7 @@
     - [x] 13.4 - UI: Condition builder (AND/OR, field, operator, value)
     - [x] 13.5 - UI: Action builder (move to folder, add tag, star, mark read, delete)
     - [x] 13.6 - Rust: `apply_filters_to_mailbox` command — run all rules on existing messages
-    - [ ] 13.7 - UI: "Apply rules now" button in filter settings
+    - [x] 13.7 - UI: "Apply rules now" button in filter settings
     - [ ] 13.8 - Rust: "Messages from sender" filter — auto-detect & suggest rule when deleting
 
 - [ ] 13 - Folders & Organization

@@ -81,7 +81,10 @@
 			"description": "This rule will no longer process incoming messages.",
 			"confirm": "Delete",
 			"cancel": "Cancel"
-		}
+		},
+		"applyNow": "Apply rules now",
+		"applyNowDesc": "Run enabled rules on all messages in a specific folder.",
+		"applied": "Applied rules to {{count}} messages"
 	},
 	"general": {
 		"title": "General Settings",
