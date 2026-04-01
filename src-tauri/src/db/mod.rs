@@ -4,6 +4,7 @@ pub mod mail;
 pub mod schema;
 pub mod search;
 pub mod sql_helpers;
+pub mod filters;
 
 use std::fs;
 use std::path::PathBuf;
@@ -19,6 +20,7 @@ pub use crate::db::mail::*;
 pub use crate::db::schema::*;
 pub use crate::db::search::*;
 pub use crate::db::sql_helpers::*;
+pub use crate::db::filters::*;
 use crate::error::DBError;
 
 // ── Connection pool ────────────────────────────────────────────────────────

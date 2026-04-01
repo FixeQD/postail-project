@@ -36,19 +36,19 @@ pub fn batch_insert_messages(
     mailbox: &str,
     items: &[MessageBatchItem],
     transaction_size: usize,
-) -> Result<usize, DBError> {
+) -> Result<Vec<u32>, DBError> {
     if items.is_empty() {
-        return Ok(0);
+        return Ok(Vec::new());
     }
 
-    let mut total_inserted = 0;
+    let mut new_uids = Vec::new();
     let mut tx = conn.transaction()?;
 
     for (idx, item) in items.iter().enumerate() {
         let flags_json = serde_json::to_string(&item.flags).unwrap_or_default();
         let to_json = serde_json::to_string(&item.to).unwrap_or_default();
 
-        tx.execute(
+        let changes = tx.execute(
             "INSERT OR IGNORE INTO messages (account_id, mailbox, uid, message_id, internal_date, from_addr, to_json, subject, snippet, flags_json, cached_structure_json)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             params![
@@ -66,6 +66,10 @@ pub fn batch_insert_messages(
             ],
         )?;
 
+        if changes > 0 {
+            new_uids.push(item.uid);
+        }
+
         // Backfill snippet for rows that already existed with NULL snippet
         if item.snippet.is_some() {
             tx.execute(
@@ -78,8 +82,6 @@ pub fn batch_insert_messages(
                 ],
             )?;
         }
-
-        total_inserted += 1;
 
         // Sync Tags to local DB
         if !item.tags.is_empty() {
@@ -104,8 +106,6 @@ pub fn batch_insert_messages(
             let _ = upsert_from_address_string(&tx, recipient);
         }
 
-        total_inserted += 1;
-
         if (idx + 1) % transaction_size == 0 {
             tx.commit()?;
             tx = conn.transaction()?;
@@ -113,7 +113,7 @@ pub fn batch_insert_messages(
     }
 
     tx.commit()?;
-    Ok(total_inserted)
+    Ok(new_uids)
 }
 
 pub fn fetch_headers(
@@ -428,6 +428,13 @@ pub fn move_to_trash(
     mailbox: &str,
     uids: &[u32],
 ) -> Result<usize, DBError> {
+    // For future remote sync implementation:
+    // if let Some(trash) = crate::db::mail::mailbox::get_mailbox_by_role(conn, account_id, "trash")? {
+    //     for uid in uids {
+    //         crate::db::mail::flag_queue::enqueue_move_operation(conn, account_id, mailbox, &trash.name, *uid)?;
+    //     }
+    // }
+
     update_message_flags(conn, account_id, mailbox, uids, Some(&["\\Deleted"]), None)
 }
 
