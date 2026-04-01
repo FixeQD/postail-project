@@ -1,5 +1,5 @@
 use crate::db::{AttachmentMeta, MailHeader, Mailbox, MessageFull};
-use crate::globals::{get_db_pool, IMAP_MANAGER};
+use crate::globals::{IMAP_MANAGER, get_db_pool};
 use crate::oauth;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
@@ -174,6 +174,26 @@ pub async fn fetch_headers(
     limit: u32,
 ) -> Result<Vec<MailHeader>, String> {
     tracing::info!(target: "postail", "[API] fetch_headers called for {}@{} anchor={:?} limit={}", mailbox, account_id, anchor, limit);
+
+    if mailbox.starts_with("Virtual_") {
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
+
+        let res = if mailbox == "Virtual_Starred" {
+            crate::db::fetch_starred_headers(&conn, &account_id, limit)
+        } else if let Some(tag) = mailbox.strip_prefix("Virtual_Tag:") {
+            crate::db::mail::messages::fetch_tag_headers(&conn, &account_id, tag, limit)
+        } else {
+            return Err(format!("Unknown virtual mailbox: {}", mailbox));
+        };
+
+        return res.map_err(|e| {
+            let err_msg = format!("Failed to fetch virtual headers for {}: {}", mailbox, e);
+            tracing::error!(target: "postail", "{}", err_msg);
+            err_msg
+        });
+    }
+
     let anchor: Option<u32> = anchor
         .map(|a| a.try_into().map_err(|_| "Anchor too large".to_string()))
         .transpose()?;
@@ -238,7 +258,7 @@ pub async fn fetch_message_full(
                                 &mailbox,
                                 uid_u32,
                             ) {
-                                use mailparse::{parse_mail, MailHeaderMap};
+                                use mailparse::{MailHeaderMap, parse_mail};
                                 if let Ok(parsed) = parse_mail(&raw_eml) {
                                     let receipt = parsed
                                         .headers
@@ -466,4 +486,216 @@ pub async fn save_attachment(
         .map_err(|e| e.to_string())?;
 
     Ok(row)
+}
+
+#[tauri::command]
+pub async fn add_message_tag(
+    account_id: String,
+    mailbox: String,
+    uid: u32,
+    tag: String,
+) -> Result<(), String> {
+    use crate::db::mail::messages::add_tag;
+    use crate::globals::get_db_pool;
+
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+
+    let safe_tag = tag.replace(" ", "_");
+
+    add_tag(&conn, &account_id, &mailbox, uid, &safe_tag).map_err(|e| e.to_string())?;
+
+    // Enqueue for IMAP sync
+    crate::db::mail::flag_queue::enqueue_flag_change(
+        &conn,
+        &account_id,
+        &mailbox,
+        uid,
+        "add",
+        &[safe_tag],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let account_id_clone = account_id.clone();
+    tokio::spawn(async move {
+        if let Err(e) = crate::cmd::mail::actions::process_flag_queue(&account_id_clone).await {
+            tracing::error!(target: "postail", "Failed to process flag queue: {}", e);
+        }
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn remove_message_tag(
+    account_id: String,
+    mailbox: String,
+    uid: u32,
+    tag: String,
+) -> Result<(), String> {
+    use crate::db::mail::messages::remove_tag;
+    use crate::globals::get_db_pool;
+
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+
+    let safe_tag = tag.replace(" ", "_");
+
+    remove_tag(&conn, &account_id, &mailbox, uid, &safe_tag).map_err(|e| e.to_string())?;
+
+    // Enqueue for IMAP sync
+    crate::db::mail::flag_queue::enqueue_flag_change(
+        &conn,
+        &account_id,
+        &mailbox,
+        uid,
+        "remove",
+        &[safe_tag],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let account_id_clone = account_id.clone();
+    tokio::spawn(async move {
+        if let Err(e) = crate::cmd::mail::actions::process_flag_queue(&account_id_clone).await {
+            tracing::error!(target: "postail", "Failed to process flag queue: {}", e);
+        }
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_account_tags(account_id: String) -> Result<Vec<String>, String> {
+    use crate::globals::get_db_pool;
+
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT DISTINCT mt.tag
+             FROM message_tags mt
+             JOIN messages m ON m.id = mt.message_id
+             WHERE m.account_id = ?
+             ORDER BY mt.tag ASC",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let tags: Vec<String> = stmt
+        .query_map([&account_id], |row| row.get(0))
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    tracing::info!(target: "postail", "[DB] get_account_tags for account_id={} returned {} tags: {:?}", account_id, tags.len(), tags);
+
+    Ok(tags)
+}
+
+/// Get hue (0-359) for all tags on an account. Returns {tag: hue} map.
+#[tauri::command]
+pub async fn get_tag_colors(
+    account_id: String,
+) -> Result<std::collections::HashMap<String, i64>, String> {
+    use crate::globals::get_db_pool;
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+
+    // Get all tags for this account with their colors (defaulting to 200 if not set)
+    let mut stmt = conn
+        .prepare(
+            "SELECT DISTINCT mt.tag, COALESCE(tc.hue, 200) as hue
+             FROM message_tags mt
+             JOIN messages m ON m.id = mt.message_id
+             LEFT JOIN tag_colors tc ON tc.tag = mt.tag
+             WHERE m.account_id = ?
+             ORDER BY mt.tag ASC",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let map: std::collections::HashMap<String, i64> = stmt
+        .query_map([&account_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+        })
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(map)
+}
+
+/// Set hue (0-359) for a tag.
+#[tauri::command]
+pub async fn set_tag_color(tag: String, hue: i64) -> Result<(), String> {
+    use crate::globals::get_db_pool;
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT INTO tag_colors (tag, hue) VALUES (?, ?) ON CONFLICT(tag) DO UPDATE SET hue = excluded.hue",
+        rusqlite::params![tag, hue],
+    ).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Rename a tag across all messages.
+#[tauri::command]
+pub async fn rename_tag(
+    old_tag: String,
+    new_tag: String,
+    account_id: String,
+) -> Result<(), String> {
+    use crate::globals::get_db_pool;
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+
+    let new_tag = new_tag.trim().to_string();
+    if new_tag.is_empty() {
+        return Err("Tag name cannot be empty".to_string());
+    }
+
+    // Update all message_tags rows for this account
+    conn.execute(
+        "UPDATE message_tags SET tag = ?
+         WHERE tag = ? AND message_id IN (SELECT id FROM messages WHERE account_id = ?)",
+        rusqlite::params![new_tag, old_tag, account_id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    // Migrate color entry
+    conn.execute(
+        "INSERT INTO tag_colors (tag, hue)
+         SELECT ?, hue FROM tag_colors WHERE tag = ?
+         ON CONFLICT(tag) DO NOTHING",
+        rusqlite::params![new_tag, old_tag],
+    )
+    .map_err(|e| e.to_string())?;
+    conn.execute(
+        "DELETE FROM tag_colors WHERE tag = ?",
+        rusqlite::params![old_tag],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+/// Delete a tag from all messages on an account.
+#[tauri::command]
+pub async fn delete_tag(tag: String, account_id: String) -> Result<(), String> {
+    use crate::globals::get_db_pool;
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "DELETE FROM message_tags WHERE tag = ?
+         AND message_id IN (SELECT id FROM messages WHERE account_id = ?)",
+        rusqlite::params![tag, account_id],
+    )
+    .map_err(|e| e.to_string())?;
+    conn.execute(
+        "DELETE FROM tag_colors WHERE tag = ?",
+        rusqlite::params![tag],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
 }

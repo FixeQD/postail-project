@@ -64,17 +64,18 @@
           + N (New), U/Shift+U (Read/Unread), S (Star), / (Search focus)
     - [x] 10.30 — UI: Polish: Add sending animations, success/error toasts, and focus management
 
-- [ ] 11 - Flags & Labels
-    - [ ] 12.1 - DB: Add `starred` column to messages table (separate flag, not IMAP \Flagged)
-    - [ ] 12.2 - IMAP: Sync \Flagged ↔ starred both ways
-    - [ ] 12.3 - UI: Star button in MessageList and MessageView with animation
-    - [ ] 12.4 - UI: "Starred" filter in sidebar as virtual mailbox
-    - [ ] 12.5 - DB+UI: Per-message tags/labels system (`message_tags` table, multiple tags per message)
-    - [ ] 12.6 - UI: Tag picker in MessageView — add/remove tag with one click
-    - [ ] 12.7 - UI: Tag list in sidebar as virtual mailboxes (click = filter)
-    - [ ] 12.8 - DB: Migration adding `tags` and `message_tags` tables
-    - [ ] 12.9 - UI: Tag management in settings (name, color, delete)
-    - [ ] 12.10 - Rust: IMAP STORE for \Flagged when toggling star
+- [x] 11 - Flags & Labels
+    - [x] 12.1 - DB: Add `starred` column to messages table (separate flag, not IMAP \Flagged)
+    - [x] 12.2 - IMAP: Sync \Flagged ↔ starred both ways
+    - [x] 12.3 - UI: Star button in MessageList and MessageView with animation
+    - [x] 12.4 - UI: "Starred" filter in sidebar as virtual mailbox
+    - [x] 12.5 - DB+UI: Per-message tags/labels system (`message_tags` table, multiple tags per message)
+    - [x] 12.6 - UI: Tag picker in MessageView — add/remove tag with one click
+    - [x] 12.7 - UI: Tag list in sidebar as virtual mailboxes (click = filter)
+    - [x] 12.8 - DB: Migration adding `tags` and `message_tags` tables
+    - [x] 12.9 - UI: Tag management in settings (name, color, delete)
+    - [x] 12.10 - Rust: IMAP STORE for \Flagged when toggling star
+    - [x] 12.11 - IMAP: Sync Tags ↔ Keywords
 
 - [ ] 12 - Filters & Rules
     - [ ] 13.1 - DB: `filter_rules` table (conditions: from/to/subject/body, actions: move/tag/star/mark read/delete)

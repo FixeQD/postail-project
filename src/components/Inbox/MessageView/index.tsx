@@ -205,6 +205,16 @@ export const MessageView = ({
 		onBack()
 	}
 
+	const handleToggleStar = async () => {
+		try {
+			await invoke('toggle_starred', { accountId, mailbox, uid })
+			queryClient.invalidateQueries({ queryKey: ['message', accountId, mailbox, uid] })
+			queryClient.invalidateQueries({ queryKey: ['messages', accountId, mailbox] })
+		} catch (error) {
+			toast.error('Failed to toggle star', { description: String(error) })
+		}
+	}
+
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === 'Escape') {
@@ -329,6 +339,8 @@ export const MessageView = ({
 				onForward={handleForward}
 				onDelete={handleDelete}
 				onMarkUnread={handleMarkUnread}
+				onToggleStar={handleToggleStar}
+				isStarred={data?.header.starred ?? false}
 				onViewSource={handleViewSource}
 			/>
 
@@ -349,7 +361,18 @@ export const MessageView = ({
 					</div>
 				) : (
 					<>
-						<MessageViewMeta header={data.header} />
+						<MessageViewMeta
+							header={data.header}
+							accountId={accountId}
+							mailbox={mailbox}
+							onTagsChange={(tags) => {
+								queryClient.setQueryData(
+									['message', accountId, mailbox, uid],
+									(old: import('@/types/mail').MessageFull | null | undefined) =>
+										old ? { ...old, header: { ...old.header, tags } } : old
+								)
+							}}
+						/>
 
 						{/* Read receipt request banner */}
 						{data.read_receipt_to && !blockReadReceipts && !receiptDismissed && (

@@ -59,8 +59,8 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 			if (!newMessage) return
 
 			if (selectedMessage) {
-				setSelectedMessage({ uid: newMessage.uid, mailbox: activeMailbox! })
-				openMessageInStore(activeAccount!.id, activeMailbox!, newMessage.uid)
+				setSelectedMessage({ uid: newMessage.uid, mailbox: newMessage.mailbox })
+				openMessageInStore(activeAccount!.id, newMessage.mailbox, newMessage.uid)
 			} else {
 				setFocusedUid(newMessage.uid)
 			}
@@ -92,10 +92,14 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 
 	const handleOpenMessage = useCallback(() => {
 		if (focusedUid && !selectedMessage) {
-			setSelectedMessage({ uid: focusedUid, mailbox: activeMailbox! })
-			openMessageInStore(activeAccount!.id, activeMailbox!, focusedUid)
+			const messages = getMessagesList()
+			const msg = messages.find((m) => m.uid === focusedUid)
+			if (msg) {
+				setSelectedMessage({ uid: focusedUid, mailbox: msg.mailbox })
+				openMessageInStore(activeAccount!.id, msg.mailbox, focusedUid)
+			}
 		}
-	}, [focusedUid, selectedMessage, activeMailbox])
+	}, [focusedUid, selectedMessage, activeAccount, getMessagesList, openMessageInStore])
 
 	const handleDeleteMessage = useCallback(() => {
 		// handle delete message
@@ -233,9 +237,9 @@ export const InboxScreen = ({}: InboxScreenProps) => {
 							account={activeAccount}
 							mailbox={activeMailbox}
 							focusedUid={focusedUid}
-							onMessageClick={(uid: number) => {
-								setSelectedMessage({ uid, mailbox: activeMailbox })
-								openMessageInStore(activeAccount!.id, activeMailbox!, uid)
+							onMessageClick={(uid: number, mailbox: string) => {
+								setSelectedMessage({ uid, mailbox })
+								openMessageInStore(activeAccount!.id, mailbox, uid)
 								setFocusedUid(uid)
 							}}
 						/>

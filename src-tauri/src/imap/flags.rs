@@ -139,7 +139,9 @@ impl ImapManager {
         drop(fetches);
         session.logout().await.map_err(AppError::from)?;
 
-        let pool = crate::globals::get_db_pool().await.map_err(|e| AppError::from(e.to_string()))?;
+        let pool = crate::globals::get_db_pool()
+            .await
+            .map_err(|e| AppError::from(e.to_string()))?;
         let conn = pool.get().map_err(|e| AppError::from(e.to_string()))?;
 
         let update_count = flag_updates.len();
@@ -166,16 +168,65 @@ impl ImapManager {
                 continue;
             }
 
-            let flags_json =
-                serde_json::to_string(&flags).map_err(|e| AppError::from(e.to_string()))?;
+            let mut system_flags = Vec::new();
+            let mut server_tags = Vec::new();
+            for f in flags {
+                if f.starts_with('\\') {
+                    system_flags.push(f);
+                } else {
+                    server_tags.push(f);
+                }
+            }
+
+            let system_flags_json =
+                serde_json::to_string(&system_flags).map_err(|e| AppError::from(e.to_string()))?;
+
+            let server_starred = system_flags.iter().any(|f| f == "\\Flagged");
 
             let rows_updated = conn.execute(
-                "UPDATE messages SET flags_json = ? WHERE account_id = ? AND mailbox = ? AND uid = ?",
-                rusqlite::params![flags_json, account_id, mailbox, uid],
+                "UPDATE messages SET flags_json = ?, starred = ? WHERE account_id = ? AND mailbox = ? AND uid = ?",
+                rusqlite::params![system_flags_json, if server_starred { 1i64 } else { 0i64 }, account_id, mailbox, uid],
             )
             .map_err(|e| AppError::from(e.to_string()))?;
 
-            if rows_updated == 0 {
+            if rows_updated > 0 {
+                // Get the message_id for tag sync
+                let message_id: i64 = conn.query_row(
+                    "SELECT id FROM messages WHERE account_id = ? AND mailbox = ? AND uid = ?",
+                    rusqlite::params![account_id, mailbox, uid],
+                    |row| row.get(0),
+                ).map_err(|e| AppError::from(e.to_string()))?;
+
+                // Get local tags for this message
+                let mut stmt = conn.prepare("SELECT tag FROM message_tags WHERE message_id = ?").map_err(|e| AppError::from(e.to_string()))?;
+                let local_tags: std::collections::HashSet<String> = stmt.query_map(rusqlite::params![message_id], |row| row.get(0))
+                    .map_err(|e| AppError::from(e.to_string()))?
+                    .filter_map(|r| r.ok())
+                    .collect();
+                drop(stmt);
+
+                let server_tags_set: std::collections::HashSet<String> = server_tags.into_iter().collect();
+
+                // Tags to add
+                for tag in &server_tags_set {
+                    if !local_tags.contains(tag) {
+                        conn.execute(
+                            "INSERT OR IGNORE INTO message_tags (message_id, tag) VALUES (?, ?)",
+                            rusqlite::params![message_id, tag],
+                        ).map_err(|e| AppError::from(e.to_string()))?;
+                    }
+                }
+
+                // Tags to remove
+                for tag in &local_tags {
+                    if !server_tags_set.contains(tag) {
+                        conn.execute(
+                            "DELETE FROM message_tags WHERE message_id = ? AND tag = ?",
+                            rusqlite::params![message_id, tag],
+                        ).map_err(|e| AppError::from(e.to_string()))?;
+                    }
+                }
+            } else {
                 tracing::debug!(target: "postail",
                     "[IMAP] Flag sync: message not found in DB: uid={} mailbox={} account={}",
                     uid, mailbox, account_id

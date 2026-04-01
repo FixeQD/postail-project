@@ -10,6 +10,7 @@ export interface Mailbox {
 // Keep in sync with src-tauri/src/db/mod.rs => MailHeader
 export interface MailHeader {
 	uid: number
+	mailbox: string
 	message_id?: string
 	internal_date: string // DateTime<Utc> serialized to string
 	subject?: string
@@ -19,6 +20,8 @@ export interface MailHeader {
 	flags: string[]
 	snippet?: string
 	has_attachments: boolean
+	starred: boolean
+	tags: string[]
 }
 
 export interface ParsedAddress {

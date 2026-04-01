@@ -2,7 +2,8 @@
 	"sidebar": {
 		"newMessage": "New Message",
 		"mailboxes": {
-			"drafts": "Drafts"
+			"drafts": "Drafts",
+			"starred": "Starred"
 		}
 	},
 	"search": {
@@ -37,6 +38,7 @@
 		"markUnreadError": "Failed to mark as unread",
 		"from": "From",
 		"to": "To",
+		"toLabel": "to {{name}}",
 		"cc": "Cc",
 		"date": "Date",
 		"attachments": {
@@ -59,7 +61,23 @@
 			"delete": "Delete",
 			"markUnread": "Mark as unread",
 			"moveTo": "Move to...",
-			"print": "Print"
+			"print": "Print",
+			"star": "Star",
+			"unstar": "Unstar",
+			"viewSource": "View source (EML)"
+		},
+		"tags": {
+			"title": "Tags",
+			"add": "Add tag",
+			"addAria": "Add tag",
+			"placeholder": "Add tag…",
+			"applied": "Applied",
+			"more": "More tags",
+			"create": "Create \"{{tag}}\"",
+			"noMatch": "No matching tags",
+			"empty": "Type to create a tag",
+			"formatToast": "Tag name formatted",
+			"formatDesc": "Spaces were replaced with underscores for IMAP compatibility."
 		},
 		"renderError": {
 			"title": "Failed to render message content",

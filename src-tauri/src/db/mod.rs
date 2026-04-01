@@ -228,6 +228,7 @@ pub struct Mailbox {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MailHeader {
     pub uid: u32,
+    pub mailbox: String,
     pub message_id: Option<String>,
     pub internal_date: DateTime<Utc>,
     pub subject: Option<String>,
@@ -237,6 +238,8 @@ pub struct MailHeader {
     pub flags: Vec<String>,
     pub snippet: Option<String>,
     pub has_attachments: bool,
+    pub starred: bool,
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

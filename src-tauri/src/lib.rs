@@ -19,7 +19,7 @@ use std::sync::atomic::Ordering;
 use crate::globals::SMTP_MANAGER;
 use crate::imap::pool::init_pool;
 use crate::imap::sync_status::set_sync_status_app_handle;
-use crate::network::cache::{ResourceCache, RESOURCE_CACHE};
+use crate::network::cache::{RESOURCE_CACHE, ResourceCache};
 use tauri::Manager;
 
 /// TPM helper mode: Initialize TPM with elevated privileges (Linux only)
@@ -163,6 +163,13 @@ pub fn run() {
             cmd::mail::listing::fetch_headers,
             cmd::mail::listing::fetch_message_full,
             cmd::mail::listing::save_attachment,
+            cmd::mail::listing::add_message_tag,
+            cmd::mail::listing::remove_message_tag,
+            cmd::mail::listing::get_account_tags,
+            cmd::mail::listing::get_tag_colors,
+            cmd::mail::listing::set_tag_color,
+            cmd::mail::listing::rename_tag,
+            cmd::mail::listing::delete_tag,
             cmd::mail::sync::start_sync,
             cmd::mail::sync::get_inbox_baseline_uids,
             cmd::mail::sync::stop_sync,
@@ -183,6 +190,7 @@ pub fn run() {
             cmd::mail::listing::fetch_raw_eml_text,
             cmd::mail::listing::fetch_thread,
             cmd::mail::actions::delete_messages,
+            cmd::mail::actions::toggle_starred,
             cmd::smtp::enqueue_message,
             cmd::smtp::list_outbox,
             cmd::smtp::retry_sending,

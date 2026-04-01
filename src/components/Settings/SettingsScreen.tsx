@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
 	Settings,
+	Tag,
 	User,
 	Shield,
 	Palette,
@@ -24,6 +25,7 @@ import { NotificationsSettings } from './Sections/NotificationsSettings'
 import { ComposingSettings } from './Sections/ComposingSettings'
 import { AboutSettings } from './Sections/AboutSettings'
 import { KeyboardShortcutsSettings } from './Sections/KeyboardShortcutsSettings'
+import { TagsSettings } from './Sections/TagsSettings'
 import { invoke } from '@tauri-apps/api/core'
 import { useAccountStore } from '@/stores/accountStore'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
@@ -124,6 +126,7 @@ export function SettingsScreen({
 			{ id: 'notifications', label: t('settings:sections.notifications'), icon: Bell },
 			{ id: 'composing', label: t('settings:sections.composing'), icon: PenLine },
 			{ id: 'shortcuts', label: 'Shortcuts', icon: Keyboard },
+			{ id: 'tags', label: 'Tags', icon: Tag },
 			{ id: 'about', label: 'About', icon: Info },
 		],
 		[t]
@@ -154,6 +157,8 @@ export function SettingsScreen({
 				return <ComposingSettings />
 			case 'shortcuts':
 				return <KeyboardShortcutsSettings />
+			case 'tags':
+				return <TagsSettings />
 			case 'about':
 				return <AboutSettings />
 			default:

@@ -32,7 +32,7 @@ export function useGlobalShortcuts({
 			e.preventDefault()
 			onNewMessage()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onNewMessage, getKey]
 	)
 	useHotkeys(
@@ -41,7 +41,7 @@ export function useGlobalShortcuts({
 			e.preventDefault()
 			onFocusSearch()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onFocusSearch, getKey]
 	)
 	useHotkeys(
@@ -50,7 +50,7 @@ export function useGlobalShortcuts({
 			e.preventDefault()
 			onRefresh()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onRefresh, getKey]
 	)
 	useHotkeys(
@@ -59,7 +59,7 @@ export function useGlobalShortcuts({
 			e.preventDefault()
 			onGoToInbox()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onGoToInbox, getKey]
 	)
 	useHotkeys(
@@ -68,7 +68,7 @@ export function useGlobalShortcuts({
 			e.preventDefault()
 			onGoToOutbox()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onGoToOutbox, getKey]
 	)
 	useHotkeys(
@@ -77,7 +77,7 @@ export function useGlobalShortcuts({
 			e.preventDefault()
 			onGoToDrafts()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onGoToDrafts, getKey]
 	)
 	useHotkeys(
@@ -86,7 +86,7 @@ export function useGlobalShortcuts({
 			e.preventDefault()
 			onGoToAccounts()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onGoToAccounts, getKey]
 	)
 	useHotkeys(
@@ -95,7 +95,7 @@ export function useGlobalShortcuts({
 			e.preventDefault()
 			onOpenSettings()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onOpenSettings, getKey]
 	)
 }

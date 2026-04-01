@@ -10,6 +10,7 @@ import {
 	Star,
 	AlertTriangle,
 	Layers,
+	Tag,
 } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
 import { useQuery } from '@tanstack/react-query'
@@ -77,6 +78,8 @@ const MailboxItem = memo(
 					return <Star className={cls} />
 				case 'all':
 					return <Layers className={cls} />
+				case 'tag':
+					return <Tag className={cls} />
 				default:
 					return <File className={cls} />
 			}
@@ -168,6 +171,12 @@ export const Sidebar = ({
 		enabled: !!activeAccount,
 	})
 
+	const { data: tags } = useQuery({
+		queryKey: ['account-tags', activeAccount?.id],
+		queryFn: () => invoke<string[]>('get_account_tags', { accountId: activeAccount?.id }),
+		enabled: !!activeAccount,
+	})
+
 	// Add virtual Drafts mailbox if not present
 	const allMailboxes = mailboxes ? [...mailboxes] : []
 	if (!allMailboxes.some((m) => m.role === 'drafts')) {
@@ -175,6 +184,18 @@ export const Sidebar = ({
 			name: 'Drafts',
 			display_name: t('inbox:sidebar.mailboxes.drafts'),
 			role: 'drafts',
+			uid_validity: undefined,
+			highest_modseq: undefined,
+			last_synced_uid: undefined,
+		})
+	}
+
+	// Add virtual Starred mailbox if not present natively
+	if (!allMailboxes.some((m) => m.role === 'flagged')) {
+		allMailboxes.push({
+			name: 'Virtual_Starred',
+			display_name: t('inbox:sidebar.mailboxes.starred'),
+			role: 'flagged',
 			uid_validity: undefined,
 			highest_modseq: undefined,
 			last_synced_uid: undefined,
@@ -212,10 +233,14 @@ export const Sidebar = ({
 
 	const sortedMailboxes = useMemo(() => {
 		const sorted = [...allMailboxes].sort((a, b) => {
-			if (a.name.toLowerCase() === 'inbox') return -1
-			if (b.name.toLowerCase() === 'inbox') return 1
-			if (a.role === 'drafts') return 1
-			if (b.role === 'drafts') return -1
+			const roleOrder = ['inbox', 'flagged', 'sent', 'drafts', 'archive', 'junk', 'trash']
+			const scoreA = roleOrder.indexOf(a.role)
+			const scoreB = roleOrder.indexOf(b.role)
+
+			if (scoreA !== -1 && scoreB !== -1) return scoreA - scoreB
+			if (scoreA !== -1) return -1
+			if (scoreB !== -1) return 1
+
 			return a.name.localeCompare(b.name)
 		})
 		return sorted
@@ -287,6 +312,33 @@ export const Sidebar = ({
 									onSelect={onMailboxSelect}
 								/>
 							))}
+
+							{tags && tags.length > 0 && (
+								<div className='mt-4 space-y-0.5'>
+									{!isCollapsed && (
+										<div className='px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50'>
+											Tags
+										</div>
+									)}
+									{tags.map((tag) => (
+										<MailboxItem
+											key={tag}
+											mailbox={
+												{
+													name: `Virtual_Tag:${tag}`,
+													display_name: tag,
+													role: 'tag',
+												} as any
+											}
+											isActive={activeMailbox === `Virtual_Tag:${tag}`}
+											isCollapsed={isCollapsed}
+											accentColor={accentColor}
+											animationsEnabled={animationsEnabled}
+											onSelect={onMailboxSelect}
+										/>
+									))}
+								</div>
+							)}
 						</motion.div>
 					)}
 				</div>

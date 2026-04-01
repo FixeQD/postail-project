@@ -115,6 +115,7 @@ const MessageRow = memo(
 		onMouseLeave,
 		onDelete,
 		onToggleRead,
+		onToggleStar,
 		isFocused,
 	}: MessageRowProps) => {
 		const { t } = useTypedTranslation()
@@ -164,16 +165,35 @@ const MessageRow = memo(
 					style={{ accentColor, color: accentColor }}
 					onClick={(e) => e.stopPropagation()}
 				/>
-				<span
-					role='button'
-					tabIndex={0}
-					className='text-muted-foreground/40 rounded-md p-0.5 transition-colors hover:text-amber-400 focus:outline-none'
-					onClick={(e) => e.stopPropagation()}
-					onKeyDown={(e) => {
-						if (e.key === 'Enter' || e.key === ' ') e.preventDefault()
-					}}>
-					<Star className='h-4 w-4' />
-				</span>
+				<motion.button
+					type='button'
+					{...(animationsEnabled ? { whileTap: { scale: 0.75 } } : {})}
+					className={`rounded-md p-0.5 transition-colors focus:outline-none ${
+						message.starred
+							? 'text-amber-400 hover:text-amber-300'
+							: 'text-muted-foreground/40 hover:text-amber-400'
+					}`}
+					onClick={(e) => {
+						e.stopPropagation()
+						onToggleStar()
+					}}
+					aria-label={message.starred ? 'Unstar message' : 'Star message'}
+					aria-pressed={message.starred}>
+					<motion.div
+						{...(animationsEnabled
+							? {
+									animate: message.starred
+										? { scale: [1, 1.35, 1], rotate: [0, 15, -10, 0] }
+										: { scale: 1, rotate: 0 },
+									transition: { duration: 0.35, ease: 'easeOut' },
+								}
+							: {})}>
+						<Star
+							className='h-4 w-4'
+							fill={message.starred ? 'currentColor' : 'none'}
+						/>
+					</motion.div>
+				</motion.button>
 			</div>
 		)
 
@@ -187,6 +207,20 @@ const MessageRow = memo(
 			/>
 		)
 
+		const tagPills = message.tags?.length > 0 && (
+			<div className='mt-1.5 flex flex-wrap gap-1'>
+				{message.tags
+					.filter((tag) => tag && tag !== 'null')
+					.map((tag) => (
+						<span
+							key={tag}
+							className='rounded bg-[var(--surface-active)] px-1.5 py-0.5 text-[10px] whitespace-nowrap font-medium text-tertiary ring-1 ring-[var(--border-subtle)]'>
+							{tag}
+						</span>
+					))}
+			</div>
+		)
+
 		// ── 1-line compact layout ──────────────────────────────────────
 		if (previewLines === 1) {
 			return (
@@ -195,14 +229,14 @@ const MessageRow = memo(
 					tabIndex={0}
 					onMouseEnter={onMouseEnter}
 					onMouseLeave={onMouseLeave}
-					onClick={() => onMessageClick(message.uid)}
+					onClick={() => onMessageClick(message.uid, message.mailbox)}
 					onKeyDown={(e) => {
 						if (e.key === 'Enter' || e.key === ' ') {
 							e.preventDefault()
-							onMessageClick(message.uid)
+							onMessageClick(message.uid, message.mailbox)
 						}
 					}}
-					className={`${rowBase} items-center px-4 py-3 hover:scale-[1.01] transition-transform duration-150`}
+					className={`${rowBase} items-center px-4 py-3 transition-transform duration-150 hover:scale-[1.01]`}
 					style={{ borderColor: 'var(--border-faint)', ...focusedStyle }}>
 					{activeIndicator}
 					{checkboxStar}
@@ -215,6 +249,20 @@ const MessageRow = memo(
 							</span>
 							{snippet && (
 								<span className={`truncate ${snippetClass}`}>— {snippet}</span>
+							)}
+							{message.tags?.length > 0 && (
+								<div className='ml-2 flex gap-1 opacity-80'>
+									{message.tags
+										.filter((t) => t && t !== 'null')
+										.map((tag) => (
+											<div
+												key={tag}
+												className='h-1.5 w-1.5 rounded-full'
+												style={{ backgroundColor: accentColor }}
+												title={tag}
+											/>
+										))}
+								</div>
 							)}
 						</div>
 					</div>
@@ -244,14 +292,14 @@ const MessageRow = memo(
 				tabIndex={0}
 				onMouseEnter={onMouseEnter}
 				onMouseLeave={onMouseLeave}
-				onClick={() => onMessageClick(message.uid)}
+				onClick={() => onMessageClick(message.uid, message.mailbox)}
 				onKeyDown={(e) => {
 					if (e.key === 'Enter' || e.key === ' ') {
 						e.preventDefault()
-						onMessageClick(message.uid)
+						onMessageClick(message.uid, message.mailbox)
 					}
 				}}
-				className={`${rowBase} items-start px-4 py-3 hover:scale-[1.005] transition-transform duration-150`}
+				className={`${rowBase} items-start px-4 py-3 transition-transform duration-150 hover:scale-[1.005]`}
 				style={{ borderColor: 'var(--border-faint)', ...focusedStyle }}>
 				{activeIndicator}
 				{checkboxStar}
@@ -285,6 +333,9 @@ const MessageRow = memo(
 					{snippet && previewLines === 3 && (
 						<p className={`${snippetClass} line-clamp-2`}>{snippet}</p>
 					)}
+
+					{/* Tags Row */}
+					{tagPills}
 				</div>
 			</motion.div>
 		)
@@ -317,6 +368,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 	const currentMailbox = mailboxes?.find((m) => m.name === mailbox)
 
 	const needsSync = (() => {
+		if (mailbox.startsWith('Virtual_')) return false
 		if (syncedRef.current.has(mailboxKey)) return false
 		if (mailboxesLoading || !mailboxes) return true
 		if (!currentMailbox) return true
@@ -328,7 +380,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 		setIsSyncing(false)
 		setSyncError(null)
 
-		if (!needsSync) return
+		if (!needsSync || mailbox.startsWith('Virtual_')) return
 
 		let cancelled = false
 		const doSync = async () => {
@@ -363,7 +415,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 	}, [needsSync, account.id, mailbox, mailboxKey, queryClient])
 
 	useEffect(() => {
-		if (isSyncing || syncError || needsSync) return
+		if (isSyncing || syncError || needsSync || mailbox.startsWith('Virtual_')) return
 
 		let stopped = false
 
@@ -403,12 +455,14 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 			},
 			initialPageParam: undefined as number | undefined,
 			getNextPageParam: (lastPage: MailHeader[]) => {
+				if (mailbox.startsWith('Virtual_')) return undefined
 				if (lastPage.length < BATCH_SIZE) return undefined
 				const lastMessage = lastPage[lastPage.length - 1]
 				return lastMessage?.uid
 			},
 
 			enabled: !needsSync && !isSyncing,
+			staleTime: 1000,
 		})
 
 	const allMessages = useMemo(() => data?.pages.flatMap((page) => page) ?? [], [data?.pages])
@@ -420,7 +474,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 
 	// After first page loads, backfill snippets for messages that are missing them
 	useEffect(() => {
-		if (!data?.pages[0]?.length) return
+		if (!data?.pages[0]?.length || mailbox.startsWith('Virtual_')) return
 		const hasMissingSnippets = data.pages[0].some((m) => !m.snippet)
 		if (!hasMissingSnippets) return
 
@@ -508,7 +562,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 	}, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
 	const handleDeleteMessage = useCallback(
-		async (uid: number) => {
+		async (uid: number, msgMailbox: string) => {
 			const queryKey = ['messages', account.id, mailbox] as const
 			const previousData = queryClient.getQueryData<{
 				pages: MailHeader[][]
@@ -528,7 +582,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 			try {
 				await invoke('delete_messages', {
 					accountId: account.id,
-					mailbox,
+					mailbox: msgMailbox,
 					uids: [uid],
 				})
 				const trashMailbox = mailboxes?.find((m) => m.role === 'trash')
@@ -537,12 +591,12 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 						accountId: account.id,
 						mailbox: trashMailbox.name,
 					}).catch(console.error)
-					
+
 					queryClient.invalidateQueries({
 						queryKey: ['messages', account.id, trashMailbox.name],
 					})
 				}
-				
+
 				// Invalidate current mailbox to ensure it reflects the server state properly
 				queryClient.invalidateQueries({
 					queryKey,
@@ -561,11 +615,11 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 	)
 
 	const handleToggleReadStatus = useCallback(
-		async (uid: number, currentlyUnread: boolean) => {
+		async (uid: number, currentlyUnread: boolean, msgMailbox: string) => {
 			try {
 				await invoke('mark_read', {
 					accountId: account.id,
-					mailbox,
+					mailbox: msgMailbox,
 					uids: [uid],
 					read: currentlyUnread,
 				})
@@ -576,6 +630,39 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 				toast.error(`Failed to mark message as ${currentlyUnread ? 'read' : 'unread'}`, {
 					description: String(error),
 				})
+			}
+		},
+		[account.id, mailbox, queryClient]
+	)
+
+	const handleToggleStar = useCallback(
+		async (uid: number, msgMailbox: string) => {
+			const queryKey = ['messages', account.id, mailbox]
+			const previousData = queryClient.getQueryData(queryKey)
+
+			queryClient.setQueryData(queryKey, (old: unknown) => {
+				if (!old || typeof old !== 'object') return old
+				const typedOld = old as { pages: MailHeader[][] }
+				return {
+					...typedOld,
+					pages: typedOld.pages.map((page) =>
+						page.map((msg) =>
+							msg.uid === uid ? { ...msg, starred: !msg.starred } : msg
+						)
+					),
+				}
+			})
+
+			try {
+				await invoke('toggle_starred', {
+					accountId: account.id,
+					mailbox: msgMailbox,
+					uid,
+				})
+			} catch (error) {
+				// Roll back on failure
+				queryClient.setQueryData(queryKey, previousData)
+				toast.error('Failed to toggle star', { description: String(error) })
 			}
 		},
 		[account.id, mailbox, queryClient]
@@ -805,13 +892,15 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 								onMessageClick={onMessageClick}
 								onMouseEnter={() => setHoveredMessageId(message.uid)}
 								onMouseLeave={() => setHoveredMessageId(null)}
-								onDelete={() => handleDeleteMessage(message.uid)}
-								onToggleRead={() => handleToggleReadStatus(message.uid, isUnread)}
+								onDelete={() => handleDeleteMessage(message.uid, message.mailbox)}
+								onToggleRead={() =>
+									handleToggleReadStatus(message.uid, isUnread, message.mailbox)
+								}
+								onToggleStar={() => handleToggleStar(message.uid, message.mailbox)}
 							/>
 						)
 					}}
 				/>
-
 			</div>
 		</div>
 	)

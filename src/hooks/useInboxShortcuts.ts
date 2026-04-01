@@ -40,7 +40,7 @@ export function useInboxShortcuts({
 			e.preventDefault()
 			onNextMessage()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onNextMessage, getKey]
 	)
 	useHotkeys(
@@ -49,7 +49,7 @@ export function useInboxShortcuts({
 			e.preventDefault()
 			onPrevMessage()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onPrevMessage, getKey]
 	)
 	useHotkeys(
@@ -58,7 +58,7 @@ export function useInboxShortcuts({
 			e.preventDefault()
 			onOpenMessage()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onOpenMessage, getKey]
 	)
 	useHotkeys(
@@ -67,7 +67,7 @@ export function useInboxShortcuts({
 			e.preventDefault()
 			onDeleteMessage()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onDeleteMessage, getKey]
 	)
 	useHotkeys(
@@ -76,7 +76,7 @@ export function useInboxShortcuts({
 			e.preventDefault()
 			onReply()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onReply, getKey]
 	)
 	useHotkeys(
@@ -85,7 +85,7 @@ export function useInboxShortcuts({
 			e.preventDefault()
 			onReplyAll()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onReplyAll, getKey]
 	)
 	useHotkeys(
@@ -94,7 +94,7 @@ export function useInboxShortcuts({
 			e.preventDefault()
 			onForward()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onForward, getKey]
 	)
 	useHotkeys(
@@ -103,7 +103,7 @@ export function useInboxShortcuts({
 			e.preventDefault()
 			onNewMessage()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onNewMessage, getKey]
 	)
 	useHotkeys(
@@ -112,7 +112,7 @@ export function useInboxShortcuts({
 			e.preventDefault()
 			onToggleRead()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onToggleRead, getKey]
 	)
 	useHotkeys(
@@ -121,7 +121,7 @@ export function useInboxShortcuts({
 			e.preventDefault()
 			onMarkUnread()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onMarkUnread, getKey]
 	)
 	useHotkeys(
@@ -130,7 +130,7 @@ export function useInboxShortcuts({
 			e.preventDefault()
 			onToggleStar()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onToggleStar, getKey]
 	)
 	useHotkeys(
@@ -139,7 +139,7 @@ export function useInboxShortcuts({
 			e.preventDefault()
 			onFocusSearch()
 		},
-		{ enabled, enableOnFormTags: true, enableOnContentEditable: true },
+		{ enabled, enableOnContentEditable: true },
 		[onFocusSearch, getKey]
 	)
 }

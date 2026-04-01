@@ -87,9 +87,11 @@ export interface MessageViewHeaderProps {
 	onForward: () => void
 	onDelete: () => void
 	onMarkUnread: () => void
+	onToggleStar: () => void
 	onViewSource?: () => void
 	hasHtml?: boolean
 	isDeleting?: boolean
+	isStarred?: boolean
 }
 
 export interface MessageViewAttachmentsProps {
@@ -111,6 +113,9 @@ export interface MessageViewBodyProps {
 
 export interface MessageViewMetaProps {
 	header: import('../mail').MailHeader
+	accountId?: string
+	mailbox?: string
+	onTagsChange?: (tags: string[]) => void
 }
 
 export interface SettingCardProps {
