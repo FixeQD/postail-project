@@ -84,7 +84,16 @@
 		},
 		"applyNow": "Apply rules now",
 		"applyNowDesc": "Run enabled rules on all messages in a specific folder.",
-		"applied": "Applied rules to {{count}} messages"
+		"applied": "Applied rules to {{count}} messages",
+		"suggest": {
+			"title": "Automate this sender?",
+			"subtitle": "Based on your mail patterns, these rules might be useful. All are saved disabled — enable them after review.",
+			"save": "Save rule",
+			"savedShort": "Saved",
+			"saved": "Rule saved. Enable it in Settings → Filters.",
+			"dismiss": "Dismiss",
+			"pickFolder": "You'll need to pick a destination folder before enabling this rule."
+		}
 	},
 	"general": {
 		"title": "General Settings",

@@ -5,6 +5,7 @@ pub mod schema;
 pub mod search;
 pub mod sql_helpers;
 pub mod filters;
+pub mod suggestions;
 
 use std::fs;
 use std::path::PathBuf;

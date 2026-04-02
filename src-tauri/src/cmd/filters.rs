@@ -56,3 +56,17 @@ pub async fn apply_filters_to_mailbox(
     filters::apply_rules_to_mailbox(&mut *conn, &account_id, &mailbox)
         .map_err(|e| e.to_string())
 }
+
+#[command]
+pub async fn suggest_rules_for_sender(
+    account_id: String,
+    from_addr: String,
+) -> Result<Vec<FilterRule>, String> {
+    if from_addr.trim().is_empty() {
+        return Ok(vec![]);
+    }
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+    crate::db::suggestions::suggest_rules_for_sender(&conn, &account_id, &from_addr)
+        .map_err(|e| e.to_string())
+}

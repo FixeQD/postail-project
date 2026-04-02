@@ -17,6 +17,7 @@ pub enum ConditionOperator {
     Contains,
     NotContains,
     Equals,
+    NotEquals,
     StartsWith,
     EndsWith,
 }
@@ -219,6 +220,7 @@ fn matches_condition(msg: &MessageMatchData, cond: &RuleCondition) -> bool {
         ConditionOperator::Contains => haystack_lower.contains(&needle),
         ConditionOperator::NotContains => !haystack_lower.contains(&needle),
         ConditionOperator::Equals => haystack_lower == needle,
+        ConditionOperator::NotEquals => haystack_lower != needle,
         ConditionOperator::StartsWith => haystack_lower.starts_with(&needle),
         ConditionOperator::EndsWith => haystack_lower.ends_with(&needle),
     }

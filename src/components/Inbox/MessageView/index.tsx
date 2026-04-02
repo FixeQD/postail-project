@@ -28,7 +28,9 @@ import { ThreadView } from './ThreadView'
 import { useInboxShortcuts } from '@/hooks/useInboxShortcuts'
 import { toast } from '@/stores/toastStore'
 import { MessageViewSkeleton } from './MessageViewSkeleton'
+import { SuggestRuleDialog } from '@/components/Inbox/SuggestRuleDialog'
 import type { MessageViewProps } from '@/types/components/shared'
+import type { FilterRule } from '@/types/filters'
 
 export const MessageView = ({
 	accountId,
@@ -53,6 +55,7 @@ export const MessageView = ({
 	const [isSendingReceipt, setIsSendingReceipt] = useState(false)
 	const [noReplyAction, setNoReplyAction] = useState<'reply' | 'replyAll' | null>(null)
 	const [rawEml, setRawEml] = useState<string | null>(null)
+	const [suggestedRules, setSuggestedRules] = useState<FilterRule[]>([])
 	const [rawEmlLoading, setRawEmlLoading] = useState(false)
 	const [sourceOpen, setSourceOpen] = useState(false)
 	const [thread, setThread] = useState<ThreadViewType | null>(null)
@@ -171,6 +174,7 @@ export const MessageView = ({
 	}
 
 	const handleDelete = async () => {
+		const fromAddr = data?.header.from?.[0] ?? ''
 		// Optimistic update
 		onBack()
 
@@ -184,6 +188,15 @@ export const MessageView = ({
 				queryKey: ['messages', accountId, mailbox],
 			})
 			toast.success(t('inbox:messageView.deleted'))
+
+			// Fire suggestion check after delete — non-blocking
+			if (fromAddr) {
+				invoke<FilterRule[]>('suggest_rules_for_sender', { accountId, fromAddr })
+					.then((suggestions) => {
+						if (suggestions.length > 0) setSuggestedRules(suggestions)
+					})
+					.catch(() => {/* silent */})
+			}
 		} catch (error) {
 			toast.error(t('inbox:messageView.deleteError'))
 		}
@@ -570,6 +583,15 @@ export const MessageView = ({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+
+			{/* Rule suggestion dialog — shown after delete if patterns detected */}
+			{suggestedRules.length > 0 && (
+				<SuggestRuleDialog
+					rules={suggestedRules}
+					accountId={accountId}
+					onClose={() => setSuggestedRules([])}
+				/>
+			)}
 		</div>
 	)
 }

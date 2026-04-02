@@ -175,6 +175,7 @@ pub fn run() {
             cmd::filters::delete_filter_rule,
             cmd::filters::reorder_filter_rules,
             cmd::filters::apply_filters_to_mailbox,
+            cmd::filters::suggest_rules_for_sender,
             cmd::mail::sync::start_sync,
             cmd::mail::sync::get_inbox_baseline_uids,
             cmd::mail::sync::stop_sync,
