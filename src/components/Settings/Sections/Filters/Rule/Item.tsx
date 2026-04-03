@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { Reorder } from 'framer-motion'
 import { useShellTransition } from '@/hooks/useShellTransition'
+import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { FilterRule, ActionType } from '@/types/filters'
 import { RuleEditor } from './Editor'
 
@@ -39,6 +40,7 @@ interface RuleItemProps {
 }
 
 export function RuleItem({ rule, onDelete, onToggle, disabled }: RuleItemProps) {
+	const { t } = useTypedTranslation(['settings'])
 	const [mode, setMode] = useState<'card' | 'editor'>('card')
 	const { shellScope, contentScope, transition } = useShellTransition()
 
@@ -84,7 +86,7 @@ export function RuleItem({ rule, onDelete, onToggle, disabled }: RuleItemProps) 
 									</span>
 									{!rule.enabled && (
 										<span className='shrink-0 rounded-full bg-[var(--surface-active)] px-2 py-0.5 text-[10px] font-bold tracking-wider text-[var(--text-tertiary)] uppercase'>
-											Off
+											{t('settings:filters.statusOff')}
 										</span>
 									)}
 								</div>
@@ -93,7 +95,9 @@ export function RuleItem({ rule, onDelete, onToggle, disabled }: RuleItemProps) 
 									<span className='text-[10px] font-medium text-[var(--text-tertiary)]'>
 										{rule.conditions.length === 1
 											? `${rule.conditions[0].field} ${rule.conditions[0].operator} "${rule.conditions[0].value}"`
-											: `${rule.conditions.length} conditions`}
+											: t('settings:filters.conditionsCount', {
+													count: rule.conditions.length,
+												})}
 									</span>
 									<ArrowRight className='h-3 w-3 text-[var(--text-tertiary)]' />
 									{rule.actions.slice(0, 3).map((action, i) => (
@@ -103,7 +107,9 @@ export function RuleItem({ rule, onDelete, onToggle, disabled }: RuleItemProps) 
 											{ACTION_ICONS[action.action_type]}
 											{action.value
 												? action.value
-												: action.action_type.replace('_', ' ')}
+												: t(
+														`settings:filters.actionTypes.${action.action_type}`
+													)}
 										</span>
 									))}
 									{rule.actions.length > 3 && (
@@ -119,7 +125,11 @@ export function RuleItem({ rule, onDelete, onToggle, disabled }: RuleItemProps) 
 								<button
 									type='button'
 									onClick={onToggle}
-									title={rule.enabled ? 'Disable' : 'Enable'}
+									title={
+										rule.enabled
+											? t('settings:filters.disable')
+											: t('settings:filters.enable')
+									}
 									className={`rounded-lg p-1.5 transition-colors ${
 										rule.enabled
 											? 'text-green-400 hover:bg-green-500/10'

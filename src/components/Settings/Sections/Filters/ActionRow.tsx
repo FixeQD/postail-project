@@ -138,7 +138,7 @@ export function ActionRow({ action, accountId, onUpdate, onRemove, isOnly }: Act
 						<input
 							autoFocus
 							type='text'
-							placeholder='Tag name…'
+							placeholder={t('settings:filters.tagNamePlaceholder')}
 							value={action.value ?? ''}
 							onChange={(e) => onUpdate({ value: e.target.value })}
 							className='h-9 w-32 rounded-lg border border-[var(--accent-primary)]/40 bg-[var(--surface-panel)] px-3 text-xs font-medium text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/20 focus:outline-none'

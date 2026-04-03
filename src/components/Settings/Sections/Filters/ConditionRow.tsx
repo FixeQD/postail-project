@@ -79,7 +79,7 @@ export function ConditionRow({ condition, onUpdate, onRemove, isOnly }: Conditio
 				type='text'
 				value={condition.value}
 				onChange={(e) => onUpdate({ value: e.target.value })}
-				placeholder='value…'
+				placeholder={t('settings:filters.valuePlaceholder')}
 				className='h-9 min-w-0 flex-1 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-3 text-xs font-medium text-[var(--text-primary)] transition-colors placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/20 focus:outline-none'
 			/>
 

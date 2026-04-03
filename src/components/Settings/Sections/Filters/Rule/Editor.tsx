@@ -111,7 +111,7 @@ export function RuleEditor({ rule, onSave, onCancel, inline = false }: RuleEdito
 					{nameError && (
 						<div className='flex shrink-0 items-center gap-1 text-xs text-red-400'>
 							<AlertCircle className='h-3.5 w-3.5' />
-							Required
+							{t('settings:filters.editor.required')}
 						</div>
 					)}
 				</div>
@@ -123,7 +123,7 @@ export function RuleEditor({ rule, onSave, onCancel, inline = false }: RuleEdito
 					<div className='flex items-center gap-3'>
 						{/* IF badge */}
 						<span className='rounded-md bg-[var(--accent-primary)]/10 px-2 py-0.5 text-[11px] font-bold tracking-widest text-[var(--accent-primary)] uppercase'>
-							IF
+							{t('settings:filters.editor.conditions')}
 						</span>
 
 						{/* Match mode toggle */}
@@ -144,7 +144,9 @@ export function RuleEditor({ rule, onSave, onCancel, inline = false }: RuleEdito
 						</div>
 
 						<span className='text-xs text-[var(--text-tertiary)]'>
-							{matchMode === 'all' ? 'match (AND)' : 'match (OR)'}
+							{matchMode === 'all'
+								? t('settings:filters.editor.matchAnd')
+								: t('settings:filters.editor.matchOr')}
 						</span>
 					</div>
 
@@ -186,10 +188,10 @@ export function RuleEditor({ rule, onSave, onCancel, inline = false }: RuleEdito
 				<div className='flex items-center justify-between px-5 py-3'>
 					<div className='flex items-center gap-3'>
 						<span className='rounded-md bg-green-500/10 px-2 py-0.5 text-[11px] font-bold tracking-widest text-green-400 uppercase'>
-							THEN
+							{t('settings:filters.editor.actions')}
 						</span>
 						<span className='text-xs text-[var(--text-tertiary)]'>
-							perform these actions
+							{t('settings:filters.editor.performActions')}
 						</span>
 					</div>
 
