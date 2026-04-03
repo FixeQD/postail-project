@@ -127,10 +127,10 @@ export function SettingsScreen({
 			{ id: 'appearance', label: t('settings:sections.appearance'), icon: Palette },
 			{ id: 'notifications', label: t('settings:sections.notifications'), icon: Bell },
 			{ id: 'composing', label: t('settings:sections.composing'), icon: PenLine },
-			{ id: 'shortcuts', label: 'Shortcuts', icon: Keyboard },
-			{ id: 'tags', label: 'Tags', icon: Tag },
-			{ id: 'filters', label: 'Filters', icon: Settings2 },
-			{ id: 'about', label: 'About', icon: Info },
+			{ id: 'shortcuts', label: t('settings:sections.shortcuts'), icon: Keyboard },
+			{ id: 'tags', label: t('settings:sections.tags'), icon: Tag },
+			{ id: 'filters', label: t('settings:sections.filters'), icon: Settings2 },
+			{ id: 'about', label: t('settings:sections.about'), icon: Info },
 		],
 		[t]
 	)

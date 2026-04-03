@@ -104,7 +104,7 @@ export function ActionRow({ action, accountId, onUpdate, onRemove, isOnly }: Act
 					value={action.value ?? ''}
 					onChange={(v) => onUpdate({ value: v })}
 					options={[
-						{ value: '', label: t('common:actions.select') || 'Select folder…' },
+						{ value: '', label: t('common:actions.select', 'Select folder…') },
 						...(mailboxes?.map((m) => ({ value: m.name, label: m.display_name })) ??
 							[]),
 					]}

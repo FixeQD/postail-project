@@ -12,7 +12,9 @@
 		"notifications": "Notifications",
 		"composing": "Composing",
 		"tags": "Tags",
-		"filters": "Filters & Rules"
+		"filters": "Filters",
+		"about": "About",
+		"shortcuts": "Shortcuts"
 	},
 	"tags": {
 		"title": "Tags",
@@ -85,6 +87,14 @@
 		"applyNow": "Apply rules now",
 		"applyNowDesc": "Run enabled rules on all messages in a specific folder.",
 		"applied": "Applied rules to {{count}} messages",
+		"toasts": {
+			"saved": "Rule saved successfully",
+			"saveFailed": "Failed to save rule",
+			"deleted": "Rule deleted",
+			"deleteFailed": "Failed to delete rule",
+			"reorderFailed": "Failed to reorder rules",
+			"applyFailed": "Failed to apply rules"
+		},
 		"suggest": {
 			"title": "Automate this sender?",
 			"subtitle": "Based on your mail patterns, these rules might be useful. All are saved disabled — enable them after review.",

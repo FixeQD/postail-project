@@ -2,9 +2,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { FilterRule } from '@/types/filters'
 import { toast } from '@/components/ui/custom/Toaster'
+import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 
 export function useFilterRules(accountId: string) {
 	const queryClient = useQueryClient()
+	const { t } = useTypedTranslation(['settings'])
 
 	const query = useQuery<FilterRule[]>({
 		queryKey: ['filter-rules', accountId],
@@ -16,10 +18,10 @@ export function useFilterRules(accountId: string) {
 		mutationFn: (rule: FilterRule) => invoke('save_filter_rule', { rule }),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['filter-rules', accountId] })
-			toast.success('Rule saved successfully')
+			toast.success(t('settings:filters.toasts.saved'))
 		},
 		onError: (error) => {
-			toast.error('Failed to save rule', {
+			toast.error(t('settings:filters.toasts.saveFailed'), {
 				description: String(error),
 			})
 		},
@@ -29,21 +31,25 @@ export function useFilterRules(accountId: string) {
 		mutationFn: (ruleId: string) => invoke('delete_filter_rule', { accountId, ruleId }),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['filter-rules', accountId] })
-			toast.success('Rule deleted')
+			toast.success(t('settings:filters.toasts.deleted'))
 		},
 		onError: (error) => {
-			toast.error('Failed to delete rule', {
+			toast.error(t('settings:filters.toasts.deleteFailed'), {
 				description: String(error),
 			})
 		},
 	})
 
 	const reorderRules = useMutation({
-		mutationFn: (orderedIds: string[]) => invoke('reorder_filter_rules', { accountId, orderedIds }),
+		mutationFn: (orderedIds: string[]) =>
+			invoke('reorder_filter_rules', { accountId, orderedIds }),
 		onMutate: async (orderedIds) => {
 			// Optimistic update
 			await queryClient.cancelQueries({ queryKey: ['filter-rules', accountId] })
-			const previousRules = queryClient.getQueryData<FilterRule[]>(['filter-rules', accountId])
+			const previousRules = queryClient.getQueryData<FilterRule[]>([
+				'filter-rules',
+				accountId,
+			])
 			if (previousRules) {
 				const reordered = [...previousRules].sort((a, b) => {
 					const idxA = orderedIds.indexOf(a.id)
@@ -58,7 +64,7 @@ export function useFilterRules(accountId: string) {
 			if (context?.previousRules) {
 				queryClient.setQueryData(['filter-rules', accountId], context.previousRules)
 			}
-			toast.error('Failed to reorder rules', {
+			toast.error(t('settings:filters.toasts.reorderFailed'), {
 				description: String(err),
 			})
 		},
@@ -70,11 +76,11 @@ export function useFilterRules(accountId: string) {
 	const applyRulesToMailbox = useMutation({
 		mutationFn: (mailbox: string) => invoke('apply_filters_to_mailbox', { accountId, mailbox }),
 		onSuccess: (count) => {
-			toast.success(`Rules applied to ${count} messages`)
+			toast.success(t('settings:filters.applied', { count: count as number }))
 			queryClient.invalidateQueries({ queryKey: ['messages', accountId] })
 		},
 		onError: (error) => {
-			toast.error('Failed to apply rules', {
+			toast.error(t('settings:filters.toasts.applyFailed'), {
 				description: String(error),
 			})
 		},
