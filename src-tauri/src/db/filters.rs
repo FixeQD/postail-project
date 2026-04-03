@@ -141,7 +141,7 @@ pub fn reorder_rules(
 
 struct MessageMatchData {
     pub from_addr: String,
-    pub to_joined: String,
+    pub to_list: Vec<String>,
     pub subject: String,
     pub body_plain: String,
 }
@@ -188,7 +188,7 @@ pub fn apply_rules_to_messages(
 
                     Ok(MessageMatchData {
                         from_addr: row.get::<_, Option<String>>(0)?.unwrap_or_default(),
-                        to_joined: to_list.join(", "),
+                        to_list,
                         subject: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
                         body_plain: row.get::<_, Option<String>>(3)?.unwrap_or_default(),
                     })
@@ -229,23 +229,39 @@ pub fn apply_rules_to_messages(
 }
 
 fn matches_condition(msg: &MessageMatchData, cond: &RuleCondition) -> bool {
-    let haystack = match cond.field {
-        ConditionField::From => &msg.from_addr,
-        ConditionField::To => &msg.to_joined,
-        ConditionField::Subject => &msg.subject,
-        ConditionField::Body => &msg.body_plain,
+    let needle = cond.value.to_lowercase();
+    let operator = &cond.operator;
+
+    let check_single = |haystack: &str| -> bool {
+        let haystack_lower = haystack.to_lowercase();
+        match operator {
+            ConditionOperator::Contains => haystack_lower.contains(&needle),
+            ConditionOperator::NotContains => !haystack_lower.contains(&needle),
+            ConditionOperator::Equals => haystack_lower == needle,
+            ConditionOperator::NotEquals => haystack_lower != needle,
+            ConditionOperator::StartsWith => haystack_lower.starts_with(&needle),
+            ConditionOperator::EndsWith => haystack_lower.ends_with(&needle),
+        }
     };
 
-    let needle = cond.value.to_lowercase();
-    let haystack_lower = haystack.to_lowercase();
-
-    match cond.operator {
-        ConditionOperator::Contains => haystack_lower.contains(&needle),
-        ConditionOperator::NotContains => !haystack_lower.contains(&needle),
-        ConditionOperator::Equals => haystack_lower == needle,
-        ConditionOperator::NotEquals => haystack_lower != needle,
-        ConditionOperator::StartsWith => haystack_lower.starts_with(&needle),
-        ConditionOperator::EndsWith => haystack_lower.ends_with(&needle),
+    match cond.field {
+        ConditionField::From => check_single(&msg.from_addr),
+        ConditionField::Subject => check_single(&msg.subject),
+        ConditionField::Body => check_single(&msg.body_plain),
+        ConditionField::To => {
+            if msg.to_list.is_empty() {
+                return match operator {
+                    ConditionOperator::NotContains | ConditionOperator::NotEquals => true,
+                    _ => false,
+                };
+            }
+            match operator {
+                ConditionOperator::NotContains | ConditionOperator::NotEquals => {
+                    msg.to_list.iter().all(|h| check_single(h))
+                }
+                _ => msg.to_list.iter().any(|h| check_single(h)),
+            }
+        }
     }
 }
 
