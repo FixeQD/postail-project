@@ -78,6 +78,8 @@
 			"mark_read": "Mark as read",
 			"delete": "Move to Trash"
 		},
+		"newTag": "New tag",
+		"movesToTrash": "moves to Trash",
 		"deleteConfirm": {
 			"title": "Delete rule \"{{name}}\"?",
 			"description": "This rule will no longer process incoming messages.",

@@ -130,7 +130,7 @@ export function ActionRow({ action, accountId, onUpdate, onRemove, isOnly }: Act
 						options={[
 							{ value: '', label: t('common:actions.select', 'Select tag…') },
 							...tags.map((tag) => ({ value: tag, label: tag })),
-							{ value: '__NEW__', label: `+ New tag` },
+							{ value: '__NEW__', label: `+ ${t('settings:filters.newTag')}` },
 						]}
 						className='flex-1'
 					/>
@@ -150,7 +150,9 @@ export function ActionRow({ action, accountId, onUpdate, onRemove, isOnly }: Act
 			{!needsValue && (
 				<div className='flex-1'>
 					{action.action_type === 'delete' && (
-						<span className='text-[11px] font-medium text-red-400/70'>permanent</span>
+						<span className='text-[11px] font-medium text-red-400/70'>
+							{t('settings:filters.movesToTrash')}
+						</span>
 					)}
 				</div>
 			)}
