@@ -106,7 +106,7 @@ export function ActionRow({ action, accountId, onUpdate, onRemove, isOnly }: Act
 					value={action.value ?? ''}
 					onChange={(v) => onUpdate({ value: v })}
 					options={[
-						{ value: '', label: t('common:actions.select', 'Select folder…') },
+						{ value: '', label: t('settings:filters.selectFolder') },
 						...(mailboxes?.map((m) => ({ value: m.name, label: m.display_name })) ??
 							[]),
 					]}
@@ -128,7 +128,7 @@ export function ActionRow({ action, accountId, onUpdate, onRemove, isOnly }: Act
 							}
 						}}
 						options={[
-							{ value: '', label: t('common:actions.select', 'Select tag…') },
+							{ value: '', label: t('settings:filters.selectTag') },
 							...tags.map((tag) => ({ value: tag, label: tag })),
 							{ value: '__NEW__', label: `+ ${t('settings:filters.newTag')}` },
 						]}

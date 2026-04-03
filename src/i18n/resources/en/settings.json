@@ -80,6 +80,8 @@
 		},
 		"newTag": "New tag",
 		"movesToTrash": "moves to Trash",
+		"selectFolder": "Select folder…",
+		"selectTag": "Select tag…",
 		"deleteConfirm": {
 			"title": "Delete rule \"{{name}}\"?",
 			"description": "This rule will no longer process incoming messages.",
@@ -89,6 +91,7 @@
 		"applyNow": "Apply rules now",
 		"applyNowDesc": "Run enabled rules on all messages in a specific folder.",
 		"applied": "Applied rules to {{count}} messages",
+		"applying": "Applying...",
 		"toasts": {
 			"saved": "Rule saved successfully",
 			"saveFailed": "Failed to save rule",

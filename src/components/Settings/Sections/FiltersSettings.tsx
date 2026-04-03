@@ -173,7 +173,7 @@ export function FiltersSettings() {
 							{isApplying ? (
 								<>
 									<Loader2 className='h-3.5 w-3.5 animate-spin' />
-									Applying...
+									{t('settings:filters.applying')}
 								</>
 							) : (
 								<>
