@@ -428,12 +428,16 @@ pub fn move_to_trash(
     mailbox: &str,
     uids: &[u32],
 ) -> Result<usize, DBError> {
-    if let Some(trash) = crate::db::mail::mailbox::get_mailbox_by_role(conn, account_id, "trash")? {
-        for uid in uids {
-            crate::db::mail::flag_queue::enqueue_move_operation(
-                conn, account_id, mailbox, &trash, *uid,
-            )?;
-        }
+    let trash = crate::db::mail::mailbox::get_mailbox_by_role(conn, account_id, "trash")?
+        .ok_or_else(|| {
+            tracing::error!(target: "postail", "Trash mailbox not found for account {}", account_id);
+            rusqlite::Error::QueryReturnedNoRows
+        })?;
+
+    for uid in uids {
+        crate::db::mail::flag_queue::enqueue_move_operation(
+            conn, account_id, mailbox, &trash, *uid,
+        )?;
     }
 
     update_message_flags(conn, account_id, mailbox, uids, Some(&["\\Deleted"]), None)
