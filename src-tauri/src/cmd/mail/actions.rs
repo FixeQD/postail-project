@@ -140,16 +140,7 @@ pub async fn delete_messages(
         let pool = get_db_pool().await.map_err(|e| e.to_string())?;
         let conn = pool.get().map_err(|e| e.to_string())?;
 
-        let trash_mailbox = db::get_mailbox_by_role(&conn, &account_id, "trash")
-            .map_err(|e| e.to_string())?
-            .ok_or("Trash mailbox not found")?;
-
         db::move_to_trash(&conn, &account_id, &mailbox, &uids).map_err(|e| e.to_string())?;
-
-        for uid in &uids {
-            db::enqueue_move_operation(&conn, &account_id, &mailbox, &trash_mailbox, *uid)
-                .map_err(|e| e.to_string())?;
-        }
     }
 
     let account_id_clone = account_id.clone();
