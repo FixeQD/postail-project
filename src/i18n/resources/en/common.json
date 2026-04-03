@@ -14,7 +14,8 @@
 		"continue": "Continue",
 		"retry": "Retry",
 		"close": "Close",
-		"send": "Send"
+		"send": "Send",
+		"select": "Select"
 	},
 	"status": {
 		"loading": "Loading...",

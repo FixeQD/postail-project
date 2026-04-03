@@ -64,6 +64,20 @@ pub async fn mark_read(
 }
 
 pub async fn process_flag_queue(account_id: &str) -> Result<(), String> {
+    // Prevent concurrent queue processing per account
+    static QUEUE_LOCKS: std::sync::OnceLock<
+        std::sync::Mutex<std::collections::HashMap<String, std::sync::Arc<tokio::sync::Mutex<()>>>>,
+    > = std::sync::OnceLock::new();
+    let lock_map =
+        QUEUE_LOCKS.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    let account_lock = {
+        let mut map = lock_map.lock().unwrap();
+        map.entry(account_id.to_string())
+            .or_insert_with(|| std::sync::Arc::new(tokio::sync::Mutex::new(())))
+            .clone()
+    };
+    let _guard = account_lock.lock().await;
+
     let ops = {
         let pool = get_db_pool().await.map_err(|e| e.to_string())?;
         let conn = pool.get().map_err(|e| e.to_string())?;
@@ -140,16 +154,7 @@ pub async fn delete_messages(
         let pool = get_db_pool().await.map_err(|e| e.to_string())?;
         let conn = pool.get().map_err(|e| e.to_string())?;
 
-        let trash_mailbox = db::get_mailbox_by_role(&conn, &account_id, "trash")
-            .map_err(|e| e.to_string())?
-            .ok_or("Trash mailbox not found")?;
-
         db::move_to_trash(&conn, &account_id, &mailbox, &uids).map_err(|e| e.to_string())?;
-
-        for uid in &uids {
-            db::enqueue_move_operation(&conn, &account_id, &mailbox, &trash_mailbox, *uid)
-                .map_err(|e| e.to_string())?;
-        }
     }
 
     let account_id_clone = account_id.clone();

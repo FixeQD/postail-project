@@ -314,7 +314,7 @@ impl crate::imap::ImapManager {
                 if batch_items.len() >= DEFAULT_BATCH_SIZE {
                     let pool = get_db_pool().await.map_err(|e| e.to_string())?;
                     let mut conn = pool.get().map_err(|e| e.to_string())?;
-                    crate::db::batch_insert_messages(
+                    let new_uids = crate::db::batch_insert_messages(
                         &mut *conn,
                         account_id,
                         mailbox,
@@ -322,6 +322,13 @@ impl crate::imap::ImapManager {
                         DEFAULT_BATCH_SIZE,
                     )
                     .map_err(|e| e.to_string())?;
+
+                    if let Err(e) = crate::db::filters::apply_rules_to_messages(
+                        &mut *conn, account_id, mailbox, &new_uids,
+                    ) {
+                        tracing::warn!(target: "postail", "[Filters] Rule apply error for batch in {}: {}", mailbox, e);
+                    }
+
                     batch_items.clear();
                 }
 
@@ -334,7 +341,7 @@ impl crate::imap::ImapManager {
         if !batch_items.is_empty() {
             let pool = get_db_pool().await.map_err(|e| e.to_string())?;
             let mut conn = pool.get().map_err(|e| e.to_string())?;
-            crate::db::batch_insert_messages(
+            let new_uids = crate::db::batch_insert_messages(
                 &mut *conn,
                 account_id,
                 mailbox,
@@ -342,7 +349,21 @@ impl crate::imap::ImapManager {
                 DEFAULT_BATCH_SIZE,
             )
             .map_err(|e| e.to_string())?;
+
+            if let Err(e) = crate::db::filters::apply_rules_to_messages(
+                &mut *conn, account_id, mailbox, &new_uids,
+            ) {
+                tracing::warn!(target: "postail", "[Filters] Rule apply error for batch in {}: {}", mailbox, e);
+            }
         }
+
+        // Process any flag/move operations queued by rule actions during pass 1
+        let aid = account_id.to_string();
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = crate::cmd::mail::actions::process_flag_queue(&aid).await {
+                tracing::error!(target: "postail", "[Filters] Failed to process flag queue after rules: {}", e);
+            }
+        });
 
         // Pass 2 – fetch snippet bytes grouped by section path
         fetch_snippets_pass2(
@@ -629,7 +650,7 @@ impl crate::imap::ImapManager {
         if !batch_items.is_empty() {
             let pool = get_db_pool().await.map_err(|e| e.to_string())?;
             let mut conn = pool.get().map_err(|e| e.to_string())?;
-            crate::db::batch_insert_messages(
+            let new_uids = crate::db::batch_insert_messages(
                 &mut *conn,
                 account_id,
                 mailbox,
@@ -637,7 +658,20 @@ impl crate::imap::ImapManager {
                 DEFAULT_BATCH_SIZE,
             )
             .map_err(|e| e.to_string())?;
+
+            if let Err(e) = crate::db::filters::apply_rules_to_messages(
+                &mut *conn, account_id, mailbox, &new_uids,
+            ) {
+                tracing::warn!(target: "postail", "[Filters] Rule apply error for batch in {}: {}", mailbox, e);
+            }
         }
+
+        let aid = account_id.to_string();
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = crate::cmd::mail::actions::process_flag_queue(&aid).await {
+                tracing::error!(target: "postail", "[Filters] Failed to process flag queue after rules (history): {}", e);
+            }
+        });
 
         // Pass 2 – snippet bytes
         fetch_snippets_pass2(

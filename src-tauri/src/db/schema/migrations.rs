@@ -82,6 +82,11 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         set_db_version(conn, 9)?;
     }
 
+    if current_version < 10 {
+        migrate_to_v10(conn)?;
+        set_db_version(conn, 10)?;
+    }
+
     Ok(())
 }
 
@@ -241,6 +246,30 @@ fn migrate_to_v9(conn: &Connection) -> Result<(), DBError> {
     Ok(())
 }
 
+fn migrate_to_v10(conn: &Connection) -> Result<(), DBError> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS filter_rules (
+            id TEXT PRIMARY KEY,
+            account_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            match_mode TEXT NOT NULL DEFAULT 'all',
+            conditions_json TEXT NOT NULL DEFAULT '[]',
+            actions_json TEXT NOT NULL DEFAULT '[]',
+            position INTEGER NOT NULL DEFAULT 0,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_filter_rules_account ON filter_rules(account_id, position)",
+        [],
+    )?;
+
+    Ok(())
+}
+
 // Whitelist of allowed table names to prevent SQL injection
 const ALLOWED_TABLES: &[&str] = &[
     "messages",
@@ -257,6 +286,7 @@ const ALLOWED_TABLES: &[&str] = &[
     "settings",
     "message_tags",
     "tag_colors",
+    "filter_rules",
 ];
 
 fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool, DBError> {

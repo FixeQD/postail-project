@@ -29,6 +29,7 @@ import { useInboxShortcuts } from '@/hooks/useInboxShortcuts'
 import { toast } from '@/stores/toastStore'
 import { MessageViewSkeleton } from './MessageViewSkeleton'
 import type { MessageViewProps } from '@/types/components/shared'
+import type { FilterRule } from '@/types/filters'
 
 export const MessageView = ({
 	accountId,
@@ -171,6 +172,7 @@ export const MessageView = ({
 	}
 
 	const handleDelete = async () => {
+		const fromAddr = data?.header.from?.[0] ?? ''
 		// Optimistic update
 		onBack()
 
@@ -184,6 +186,21 @@ export const MessageView = ({
 				queryKey: ['messages', accountId, mailbox],
 			})
 			toast.success(t('inbox:messageView.deleted'))
+
+			// Fire suggestion check after delete — non-blocking
+			if (fromAddr) {
+				invoke<FilterRule[]>('suggest_rules_for_sender', { accountId, fromAddr })
+					.then((suggestions) => {
+						if (suggestions.length > 0) {
+							window.dispatchEvent(
+								new CustomEvent('postail:suggestRules', { detail: suggestions })
+							)
+						}
+					})
+					.catch(() => {
+						/* silent */
+					})
+			}
 		} catch (error) {
 			toast.error(t('inbox:messageView.deleteError'))
 		}
@@ -570,6 +587,8 @@ export const MessageView = ({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+
+			{/* Rule suggestion dialog — shown after delete if patterns detected */}
 		</div>
 	)
 }

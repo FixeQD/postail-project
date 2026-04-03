@@ -13,6 +13,7 @@ import {
 	PenLine,
 	Info,
 	Keyboard,
+	Settings2,
 } from 'lucide-react'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
@@ -26,6 +27,7 @@ import { ComposingSettings } from './Sections/ComposingSettings'
 import { AboutSettings } from './Sections/AboutSettings'
 import { KeyboardShortcutsSettings } from './Sections/KeyboardShortcutsSettings'
 import { TagsSettings } from './Sections/TagsSettings'
+import { FiltersSettings } from './Sections/FiltersSettings'
 import { invoke } from '@tauri-apps/api/core'
 import { useAccountStore } from '@/stores/accountStore'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
@@ -125,9 +127,10 @@ export function SettingsScreen({
 			{ id: 'appearance', label: t('settings:sections.appearance'), icon: Palette },
 			{ id: 'notifications', label: t('settings:sections.notifications'), icon: Bell },
 			{ id: 'composing', label: t('settings:sections.composing'), icon: PenLine },
-			{ id: 'shortcuts', label: 'Shortcuts', icon: Keyboard },
-			{ id: 'tags', label: 'Tags', icon: Tag },
-			{ id: 'about', label: 'About', icon: Info },
+			{ id: 'shortcuts', label: t('settings:sections.shortcuts'), icon: Keyboard },
+			{ id: 'tags', label: t('settings:sections.tags'), icon: Tag },
+			{ id: 'filters', label: t('settings:sections.filters'), icon: Settings2 },
+			{ id: 'about', label: t('settings:sections.about'), icon: Info },
 		],
 		[t]
 	)
@@ -159,6 +162,8 @@ export function SettingsScreen({
 				return <KeyboardShortcutsSettings />
 			case 'tags':
 				return <TagsSettings />
+			case 'filters':
+				return <FiltersSettings />
 			case 'about':
 				return <AboutSettings />
 			default:

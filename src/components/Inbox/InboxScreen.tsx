@@ -11,10 +11,39 @@ import { useMessageViewStore } from '@/stores/messageViewStore'
 import type { ComposeDraft } from '@/types/compose'
 import type { MailHeader } from '@/types/mail'
 import type { InboxScreenProps } from '@/types/components/inbox'
+import type { FilterRule } from '@/types/filters'
 
 import { useAccountStore } from '@/stores/accountStore'
+import { SuggestRuleDialog } from '@/components/Inbox/SuggestRuleDialog'
 
-export const InboxScreen = ({}: InboxScreenProps) => {
+export const InboxScreen = (props: InboxScreenProps) => {
+	const [suggestedRules, setSuggestedRules] = useState<FilterRule[]>([])
+	const activeAccount = useAccountStore((s) => s.activeAccount)
+
+	useEffect(() => {
+		const handleSuggest = (e: Event) => {
+			const customEvent = e as CustomEvent<FilterRule[]>
+			setSuggestedRules(customEvent.detail)
+		}
+		window.addEventListener('postail:suggestRules', handleSuggest)
+		return () => window.removeEventListener('postail:suggestRules', handleSuggest)
+	}, [])
+
+	return (
+		<>
+			<InboxScreenInner {...props} />
+			{suggestedRules.length > 0 && activeAccount && (
+				<SuggestRuleDialog
+					rules={suggestedRules}
+					accountId={activeAccount.id}
+					onClose={() => setSuggestedRules([])}
+				/>
+			)}
+		</>
+	)
+}
+
+const InboxScreenInner = ({}: InboxScreenProps) => {
 	const { accounts, activeAccount, setActiveAccount, activeMailbox, setActiveMailbox } =
 		useAccountStore()
 	const [isComposeOpen, setIsComposeOpen] = useState(false)
