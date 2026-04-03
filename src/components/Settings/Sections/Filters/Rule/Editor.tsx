@@ -69,7 +69,9 @@ export function RuleEditor({ rule, onSave, onCancel, inline = false }: RuleEdito
 			match_mode: matchMode,
 			conditions,
 			actions,
-			position: rule?.position ?? rules.length,
+			position:
+				rule?.position ??
+				(rules.length > 0 ? Math.max(...rules.map((r) => r.position)) + 1 : 0),
 			enabled: rule?.enabled ?? true,
 		}
 
