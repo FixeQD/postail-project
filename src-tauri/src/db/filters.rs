@@ -281,7 +281,24 @@ fn execute_action(
         }
         ActionType::AddTag => {
             if let Some(tag) = &action.value {
-                crate::db::mail::messages::add_tag(conn, account_id, mailbox, uid, tag)?;
+                let normalized_tag = tag.trim().replace(' ', "_");
+                if !normalized_tag.is_empty() {
+                    crate::db::mail::messages::add_tag(
+                        conn,
+                        account_id,
+                        mailbox,
+                        uid,
+                        &normalized_tag,
+                    )?;
+                    crate::db::mail::flag_queue::enqueue_flag_change(
+                        conn,
+                        account_id,
+                        mailbox,
+                        uid,
+                        "add",
+                        &[normalized_tag],
+                    )?;
+                }
             }
         }
         ActionType::Delete => {
