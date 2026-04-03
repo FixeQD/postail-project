@@ -667,12 +667,10 @@ impl crate::imap::ImapManager {
             )
             .map_err(|e| e.to_string())?;
 
-            for uid in new_uids {
-                if let Err(e) =
-                    crate::db::filters::apply_rules_to_message(&mut *conn, account_id, mailbox, uid)
-                {
-                    tracing::warn!(target: "postail", "[Filters] Rule apply error uid={}: {}", uid, e);
-                }
+            if let Err(e) = crate::db::filters::apply_rules_to_messages(
+                &mut *conn, account_id, mailbox, &new_uids,
+            ) {
+                tracing::warn!(target: "postail", "[Filters] Rule apply error for batch in {}: {}", mailbox, e);
             }
 
             let aid = account_id.to_string();
