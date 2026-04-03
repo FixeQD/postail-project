@@ -152,7 +152,7 @@ pub fn apply_rules_to_message(
     mailbox: &str,
     uid: u32,
 ) -> Result<(), DBError> {
-    apply_rules_to_messages(conn, account_id, mailbox, &[uid])
+    apply_rules_to_messages(conn, account_id, mailbox, &[uid]).map(|_| ())
 }
 
 pub fn apply_rules_to_messages(
@@ -160,17 +160,19 @@ pub fn apply_rules_to_messages(
     account_id: &str,
     mailbox: &str,
     uids: &[u32],
-) -> Result<(), DBError> {
+) -> Result<u32, DBError> {
     if uids.is_empty() {
-        return Ok(());
+        return Ok(0);
     }
 
     let rules = get_rules(conn, account_id)?;
     let enabled_rules: Vec<FilterRule> = rules.into_iter().filter(|r| r.enabled).collect();
 
     if enabled_rules.is_empty() {
-        return Ok(());
+        return Ok(0);
     }
+
+    let mut applied_count = 0;
 
     for &uid in uids {
         let msg_data = conn
@@ -207,6 +209,7 @@ pub fn apply_rules_to_messages(
             };
 
             if is_match {
+                applied_count += 1;
                 tracing::info!(target: "postail", "[Filters] Rule \"{}\" matched message UID={} in {}", rule.name, uid, mailbox);
                 let (moves, non_moves): (Vec<_>, Vec<_>) = rule
                     .actions
@@ -225,7 +228,7 @@ pub fn apply_rules_to_messages(
         }
     }
 
-    Ok(())
+    Ok(applied_count)
 }
 
 fn matches_condition(msg: &MessageMatchData, cond: &RuleCondition) -> bool {
@@ -355,10 +358,11 @@ pub fn apply_rules_to_mailbox(
         collected
     };
 
-    if let Err(e) = apply_rules_to_messages(conn, account_id, mailbox, &uids) {
-        tracing::error!(target: "postail", "[Filters] Error applying rules to mailbox {}: {}", mailbox, e);
-        return Err(e);
+    match apply_rules_to_messages(conn, account_id, mailbox, &uids) {
+        Ok(count) => Ok(count),
+        Err(e) => {
+            tracing::error!(target: "postail", "[Filters] Error applying rules to mailbox {}: {}", mailbox, e);
+            Err(e)
+        }
     }
-
-    Ok(uids.len() as u32)
 }
