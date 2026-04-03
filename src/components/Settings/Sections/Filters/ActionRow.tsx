@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { ChevronDown, X, FolderInput, Tag, Star, MailCheck, Trash2 } from 'lucide-react'
@@ -62,6 +63,7 @@ const ACTION_COLORS: Record<ActionType, string> = {
 
 export function ActionRow({ action, accountId, onUpdate, onRemove, isOnly }: ActionRowProps) {
 	const { t } = useTypedTranslation(['common', 'settings'])
+	const [isCreatingTag, setIsCreatingTag] = useState(false)
 
 	const { data: mailboxes } = useQuery<Mailbox[]>({
 		queryKey: ['mailboxes', accountId],
@@ -115,20 +117,29 @@ export function ActionRow({ action, accountId, onUpdate, onRemove, isOnly }: Act
 			{action.action_type === 'add_tag' && (
 				<div className='flex min-w-0 flex-1 items-center gap-2'>
 					<StyledSelect
-						value={action.value ?? ''}
-						onChange={(v) => onUpdate({ value: v })}
+						value={isCreatingTag ? '__NEW__' : (action.value ?? '')}
+						onChange={(v) => {
+							if (v === '__NEW__') {
+								setIsCreatingTag(true)
+								onUpdate({ value: '' })
+							} else {
+								setIsCreatingTag(false)
+								onUpdate({ value: v })
+							}
+						}}
 						options={[
-							{ value: '', label: t('common:actions.select') || 'Select tag…' },
+							{ value: '', label: t('common:actions.select', 'Select tag…') },
 							...tags.map((tag) => ({ value: tag, label: tag })),
 							{ value: '__NEW__', label: `+ New tag` },
 						]}
 						className='flex-1'
 					/>
-					{action.value === '__NEW__' && (
+					{isCreatingTag && (
 						<input
 							autoFocus
 							type='text'
 							placeholder='Tag name…'
+							value={action.value ?? ''}
 							onChange={(e) => onUpdate({ value: e.target.value })}
 							className='h-9 w-32 rounded-lg border border-[var(--accent-primary)]/40 bg-[var(--surface-panel)] px-3 text-xs font-medium text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/20 focus:outline-none'
 						/>
