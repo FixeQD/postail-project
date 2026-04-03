@@ -12,6 +12,7 @@ import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 import { RuleEditor } from './Filters/Rule/Editor'
 import { RuleItem } from './Filters/Rule/Item'
 import { FilterRule } from '@/types/filters'
+import type { Mailbox } from '@/types/mail'
 
 export function FiltersSettings() {
 	const activeAccount = useAccountStore((s) => s.activeAccount)
@@ -33,9 +34,9 @@ export function FiltersSettings() {
 
 	const [applyMailbox, setApplyMailbox] = useState<string>('INBOX')
 
-	const { data: mailboxes } = useQuery<any[]>({
+	const { data: mailboxes } = useQuery<Mailbox[]>({
 		queryKey: ['mailboxes', accountId],
-		queryFn: () => invoke<any[]>('fetch_mailboxes', { accountId }),
+		queryFn: () => invoke<Mailbox[]>('fetch_mailboxes', { accountId }),
 		enabled: !!accountId,
 	})
 
@@ -50,7 +51,7 @@ export function FiltersSettings() {
 	const hasEnabledRules = rules.some((r) => r.enabled)
 
 	const handleReorder = (newOrder: FilterRule[]) => {
-		reorderRules(newOrder.map((r) => r.id))
+		reorderRules(newOrder.map((r) => r.id)).catch(console.error)
 	}
 
 	if (isLoading) {
@@ -129,7 +130,9 @@ export function FiltersSettings() {
 							rule={rule}
 							disabled={false}
 							onDelete={() => setRuleToDelete(rule)}
-							onToggle={() => saveRule({ ...rule, enabled: !rule.enabled })}
+							onToggle={() =>
+								saveRule({ ...rule, enabled: !rule.enabled }).catch(console.error)
+							}
 						/>
 					))}
 				</Reorder.Group>
@@ -195,7 +198,7 @@ export function FiltersSettings() {
 				cancelLabel={t('settings:filters.deleteConfirm.cancel')}
 				onConfirm={() => {
 					if (ruleToDelete) {
-						deleteRule(ruleToDelete.id)
+						deleteRule(ruleToDelete.id).catch(console.error)
 						setRuleToDelete(null)
 					}
 				}}

@@ -94,7 +94,7 @@ export function RuleItem({ rule, onDelete, onToggle, disabled }: RuleItemProps) 
 								<div className='mt-1.5 flex flex-wrap items-center gap-1.5'>
 									<span className='text-[10px] font-medium text-[var(--text-tertiary)]'>
 										{rule.conditions.length === 1
-											? `${rule.conditions[0].field} ${rule.conditions[0].operator} "${rule.conditions[0].value}"`
+											? `${t(`settings:filters.fields.${rule.conditions[0].field}`)} ${t(`settings:filters.operators.${rule.conditions[0].operator}`)} "${rule.conditions[0].value}"`
 											: t('settings:filters.conditionsCount', {
 													count: rule.conditions.length,
 												})}
