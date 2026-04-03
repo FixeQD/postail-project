@@ -152,6 +152,19 @@ pub fn apply_rules_to_message(
     mailbox: &str,
     uid: u32,
 ) -> Result<(), DBError> {
+    apply_rules_to_messages(conn, account_id, mailbox, &[uid])
+}
+
+pub fn apply_rules_to_messages(
+    conn: &mut Connection,
+    account_id: &str,
+    mailbox: &str,
+    uids: &[u32],
+) -> Result<(), DBError> {
+    if uids.is_empty() {
+        return Ok(());
+    }
+
     let rules = get_rules(conn, account_id)?;
     let enabled_rules: Vec<FilterRule> = rules.into_iter().filter(|r| r.enabled).collect();
 
@@ -159,53 +172,56 @@ pub fn apply_rules_to_message(
         return Ok(());
     }
 
-    let msg_data = conn
-        .query_row(
-            "SELECT from_addr, to_json, subject, mb.body_plain
-         FROM messages m
-         LEFT JOIN message_bodies mb ON mb.message_id = m.id
-         WHERE m.account_id = ? AND m.mailbox = ? AND m.uid = ?",
-            params![account_id, mailbox, uid],
-            |row| {
-                let to_json: Option<String> = row.get(1)?;
-                let to_list: Vec<String> = to_json
-                    .and_then(|s| serde_json::from_str(&s).ok())
-                    .unwrap_or_default();
+    for &uid in uids {
+        let msg_data = conn
+            .query_row(
+                "SELECT from_addr, to_json, subject, mb.body_plain
+             FROM messages m
+             LEFT JOIN message_bodies mb ON mb.message_id = m.id
+             WHERE m.account_id = ? AND m.mailbox = ? AND m.uid = ?",
+                params![account_id, mailbox, uid],
+                |row| {
+                    let to_json: Option<String> = row.get(1)?;
+                    let to_list: Vec<String> = to_json
+                        .and_then(|s| serde_json::from_str(&s).ok())
+                        .unwrap_or_default();
 
-                Ok(MessageMatchData {
-                    from_addr: row.get::<_, Option<String>>(0)?.unwrap_or_default(),
-                    to_joined: to_list.join(", "),
-                    subject: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
-                    body_plain: row.get::<_, Option<String>>(3)?.unwrap_or_default(),
-                })
-            },
-        )
-        .optional()?;
+                    Ok(MessageMatchData {
+                        from_addr: row.get::<_, Option<String>>(0)?.unwrap_or_default(),
+                        to_joined: to_list.join(", "),
+                        subject: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
+                        body_plain: row.get::<_, Option<String>>(3)?.unwrap_or_default(),
+                    })
+                },
+            )
+            .optional()?;
 
-    let Some(msg) = msg_data else {
-        return Ok(());
-    };
-
-    for rule in enabled_rules {
-        let is_match = match rule.match_mode {
-            MatchMode::All => rule.conditions.iter().all(|c| matches_condition(&msg, c)),
-            MatchMode::Any => rule.conditions.iter().any(|c| matches_condition(&msg, c)),
+        let Some(msg) = msg_data else {
+            continue;
         };
 
-        if is_match {
-            tracing::info!(target: "postail", "[Filters] Rule \"{}\" matched message UID={} in {}", rule.name, uid, mailbox);
-            let (moves, non_moves): (Vec<_>, Vec<_>) = rule
-                .actions
-                .into_iter()
-                .partition(|a| matches!(a.action_type, ActionType::MoveTo));
-            for action in non_moves {
-                execute_action(conn, account_id, mailbox, uid, &action)?;
+        for rule in &enabled_rules {
+            let is_match = match rule.match_mode {
+                MatchMode::All => rule.conditions.iter().all(|c| matches_condition(&msg, c)),
+                MatchMode::Any => rule.conditions.iter().any(|c| matches_condition(&msg, c)),
+            };
+
+            if is_match {
+                tracing::info!(target: "postail", "[Filters] Rule \"{}\" matched message UID={} in {}", rule.name, uid, mailbox);
+                let (moves, non_moves): (Vec<_>, Vec<_>) = rule
+                    .actions
+                    .clone()
+                    .into_iter()
+                    .partition(|a| matches!(a.action_type, ActionType::MoveTo));
+                for action in non_moves {
+                    execute_action(conn, account_id, mailbox, uid, &action)?;
+                }
+                for action in moves {
+                    execute_action(conn, account_id, mailbox, uid, &action)?;
+                }
+                // First-match semantics: stop after first matching rule
+                break;
             }
-            for action in moves {
-                execute_action(conn, account_id, mailbox, uid, &action)?;
-            }
-            // First-match semantics: stop after first matching rule
-            break;
         }
     }
 
@@ -306,14 +322,9 @@ pub fn apply_rules_to_mailbox(
         collected
     };
 
-    let mut applied_count = 0;
-    for uid in uids {
-        if let Err(e) = apply_rules_to_message(conn, account_id, mailbox, uid) {
-            tracing::error!(target: "postail", "[Filters] Error applying rules to existing message UID={} in {}: {}", uid, mailbox, e);
-        } else {
-            applied_count += 1;
-        }
+    if let Err(e) = apply_rules_to_messages(conn, account_id, mailbox, &uids) {
+        tracing::error!(target: "postail", "[Filters] Error applying rules to mailbox {}: {}", mailbox, e);
     }
 
-    Ok(applied_count)
+    Ok(uids.len() as u32)
 }
