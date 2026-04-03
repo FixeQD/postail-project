@@ -64,6 +64,10 @@ pub async fn mark_read(
 }
 
 pub async fn process_flag_queue(account_id: &str) -> Result<(), String> {
+    // Prevent concurrent queue processing which could cause duplicate IMAP operations
+    static QUEUE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+    let _guard = QUEUE_LOCK.lock().await;
+
     let ops = {
         let pool = get_db_pool().await.map_err(|e| e.to_string())?;
         let conn = pool.get().map_err(|e| e.to_string())?;
