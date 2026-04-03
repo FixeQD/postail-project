@@ -88,7 +88,7 @@
     - [x] 12.8 - Rust: "Messages from sender" filter — auto-detect & suggest rule when deleting
 
 - [ ] 13 - Folders & Organization
-    - [ ] 13.1 - IMAP: Create new folders (CREATE)
+    - [x] 13.1 - IMAP: Create new folders (CREATE)
     - [ ] 13.2 - IMAP: Rename folder (RENAME)
     - [ ] 13.3 - IMAP: Delete folder (DELETE) with confirmation
     - [ ] 13.4 - UI: Context menu on sidebar folder (rename/delete/create subfolder)
