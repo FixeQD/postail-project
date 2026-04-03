@@ -341,6 +341,7 @@ pub fn apply_rules_to_mailbox(
 
     if let Err(e) = apply_rules_to_messages(conn, account_id, mailbox, &uids) {
         tracing::error!(target: "postail", "[Filters] Error applying rules to mailbox {}: {}", mailbox, e);
+        return Err(e);
     }
 
     Ok(uids.len() as u32)
