@@ -78,6 +78,7 @@ export function useFilterRules(accountId: string) {
 		onSuccess: (count) => {
 			toast.success(t('settings:filters.applied', { count: count as number }))
 			queryClient.invalidateQueries({ queryKey: ['messages', accountId] })
+			queryClient.invalidateQueries({ queryKey: ['mailboxes', accountId] })
 		},
 		onError: (error) => {
 			toast.error(t('settings:filters.toasts.applyFailed'), {
