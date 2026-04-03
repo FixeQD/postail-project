@@ -5,6 +5,7 @@ import { useFilterRules } from '@/hooks/useFilterRules'
 import { useAccountStore } from '@/stores/accountStore'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { FilterRule, RuleCondition, RuleAction, MatchMode } from '@/types/filters'
+import { toast } from '@/components/ui/custom/Toaster'
 import { ConditionRow } from '../ConditionRow'
 import { ActionRow } from '../ActionRow'
 
@@ -59,6 +60,14 @@ export function RuleEditor({ rule, onSave, onCancel, inline = false }: RuleEdito
 	const handleSave = async () => {
 		if (!name.trim()) {
 			setNameError(true)
+			return
+		}
+
+		const hasInvalidActions = actions.some(
+			(a) => (a.action_type === 'move_to' || a.action_type === 'add_tag') && !a.value?.trim()
+		)
+		if (hasInvalidActions) {
+			toast.error(t('settings:filters.editor.missingActionValues'))
 			return
 		}
 
