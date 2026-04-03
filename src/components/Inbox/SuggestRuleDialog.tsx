@@ -61,7 +61,6 @@ function RuleCard({ rule, onSaved }: { rule: FilterRule; onSaved: () => void }) 
 	}
 
 	const firstCondition = rule.conditions[0]
-	const firstAction = rule.actions[0]
 
 	return (
 		<div className='rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-4 transition-colors hover:bg-[var(--surface-hover)]'>
@@ -72,8 +71,9 @@ function RuleCard({ rule, onSaved }: { rule: FilterRule; onSaved: () => void }) 
 					{/* Condition → Action summary */}
 					<div className='flex flex-wrap items-center gap-1.5'>
 						<span className='rounded-md bg-[var(--surface-active)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]'>
-							{firstCondition.field} {firstCondition.operator.replace(/_/g, ' ')}{' '}
-							&ldquo;{firstCondition.value}&rdquo;
+							{t(`settings:filters.fields.${firstCondition.field}`)}{' '}
+							{t(`settings:filters.operators.${firstCondition.operator}`)} &ldquo;
+							{firstCondition.value}&rdquo;
 						</span>
 
 						<ArrowRight className='h-3 w-3 shrink-0 text-[var(--text-tertiary)]' />
@@ -123,7 +123,7 @@ function RuleCard({ rule, onSaved }: { rule: FilterRule; onSaved: () => void }) 
 
 export function SuggestRuleDialog({ rules, onClose }: SuggestRuleDialogProps) {
 	const { t } = useTypedTranslation(['settings'])
-	const [_remaining, setRemaining] = useState(rules.length)
+	const [, setRemaining] = useState(rules.length)
 
 	const handleSaved = () => {
 		setRemaining((n) => {

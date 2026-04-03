@@ -182,7 +182,9 @@ export function RuleEditor({ rule, onSave, onCancel, inline = false }: RuleEdito
 								<div className='flex items-center gap-2 py-1 pl-1'>
 									<div className='h-px flex-1 bg-[var(--border-subtle)]' />
 									<span className='text-[10px] font-bold tracking-widest text-[var(--text-tertiary)] uppercase'>
-										{matchMode === 'all' ? 'AND' : 'OR'}
+										{matchMode === 'all'
+											? t('settings:filters.editor.and', 'AND')
+											: t('settings:filters.editor.or', 'OR')}
 									</span>
 									<div className='h-px flex-1 bg-[var(--border-subtle)]' />
 								</div>
