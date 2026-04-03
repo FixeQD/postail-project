@@ -28,7 +28,6 @@ import { ThreadView } from './ThreadView'
 import { useInboxShortcuts } from '@/hooks/useInboxShortcuts'
 import { toast } from '@/stores/toastStore'
 import { MessageViewSkeleton } from './MessageViewSkeleton'
-import { SuggestRuleDialog } from '@/components/Inbox/SuggestRuleDialog'
 import type { MessageViewProps } from '@/types/components/shared'
 import type { FilterRule } from '@/types/filters'
 
@@ -55,7 +54,6 @@ export const MessageView = ({
 	const [isSendingReceipt, setIsSendingReceipt] = useState(false)
 	const [noReplyAction, setNoReplyAction] = useState<'reply' | 'replyAll' | null>(null)
 	const [rawEml, setRawEml] = useState<string | null>(null)
-	const [suggestedRules, setSuggestedRules] = useState<FilterRule[]>([])
 	const [rawEmlLoading, setRawEmlLoading] = useState(false)
 	const [sourceOpen, setSourceOpen] = useState(false)
 	const [thread, setThread] = useState<ThreadViewType | null>(null)
@@ -193,9 +191,15 @@ export const MessageView = ({
 			if (fromAddr) {
 				invoke<FilterRule[]>('suggest_rules_for_sender', { accountId, fromAddr })
 					.then((suggestions) => {
-						if (suggestions.length > 0) setSuggestedRules(suggestions)
+						if (suggestions.length > 0) {
+							window.dispatchEvent(
+								new CustomEvent('postail:suggestRules', { detail: suggestions })
+							)
+						}
 					})
-					.catch(() => {/* silent */})
+					.catch(() => {
+						/* silent */
+					})
 			}
 		} catch (error) {
 			toast.error(t('inbox:messageView.deleteError'))
@@ -585,13 +589,6 @@ export const MessageView = ({
 			</Dialog>
 
 			{/* Rule suggestion dialog — shown after delete if patterns detected */}
-			{suggestedRules.length > 0 && (
-				<SuggestRuleDialog
-					rules={suggestedRules}
-					accountId={accountId}
-					onClose={() => setSuggestedRules([])}
-				/>
-			)}
 		</div>
 	)
 }
