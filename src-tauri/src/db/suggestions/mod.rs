@@ -72,7 +72,7 @@ pub(crate) fn is_generic_provider(domain: &str) -> bool {
     GENERIC_PROVIDERS.contains(&lower.as_str())
 }
 
-/// Returns true if any existing rule already has a From condition that matches `value`.
+/// Returns true if any existing rule already has a From condition that overlaps/matches `value`.
 pub(crate) fn rule_already_exists(
     conn: &Connection,
     account_id: &str,
@@ -82,7 +82,23 @@ pub(crate) fn rule_already_exists(
     let value_lower = value.to_lowercase();
     Ok(rules.iter().any(|r| {
         r.conditions.iter().any(|c| {
-            matches!(c.field, ConditionField::From) && c.value.to_lowercase() == value_lower
+            if !matches!(c.field, ConditionField::From) {
+                return false;
+            }
+            let c_val = c.value.to_lowercase();
+            match c.operator {
+                crate::db::filters::ConditionOperator::Equals => c_val == value_lower,
+                crate::db::filters::ConditionOperator::Contains => {
+                    value_lower.contains(&c_val) || c_val.contains(&value_lower)
+                }
+                crate::db::filters::ConditionOperator::StartsWith => {
+                    value_lower.starts_with(&c_val) || c_val.starts_with(&value_lower)
+                }
+                crate::db::filters::ConditionOperator::EndsWith => {
+                    value_lower.ends_with(&c_val) || c_val.ends_with(&value_lower)
+                }
+                _ => false,
+            }
         })
     }))
 }
@@ -105,11 +121,7 @@ pub(crate) fn count_messages_in_role(
 }
 
 /// Count all messages from a sender (LIKE pattern).
-pub(crate) fn count_messages_total(
-    conn: &Connection,
-    account_id: &str,
-    from_pattern: &str,
-) -> i64 {
+pub(crate) fn count_messages_total(conn: &Connection, account_id: &str, from_pattern: &str) -> i64 {
     conn.query_row(
         "SELECT COUNT(*) FROM messages WHERE account_id = ? AND from_addr LIKE ?",
         params![account_id, from_pattern],
