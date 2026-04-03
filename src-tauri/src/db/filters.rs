@@ -66,7 +66,7 @@ pub struct FilterRule {
 
 pub fn get_rules(conn: &Connection, account_id: &str) -> Result<Vec<FilterRule>, DBError> {
     let mut stmt = conn.prepare(
-        "SELECT id, account_id, name, match_mode, conditions_json, actions_json, position, enabled 
+        "SELECT id, account_id, name, match_mode, conditions_json, actions_json, position, enabled
          FROM filter_rules WHERE account_id = ? ORDER BY position ASC",
     )?;
     let rules_iter = stmt.query_map(params![account_id], |row| {
@@ -161,8 +161,8 @@ pub fn apply_rules_to_message(
 
     let msg_data = conn
         .query_row(
-            "SELECT from_addr, to_json, subject, mb.body_plain 
-         FROM messages m 
+            "SELECT from_addr, to_json, subject, mb.body_plain
+         FROM messages m
          LEFT JOIN message_bodies mb ON mb.message_id = m.id
          WHERE m.account_id = ? AND m.mailbox = ? AND m.uid = ?",
             params![account_id, mailbox, uid],
@@ -194,7 +194,14 @@ pub fn apply_rules_to_message(
 
         if is_match {
             tracing::info!(target: "postail", "[Filters] Rule \"{}\" matched message UID={} in {}", rule.name, uid, mailbox);
-            for action in rule.actions {
+            let (moves, non_moves): (Vec<_>, Vec<_>) = rule
+                .actions
+                .into_iter()
+                .partition(|a| matches!(a.action_type, ActionType::MoveTo));
+            for action in non_moves {
+                execute_action(conn, account_id, mailbox, uid, &action)?;
+            }
+            for action in moves {
                 execute_action(conn, account_id, mailbox, uid, &action)?;
             }
             // First-match semantics: stop after first matching rule
@@ -266,6 +273,9 @@ fn execute_action(
         }
         ActionType::MoveTo => {
             if let Some(target) = &action.value {
+                if target.trim().is_empty() {
+                    return Ok(());
+                }
                 conn.execute(
                     "UPDATE messages SET mailbox = ? WHERE account_id = ? AND mailbox = ? AND uid = ?",
                     params![target, account_id, mailbox, uid],
