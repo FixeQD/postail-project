@@ -90,12 +90,28 @@ export function useFilterRules(accountId: string) {
 	return {
 		rules: query.data ?? [],
 		isLoading: query.isLoading,
-		saveRule: saveRule.mutateAsync,
+		saveRule: (rule: FilterRule) => {
+			const p = saveRule.mutateAsync(rule)
+			p.catch(() => {})
+			return p
+		},
 		isSaving: saveRule.isPending,
-		deleteRule: deleteRule.mutateAsync,
+		deleteRule: (ruleId: string) => {
+			const p = deleteRule.mutateAsync(ruleId)
+			p.catch(() => {})
+			return p
+		},
 		isDeleting: deleteRule.isPending,
-		reorderRules: reorderRules.mutateAsync,
-		applyRulesToMailbox: applyRulesToMailbox.mutateAsync,
+		reorderRules: (orderedIds: string[]) => {
+			const p = reorderRules.mutateAsync(orderedIds)
+			p.catch(() => {})
+			return p
+		},
+		applyRulesToMailbox: (mailbox: string) => {
+			const p = applyRulesToMailbox.mutateAsync(mailbox)
+			p.catch(() => {})
+			return p
+		},
 		isApplying: applyRulesToMailbox.isPending,
 	}
 }
