@@ -328,10 +328,6 @@ fn execute_action(
                 if target.trim().is_empty() {
                     return Ok(());
                 }
-                conn.execute(
-                    "UPDATE messages SET mailbox = ? WHERE account_id = ? AND mailbox = ? AND uid = ?",
-                    params![target, account_id, mailbox, uid],
-                )?;
 
                 crate::db::mail::flag_queue::enqueue_move_operation(
                     conn, account_id, mailbox, target, uid,
