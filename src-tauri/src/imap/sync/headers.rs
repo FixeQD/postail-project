@@ -329,14 +329,6 @@ impl crate::imap::ImapManager {
                         tracing::warn!(target: "postail", "[Filters] Rule apply error for batch in {}: {}", mailbox, e);
                     }
 
-                    // Process any flag/move operations queued by rule actions
-                    let aid = account_id.to_string();
-                    tauri::async_runtime::spawn(async move {
-                        if let Err(e) = crate::cmd::mail::actions::process_flag_queue(&aid).await {
-                            tracing::error!(target: "postail", "[Filters] Failed to process flag queue after rules: {}", e);
-                        }
-                    });
-
                     batch_items.clear();
                 }
 
@@ -363,15 +355,15 @@ impl crate::imap::ImapManager {
             ) {
                 tracing::warn!(target: "postail", "[Filters] Rule apply error for batch in {}: {}", mailbox, e);
             }
-
-            // Process any flag/move operations queued by rule actions
-            let aid = account_id.to_string();
-            tauri::async_runtime::spawn(async move {
-                if let Err(e) = crate::cmd::mail::actions::process_flag_queue(&aid).await {
-                    tracing::error!(target: "postail", "[Filters] Failed to process flag queue after rules (main): {}", e);
-                }
-            });
         }
+
+        // Process any flag/move operations queued by rule actions during pass 1
+        let aid = account_id.to_string();
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = crate::cmd::mail::actions::process_flag_queue(&aid).await {
+                tracing::error!(target: "postail", "[Filters] Failed to process flag queue after rules: {}", e);
+            }
+        });
 
         // Pass 2 – fetch snippet bytes grouped by section path
         fetch_snippets_pass2(
@@ -672,14 +664,14 @@ impl crate::imap::ImapManager {
             ) {
                 tracing::warn!(target: "postail", "[Filters] Rule apply error for batch in {}: {}", mailbox, e);
             }
-
-            let aid = account_id.to_string();
-            tauri::async_runtime::spawn(async move {
-                if let Err(e) = crate::cmd::mail::actions::process_flag_queue(&aid).await {
-                    tracing::error!(target: "postail", "[Filters] Failed to process flag queue after rules (history): {}", e);
-                }
-            });
         }
+
+        let aid = account_id.to_string();
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = crate::cmd::mail::actions::process_flag_queue(&aid).await {
+                tracing::error!(target: "postail", "[Filters] Failed to process flag queue after rules (history): {}", e);
+            }
+        });
 
         // Pass 2 – snippet bytes
         fetch_snippets_pass2(
