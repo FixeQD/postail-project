@@ -428,12 +428,13 @@ pub fn move_to_trash(
     mailbox: &str,
     uids: &[u32],
 ) -> Result<usize, DBError> {
-    // For future remote sync implementation:
-    // if let Some(trash) = crate::db::mail::mailbox::get_mailbox_by_role(conn, account_id, "trash")? {
-    //     for uid in uids {
-    //         crate::db::mail::flag_queue::enqueue_move_operation(conn, account_id, mailbox, &trash.name, *uid)?;
-    //     }
-    // }
+    if let Some(trash) = crate::db::mail::mailbox::get_mailbox_by_role(conn, account_id, "trash")? {
+        for uid in uids {
+            crate::db::mail::flag_queue::enqueue_move_operation(
+                conn, account_id, mailbox, &trash, *uid,
+            )?;
+        }
+    }
 
     update_message_flags(conn, account_id, mailbox, uids, Some(&["\\Deleted"]), None)
 }
