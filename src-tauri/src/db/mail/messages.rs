@@ -440,7 +440,20 @@ pub fn move_to_trash(
         )?;
     }
 
-    update_message_flags(conn, account_id, mailbox, uids, Some(&["\\Deleted"]), None)
+    let placeholders = uids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let query = format!(
+        "DELETE FROM messages WHERE account_id = ? AND mailbox = ? AND uid IN ({})",
+        placeholders
+    );
+
+    let mut params: Vec<rusqlite::types::Value> =
+        vec![account_id.to_string().into(), mailbox.to_string().into()];
+    for uid in uids {
+        params.push((*uid).into());
+    }
+
+    let deleted = conn.execute(&query, rusqlite::params_from_iter(params))?;
+    Ok(deleted)
 }
 
 pub fn sync_message_attachments_flag(
