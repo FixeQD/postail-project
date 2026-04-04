@@ -165,6 +165,8 @@ pub fn run() {
             cmd::mail::folders::delete_folder,
             cmd::mail::folders::move_messages,
             cmd::mail::folders::archive_messages,
+            cmd::mail::folders::subscribe_folder,
+            cmd::mail::folders::unsubscribe_folder,
             cmd::mail::listing::fetch_headers,
             cmd::mail::listing::fetch_message_full,
             cmd::mail::listing::save_attachment,

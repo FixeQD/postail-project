@@ -110,4 +110,30 @@ impl ImapManager {
 
         Ok(())
     }
+
+    pub async fn subscribe_folder(&self, account_id: &str, name: &str) -> Result<(), AppError> {
+        let mut session = self.connect_imap(account_id).await?;
+
+        tracing::info!(target: "postail", "[IMAP] Subscribing to folder '{}' for {}", name, account_id);
+
+        session.subscribe(name).await.map_err(AppError::from)?;
+        session.logout().await.map_err(AppError::from)?;
+
+        tracing::info!(target: "postail", "[IMAP] Subscribed to folder '{}'", name);
+
+        Ok(())
+    }
+
+    pub async fn unsubscribe_folder(&self, account_id: &str, name: &str) -> Result<(), AppError> {
+        let mut session = self.connect_imap(account_id).await?;
+
+        tracing::info!(target: "postail", "[IMAP] Unsubscribing from folder '{}' for {}", name, account_id);
+
+        session.unsubscribe(name).await.map_err(AppError::from)?;
+        session.logout().await.map_err(AppError::from)?;
+
+        tracing::info!(target: "postail", "[IMAP] Unsubscribed from folder '{}'", name);
+
+        Ok(())
+    }
 }

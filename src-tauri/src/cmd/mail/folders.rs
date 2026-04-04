@@ -29,6 +29,8 @@ fn validate_folder_name(name: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Shared move logic: enqueue IMAP MOVE + optimistic local DELETE.
+/// Spawns flag queue processing in background.
 async fn do_move(
     account_id: &str,
     source_mailbox: &str,
@@ -191,4 +193,20 @@ pub async fn archive_messages(
     }
 
     do_move(&account_id, &source_mailbox, &archive, &uids_u32).await
+}
+
+#[command]
+pub async fn subscribe_folder(account_id: String, name: String) -> Result<(), String> {
+    let imap = IMAP_MANAGER.lock().await.clone();
+    imap.subscribe_folder(&account_id, &name)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[command]
+pub async fn unsubscribe_folder(account_id: String, name: String) -> Result<(), String> {
+    let imap = IMAP_MANAGER.lock().await.clone();
+    imap.unsubscribe_folder(&account_id, &name)
+        .await
+        .map_err(|e| e.to_string())
 }
