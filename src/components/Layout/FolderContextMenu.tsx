@@ -156,6 +156,7 @@ export function FolderContextMenu({
 	const [createSubOpen, setCreateSubOpen] = useState(false)
 	const [deleteOpen, setDeleteOpen] = useState(false)
 	const [deleting, setDeleting] = useState(false)
+	const [isDragOver, setIsDragOver] = useState(false)
 	const triggerRef = useRef<HTMLDivElement>(null)
 	const qc = useQueryClient()
 
@@ -164,6 +165,39 @@ export function FolderContextMenu({
 	const invalidate = useCallback(() => {
 		qc.invalidateQueries({ queryKey: ['mailboxes', accountId] })
 	}, [qc, accountId])
+
+	const handleDragOver = (e: React.DragEvent) => {
+		if (!e.dataTransfer.types.includes('application/postail-message')) return
+		e.preventDefault()
+		e.dataTransfer.dropEffect = 'move'
+		setIsDragOver(true)
+	}
+
+	const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+		if (e.currentTarget.contains(e.relatedTarget as Node)) return
+		setIsDragOver(false)
+	}
+
+	const handleDrop = async (e: React.DragEvent) => {
+		e.preventDefault()
+		setIsDragOver(false)
+		const raw = e.dataTransfer.getData('application/postail-message')
+		if (!raw) return
+		try {
+			const payload = JSON.parse(raw) as { accountId: string; mailbox: string; uid: number }
+			if (payload.mailbox === mailbox.name) return
+			await invoke('move_messages', {
+				accountId: payload.accountId,
+				sourceMailbox: payload.mailbox,
+				targetMailbox: mailbox.name,
+				uids: [payload.uid],
+			})
+			qc.invalidateQueries({ queryKey: ['messages', payload.accountId, payload.mailbox] })
+			toast.success(`Moved to "${mailbox.display_name}"`)
+		} catch (err) {
+			toast.error(String(err))
+		}
+	}
 
 	const handleRename = async (newName: string) => {
 		try {
@@ -223,7 +257,20 @@ export function FolderContextMenu({
 					onContextMenu={(e) => {
 						e.preventDefault()
 						setOpen(true)
-					}}>
+					}}
+					onDragOver={handleDragOver}
+					onDragLeave={handleDragLeave}
+					onDrop={handleDrop}
+					style={
+						isDragOver
+							? {
+									outline: '2px solid rgba(var(--accent-rgb), 0.6)',
+									outlineOffset: '-2px',
+									backgroundColor: 'rgba(var(--accent-rgb), 0.08)',
+									borderRadius: '0.75rem',
+								}
+							: undefined
+					}>
 					{children}
 
 					<DropdownMenuTrigger asChild>

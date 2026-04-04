@@ -13,7 +13,11 @@ import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
-import type { MessageListProps, MessageRowProps } from '@/types/components/inbox'
+import type {
+	MessageListProps,
+	MessageRowProps,
+	DragMessagePayload,
+} from '@/types/components/inbox'
 
 const BATCH_SIZE = 50
 
@@ -214,8 +218,8 @@ const MessageRow = memo(
 					.map((tag) => (
 						<span
 							key={tag}
-							className='rounded bg-[var(--surface-active)] px-1.5 py-0.5 text-[10px] whitespace-nowrap font-medium text-tertiary ring-1 ring-[var(--border-subtle)]'>
-							{tag}
+							className='text-tertiary rounded bg-[var(--surface-active)] px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap ring-1 ring-[var(--border-subtle)]'>
+							{tag}-
 						</span>
 					))}
 			</div>
@@ -878,26 +882,49 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 						const isUnread = !message.flags.includes('\\Seen')
 						const isHovered = hoveredMessageId === message.uid
 
+						const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+							const payload: DragMessagePayload = {
+								accountId: account.id,
+								mailbox: message.mailbox,
+								uid: message.uid,
+							}
+							e.dataTransfer.setData(
+								'application/postail-message',
+								JSON.stringify(payload)
+							)
+							e.dataTransfer.effectAllowed = 'move'
+						}
+
 						return (
-							<MessageRow
-								message={message}
-								isUnread={isUnread}
-								isHovered={isHovered}
-								isFocused={message.uid === focusedUid}
-								zenMode={zenMode}
-								accentColor={accentColor}
-								animationsEnabled={animationsEnabled}
-								previewLines={previewLines}
-								formatDate={formatDate}
-								onMessageClick={onMessageClick}
-								onMouseEnter={() => setHoveredMessageId(message.uid)}
-								onMouseLeave={() => setHoveredMessageId(null)}
-								onDelete={() => handleDeleteMessage(message.uid, message.mailbox)}
-								onToggleRead={() =>
-									handleToggleReadStatus(message.uid, isUnread, message.mailbox)
-								}
-								onToggleStar={() => handleToggleStar(message.uid, message.mailbox)}
-							/>
+							<div draggable onDragStart={handleDragStart}>
+								<MessageRow
+									message={message}
+									isUnread={isUnread}
+									isHovered={isHovered}
+									isFocused={message.uid === focusedUid}
+									zenMode={zenMode}
+									accentColor={accentColor}
+									animationsEnabled={animationsEnabled}
+									previewLines={previewLines}
+									formatDate={formatDate}
+									onMessageClick={onMessageClick}
+									onMouseEnter={() => setHoveredMessageId(message.uid)}
+									onMouseLeave={() => setHoveredMessageId(null)}
+									onDelete={() =>
+										handleDeleteMessage(message.uid, message.mailbox)
+									}
+									onToggleRead={() =>
+										handleToggleReadStatus(
+											message.uid,
+											isUnread,
+											message.mailbox
+										)
+									}
+									onToggleStar={() =>
+										handleToggleStar(message.uid, message.mailbox)
+									}
+								/>
+							</div>
 						)
 					}}
 				/>
