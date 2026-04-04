@@ -8,16 +8,32 @@ on:
             - 'Cargo.lock'
 
 jobs:
+    prepare:
+        name: Power Management
+        runs-on: ubuntu-latest
+        outputs:
+            runner_off: ${{ steps.check.outputs.runner_off }}
+        steps:
+            - name: Check server status
+              id: check
+              run: |
+                  STATUS=$(curl -s -H "X-Auth-Token: ${{ secrets.RUNNER_POWER_TOKEN }}" ${{ secrets.RUNNER_POWER_URL }}/status)
+                  echo "Current status: $STATUS"
+                  if [ "$STATUS" == "false" ]; then
+                    echo "Server is down. Sending power-on command..."
+                    curl -X POST -H "X-Auth-Token: ${{ secrets.RUNNER_POWER_TOKEN }}" ${{ secrets.RUNNER_POWER_URL }}/on
+                    echo "runner_off=true" >> $GITHUB_OUTPUT
+                  else
+                    echo "Server is already up."
+                    echo "runner_off=false" >> $GITHUB_OUTPUT
+                  fi
+
     test:
         name: Cargo Test
+        needs: prepare
         runs-on: [self-hosted, Xeon]
         steps:
             - uses: actions/checkout@v4
-
-            - name: Install system dependencies
-              run: |
-                  # sudo apt-get update
-                  # sudo apt-get install -y pkg-config libglib2.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libtss2-dev
 
             - name: Install Rust
               run: rustup default stable
@@ -25,3 +41,10 @@ jobs:
             - name: Run Tests
               working-directory: ./src-tauri
               run: cargo test
+
+            - name: Schedule Shutdown
+              if: always() && needs.prepare.outputs.runner_off == 'true'
+              run: |
+                  echo "Server was started by this PR. Scheduling shutdown in 5 minutes..."
+                  sudo /usr/sbin/shutdown +5 &
+                  sleep 2
