@@ -1,10 +1,10 @@
 pub mod account;
 pub mod compose;
+pub mod filters;
 pub mod mail;
 pub mod schema;
 pub mod search;
 pub mod sql_helpers;
-pub mod filters;
 pub mod suggestions;
 
 use std::fs;
@@ -17,11 +17,11 @@ use serde::{Deserialize, Serialize};
 
 pub use crate::db::account::*;
 pub use crate::db::compose::*;
+pub use crate::db::filters::*;
 pub use crate::db::mail::*;
 pub use crate::db::schema::*;
 pub use crate::db::search::*;
 pub use crate::db::sql_helpers::*;
-pub use crate::db::filters::*;
 use crate::error::DBError;
 
 // ── Connection pool ────────────────────────────────────────────────────────
@@ -222,10 +222,12 @@ pub struct AccountMeta {
 pub struct Mailbox {
     pub name: String,
     pub display_name: String,
-    pub role: String, // "inbox", "sent", "trash", "drafts", "archive", "other"
+    pub role: String,
     pub uid_validity: Option<u32>,
     pub highest_modseq: Option<i64>,
     pub last_synced_uid: Option<u32>,
+    #[serde(default)]
+    pub hidden: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

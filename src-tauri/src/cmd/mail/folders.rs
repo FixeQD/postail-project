@@ -210,3 +210,26 @@ pub async fn unsubscribe_folder(account_id: String, name: String) -> Result<(), 
         .await
         .map_err(|e| e.to_string())
 }
+
+#[command]
+pub async fn set_folder_hidden(
+    account_id: String,
+    name: String,
+    hidden: bool,
+) -> Result<(), String> {
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+
+    // Block hiding system folders
+    if is_system_folder(&conn, &account_id, &name) {
+        return Err("System folders cannot be hidden".to_string());
+    }
+
+    conn.execute(
+        "UPDATE mailboxes SET hidden = ? WHERE account_id = ? AND name = ?",
+        rusqlite::params![hidden as i64, account_id, name],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}

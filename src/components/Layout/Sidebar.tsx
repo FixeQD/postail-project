@@ -232,6 +232,7 @@ export const Sidebar = ({
 		const custom: Mailbox[] = []
 
 		for (const mb of allMailboxes) {
+			if (mb.hidden) continue
 			if (ROLE_ORDER.includes(mb.role)) system.push(mb)
 			else if (mb.role !== 'tag') custom.push(mb)
 		}

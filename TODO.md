@@ -87,7 +87,7 @@
     - [x] 12.7 - UI: "Apply rules now" button in filter settings
     - [x] 12.8 - Rust: "Messages from sender" filter — auto-detect & suggest rule when deleting
 
-- [ ] 13 - Folders & Organization
+- [x] 13 - Folders & Organization
     - [x] 13.1 - IMAP: Create new folders (CREATE)
     - [x] 13.2 - IMAP: Rename folder (RENAME)
     - [x] 13.3 - IMAP: Delete folder (DELETE) with confirmation
@@ -98,7 +98,7 @@
     - [x] 13.8 - IMAP: Archive (COPY to Archive + STORE \Deleted) with one shortcut
     - [x] 13.9 - UI: Keyboard shortcut `E` = archive (like Gmail)
     - [x] 13.10 - IMAP: Subscribe/unsubscribe folders (SUBSCRIBE/UNSUBSCRIBE)
-    - [ ] 13.11 - UI: "Hide folder" option in account settings without unsubscribing
+    - [x] 13.11 - UI: "Hide folder" option in account settings without unsubscribing
 
 - [ ] 14 - Advanced Search
     - [ ] 14.1 - UI: Advanced search panel (from/to/subject/body/date range/has attachment/folder)

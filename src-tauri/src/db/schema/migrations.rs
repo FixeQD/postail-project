@@ -87,6 +87,11 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         set_db_version(conn, 10)?;
     }
 
+    if current_version < 11 {
+        migrate_to_v11(conn)?;
+        set_db_version(conn, 11)?;
+    }
+
     Ok(())
 }
 
@@ -267,6 +272,16 @@ fn migrate_to_v10(conn: &Connection) -> Result<(), DBError> {
         [],
     )?;
 
+    Ok(())
+}
+
+fn migrate_to_v11(conn: &Connection) -> Result<(), DBError> {
+    if !column_exists(conn, "mailboxes", "hidden")? {
+        conn.execute(
+            "ALTER TABLE mailboxes ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
     Ok(())
 }
 

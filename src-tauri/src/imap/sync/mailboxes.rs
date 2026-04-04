@@ -1,6 +1,6 @@
 use futures::StreamExt;
 
-use crate::db::{fetch_mailboxes as db_fetch_mailboxes, upsert_mailbox, Mailbox};
+use crate::db::{Mailbox, fetch_mailboxes as db_fetch_mailboxes, upsert_mailbox};
 use crate::globals::get_db_pool;
 
 fn detect_mailbox_role_from_attributes(
@@ -52,6 +52,7 @@ impl crate::imap::ImapManager {
                     uid_validity: None,
                     highest_modseq: None,
                     last_synced_uid: None,
+                    hidden: false,
                 };
                 {
                     let pool = get_db_pool().await.map_err(|e| e.to_string())?;

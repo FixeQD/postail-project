@@ -25,6 +25,7 @@ impl ImapManager {
             uid_validity: None,
             highest_modseq: None,
             last_synced_uid: None,
+            hidden: false,
         };
 
         upsert_mailbox(&conn, account_id, &mailbox).map_err(AppError::from)?;

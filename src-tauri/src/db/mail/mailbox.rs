@@ -1,11 +1,11 @@
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 
 use crate::db::Mailbox;
 use crate::error::DBError;
 
 pub fn fetch_mailboxes(conn: &Connection, account_id: &str) -> Result<Vec<Mailbox>, DBError> {
     let mut stmt = conn.prepare(
-        "SELECT name, role, uid_validity, highest_modseq, last_synced_uid FROM mailboxes WHERE account_id = ?",
+        "SELECT name, role, uid_validity, highest_modseq, last_synced_uid, COALESCE(hidden, 0) FROM mailboxes WHERE account_id = ?",
     )?;
     let mailboxes_iter = stmt.query_map([account_id], |row| {
         Ok(Mailbox {
@@ -17,6 +17,7 @@ pub fn fetch_mailboxes(conn: &Connection, account_id: &str) -> Result<Vec<Mailbo
             uid_validity: row.get(2)?,
             highest_modseq: row.get(3)?,
             last_synced_uid: row.get(4)?,
+            hidden: row.get::<_, i64>(5).unwrap_or(0) != 0,
         })
     })?;
     let mailboxes: Result<Vec<Mailbox>, _> = mailboxes_iter.collect();

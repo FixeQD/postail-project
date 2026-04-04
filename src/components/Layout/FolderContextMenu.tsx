@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FolderPlus, Pencil, Trash2, MoreHorizontal } from 'lucide-react'
+import { FolderPlus, Pencil, Trash2, MoreHorizontal, EyeOff, Eye } from 'lucide-react'
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -227,6 +227,23 @@ export function FolderContextMenu({
 		} catch (e) {
 			toast.error(String(e))
 			throw e
+		}
+	}
+
+	const handleToggleHidden = async () => {
+		try {
+			await invoke('set_folder_hidden', {
+				accountId,
+				name: mailbox.name,
+				hidden: !mailbox.hidden,
+			})
+			if (!mailbox.hidden && activeMailbox === mailbox.name) {
+				onMailboxSelect('INBOX')
+			}
+			invalidate()
+			toast.success(mailbox.hidden ? 'Folder shown' : 'Folder hidden')
+		} catch (err) {
+			toast.error(String(err))
 		}
 	}
 

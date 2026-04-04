@@ -5,6 +5,7 @@ export interface Mailbox {
 	uid_validity?: number
 	highest_modseq?: number
 	last_synced_uid?: number
+	hidden?: boolean
 }
 
 // Keep in sync with src-tauri/src/db/mod.rs => MailHeader
