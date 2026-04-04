@@ -141,23 +141,49 @@ pub async fn move_messages(
         return Ok(());
     }
 
+    if source_mailbox.starts_with("Virtual_") || target_mailbox.starts_with("Virtual_") {
+        return Err("Cannot move messages to or from virtual folders".to_string());
+    }
+
     let uids_u32: Vec<u32> = uids
         .into_iter()
         .map(|u| u.try_into().map_err(|_| format!("UID too large: {}", u)))
         .collect::<Result<_, _>>()?;
 
-    // Verify target exists
+    // Verify source and target exist
     {
         let pool = get_db_pool().await.map_err(|e| e.to_string())?;
         let conn = pool.get().map_err(|e| e.to_string())?;
-        let exists: bool = conn
+
+        let source_role: Option<String> = conn
             .query_row(
-                "SELECT 1 FROM mailboxes WHERE account_id = ? AND name = ?",
-                rusqlite::params![&account_id, &target_mailbox],
-                |_| Ok(true),
+                "SELECT role FROM mailboxes WHERE account_id = ? AND name = ?",
+                rusqlite::params![&account_id, &source_mailbox],
+                |row| row.get(0),
             )
-            .unwrap_or(false);
-        if !exists {
+            .ok();
+
+        if let Some(role) = source_role {
+            if role == "sent" || role == "drafts" {
+                return Err("Cannot move messages from Sent or Drafts".to_string());
+            }
+        } else {
+            return Err(format!("Source folder '{}' not found", source_mailbox));
+        }
+
+        let target_role: Option<String> = conn
+            .query_row(
+                "SELECT role FROM mailboxes WHERE account_id = ? AND name = ?",
+                rusqlite::params![&account_id, &target_mailbox],
+                |row| row.get(0),
+            )
+            .ok();
+
+        if let Some(role) = target_role {
+            if role == "sent" || role == "drafts" {
+                return Err("Cannot move messages to Sent or Drafts".to_string());
+            }
+        } else {
             return Err(format!("Target folder '{}' not found", target_mailbox));
         }
     }
@@ -173,6 +199,10 @@ pub async fn archive_messages(
 ) -> Result<(), String> {
     if uids.is_empty() {
         return Ok(());
+    }
+
+    if source_mailbox.starts_with("Virtual_") {
+        return Err("Cannot archive messages from virtual folders".to_string());
     }
 
     let uids_u32: Vec<u32> = uids

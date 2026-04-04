@@ -168,6 +168,12 @@ export function FolderContextMenu({
 
 	const handleDragOver = (e: React.DragEvent) => {
 		if (!e.dataTransfer.types.includes('application/postail-message')) return
+		if (
+			mailbox.role === 'sent' ||
+			mailbox.role === 'drafts' ||
+			mailbox.name.startsWith('Virtual_')
+		)
+			return
 		e.preventDefault()
 		e.dataTransfer.dropEffect = 'move'
 		setIsDragOver(true)
@@ -181,6 +187,12 @@ export function FolderContextMenu({
 	const handleDrop = async (e: React.DragEvent) => {
 		e.preventDefault()
 		setIsDragOver(false)
+		if (
+			mailbox.role === 'sent' ||
+			mailbox.role === 'drafts' ||
+			mailbox.name.startsWith('Virtual_')
+		)
+			return
 		const raw = e.dataTransfer.getData('application/postail-message')
 		if (!raw) return
 		try {

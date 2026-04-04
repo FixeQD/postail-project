@@ -882,7 +882,16 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 						const isUnread = !message.flags.includes('\\Seen')
 						const isHovered = hoveredMessageId === message.uid
 
+						const canDrag =
+							currentMailbox?.role !== 'sent' &&
+							currentMailbox?.role !== 'drafts' &&
+							!message.mailbox.startsWith('Virtual_')
+
 						const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+							if (!canDrag) {
+								e.preventDefault()
+								return
+							}
 							const payload: DragMessagePayload = {
 								accountId: account.id,
 								mailbox: message.mailbox,
@@ -896,7 +905,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 						}
 
 						return (
-							<div draggable onDragStart={handleDragStart}>
+							<div draggable={canDrag} onDragStart={handleDragStart}>
 								<MessageRow
 									message={message}
 									isUnread={isUnread}
