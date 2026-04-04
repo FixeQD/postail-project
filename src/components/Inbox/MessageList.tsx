@@ -139,7 +139,7 @@ const MessageRow = memo(
 		}`
 		const snippetClass = 'text-xs leading-snug text-[var(--text-tertiary)]'
 
-		const rowBase = `message-unread-indicator group relative flex w-full cursor-pointer border-b text-left transition-all duration-200 outline-none ${
+		const rowBase = `message-unread-indicator group relative flex w-full cursor-pointer select-none border-b text-left transition-all duration-200 outline-none ${
 			isUnread && !zenMode ? 'is-unread' : ''
 		} ${
 			isFocused
