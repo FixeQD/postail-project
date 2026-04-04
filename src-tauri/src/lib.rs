@@ -163,6 +163,7 @@ pub fn run() {
             cmd::mail::folders::create_folder,
             cmd::mail::folders::rename_folder,
             cmd::mail::folders::delete_folder,
+            cmd::mail::folders::move_messages,
             cmd::mail::listing::fetch_headers,
             cmd::mail::listing::fetch_message_full,
             cmd::mail::listing::save_attachment,
