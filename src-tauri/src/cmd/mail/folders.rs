@@ -29,6 +29,53 @@ fn validate_folder_name(name: &str) -> Result<(), String> {
     Ok(())
 }
 
+async fn do_move(
+    account_id: &str,
+    source_mailbox: &str,
+    target_mailbox: &str,
+    uids: &[u32],
+) -> Result<(), String> {
+    {
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
+
+        for &uid in uids {
+            crate::db::mail::flag_queue::enqueue_move_operation(
+                &conn,
+                account_id,
+                source_mailbox,
+                target_mailbox,
+                uid,
+            )
+            .map_err(|e| e.to_string())?;
+        }
+
+        let placeholders = uids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let query = format!(
+            "DELETE FROM messages WHERE account_id = ? AND mailbox = ? AND uid IN ({})",
+            placeholders
+        );
+        let mut params: Vec<rusqlite::types::Value> = vec![
+            account_id.to_string().into(),
+            source_mailbox.to_string().into(),
+        ];
+        for &uid in uids {
+            params.push(uid.into());
+        }
+        conn.execute(&query, rusqlite::params_from_iter(params))
+            .map_err(|e| e.to_string())?;
+    }
+
+    let account_id_owned = account_id.to_string();
+    tokio::spawn(async move {
+        if let Err(e) = crate::cmd::mail::actions::process_flag_queue(&account_id_owned).await {
+            tracing::error!(target: "postail", "[Move] Failed to process queue: {}", e);
+        }
+    });
+
+    Ok(())
+}
+
 #[command]
 pub async fn create_folder(account_id: String, name: String) -> Result<(), String> {
     validate_folder_name(&name)?;
@@ -88,9 +135,40 @@ pub async fn move_messages(
     target_mailbox: String,
     uids: Vec<u64>,
 ) -> Result<(), String> {
-    if source_mailbox == target_mailbox {
+    if source_mailbox == target_mailbox || uids.is_empty() {
         return Ok(());
     }
+
+    let uids_u32: Vec<u32> = uids
+        .into_iter()
+        .map(|u| u.try_into().map_err(|_| format!("UID too large: {}", u)))
+        .collect::<Result<_, _>>()?;
+
+    // Verify target exists
+    {
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
+        let exists: bool = conn
+            .query_row(
+                "SELECT 1 FROM mailboxes WHERE account_id = ? AND name = ?",
+                rusqlite::params![&account_id, &target_mailbox],
+                |_| Ok(true),
+            )
+            .unwrap_or(false);
+        if !exists {
+            return Err(format!("Target folder '{}' not found", target_mailbox));
+        }
+    }
+
+    do_move(&account_id, &source_mailbox, &target_mailbox, &uids_u32).await
+}
+
+#[command]
+pub async fn archive_messages(
+    account_id: String,
+    source_mailbox: String,
+    uids: Vec<u64>,
+) -> Result<(), String> {
     if uids.is_empty() {
         return Ok(());
     }
@@ -100,56 +178,17 @@ pub async fn move_messages(
         .map(|u| u.try_into().map_err(|_| format!("UID too large: {}", u)))
         .collect::<Result<_, _>>()?;
 
-    {
+    let archive = {
         let pool = get_db_pool().await.map_err(|e| e.to_string())?;
         let conn = pool.get().map_err(|e| e.to_string())?;
+        crate::db::mail::mailbox::get_mailbox_by_role(&conn, &account_id, "archive")
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "No archive folder configured for this account".to_string())?
+    };
 
-        // Verify target folder exists in DB
-        let target_exists: bool = conn
-            .query_row(
-                "SELECT 1 FROM mailboxes WHERE account_id = ? AND name = ?",
-                rusqlite::params![&account_id, &target_mailbox],
-                |_| Ok(true),
-            )
-            .unwrap_or(false);
-
-        if !target_exists {
-            return Err(format!("Target folder '{}' not found", target_mailbox));
-        }
-
-        // Enqueue each uid as a move operation
-        for &uid in &uids_u32 {
-            crate::db::mail::flag_queue::enqueue_move_operation(
-                &conn,
-                &account_id,
-                &source_mailbox,
-                &target_mailbox,
-                uid,
-            )
-            .map_err(|e| e.to_string())?;
-        }
-
-        // Optimistic local update: remove from source
-        let placeholders = uids_u32.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-        let query = format!(
-            "DELETE FROM messages WHERE account_id = ? AND mailbox = ? AND uid IN ({})",
-            placeholders
-        );
-        let mut params: Vec<rusqlite::types::Value> =
-            vec![account_id.clone().into(), source_mailbox.clone().into()];
-        for uid in &uids_u32 {
-            params.push((*uid).into());
-        }
-        conn.execute(&query, rusqlite::params_from_iter(params))
-            .map_err(|e| e.to_string())?;
+    if source_mailbox == archive {
+        return Ok(());
     }
 
-    let account_id_clone = account_id.clone();
-    tokio::spawn(async move {
-        if let Err(e) = crate::cmd::mail::actions::process_flag_queue(&account_id_clone).await {
-            tracing::error!(target: "postail", "[Move] Failed to process queue: {}", e);
-        }
-    });
-
-    Ok(())
+    do_move(&account_id, &source_mailbox, &archive, &uids_u32).await
 }
