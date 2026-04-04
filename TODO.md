@@ -89,7 +89,7 @@
 
 - [ ] 13 - Folders & Organization
     - [x] 13.1 - IMAP: Create new folders (CREATE)
-    - [ ] 13.2 - IMAP: Rename folder (RENAME)
+    - [x] 13.2 - IMAP: Rename folder (RENAME)
     - [ ] 13.3 - IMAP: Delete folder (DELETE) with confirmation
     - [ ] 13.4 - UI: Context menu on sidebar folder (rename/delete/create subfolder)
     - [ ] 13.5 - IMAP: Move messages between folders via drag & drop in sidebar
