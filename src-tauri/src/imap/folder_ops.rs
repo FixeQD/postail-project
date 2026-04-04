@@ -51,7 +51,6 @@ impl ImapManager {
             .rename(old_name, new_name)
             .await
             .map_err(AppError::from)?;
-
         session.logout().await.map_err(AppError::from)?;
 
         let pool = get_db_pool()
@@ -60,14 +59,12 @@ impl ImapManager {
         let mut conn = pool.get().map_err(|e| AppError::from(e.to_string()))?;
         let tx = conn.transaction().map_err(AppError::from)?;
 
-        // Update the mailbox row itself
         tx.execute(
             "UPDATE mailboxes SET name = ? WHERE account_id = ? AND name = ?",
             params![new_name, account_id, old_name],
         )
         .map_err(AppError::from)?;
 
-        // Re-point all messages that lived in the old folder
         tx.execute(
             "UPDATE messages SET mailbox = ? WHERE account_id = ? AND mailbox = ?",
             params![new_name, account_id, old_name],
@@ -79,6 +76,37 @@ impl ImapManager {
         tracing::info!(target: "postail",
             "[IMAP] Folder renamed '{}' -> '{}' in DB", old_name, new_name
         );
+
+        Ok(())
+    }
+
+    pub async fn delete_folder(&self, account_id: &str, name: &str) -> Result<(), AppError> {
+        let mut session = self.connect_imap(account_id).await?;
+
+        tracing::info!(target: "postail", "[IMAP] Deleting folder '{}' for {}", name, account_id);
+
+        session.delete(name).await.map_err(AppError::from)?;
+        session.logout().await.map_err(AppError::from)?;
+
+        let pool = get_db_pool()
+            .await
+            .map_err(|e| AppError::from(e.to_string()))?;
+        let conn = pool.get().map_err(|e| AppError::from(e.to_string()))?;
+
+        // messages don't cascade from mailboxes, so clean up explicitly
+        conn.execute(
+            "DELETE FROM messages WHERE account_id = ? AND mailbox = ?",
+            params![account_id, name],
+        )
+        .map_err(AppError::from)?;
+
+        conn.execute(
+            "DELETE FROM mailboxes WHERE account_id = ? AND name = ?",
+            params![account_id, name],
+        )
+        .map_err(AppError::from)?;
+
+        tracing::info!(target: "postail", "[IMAP] Folder '{}' deleted from DB", name);
 
         Ok(())
     }

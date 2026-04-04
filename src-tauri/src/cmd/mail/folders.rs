@@ -64,3 +64,19 @@ pub async fn rename_folder(
         .await
         .map_err(|e| e.to_string())
 }
+
+#[command]
+pub async fn delete_folder(account_id: String, name: String) -> Result<(), String> {
+    {
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+        let conn = pool.get().map_err(|e| e.to_string())?;
+        if is_system_folder(&conn, &account_id, &name) {
+            return Err("System folders cannot be deleted".to_string());
+        }
+    }
+
+    let imap = IMAP_MANAGER.lock().await.clone();
+    imap.delete_folder(&account_id, &name)
+        .await
+        .map_err(|e| e.to_string())
+}
