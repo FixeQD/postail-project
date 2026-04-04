@@ -232,6 +232,17 @@ export const MessageView = ({
 		}
 	}
 
+	const handleArchive = async () => {
+		try {
+			await invoke('archive_messages', { accountId, sourceMailbox: mailbox, uids: [uid] })
+			queryClient.invalidateQueries({ queryKey: ['messages', accountId, mailbox] })
+			toast.success('Message archived')
+			onBack()
+		} catch (error) {
+			toast.error('Failed to archive', { description: String(error) })
+		}
+	}
+
 	const handleMoveTo = async (targetMailbox: string) => {
 		onBack()
 		try {
@@ -277,6 +288,7 @@ export const MessageView = ({
 			const searchInput = document.querySelector('[data-search-input]') as HTMLElement
 			searchInput?.focus()
 		},
+		onArchive: handleArchive,
 		enabled: !isComposing,
 	})
 

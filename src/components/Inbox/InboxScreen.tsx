@@ -168,6 +168,11 @@ const InboxScreenInner = ({}: InboxScreenProps) => {
 	}, [])
 
 	// Register them
+	const handleArchive = useCallback(async () => {
+		// archive requires knowing selected message – no-op at list level;
+		// MessageView wires its own handler via useInboxShortcuts
+	}, [])
+
 	useInboxShortcuts({
 		onNextMessage: handleNextMessage,
 		onPrevMessage: handlePrevMessage,
@@ -181,6 +186,7 @@ const InboxScreenInner = ({}: InboxScreenProps) => {
 		onMarkUnread: handleMarkUnread,
 		onToggleStar: handleToggleStar,
 		onFocusSearch: handleFocusSearch,
+		onArchive: handleArchive,
 		enabled: !isComposeOpen,
 	})
 

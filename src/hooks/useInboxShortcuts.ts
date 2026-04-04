@@ -14,6 +14,7 @@ interface UseInboxShortcutsProps {
 	onMarkUnread: () => void
 	onToggleStar: () => void
 	onFocusSearch: () => void
+	onArchive: () => void
 	enabled?: boolean
 }
 
@@ -30,6 +31,7 @@ export function useInboxShortcuts({
 	onMarkUnread,
 	onToggleStar,
 	onFocusSearch,
+	onArchive,
 	enabled = true,
 }: UseInboxShortcutsProps) {
 	const getKey = useShortcutKeys()
@@ -141,5 +143,14 @@ export function useInboxShortcuts({
 		},
 		{ enabled, enableOnContentEditable: true },
 		[onFocusSearch, getKey]
+	)
+	useHotkeys(
+		getKey('inbox', 'archive', 'e'),
+		(e) => {
+			e.preventDefault()
+			onArchive()
+		},
+		{ enabled, enableOnContentEditable: true },
+		[onArchive, getKey]
 	)
 }
