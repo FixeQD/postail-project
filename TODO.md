@@ -93,8 +93,8 @@
     - [x] 13.3 - IMAP: Delete folder (DELETE) with confirmation
     - [x] 13.4 - UI: Context menu on sidebar folder (rename/delete/create subfolder)
     - [x] 13.5 - IMAP: Move messages between folders via drag & drop in sidebar
-    - [ ] 13.6 - UI: Drag & drop messages from list to folder in sidebar
-    - [ ] 13.7 - UI: "Move to..." button in MessageView with folder list
+    - [x] 13.6 - UI: Drag & drop messages from list to folder in sidebar
+    - [x] 13.7 - UI: "Move to..." button in MessageView with folder list
     - [ ] 13.8 - IMAP: Archive (COPY to Archive + STORE \Deleted) with one shortcut
     - [ ] 13.9 - UI: Keyboard shortcut `E` = archive (like Gmail)
     - [ ] 13.10 - IMAP: Subscribe/unsubscribe folders (SUBSCRIBE/UNSUBSCRIBE)

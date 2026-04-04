@@ -232,6 +232,22 @@ export const MessageView = ({
 		}
 	}
 
+	const handleMoveTo = async (targetMailbox: string) => {
+		onBack()
+		try {
+			await invoke('move_messages', {
+				accountId,
+				sourceMailbox: mailbox,
+				targetMailbox,
+				uids: [uid],
+			})
+			queryClient.invalidateQueries({ queryKey: ['messages', accountId, mailbox] })
+			toast.success(`Moved to "${targetMailbox}"`)
+		} catch (error) {
+			toast.error('Failed to move message', { description: String(error) })
+		}
+	}
+
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === 'Escape') {
@@ -357,8 +373,11 @@ export const MessageView = ({
 				onDelete={handleDelete}
 				onMarkUnread={handleMarkUnread}
 				onToggleStar={handleToggleStar}
+				onMoveTo={handleMoveTo}
 				isStarred={data?.header.starred ?? false}
 				onViewSource={handleViewSource}
+				accountId={accountId}
+				currentMailbox={mailbox}
 			/>
 
 			<div
