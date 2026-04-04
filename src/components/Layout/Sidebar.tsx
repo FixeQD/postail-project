@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useMemo, memo } from 'react'
+import { useRef, useState, useEffect, useMemo, memo, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import {
 	Inbox,
@@ -11,14 +11,18 @@ import {
 	AlertTriangle,
 	Layers,
 	Tag,
+	FolderOpen,
+	Plus,
 } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Mailbox } from '@/types/mail'
 import type { AccountMeta } from '@/types/accounts'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
+import { FolderContextMenu, FolderNameDialog } from './FolderContextMenu'
+import { toast } from '@/stores/toastStore'
 
 interface SidebarProps {
 	activeAccount: AccountMeta | null
@@ -30,6 +34,8 @@ interface SidebarProps {
 const MIN_WIDTH = 80
 const MAX_WIDTH = 320
 const DEFAULT_WIDTH = 260
+
+const ROLE_ORDER = ['inbox', 'flagged', 'sent', 'drafts', 'archive', 'junk', 'trash']
 
 interface MailboxItemProps {
 	mailbox: Mailbox
@@ -43,10 +49,7 @@ interface MailboxItemProps {
 const listVariants = {
 	hidden: {},
 	visible: {
-		transition: {
-			staggerChildren: 0.05,
-			delayChildren: 0.02,
-		},
+		transition: { staggerChildren: 0.05, delayChildren: 0.02 },
 	},
 }
 
@@ -80,6 +83,8 @@ const MailboxItem = memo(
 					return <Layers className={cls} />
 				case 'tag':
 					return <Tag className={cls} />
+				case 'other':
+					return <FolderOpen className={cls} />
 				default:
 					return <File className={cls} />
 			}
@@ -104,7 +109,6 @@ const MailboxItem = memo(
 						: 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-hover)]'
 				} ${isCollapsed ? 'justify-center px-0' : ''}`}
 				style={isActive ? { color: accentColor } : undefined}>
-				{/* Active background */}
 				{isActive && (
 					<div
 						className='absolute inset-0 rounded-xl transition-all duration-200 ease-out'
@@ -115,7 +119,6 @@ const MailboxItem = memo(
 					/>
 				)}
 
-				{/* Active left indicator */}
 				{isActive && (
 					<motion.div
 						{...(animationsEnabled
@@ -123,11 +126,7 @@ const MailboxItem = memo(
 									initial: { scaleY: 0, opacity: 0 },
 									animate: { scaleY: 1, opacity: 1 },
 									exit: { scaleY: 0, opacity: 0 },
-									transition: {
-										type: 'spring',
-										stiffness: 200,
-										damping: 25,
-									},
+									transition: { type: 'spring', stiffness: 200, damping: 25 },
 								}
 							: {})}
 						className='absolute top-1/2 left-0 h-5 w-[3px] origin-center -translate-y-1/2 rounded-r-full'
@@ -140,6 +139,7 @@ const MailboxItem = memo(
 					style={isActive ? { color: accentColor } : undefined}>
 					{getIcon()}
 				</div>
+
 				{!isCollapsed && (
 					<div className='relative ml-3.5 flex flex-1 items-center justify-between truncate'>
 						<span>{mailbox.display_name}</span>
@@ -161,7 +161,10 @@ export const Sidebar = ({
 	const animationsEnabled = useAnimationsEnabled()
 	const [width, setWidth] = useState(DEFAULT_WIDTH)
 	const [isResizing, setIsResizing] = useState(false)
+	const [newFolderOpen, setNewFolderOpen] = useState(false)
+	const [creatingFolder, setCreatingFolder] = useState(false)
 	const sidebarRef = useRef<HTMLDivElement>(null)
+	const qc = useQueryClient()
 
 	const isCollapsed = width < 120
 
@@ -177,7 +180,6 @@ export const Sidebar = ({
 		enabled: !!activeAccount,
 	})
 
-	// Add virtual Drafts mailbox if not present
 	const allMailboxes = mailboxes ? [...mailboxes] : []
 	if (!allMailboxes.some((m) => m.role === 'drafts')) {
 		allMailboxes.push({
@@ -189,8 +191,6 @@ export const Sidebar = ({
 			last_synced_uid: undefined,
 		})
 	}
-
-	// Add virtual Starred mailbox if not present natively
 	if (!allMailboxes.some((m) => m.role === 'flagged')) {
 		allMailboxes.push({
 			name: 'Virtual_Starred',
@@ -215,36 +215,50 @@ export const Sidebar = ({
 			if (newWidth > MAX_WIDTH) newWidth = MAX_WIDTH
 			setWidth(newWidth)
 		}
-
-		const handleMouseUp = () => {
-			setIsResizing(false)
-		}
+		const handleMouseUp = () => setIsResizing(false)
 
 		if (isResizing) {
 			window.addEventListener('mousemove', handleMouseMove)
 			window.addEventListener('mouseup', handleMouseUp)
 		}
-
 		return () => {
 			window.removeEventListener('mousemove', handleMouseMove)
 			window.removeEventListener('mouseup', handleMouseUp)
 		}
 	}, [isResizing])
 
-	const sortedMailboxes = useMemo(() => {
-		const sorted = [...allMailboxes].sort((a, b) => {
-			const roleOrder = ['inbox', 'flagged', 'sent', 'drafts', 'archive', 'junk', 'trash']
-			const scoreA = roleOrder.indexOf(a.role)
-			const scoreB = roleOrder.indexOf(b.role)
+	const { systemMailboxes, customMailboxes } = useMemo(() => {
+		const system: Mailbox[] = []
+		const custom: Mailbox[] = []
 
-			if (scoreA !== -1 && scoreB !== -1) return scoreA - scoreB
-			if (scoreA !== -1) return -1
-			if (scoreB !== -1) return 1
+		for (const mb of allMailboxes) {
+			if (ROLE_ORDER.includes(mb.role)) system.push(mb)
+			else if (mb.role !== 'tag') custom.push(mb)
+		}
 
-			return a.name.localeCompare(b.name)
-		})
-		return sorted
+		system.sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role))
+		custom.sort((a, b) => a.display_name.localeCompare(b.display_name))
+
+		return { systemMailboxes: system, customMailboxes: custom }
 	}, [allMailboxes])
+
+	const handleCreateFolder = useCallback(
+		async (name: string) => {
+			if (!activeAccount) return
+			setCreatingFolder(true)
+			try {
+				await invoke('create_folder', { accountId: activeAccount.id, name })
+				qc.invalidateQueries({ queryKey: ['mailboxes', activeAccount.id] })
+				toast.success(`Folder "${name}" created`)
+			} catch (e) {
+				toast.error(String(e))
+				throw e
+			} finally {
+				setCreatingFolder(false)
+			}
+		},
+		[activeAccount, qc]
+	)
 
 	return (
 		<>
@@ -252,7 +266,7 @@ export const Sidebar = ({
 				ref={sidebarRef}
 				style={{ width }}
 				className='relative flex h-full flex-col p-3'>
-				{/* Right edge gradient line */}
+				{/* Right edge gradient */}
 				<div className='pointer-events-none absolute top-0 right-0 bottom-0 w-px bg-gradient-to-b from-transparent via-black/[0.06] to-transparent dark:via-white/[0.06]' />
 
 				{/* New Message Button */}
@@ -268,7 +282,6 @@ export const Sidebar = ({
 							background: `linear-gradient(to right, var(--accent-dark), var(--accent-color))`,
 							boxShadow: `0 8px 20px -4px rgba(var(--accent-rgb), 0.15)`,
 						}}>
-						{/* Shimmer effect on hover */}
 						<div className='absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full' />
 						<Pencil className='relative h-4 w-4 shrink-0' />
 						{!isCollapsed && (
@@ -278,13 +291,12 @@ export const Sidebar = ({
 						)}
 					</motion.button>
 
-					{/* Separator */}
 					<div className='relative mx-3 h-px'>
 						<div className='absolute inset-0 bg-gradient-to-r from-transparent via-black/[0.08] to-transparent dark:via-white/[0.08]' />
 					</div>
 				</div>
 
-				{/* Mailboxes */}
+				{/* Mailbox list */}
 				<div className='hover-scrollbar flex-1 space-y-0.5 overflow-x-hidden overflow-y-auto pt-1'>
 					{isLoading ? (
 						<div className='flex flex-col gap-2 p-2'>
@@ -301,22 +313,71 @@ export const Sidebar = ({
 							{...(animationsEnabled
 								? { variants: listVariants, initial: 'hidden', animate: 'visible' }
 								: {})}>
-							{sortedMailboxes.map((mailbox) => (
-								<MailboxItem
+							{/* System mailboxes */}
+							{systemMailboxes.map((mailbox) => (
+								<FolderContextMenu
 									key={mailbox.name}
 									mailbox={mailbox}
-									isActive={activeMailbox === mailbox.name}
-									isCollapsed={isCollapsed}
-									accentColor={accentColor}
-									animationsEnabled={animationsEnabled}
-									onSelect={onMailboxSelect}
-								/>
+									accountId={activeAccount?.id ?? ''}
+									activeMailbox={activeMailbox}
+									onMailboxSelect={onMailboxSelect}>
+									<MailboxItem
+										mailbox={mailbox}
+										isActive={activeMailbox === mailbox.name}
+										isCollapsed={isCollapsed}
+										accentColor={accentColor}
+										animationsEnabled={animationsEnabled}
+										onSelect={onMailboxSelect}
+									/>
+								</FolderContextMenu>
 							))}
 
+							{/* Custom folders */}
+							{!isCollapsed && (
+								<div className='group/folders-header mt-3'>
+									<div className='flex items-center px-2 py-1'>
+										<span className='text-muted-foreground/50 flex-1 text-[10px] font-bold tracking-wider uppercase'>
+											Folders
+										</span>
+										<motion.button
+											type='button'
+											onClick={() => setNewFolderOpen(true)}
+											whileHover={{ scale: 1.1 }}
+											whileTap={{ scale: 0.9 }}
+											title='New folder'
+											className='hover:text-muted-foreground group-hover/folders-header:text-muted-foreground/60 flex h-4 w-4 items-center justify-center rounded text-transparent transition-all duration-150 hover:bg-[var(--surface-hover)]'>
+											<Plus className='h-3 w-3' />
+										</motion.button>
+									</div>
+									{customMailboxes.length > 0 && (
+										<div className='space-y-0.5'>
+											{customMailboxes.map((mailbox) => (
+												<FolderContextMenu
+													key={mailbox.name}
+													mailbox={mailbox}
+													accountId={activeAccount?.id ?? ''}
+													activeMailbox={activeMailbox}
+													onMailboxSelect={onMailboxSelect}>
+													<MailboxItem
+														mailbox={mailbox}
+														isActive={activeMailbox === mailbox.name}
+														isCollapsed={isCollapsed}
+														accentColor={accentColor}
+														animationsEnabled={animationsEnabled}
+														onSelect={onMailboxSelect}
+													/>
+												</FolderContextMenu>
+											))}
+										</div>
+									)}
+								</div>
+							)}
+
+							{/* Tags */}
 							{tags && tags.length > 0 && (
 								<div className='mt-4 space-y-0.5'>
 									{!isCollapsed && (
-										<div className='px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50'>
+										<div className='text-muted-foreground/50 px-4 py-2 text-[10px] font-bold tracking-wider uppercase'>
 											Tags
 										</div>
 									)}
@@ -343,7 +404,7 @@ export const Sidebar = ({
 					)}
 				</div>
 
-				{/* Resizer Handle */}
+				{/* Resizer */}
 				<div
 					className='group absolute top-0 right-[-3px] bottom-0 z-50 w-2 cursor-col-resize'
 					onMouseDown={startResizing}>
@@ -358,6 +419,16 @@ export const Sidebar = ({
 					/>
 				</div>
 			</motion.div>
+
+			{/* Top-level new folder dialog */}
+			<FolderNameDialog
+				open={newFolderOpen}
+				onOpenChange={setNewFolderOpen}
+				title='New folder'
+				placeholder='Folder name'
+				confirmLabel={creatingFolder ? 'Creating…' : 'Create'}
+				onConfirm={handleCreateFolder}
+			/>
 		</>
 	)
 }

@@ -1,0 +1,308 @@
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { invoke } from '@tauri-apps/api/core'
+import { useQueryClient } from '@tanstack/react-query'
+import { motion, AnimatePresence } from 'framer-motion'
+import { FolderPlus, Pencil, Trash2, MoreHorizontal } from 'lucide-react'
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
+import { toast } from '@/stores/toastStore'
+import type { Mailbox } from '@/types/mail'
+
+const SYSTEM_ROLES = ['inbox', 'sent', 'drafts', 'trash', 'archive', 'junk', 'flagged', 'all']
+
+interface FolderContextMenuProps {
+	mailbox: Mailbox
+	accountId: string
+	activeMailbox: string
+	onMailboxSelect: (name: string) => void
+	children: React.ReactNode
+}
+
+interface FolderNameDialogProps {
+	open: boolean
+	onOpenChange: (open: boolean) => void
+	title: string
+	initialValue?: string
+	placeholder?: string
+	confirmLabel: string
+	onConfirm: (name: string) => Promise<void>
+}
+
+export function FolderNameDialog({
+	open,
+	onOpenChange,
+	title,
+	initialValue = '',
+	placeholder = 'Folder name',
+	confirmLabel,
+	onConfirm,
+}: FolderNameDialogProps) {
+	const [value, setValue] = useState(initialValue)
+	const [loading, setLoading] = useState(false)
+	const inputRef = useRef<HTMLInputElement>(null)
+
+	useEffect(() => {
+		if (open) {
+			setValue(initialValue)
+			setTimeout(() => inputRef.current?.focus(), 50)
+		}
+	}, [open, initialValue])
+
+	const handleConfirm = async () => {
+		const trimmed = value.trim()
+		if (!trimmed) return
+		setLoading(true)
+		try {
+			await onConfirm(trimmed)
+			onOpenChange(false)
+		} finally {
+			setLoading(false)
+		}
+	}
+
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className='border-[var(--border-subtle)] bg-[var(--surface-glass)] p-0 text-[var(--text-primary)] shadow-2xl sm:max-w-[340px]'>
+				<AnimatePresence>
+					{open && (
+						<motion.div
+							key='folder-name-dialog'
+							initial={{ opacity: 0, scale: 0.95, y: -8 }}
+							animate={{ opacity: 1, scale: 1, y: 0 }}
+							transition={{ duration: 0.18, ease: 'circOut' }}>
+							{/* accent bar */}
+							<motion.div
+								initial={{ scaleX: 0, opacity: 0 }}
+								animate={{ scaleX: 1, opacity: 1 }}
+								transition={{ duration: 0.3, ease: 'circOut' }}
+								className='h-[3px] w-full origin-left rounded-t-lg'
+								style={{
+									background: `linear-gradient(90deg, var(--accent-color), var(--accent-light))`,
+								}}
+							/>
+
+							<div className='px-5 pt-5 pb-5'>
+								<DialogHeader className='mb-4'>
+									<DialogTitle className='text-sm font-semibold tracking-tight text-[var(--text-primary)]'>
+										{title}
+									</DialogTitle>
+								</DialogHeader>
+
+								<Input
+									ref={inputRef}
+									value={value}
+									onChange={(e) => setValue(e.target.value)}
+									placeholder={placeholder}
+									className='h-8 border-[var(--border-subtle)] bg-[var(--surface-panel)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus-visible:ring-1 focus-visible:ring-[var(--accent-color)]'
+									onKeyDown={(e) => {
+										if (e.key === 'Enter') handleConfirm()
+										if (e.key === 'Escape') onOpenChange(false)
+									}}
+								/>
+
+								<DialogFooter className='mt-4 flex gap-2'>
+									<Button
+										variant='ghost'
+										onClick={() => onOpenChange(false)}
+										disabled={loading}
+										className='flex-1 border border-[var(--border-subtle)] bg-[var(--surface-panel)] text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
+										Cancel
+									</Button>
+									<Button
+										onClick={handleConfirm}
+										disabled={!value.trim() || loading}
+										className='flex-1 border-0 text-xs font-medium text-white shadow-lg disabled:opacity-40'
+										style={{
+											background: `linear-gradient(135deg, var(--accent-color), var(--accent-dark))`,
+											boxShadow: `0 4px 16px rgba(var(--accent-rgb), 0.3)`,
+											color: 'var(--accent-text)',
+										}}>
+										{loading ? '…' : confirmLabel}
+									</Button>
+								</DialogFooter>
+							</div>
+						</motion.div>
+					)}
+				</AnimatePresence>
+			</DialogContent>
+		</Dialog>
+	)
+}
+
+export function FolderContextMenu({
+	mailbox,
+	accountId,
+	activeMailbox,
+	onMailboxSelect,
+	children,
+}: FolderContextMenuProps) {
+	const [open, setOpen] = useState(false)
+	const [renameOpen, setRenameOpen] = useState(false)
+	const [createSubOpen, setCreateSubOpen] = useState(false)
+	const [deleteOpen, setDeleteOpen] = useState(false)
+	const [deleting, setDeleting] = useState(false)
+	const triggerRef = useRef<HTMLDivElement>(null)
+	const qc = useQueryClient()
+
+	const isSystem = SYSTEM_ROLES.includes(mailbox.role)
+
+	const invalidate = useCallback(() => {
+		qc.invalidateQueries({ queryKey: ['mailboxes', accountId] })
+	}, [qc, accountId])
+
+	const handleRename = async (newName: string) => {
+		try {
+			await invoke('rename_folder', {
+				accountId,
+				oldName: mailbox.name,
+				newName,
+			})
+			// if user was looking at the renamed folder, update selection
+			if (activeMailbox === mailbox.name) {
+				onMailboxSelect(newName)
+			}
+			invalidate()
+			toast.success(`Renamed to "${newName}"`)
+		} catch (e) {
+			toast.error(String(e))
+			throw e
+		}
+	}
+
+	const handleCreateSub = async (subName: string) => {
+		const fullName = `${mailbox.name}/${subName}`
+		try {
+			await invoke('create_folder', { accountId, name: fullName })
+			invalidate()
+			toast.success(`Folder "${subName}" created`)
+		} catch (e) {
+			toast.error(String(e))
+			throw e
+		}
+	}
+
+	const handleDelete = async () => {
+		setDeleting(true)
+		try {
+			await invoke('delete_folder', { accountId, name: mailbox.name })
+			// if deleted folder was active, go back to inbox
+			if (activeMailbox === mailbox.name) {
+				onMailboxSelect('INBOX')
+			}
+			invalidate()
+			toast.success(`"${mailbox.display_name}" deleted`)
+			setDeleteOpen(false)
+		} catch (e) {
+			toast.error(String(e))
+		} finally {
+			setDeleting(false)
+		}
+	}
+
+	return (
+		<>
+			<DropdownMenu open={open} onOpenChange={setOpen}>
+				<div
+					ref={triggerRef}
+					className='group/folder-item relative w-full'
+					onContextMenu={(e) => {
+						e.preventDefault()
+						setOpen(true)
+					}}>
+					{children}
+
+					<DropdownMenuTrigger asChild>
+						<motion.button
+							type='button'
+							onClick={(e) => {
+								e.stopPropagation()
+								setOpen(true)
+							}}
+							initial={false}
+							className='absolute top-1/2 right-1.5 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-md text-[var(--text-tertiary)] opacity-0 transition-all duration-150 group-hover/folder-item:opacity-100 hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]'
+							aria-label='Folder options'>
+							<MoreHorizontal className='h-3.5 w-3.5' />
+						</motion.button>
+					</DropdownMenuTrigger>
+				</div>
+
+				<DropdownMenuContent
+					className='w-44 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-glass)] p-1 shadow-xl backdrop-blur-xl'
+					align='start'
+					sideOffset={2}>
+					<DropdownMenuItem
+						onClick={() => setCreateSubOpen(true)}
+						className='flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:bg-[var(--surface-hover)] focus:text-[var(--text-primary)]'>
+						<FolderPlus className='h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]' />
+						New subfolder
+					</DropdownMenuItem>
+
+					{!isSystem && (
+						<>
+							<DropdownMenuItem
+								onClick={() => setRenameOpen(true)}
+								className='flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:bg-[var(--surface-hover)] focus:text-[var(--text-primary)]'>
+								<Pencil className='h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]' />
+								Rename
+							</DropdownMenuItem>
+
+							<DropdownMenuSeparator className='my-1 h-px bg-[var(--border-faint)]' />
+
+							<DropdownMenuItem
+								onClick={() => setDeleteOpen(true)}
+								className='flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-400 focus:bg-red-500/10 focus:text-red-400'>
+								<Trash2 className='h-3.5 w-3.5 shrink-0' />
+								Delete
+							</DropdownMenuItem>
+						</>
+					)}
+				</DropdownMenuContent>
+			</DropdownMenu>
+
+			<FolderNameDialog
+				open={renameOpen}
+				onOpenChange={setRenameOpen}
+				title={`Rename "${mailbox.display_name}"`}
+				initialValue={mailbox.display_name}
+				placeholder='New folder name'
+				confirmLabel='Rename'
+				onConfirm={handleRename}
+			/>
+
+			<FolderNameDialog
+				open={createSubOpen}
+				onOpenChange={setCreateSubOpen}
+				title={`New subfolder in "${mailbox.display_name}"`}
+				placeholder='Subfolder name'
+				confirmLabel='Create'
+				onConfirm={handleCreateSub}
+			/>
+
+			<ConfirmationDialog
+				open={deleteOpen}
+				onOpenChange={setDeleteOpen}
+				title='Delete folder'
+				description={`Delete "${mailbox.display_name}"? All messages inside will be permanently removed.`}
+				confirmLabel={deleting ? 'Deleting…' : 'Delete'}
+				cancelLabel='Cancel'
+				confirmClassName='w-full border-0 bg-red-500 font-medium text-white shadow-lg hover:bg-red-600'
+				onConfirm={handleDelete}
+			/>
+		</>
+	)
+}
