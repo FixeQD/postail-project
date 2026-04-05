@@ -44,6 +44,8 @@ interface MailboxItemProps {
 	accentColor: string
 	animationsEnabled: boolean
 	onSelect: (name: string) => void
+	depth?: number
+	shortName?: string
 }
 
 const listVariants = {
@@ -61,6 +63,8 @@ const MailboxItem = memo(
 		accentColor,
 		animationsEnabled,
 		onSelect,
+		depth = 0,
+		shortName,
 	}: MailboxItemProps) => {
 		const getIcon = () => {
 			const cls = 'h-[18px] w-[18px]'
@@ -108,7 +112,10 @@ const MailboxItem = memo(
 						? ''
 						: 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-hover)]'
 				} ${isCollapsed ? 'justify-center px-0' : ''}`}
-				style={isActive ? { color: accentColor } : undefined}>
+				style={{
+					...(isActive ? { color: accentColor } : {}),
+					paddingLeft: depth && !isCollapsed ? `${depth * 1.5 + 0.875}rem` : undefined,
+				}}>
 				{isActive && (
 					<div
 						className='absolute inset-0 rounded-xl transition-all duration-200 ease-out'
@@ -142,7 +149,7 @@ const MailboxItem = memo(
 
 				{!isCollapsed && (
 					<div className='relative ml-3.5 flex flex-1 items-center justify-between truncate'>
-						<span>{mailbox.display_name}</span>
+						<span>{shortName || mailbox.display_name}</span>
 					</div>
 				)}
 			</motion.button>
@@ -230,15 +237,41 @@ export const Sidebar = ({
 	const { systemMailboxes, customMailboxes } = useMemo(() => {
 		const system: Mailbox[] = []
 		const custom: Mailbox[] = []
+		const systemRoots = allMailboxes.filter((m) => ROLE_ORDER.includes(m.role) && !m.hidden)
 
 		for (const mb of allMailboxes) {
 			if (mb.hidden) continue
-			if (ROLE_ORDER.includes(mb.role)) system.push(mb)
-			else if (mb.role !== 'tag') custom.push(mb)
+			if (ROLE_ORDER.includes(mb.role)) {
+				system.push(mb)
+			} else if (mb.role !== 'tag') {
+				const isSystemSub = systemRoots.some(
+					(root) =>
+						mb.name.startsWith(root.name + '.') || mb.name.startsWith(root.name + '/')
+				)
+				if (isSystemSub) {
+					system.push(mb)
+				} else {
+					custom.push(mb)
+				}
+			}
 		}
 
-		system.sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role))
-		custom.sort((a, b) => a.display_name.localeCompare(b.display_name))
+		system.sort((a, b) => {
+			const getRootRole = (m: Mailbox) => {
+				if (ROLE_ORDER.includes(m.role)) return m.role
+				const root = systemRoots.find(
+					(r) => m.name.startsWith(r.name + '.') || m.name.startsWith(r.name + '/')
+				)
+				return root ? root.role : m.role
+			}
+			const rootA = getRootRole(a)
+			const rootB = getRootRole(b)
+			if (rootA !== rootB) {
+				return ROLE_ORDER.indexOf(rootA) - ROLE_ORDER.indexOf(rootB)
+			}
+			return a.name.localeCompare(b.name)
+		})
+		custom.sort((a, b) => a.name.localeCompare(b.name))
 
 		return { systemMailboxes: system, customMailboxes: custom }
 	}, [allMailboxes])
@@ -315,23 +348,44 @@ export const Sidebar = ({
 								? { variants: listVariants, initial: 'hidden', animate: 'visible' }
 								: {})}>
 							{/* System mailboxes */}
-							{systemMailboxes.map((mailbox) => (
-								<FolderContextMenu
-									key={mailbox.name}
-									mailbox={mailbox}
-									accountId={activeAccount?.id ?? ''}
-									activeMailbox={activeMailbox}
-									onMailboxSelect={onMailboxSelect}>
-									<MailboxItem
+							{systemMailboxes.map((mailbox) => {
+								let depth = 0
+								let parentLen = 0
+								for (const m of systemMailboxes) {
+									if (
+										m.name !== mailbox.name &&
+										mailbox.name.startsWith(m.name) &&
+										(mailbox.name.charAt(m.name.length) === '/' ||
+											mailbox.name.charAt(m.name.length) === '.')
+									) {
+										depth++
+										if (m.name.length > parentLen) parentLen = m.name.length
+									}
+								}
+								const shortName =
+									parentLen > 0
+										? mailbox.name.substring(parentLen + 1)
+										: mailbox.display_name
+								return (
+									<FolderContextMenu
+										key={mailbox.name}
 										mailbox={mailbox}
-										isActive={activeMailbox === mailbox.name}
-										isCollapsed={isCollapsed}
-										accentColor={accentColor}
-										animationsEnabled={animationsEnabled}
-										onSelect={onMailboxSelect}
-									/>
-								</FolderContextMenu>
-							))}
+										accountId={activeAccount?.id ?? ''}
+										activeMailbox={activeMailbox}
+										onMailboxSelect={onMailboxSelect}>
+										<MailboxItem
+											mailbox={mailbox}
+											isActive={activeMailbox === mailbox.name}
+											isCollapsed={isCollapsed}
+											accentColor={accentColor}
+											animationsEnabled={animationsEnabled}
+											onSelect={onMailboxSelect}
+											depth={depth}
+											shortName={shortName}
+										/>
+									</FolderContextMenu>
+								)
+							})}
 
 							{/* Custom folders */}
 							{!isCollapsed && (
@@ -352,23 +406,49 @@ export const Sidebar = ({
 									</div>
 									{customMailboxes.length > 0 && (
 										<div className='space-y-0.5'>
-											{customMailboxes.map((mailbox) => (
-												<FolderContextMenu
-													key={mailbox.name}
-													mailbox={mailbox}
-													accountId={activeAccount?.id ?? ''}
-													activeMailbox={activeMailbox}
-													onMailboxSelect={onMailboxSelect}>
-													<MailboxItem
+											{customMailboxes.map((mailbox) => {
+												let depth = 0
+												let parentLen = 0
+												for (const m of customMailboxes) {
+													if (
+														m.name !== mailbox.name &&
+														mailbox.name.startsWith(m.name) &&
+														(mailbox.name.charAt(m.name.length) ===
+															'/' ||
+															mailbox.name.charAt(m.name.length) ===
+																'.')
+													) {
+														depth++
+														if (m.name.length > parentLen)
+															parentLen = m.name.length
+													}
+												}
+												const shortName =
+													parentLen > 0
+														? mailbox.name.substring(parentLen + 1)
+														: mailbox.display_name
+												return (
+													<FolderContextMenu
+														key={mailbox.name}
 														mailbox={mailbox}
-														isActive={activeMailbox === mailbox.name}
-														isCollapsed={isCollapsed}
-														accentColor={accentColor}
-														animationsEnabled={animationsEnabled}
-														onSelect={onMailboxSelect}
-													/>
-												</FolderContextMenu>
-											))}
+														accountId={activeAccount?.id ?? ''}
+														activeMailbox={activeMailbox}
+														onMailboxSelect={onMailboxSelect}>
+														<MailboxItem
+															mailbox={mailbox}
+															isActive={
+																activeMailbox === mailbox.name
+															}
+															isCollapsed={isCollapsed}
+															accentColor={accentColor}
+															animationsEnabled={animationsEnabled}
+															onSelect={onMailboxSelect}
+															depth={depth}
+															shortName={shortName}
+														/>
+													</FolderContextMenu>
+												)
+											})}
 										</div>
 									)}
 								</div>
