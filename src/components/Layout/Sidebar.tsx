@@ -196,6 +196,7 @@ export const Sidebar = ({
 			uid_validity: undefined,
 			highest_modseq: undefined,
 			last_synced_uid: undefined,
+			separator: '/',
 		})
 	}
 	if (!allMailboxes.some((m) => m.role === 'flagged')) {
@@ -206,6 +207,7 @@ export const Sidebar = ({
 			uid_validity: undefined,
 			highest_modseq: undefined,
 			last_synced_uid: undefined,
+			separator: '/',
 		})
 	}
 

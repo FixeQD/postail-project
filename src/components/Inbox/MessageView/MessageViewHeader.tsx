@@ -18,7 +18,6 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
-import { useThemeStore } from '@/stores/themeStore'
 import type { MessageViewHeaderProps } from '@/types/components/shared'
 import type { Mailbox } from '@/types/mail'
 
@@ -41,7 +40,6 @@ export const MessageViewHeader = ({
 }: MessageViewHeaderProps) => {
 	const { t } = useTypedTranslation(['common', 'inbox'])
 	const animationsEnabled = useAnimationsEnabled()
-	const accentColor = useThemeStore((s) => s.accentColor)
 	const [moveOpen, setMoveOpen] = useState(false)
 	const [search, setSearch] = useState('')
 
