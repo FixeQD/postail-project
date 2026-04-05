@@ -164,6 +164,7 @@ pub fn run() {
             cmd::mail::folders::create_subfolder,
             cmd::mail::folders::rename_folder,
             cmd::mail::folders::delete_folder,
+            cmd::mail::folders::set_folder_hidden,
             cmd::mail::folders::move_messages,
             cmd::mail::folders::archive_messages,
             cmd::mail::folders::subscribe_folder,

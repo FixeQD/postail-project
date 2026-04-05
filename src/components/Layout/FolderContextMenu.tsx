@@ -374,6 +374,19 @@ export function FolderContextMenu({
 					{!isSystem && (
 						<>
 							<DropdownMenuItem
+								onClick={handleToggleHidden}
+								className='flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:bg-[var(--surface-hover)] focus:text-[var(--text-primary)]'>
+								{mailbox.hidden ? (
+									<Eye className='h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]' />
+								) : (
+									<EyeOff className='h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]' />
+								)}
+								{mailbox.hidden
+									? t('inbox:folderMenu.show')
+									: t('inbox:folderMenu.hide')}
+							</DropdownMenuItem>
+
+							<DropdownMenuItem
 								onClick={() => setRenameOpen(true)}
 								className='flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:bg-[var(--surface-hover)] focus:text-[var(--text-primary)]'>
 								<Pencil className='h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]' />
