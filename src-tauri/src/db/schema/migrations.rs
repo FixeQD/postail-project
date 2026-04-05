@@ -92,6 +92,11 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         set_db_version(conn, 11)?;
     }
 
+    if current_version < 12 {
+        migrate_to_v12(conn)?;
+        set_db_version(conn, 12)?;
+    }
+
     Ok(())
 }
 
@@ -279,6 +284,16 @@ fn migrate_to_v11(conn: &Connection) -> Result<(), DBError> {
     if !column_exists(conn, "mailboxes", "hidden")? {
         conn.execute(
             "ALTER TABLE mailboxes ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
+    Ok(())
+}
+
+fn migrate_to_v12(conn: &Connection) -> Result<(), DBError> {
+    if !column_exists(conn, "mailboxes", "separator")? {
+        conn.execute(
+            "ALTER TABLE mailboxes ADD COLUMN separator TEXT DEFAULT '/'",
             [],
         )?;
     }

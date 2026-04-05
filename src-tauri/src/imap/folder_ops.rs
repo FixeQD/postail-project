@@ -5,30 +5,69 @@ use crate::imap::ImapManager;
 use rusqlite::params;
 
 impl ImapManager {
-    pub async fn create_folder(&self, account_id: &str, name: &str) -> Result<(), AppError> {
+    pub async fn create_folder(
+        &self,
+        account_id: &str,
+        name: &str,
+        delimiter: Option<&str>,
+    ) -> Result<(), AppError> {
+        let fetched_delim;
+        let delim = match delimiter {
+            Some(d) => d,
+            None => {
+                fetched_delim = self.get_hierarchy_delimiter(account_id, "").await?;
+                &fetched_delim
+            }
+        };
+
         let mut session = self.connect_imap(account_id).await?;
 
         tracing::info!(target: "postail", "[IMAP] Creating folder '{}' for {}", name, account_id);
 
-        session.create(name).await.map_err(AppError::from)?;
-        session.logout().await.map_err(AppError::from)?;
+        let parts: Vec<&str> = name.split(delim).collect();
+        let mut current_path = String::new();
 
         let pool = get_db_pool()
             .await
             .map_err(|e| AppError::from(e.to_string()))?;
         let conn = pool.get().map_err(|e| AppError::from(e.to_string()))?;
 
-        let mailbox = Mailbox {
-            name: name.to_string(),
-            display_name: name.rsplit('/').next().unwrap_or(name).to_string(),
-            role: "other".to_string(),
-            uid_validity: None,
-            highest_modseq: None,
-            last_synced_uid: None,
-            hidden: false,
-        };
+        for part in parts {
+            if current_path.is_empty() {
+                current_path = part.to_string();
+            } else {
+                current_path = format!("{}{}{}", current_path, delim, part);
+            }
 
-        upsert_mailbox(&conn, account_id, &mailbox).map_err(AppError::from)?;
+            match session.create(&current_path).await {
+                Ok(_) => {
+                    tracing::info!(target: "postail", "[IMAP] Created path component '{}'", current_path);
+                    let mailbox = Mailbox {
+                        name: current_path.clone(),
+                        display_name: current_path
+                            .rsplit(delim)
+                            .next()
+                            .unwrap_or(&current_path)
+                            .to_string(),
+                        role: "other".to_string(),
+                        uid_validity: None,
+                        highest_modseq: None,
+                        last_synced_uid: None,
+                        hidden: false,
+                        separator: delim.to_string(),
+                    };
+                    upsert_mailbox(&conn, account_id, &mailbox).map_err(AppError::from)?;
+                }
+                Err(e) => {
+                    // Ignore ALREADYEXISTS errors, surface others if it's the final part
+                    if current_path == name {
+                        return Err(AppError::from(e));
+                    }
+                }
+            }
+        }
+
+        session.logout().await.map_err(AppError::from)?;
 
         tracing::info!(target: "postail", "[IMAP] Folder '{}' created and saved to DB", name);
 
@@ -182,7 +221,8 @@ impl ImapManager {
             full_name, delimiter
         );
 
-        self.create_folder(account_id, &full_name).await?;
+        self.create_folder(account_id, &full_name, Some(delimiter.as_str()))
+            .await?;
         Ok(full_name)
     }
 }

@@ -358,6 +358,7 @@ fn test_uidvalidity_mismatch() {
             display_name: mailbox.to_string(),
             role: "inbox".to_string(),
             hidden: false,
+            separator: "/".to_string(),
         },
     )
     .unwrap();
@@ -376,6 +377,7 @@ fn test_uidvalidity_mismatch() {
             display_name: mailbox.to_string(),
             role: "inbox".to_string(),
             hidden: false,
+            separator: "/".to_string(),
         },
     )
     .unwrap();

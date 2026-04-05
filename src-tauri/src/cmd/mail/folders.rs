@@ -100,7 +100,7 @@ pub async fn create_folder(account_id: String, name: String) -> Result<(), Strin
     validate_folder_name(&name)?;
 
     let imap = IMAP_MANAGER.lock().await.clone();
-    imap.create_folder(&account_id, &name)
+    imap.create_folder(&account_id, &name, None)
         .await
         .map_err(|e| e.to_string())
 }

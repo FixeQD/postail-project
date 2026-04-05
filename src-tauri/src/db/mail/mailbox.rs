@@ -5,7 +5,7 @@ use crate::error::DBError;
 
 pub fn fetch_mailboxes(conn: &Connection, account_id: &str) -> Result<Vec<Mailbox>, DBError> {
     let mut stmt = conn.prepare(
-        "SELECT name, role, uid_validity, highest_modseq, last_synced_uid, COALESCE(hidden, 0) FROM mailboxes WHERE account_id = ?",
+        "SELECT name, role, uid_validity, highest_modseq, last_synced_uid, COALESCE(hidden, 0), COALESCE(separator, '/') FROM mailboxes WHERE account_id = ?",
     )?;
     let mailboxes_iter = stmt.query_map([account_id], |row| {
         Ok(Mailbox {
@@ -18,6 +18,7 @@ pub fn fetch_mailboxes(conn: &Connection, account_id: &str) -> Result<Vec<Mailbo
             highest_modseq: row.get(3)?,
             last_synced_uid: row.get(4)?,
             hidden: row.get::<_, i64>(5).unwrap_or(0) != 0,
+            separator: row.get::<_, String>(6)?,
         })
     })?;
     let mailboxes: Result<Vec<Mailbox>, _> = mailboxes_iter.collect();
@@ -30,13 +31,14 @@ pub fn upsert_mailbox(
     mailbox: &Mailbox,
 ) -> Result<(), DBError> {
     conn.execute(
-        "INSERT INTO mailboxes (account_id, name, role, uid_validity, highest_modseq, last_synced_uid)
-         VALUES (?, ?, ?, ?, ?, ?)
+        "INSERT INTO mailboxes (account_id, name, role, uid_validity, highest_modseq, last_synced_uid, separator)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(account_id, name) DO UPDATE SET
             role = CASE WHEN role_customized = 1 THEN role ELSE excluded.role END,
             uid_validity = excluded.uid_validity,
             highest_modseq = excluded.highest_modseq,
-            last_synced_uid = excluded.last_synced_uid",
+            last_synced_uid = excluded.last_synced_uid,
+            separator = excluded.separator",
         params![
             account_id,
             mailbox.name,
@@ -44,6 +46,7 @@ pub fn upsert_mailbox(
             mailbox.uid_validity,
             mailbox.highest_modseq,
             mailbox.last_synced_uid,
+            mailbox.separator,
         ],
     )?;
     Ok(())

@@ -31,6 +31,8 @@ interface FolderContextMenuProps {
 	accountId: string
 	activeMailbox: string
 	onMailboxSelect: (name: string) => void
+	shortName?: string
+	parentPrefix?: string
 	children: React.ReactNode
 }
 
@@ -42,6 +44,7 @@ interface FolderNameDialogProps {
 	placeholder?: string
 	confirmLabel: string
 	onConfirm: (name: string) => Promise<void>
+	separator?: string
 }
 
 export function FolderNameDialog({
@@ -52,6 +55,7 @@ export function FolderNameDialog({
 	placeholder = 'Folder name',
 	confirmLabel,
 	onConfirm,
+	separator = '/',
 }: FolderNameDialogProps) {
 	const { t } = useTypedTranslation('inbox')
 	const [value, setValue] = useState(initialValue)
@@ -117,6 +121,21 @@ export function FolderNameDialog({
 									}}
 								/>
 
+								<AnimatePresence>
+									{value.includes(separator) && (
+										<motion.div
+											initial={{ opacity: 0, height: 0, marginTop: 0 }}
+											animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
+											exit={{ opacity: 0, height: 0, marginTop: 0 }}
+											className='text-[11px] leading-tight font-medium text-amber-500/90'>
+											{t('inbox:folderMenu.nestedWarning', {
+												defaultValue: `Using the delimiter ("${separator}") will create a nested folder structure.`,
+												separator,
+											})}
+										</motion.div>
+									)}
+								</AnimatePresence>
+
 								<DialogFooter className='mt-4 flex gap-2'>
 									<Button
 										variant='ghost'
@@ -151,6 +170,8 @@ export function FolderContextMenu({
 	accountId,
 	activeMailbox,
 	onMailboxSelect,
+	shortName: propShortName,
+	parentPrefix: propParentPrefix,
 	children,
 }: FolderContextMenuProps) {
 	const { t } = useTypedTranslation('inbox')
@@ -163,6 +184,9 @@ export function FolderContextMenu({
 	const qc = useQueryClient()
 
 	const isSystem = SYSTEM_ROLES.includes(mailbox.role)
+	const childElement = children as any
+	const shortName = propShortName || childElement?.props?.shortName || mailbox.display_name
+	const parentPrefix = propParentPrefix ?? ''
 
 	const invalidate = useCallback(() => {
 		qc.invalidateQueries({ queryKey: ['mailboxes', accountId] })
@@ -241,7 +265,7 @@ export function FolderContextMenu({
 				uids: [payload.uid],
 			})
 
-			toast.success(t('inbox:folderMenu.movedTo', { name: mailbox.display_name }))
+			toast.success(t('inbox:folderMenu.movedTo', { name: shortName }))
 		} catch (err) {
 			toast.error(String(err))
 		} finally {
@@ -251,15 +275,16 @@ export function FolderContextMenu({
 	}
 
 	const handleRename = async (newName: string) => {
+		const fullNewName = parentPrefix + newName
 		try {
 			await invoke('rename_folder', {
 				accountId,
 				oldName: mailbox.name,
-				newName,
+				newName: fullNewName,
 			})
 			// if user was looking at the renamed folder, update selection
 			if (activeMailbox === mailbox.name) {
-				onMailboxSelect(newName)
+				onMailboxSelect(fullNewName)
 			}
 			invalidate()
 			toast.success(t('inbox:folderMenu.renamed', { name: newName }))
@@ -312,7 +337,7 @@ export function FolderContextMenu({
 				onMailboxSelect('INBOX')
 			}
 			invalidate()
-			toast.success(t('inbox:folderMenu.deleted', { name: mailbox.display_name }))
+			toast.success(t('inbox:folderMenu.deleted', { name: shortName }))
 			setDeleteOpen(false)
 		} catch (e) {
 			toast.error(String(e))
@@ -364,12 +389,14 @@ export function FolderContextMenu({
 					className='w-44 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-glass)] p-1 shadow-xl backdrop-blur-xl'
 					align='start'
 					sideOffset={2}>
-					<DropdownMenuItem
-						onClick={() => setCreateSubOpen(true)}
-						className='flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:bg-[var(--surface-hover)] focus:text-[var(--text-primary)]'>
-						<FolderPlus className='h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]' />
-						{t('inbox:folderMenu.newSubfolder')}
-					</DropdownMenuItem>
+					{!parentPrefix && (
+						<DropdownMenuItem
+							onClick={() => setCreateSubOpen(true)}
+							className='flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:bg-[var(--surface-hover)] focus:text-[var(--text-primary)]'>
+							<FolderPlus className='h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]' />
+							{t('inbox:folderMenu.newSubfolder')}
+						</DropdownMenuItem>
+					)}
 
 					{!isSystem && (
 						<>
@@ -409,20 +436,22 @@ export function FolderContextMenu({
 			<FolderNameDialog
 				open={renameOpen}
 				onOpenChange={setRenameOpen}
-				title={t('inbox:folderMenu.renameTitle', { name: mailbox.display_name })}
-				initialValue={mailbox.display_name}
+				title={t('inbox:folderMenu.renameTitle', { name: shortName })}
+				initialValue={shortName}
 				placeholder={t('inbox:folderMenu.renamePlaceholder')}
 				confirmLabel={t('inbox:folderMenu.renameConfirm')}
 				onConfirm={handleRename}
+				separator={mailbox.separator}
 			/>
 
 			<FolderNameDialog
 				open={createSubOpen}
 				onOpenChange={setCreateSubOpen}
-				title={t('inbox:folderMenu.subfolderTitle', { name: mailbox.display_name })}
+				title={t('inbox:folderMenu.subfolderTitle', { name: shortName })}
 				placeholder={t('inbox:folderMenu.subfolderPlaceholder')}
 				confirmLabel={t('inbox:folderMenu.subfolderConfirm')}
 				onConfirm={handleCreateSub}
+				separator={mailbox.separator}
 			/>
 
 			<ConfirmationDialog
@@ -430,7 +459,7 @@ export function FolderContextMenu({
 				onOpenChange={setDeleteOpen}
 				title={t('inbox:folderMenu.deleteTitle')}
 				description={t('inbox:folderMenu.deleteDescription', {
-					name: mailbox.display_name,
+					name: shortName,
 				})}
 				confirmLabel={
 					deleting ? t('inbox:folderMenu.deleting') : t('inbox:folderMenu.deleteConfirm')

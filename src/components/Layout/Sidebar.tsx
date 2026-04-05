@@ -244,9 +244,8 @@ export const Sidebar = ({
 			if (ROLE_ORDER.includes(mb.role)) {
 				system.push(mb)
 			} else if (mb.role !== 'tag') {
-				const isSystemSub = systemRoots.some(
-					(root) =>
-						mb.name.startsWith(root.name + '.') || mb.name.startsWith(root.name + '/')
+				const isSystemSub = systemRoots.some((root) =>
+					mb.name.startsWith(root.name + mb.separator)
 				)
 				if (isSystemSub) {
 					system.push(mb)
@@ -259,9 +258,7 @@ export const Sidebar = ({
 		system.sort((a, b) => {
 			const getRootRole = (m: Mailbox) => {
 				if (ROLE_ORDER.includes(m.role)) return m.role
-				const root = systemRoots.find(
-					(r) => m.name.startsWith(r.name + '.') || m.name.startsWith(r.name + '/')
-				)
+				const root = systemRoots.find((r) => m.name.startsWith(r.name + m.separator))
 				return root ? root.role : m.role
 			}
 			const rootA = getRootRole(a)
@@ -349,30 +346,27 @@ export const Sidebar = ({
 								: {})}>
 							{/* System mailboxes */}
 							{systemMailboxes.map((mailbox) => {
-								let depth = 0
-								let parentLen = 0
-								for (const m of systemMailboxes) {
-									if (
-										m.name !== mailbox.name &&
-										mailbox.name.startsWith(m.name) &&
-										(mailbox.name.charAt(m.name.length) === '/' ||
-											mailbox.name.charAt(m.name.length) === '.')
-									) {
-										depth++
-										if (m.name.length > parentLen) parentLen = m.name.length
-									}
-								}
-								const shortName =
-									parentLen > 0
-										? mailbox.name.substring(parentLen + 1)
-										: mailbox.display_name
+								const parts = mailbox.name.split(mailbox.separator)
+								const depth = Math.max(0, parts.length - 1)
+								const shortName = parts[parts.length - 1] || mailbox.display_name
+								const parentPrefix =
+									depth > 0
+										? mailbox.name.substring(
+												0,
+												mailbox.name.length - shortName.length
+											)
+										: ''
 								return (
 									<FolderContextMenu
 										key={mailbox.name}
 										mailbox={mailbox}
 										accountId={activeAccount?.id ?? ''}
 										activeMailbox={activeMailbox}
-										onMailboxSelect={onMailboxSelect}>
+										onMailboxSelect={onMailboxSelect}
+										// @ts-ignore
+										shortName={shortName}
+										// @ts-ignore
+										parentPrefix={parentPrefix}>
 										<MailboxItem
 											mailbox={mailbox}
 											isActive={activeMailbox === mailbox.name}
@@ -407,33 +401,29 @@ export const Sidebar = ({
 									{customMailboxes.length > 0 && (
 										<div className='space-y-0.5'>
 											{customMailboxes.map((mailbox) => {
-												let depth = 0
-												let parentLen = 0
-												for (const m of customMailboxes) {
-													if (
-														m.name !== mailbox.name &&
-														mailbox.name.startsWith(m.name) &&
-														(mailbox.name.charAt(m.name.length) ===
-															'/' ||
-															mailbox.name.charAt(m.name.length) ===
-																'.')
-													) {
-														depth++
-														if (m.name.length > parentLen)
-															parentLen = m.name.length
-													}
-												}
+												const parts = mailbox.name.split(mailbox.separator)
+												const depth = Math.max(0, parts.length - 1)
 												const shortName =
-													parentLen > 0
-														? mailbox.name.substring(parentLen + 1)
-														: mailbox.display_name
+													parts[parts.length - 1] || mailbox.display_name
+												const parentPrefix =
+													depth > 0
+														? mailbox.name.substring(
+																0,
+																mailbox.name.length -
+																	shortName.length
+															)
+														: ''
 												return (
 													<FolderContextMenu
 														key={mailbox.name}
 														mailbox={mailbox}
 														accountId={activeAccount?.id ?? ''}
 														activeMailbox={activeMailbox}
-														onMailboxSelect={onMailboxSelect}>
+														onMailboxSelect={onMailboxSelect}
+														// @ts-ignore
+														shortName={shortName}
+														// @ts-ignore
+														parentPrefix={parentPrefix}>
 														<MailboxItem
 															mailbox={mailbox}
 															isActive={
@@ -513,6 +503,7 @@ export const Sidebar = ({
 						: t('inbox:sidebar.folders.create')
 				}
 				onConfirm={handleCreateFolder}
+				separator={allMailboxes[0]?.separator || '/'}
 			/>
 		</>
 	)

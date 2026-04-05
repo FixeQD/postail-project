@@ -53,6 +53,7 @@ impl crate::imap::ImapManager {
                     highest_modseq: None,
                     last_synced_uid: None,
                     hidden: false,
+                    separator: mb.delimiter().unwrap_or("/").to_string(),
                 };
                 {
                     let pool = get_db_pool().await.map_err(|e| e.to_string())?;

@@ -228,6 +228,7 @@ pub struct Mailbox {
     pub last_synced_uid: Option<u32>,
     #[serde(default)]
     pub hidden: bool,
+    pub separator: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
