@@ -291,7 +291,7 @@ export const Sidebar = ({
 				setCreatingFolder(false)
 			}
 		},
-		[activeAccount, qc]
+		[activeAccount, qc, t]
 	)
 
 	return (
