@@ -13,6 +13,7 @@ import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
+import { Loader2 } from 'lucide-react'
 import type {
 	MessageListProps,
 	MessageRowProps,
@@ -33,6 +34,7 @@ const DateOrActions = memo(
 		onDelete,
 		onToggleRead,
 		t,
+		isOptimistic,
 	}: {
 		isHovered: boolean
 		isUnread: boolean
@@ -42,7 +44,17 @@ const DateOrActions = memo(
 		onDelete: () => void
 		onToggleRead: () => void
 		t: (key: string) => string
+		isOptimistic?: boolean
 	}) => {
+		if (isOptimistic) {
+			return (
+				<div className='text-muted-foreground flex items-center gap-1.5 text-xs font-medium'>
+					<Loader2 className='h-3 w-3 animate-spin' />
+					Moving
+				</div>
+			)
+		}
+
 		const dateClass = `text-xs tabular-nums ${
 			isUnread && !zenMode ? 'text-foreground/80 font-medium' : 'text-tertiary'
 		}`
@@ -139,6 +151,8 @@ const MessageRow = memo(
 		}`
 		const snippetClass = 'text-xs leading-snug text-[var(--text-tertiary)]'
 
+		const isOptimistic = message.uid >= 1000000000
+
 		const rowBase = `message-unread-indicator group relative flex w-full cursor-pointer select-none border-b text-left transition-all duration-200 outline-none ${
 			isUnread && !zenMode ? 'is-unread' : ''
 		} ${
@@ -147,7 +161,7 @@ const MessageRow = memo(
 				: isUnread && !zenMode
 					? 'bg-[var(--surface-panel)] hover:bg-[var(--surface-hover)] hover:z-10 hover:shadow-sm'
 					: 'bg-transparent hover:bg-[var(--surface-panel)] hover:z-10 hover:shadow-sm'
-		}`
+		} ${isOptimistic ? 'opacity-60 cursor-wait' : ''}`
 
 		const focusedStyle = isFocused ? { backgroundColor: `${accentColor}10` } : {}
 
@@ -233,8 +247,15 @@ const MessageRow = memo(
 					tabIndex={0}
 					onMouseEnter={onMouseEnter}
 					onMouseLeave={onMouseLeave}
-					onClick={() => onMessageClick(message.uid, message.mailbox)}
+					onClick={(e) => {
+						if (isOptimistic) {
+							e.preventDefault()
+							return
+						}
+						onMessageClick(message.uid, message.mailbox)
+					}}
 					onKeyDown={(e) => {
+						if (isOptimistic) return
 						if (e.key === 'Enter' || e.key === ' ') {
 							e.preventDefault()
 							onMessageClick(message.uid, message.mailbox)
@@ -281,6 +302,7 @@ const MessageRow = memo(
 							onDelete={onDelete}
 							onToggleRead={onToggleRead}
 							t={t}
+							isOptimistic={isOptimistic}
 						/>
 					</div>
 
@@ -296,8 +318,15 @@ const MessageRow = memo(
 				tabIndex={0}
 				onMouseEnter={onMouseEnter}
 				onMouseLeave={onMouseLeave}
-				onClick={() => onMessageClick(message.uid, message.mailbox)}
+				onClick={(e) => {
+					if (isOptimistic) {
+						e.preventDefault()
+						return
+					}
+					onMessageClick(message.uid, message.mailbox)
+				}}
 				onKeyDown={(e) => {
+					if (isOptimistic) return
 					if (e.key === 'Enter' || e.key === ' ') {
 						e.preventDefault()
 						onMessageClick(message.uid, message.mailbox)
@@ -322,6 +351,7 @@ const MessageRow = memo(
 								onDelete={onDelete}
 								onToggleRead={onToggleRead}
 								t={t}
+								isOptimistic={isOptimistic}
 							/>
 							{unreadDot}
 						</div>
@@ -882,10 +912,13 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 						const isUnread = !message.flags.includes('\\Seen')
 						const isHovered = hoveredMessageId === message.uid
 
+						const isOptimistic = message.uid >= 1000000000
+
 						const canDrag =
 							currentMailbox?.role !== 'sent' &&
 							currentMailbox?.role !== 'drafts' &&
-							!message.mailbox.startsWith('Virtual_')
+							!message.mailbox.startsWith('Virtual_') &&
+							!isOptimistic
 
 						const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
 							if (!canDrag) {
@@ -896,6 +929,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 								accountId: account.id,
 								mailbox: message.mailbox,
 								uid: message.uid,
+								message,
 							}
 							e.dataTransfer.setData(
 								'application/postail-message',

@@ -195,19 +195,56 @@ export function FolderContextMenu({
 			return
 		const raw = e.dataTransfer.getData('application/postail-message')
 		if (!raw) return
+		const payload = JSON.parse(raw) as {
+			accountId: string
+			mailbox: string
+			uid: number
+			message?: any
+		}
+		if (payload.mailbox === mailbox.name) return
+
 		try {
-			const payload = JSON.parse(raw) as { accountId: string; mailbox: string; uid: number }
-			if (payload.mailbox === mailbox.name) return
+			// Optimistically remove from source
+			qc.setQueryData(['messages', payload.accountId, payload.mailbox], (old: any) => {
+				if (!old?.pages) return old
+				return {
+					...old,
+					pages: old.pages.map((page: any[]) =>
+						page.filter((m: any) => m.uid !== payload.uid)
+					),
+				}
+			})
+
+			// Optimistically add to target
+			if (payload.message) {
+				const movedMsg = {
+					...payload.message,
+					mailbox: mailbox.name,
+					uid: payload.uid + 1000000000,
+				}
+				qc.setQueryData(['messages', payload.accountId, mailbox.name], (old: any) => {
+					if (!old?.pages) return old
+					const newPages = [...old.pages]
+					if (newPages.length > 0) {
+						newPages[0] = [movedMsg, ...newPages[0]]
+					}
+					return { ...old, pages: newPages }
+				})
+			}
+
 			await invoke('move_messages', {
 				accountId: payload.accountId,
 				sourceMailbox: payload.mailbox,
 				targetMailbox: mailbox.name,
 				uids: [payload.uid],
 			})
-			qc.invalidateQueries({ queryKey: ['messages', payload.accountId, payload.mailbox] })
+
 			toast.success(`Moved to "${mailbox.display_name}"`)
 		} catch (err) {
 			toast.error(String(err))
+		} finally {
+			qc.invalidateQueries({ queryKey: ['messages', payload.accountId, payload.mailbox] })
+			qc.invalidateQueries({ queryKey: ['messages', payload.accountId, mailbox.name] })
 		}
 	}
 

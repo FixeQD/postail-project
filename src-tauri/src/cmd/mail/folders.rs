@@ -53,19 +53,36 @@ async fn do_move(
         }
 
         let placeholders = uids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-        let query = format!(
-            "DELETE FROM messages WHERE account_id = ? AND mailbox = ? AND uid IN ({})",
-            placeholders
-        );
-        let mut params: Vec<rusqlite::types::Value> = vec![
+
+        let mut params_update: Vec<rusqlite::types::Value> = vec![
+            target_mailbox.to_string().into(),
+            1000000000_u32.into(),
             account_id.to_string().into(),
             source_mailbox.to_string().into(),
         ];
         for &uid in uids {
-            params.push(uid.into());
+            params_update.push(uid.into());
         }
-        conn.execute(&query, rusqlite::params_from_iter(params))
-            .map_err(|e| e.to_string())?;
+        conn.execute(
+            &format!("UPDATE OR IGNORE messages SET mailbox = ?, uid = uid + ? WHERE account_id = ? AND mailbox = ? AND uid IN ({})", placeholders),
+            rusqlite::params_from_iter(params_update)
+        ).map_err(|e| e.to_string())?;
+
+        let mut params_delete: Vec<rusqlite::types::Value> = vec![
+            account_id.to_string().into(),
+            source_mailbox.to_string().into(),
+        ];
+        for &uid in uids {
+            params_delete.push(uid.into());
+        }
+        conn.execute(
+            &format!(
+                "DELETE FROM messages WHERE account_id = ? AND mailbox = ? AND uid IN ({})",
+                placeholders
+            ),
+            rusqlite::params_from_iter(params_delete),
+        )
+        .map_err(|e| e.to_string())?;
     }
 
     let account_id_owned = account_id.to_string();

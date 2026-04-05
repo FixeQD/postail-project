@@ -100,7 +100,7 @@ impl SyncStatusManager {
         *guard = Some(handle);
     }
 
-    fn emit_event(&self, event: SyncEvent) {
+    pub fn emit_event(&self, event: SyncEvent) {
         let guard = self.app_handle.lock().unwrap();
         if let Some(ref handle) = *guard {
             let event_name = match &event {

@@ -94,6 +94,14 @@ impl crate::imap::ImapManager {
         Ok(())
     }
 
+    pub async fn force_idle_wakeup(&self, account_id: &str) {
+        let mut interrupts = IDLE_INTERRUPTS.lock().await;
+        if let Some(interrupt) = interrupts.remove(account_id) {
+            tracing::info!(target: "postail", "[IMAP] Forcing IDLE wakeup for {}", account_id);
+            drop(interrupt);
+        }
+    }
+
     pub async fn stop_sync(&self, account_id: &str) -> Result<(), AppError> {
         let stop_flag = {
             let flags = STOP_FLAGS.lock().await;

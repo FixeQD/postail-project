@@ -233,13 +233,14 @@ export const MessageView = ({
 	}
 
 	const handleArchive = async () => {
+		onBack()
 		try {
 			await invoke('archive_messages', { accountId, sourceMailbox: mailbox, uids: [uid] })
-			queryClient.invalidateQueries({ queryKey: ['messages', accountId, mailbox] })
 			toast.success('Message archived')
-			onBack()
 		} catch (error) {
 			toast.error('Failed to archive', { description: String(error) })
+		} finally {
+			queryClient.invalidateQueries({ queryKey: ['messages', accountId, mailbox] })
 		}
 	}
 
@@ -252,10 +253,12 @@ export const MessageView = ({
 				targetMailbox,
 				uids: [uid],
 			})
-			queryClient.invalidateQueries({ queryKey: ['messages', accountId, mailbox] })
 			toast.success(`Moved to "${targetMailbox}"`)
 		} catch (error) {
 			toast.error('Failed to move message', { description: String(error) })
+		} finally {
+			queryClient.invalidateQueries({ queryKey: ['messages', accountId, mailbox] })
+			queryClient.invalidateQueries({ queryKey: ['messages', accountId, targetMailbox] })
 		}
 	}
 
