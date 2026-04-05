@@ -505,9 +505,13 @@ export const Sidebar = ({
 			<FolderNameDialog
 				open={newFolderOpen}
 				onOpenChange={setNewFolderOpen}
-				title='New folder'
-				placeholder='Folder name'
-				confirmLabel={creatingFolder ? 'Creating…' : 'Create'}
+				title={t('inbox:sidebar.folders.new')}
+				placeholder={t('inbox:sidebar.folders.newPlaceholder')}
+				confirmLabel={
+					creatingFolder
+						? t('inbox:sidebar.folders.creating')
+						: t('inbox:sidebar.folders.create')
+				}
 				onConfirm={handleCreateFolder}
 			/>
 		</>
