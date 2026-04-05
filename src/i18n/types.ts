@@ -108,6 +108,14 @@ export interface InboxTranslations {
 			archive: string
 			starred: string
 		}
+		folders: {
+			sectionTitle: string
+			new: string
+			newPlaceholder: string
+			creating: string
+			create: string
+			createSuccess: string
+		}
 	}
 	search: {
 		placeholder: string
@@ -118,6 +126,7 @@ export interface InboxTranslations {
 			subtitle: string
 		}
 		error: string
+		loadingMore: string
 		actions: {
 			archive: string
 			delete: string
@@ -127,6 +136,99 @@ export interface InboxTranslations {
 		date: {
 			yesterday: string
 		}
+	}
+	folderMenu: {
+		newSubfolder: string
+		rename: string
+		hide: string
+		show: string
+		delete: string
+		renamePlaceholder: string
+		renameTitle: string
+		renameConfirm: string
+		subfolderTitle: string
+		subfolderPlaceholder: string
+		subfolderConfirm: string
+		deleteTitle: string
+		deleteDescription: string
+		deleteConfirm: string
+		deleting: string
+		cancel: string
+		movedTo: string
+		renamed: string
+		created: string
+		hidden: string
+		shown: string
+		deleted: string
+	}
+	messageView: {
+		back: string
+		loading: string
+		error: string
+		errorRetry: string
+		notFound: string
+		noSubject: string
+		deleted: string
+		deleteError: string
+		markUnreadError: string
+		archived: string
+		archiveError: string
+		moveError: string
+		from: string
+		to: string
+		toLabel: string
+		cc: string
+		date: string
+		attachments: {
+			label: string
+			one: string
+			other: string
+			downloadSuccess: string
+			downloadError: string
+			errorNotFound: string
+		}
+		downloadAttachment: string
+		viewMode: { html: string; plain: string }
+		actions: {
+			reply: string
+			replyAll: string
+			forward: string
+			delete: string
+			markUnread: string
+			moveTo: string
+			moveToPlaceholder: string
+			moveToEmpty: string
+			archive: string
+			print: string
+			star: string
+			unstar: string
+			viewSource: string
+		}
+		tags: {
+			title: string
+			add: string
+			addAria: string
+			placeholder: string
+			applied: string
+			more: string
+			create: string
+			noMatch: string
+			empty: string
+			formatToast: string
+			formatDesc: string
+		}
+		renderError: { title: string; description: string; fallback: string }
+		cspBlocked: { label: string; allow: string }
+		loadingExternal: string
+		readReceipt: {
+			label: string
+			send: string
+			sending: string
+			sent: string
+			error: string
+			dismiss: string
+		}
+		noReply: { title: string; description: string; cancel: string; confirm: string }
 	}
 }
 

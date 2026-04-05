@@ -268,7 +268,7 @@ export const MessageViewHeader = ({
 									autoFocus
 									value={search}
 									onChange={(e) => setSearch(e.target.value)}
-									placeholder='Move to…'
+									placeholder={t('inbox:messageView.actions.moveToPlaceholder')}
 									className='flex-1 bg-transparent text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]'
 								/>
 							</div>
@@ -277,7 +277,7 @@ export const MessageViewHeader = ({
 							<div className='max-h-52 overflow-y-auto py-1'>
 								{filteredMailboxes.length === 0 ? (
 									<p className='px-3 py-4 text-center text-xs text-[var(--text-tertiary)]'>
-										No folders found
+										{t('inbox:messageView.actions.moveToEmpty')}
 									</p>
 								) : (
 									filteredMailboxes.map((mb) => (

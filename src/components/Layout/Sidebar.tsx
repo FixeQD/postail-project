@@ -250,7 +250,7 @@ export const Sidebar = ({
 			try {
 				await invoke('create_folder', { accountId: activeAccount.id, name })
 				qc.invalidateQueries({ queryKey: ['mailboxes', activeAccount.id] })
-				toast.success(`Folder "${name}" created`)
+				toast.success(t('inbox:sidebar.folders.createSuccess', { name }))
 			} catch (e) {
 				toast.error(String(e))
 				throw e
@@ -338,7 +338,7 @@ export const Sidebar = ({
 								<div className='group/folders-header mt-3'>
 									<div className='flex items-center px-2 py-1'>
 										<span className='text-muted-foreground/50 flex-1 text-[10px] font-bold tracking-wider uppercase'>
-											Folders
+											{t('inbox:sidebar.folders.sectionTitle')}
 										</span>
 										<motion.button
 											type='button'

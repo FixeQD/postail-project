@@ -236,9 +236,9 @@ export const MessageView = ({
 		onBack()
 		try {
 			await invoke('archive_messages', { accountId, sourceMailbox: mailbox, uids: [uid] })
-			toast.success('Message archived')
+			toast.success(t('inbox:messageView.archived'))
 		} catch (error) {
-			toast.error('Failed to archive', { description: String(error) })
+			toast.error(t('inbox:messageView.archiveError'), { description: String(error) })
 		} finally {
 			queryClient.invalidateQueries({ queryKey: ['messages', accountId, mailbox] })
 		}
@@ -253,9 +253,9 @@ export const MessageView = ({
 				targetMailbox,
 				uids: [uid],
 			})
-			toast.success(`Moved to "${targetMailbox}"`)
+			toast.success(t('inbox:messageView.actions.moveTo'))
 		} catch (error) {
-			toast.error('Failed to move message', { description: String(error) })
+			toast.error(t('inbox:messageView.moveError'), { description: String(error) })
 		} finally {
 			queryClient.invalidateQueries({ queryKey: ['messages', accountId, mailbox] })
 			queryClient.invalidateQueries({ queryKey: ['messages', accountId, targetMailbox] })

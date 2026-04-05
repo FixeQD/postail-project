@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 import { toast } from '@/stores/toastStore'
+import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import type { Mailbox } from '@/types/mail'
 
 const SYSTEM_ROLES = ['inbox', 'sent', 'drafts', 'trash', 'archive', 'junk', 'flagged', 'all']
@@ -52,6 +53,7 @@ export function FolderNameDialog({
 	confirmLabel,
 	onConfirm,
 }: FolderNameDialogProps) {
+	const { t } = useTypedTranslation('inbox')
 	const [value, setValue] = useState(initialValue)
 	const [loading, setLoading] = useState(false)
 	const inputRef = useRef<HTMLInputElement>(null)
@@ -121,7 +123,7 @@ export function FolderNameDialog({
 										onClick={() => onOpenChange(false)}
 										disabled={loading}
 										className='flex-1 border border-[var(--border-subtle)] bg-[var(--surface-panel)] text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
-										Cancel
+										{t('inbox:folderMenu.cancel')}
 									</Button>
 									<Button
 										onClick={handleConfirm}
@@ -151,6 +153,7 @@ export function FolderContextMenu({
 	onMailboxSelect,
 	children,
 }: FolderContextMenuProps) {
+	const { t } = useTypedTranslation('inbox')
 	const [open, setOpen] = useState(false)
 	const [renameOpen, setRenameOpen] = useState(false)
 	const [createSubOpen, setCreateSubOpen] = useState(false)
@@ -239,7 +242,7 @@ export function FolderContextMenu({
 				uids: [payload.uid],
 			})
 
-			toast.success(`Moved to "${mailbox.display_name}"`)
+			toast.success(t('inbox:folderMenu.movedTo', { name: mailbox.display_name }))
 		} catch (err) {
 			toast.error(String(err))
 		} finally {
@@ -260,7 +263,7 @@ export function FolderContextMenu({
 				onMailboxSelect(newName)
 			}
 			invalidate()
-			toast.success(`Renamed to "${newName}"`)
+			toast.success(t('inbox:folderMenu.renamed', { name: newName }))
 		} catch (e) {
 			toast.error(String(e))
 			throw e
@@ -272,7 +275,7 @@ export function FolderContextMenu({
 		try {
 			await invoke('create_folder', { accountId, name: fullName })
 			invalidate()
-			toast.success(`Folder "${subName}" created`)
+			toast.success(t('inbox:folderMenu.created', { name: subName }))
 		} catch (e) {
 			toast.error(String(e))
 			throw e
@@ -290,7 +293,9 @@ export function FolderContextMenu({
 				onMailboxSelect('INBOX')
 			}
 			invalidate()
-			toast.success(mailbox.hidden ? 'Folder shown' : 'Folder hidden')
+			toast.success(
+				mailbox.hidden ? t('inbox:folderMenu.shown') : t('inbox:folderMenu.hidden')
+			)
 		} catch (err) {
 			toast.error(String(err))
 		}
@@ -305,7 +310,7 @@ export function FolderContextMenu({
 				onMailboxSelect('INBOX')
 			}
 			invalidate()
-			toast.success(`"${mailbox.display_name}" deleted`)
+			toast.success(t('inbox:folderMenu.deleted', { name: mailbox.display_name }))
 			setDeleteOpen(false)
 		} catch (e) {
 			toast.error(String(e))
@@ -371,7 +376,7 @@ export function FolderContextMenu({
 								onClick={() => setRenameOpen(true)}
 								className='flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:bg-[var(--surface-hover)] focus:text-[var(--text-primary)]'>
 								<Pencil className='h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]' />
-								Rename
+								{t('inbox:folderMenu.rename')}
 							</DropdownMenuItem>
 
 							<DropdownMenuSeparator className='my-1 h-px bg-[var(--border-faint)]' />
@@ -380,7 +385,7 @@ export function FolderContextMenu({
 								onClick={() => setDeleteOpen(true)}
 								className='flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-400 focus:bg-red-500/10 focus:text-red-400'>
 								<Trash2 className='h-3.5 w-3.5 shrink-0' />
-								Delete
+								{t('inbox:folderMenu.delete')}
 							</DropdownMenuItem>
 						</>
 					)}
