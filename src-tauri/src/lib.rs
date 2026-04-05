@@ -161,6 +161,7 @@ pub fn run() {
             cmd::mail::listing::fetch_mailboxes,
             cmd::mail::listing::update_mailbox_role,
             cmd::mail::folders::create_folder,
+            cmd::mail::folders::create_subfolder,
             cmd::mail::folders::rename_folder,
             cmd::mail::folders::delete_folder,
             cmd::mail::folders::move_messages,

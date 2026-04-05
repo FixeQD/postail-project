@@ -106,6 +106,20 @@ pub async fn create_folder(account_id: String, name: String) -> Result<(), Strin
 }
 
 #[command]
+pub async fn create_subfolder(
+    account_id: String,
+    parent_name: String,
+    child_name: String,
+) -> Result<String, String> {
+    validate_folder_name(&child_name)?;
+
+    let imap = IMAP_MANAGER.lock().await.clone();
+    imap.create_subfolder(&account_id, &parent_name, &child_name)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[command]
 pub async fn rename_folder(
     account_id: String,
     old_name: String,

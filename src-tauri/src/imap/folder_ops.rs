@@ -137,4 +137,52 @@ impl ImapManager {
 
         Ok(())
     }
+
+    /// Returns the hierarchy delimiter for a given mailbox (or "/" as fallback).
+    pub async fn get_hierarchy_delimiter(
+        &self,
+        account_id: &str,
+        mailbox_name: &str,
+    ) -> Result<String, AppError> {
+        let mut session = self.connect_imap(account_id).await?;
+
+        // LIST "" "parent" returns just that one mailbox with its delimiter
+        let pattern = format!("\"{}\"", mailbox_name.replace('"', "\\\""));
+        let mut list = session
+            .list(None, Some(&pattern))
+            .await
+            .map_err(AppError::from)?;
+
+        use futures::StreamExt;
+        let delimiter = if let Some(Ok(mb)) = list.next().await {
+            mb.delimiter().unwrap_or("/").to_string()
+        } else {
+            "/".to_string()
+        };
+
+        drop(list);
+        session.logout().await.map_err(AppError::from)?;
+
+        Ok(delimiter)
+    }
+
+    pub async fn create_subfolder(
+        &self,
+        account_id: &str,
+        parent_name: &str,
+        child_name: &str,
+    ) -> Result<String, AppError> {
+        let delimiter = self
+            .get_hierarchy_delimiter(account_id, parent_name)
+            .await?;
+        let full_name = format!("{}{}{}", parent_name, delimiter, child_name);
+
+        tracing::info!(target: "postail",
+            "[IMAP] Creating subfolder '{}' (delimiter='{}')",
+            full_name, delimiter
+        );
+
+        self.create_folder(account_id, &full_name).await?;
+        Ok(full_name)
+    }
 }

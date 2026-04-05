@@ -271,9 +271,12 @@ export function FolderContextMenu({
 	}
 
 	const handleCreateSub = async (subName: string) => {
-		const fullName = `${mailbox.name}/${subName}`
 		try {
-			await invoke('create_folder', { accountId, name: fullName })
+			await invoke('create_subfolder', {
+				accountId,
+				parentName: mailbox.name,
+				childName: subName,
+			})
 			invalidate()
 			toast.success(t('inbox:folderMenu.created', { name: subName }))
 		} catch (e) {
