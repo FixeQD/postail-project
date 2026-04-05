@@ -50,7 +50,7 @@ const DateOrActions = memo(
 			return (
 				<div className='text-muted-foreground flex items-center gap-1.5 text-xs font-medium'>
 					<Loader2 className='h-3 w-3 animate-spin' />
-					Moving
+					{t('inbox:messageList.moving')}
 				</div>
 			)
 		}

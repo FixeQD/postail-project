@@ -24,6 +24,7 @@
 		},
 		"error": "Failed to load messages",
 		"loadingMore": "Loading more messages...",
+		"moving": "Moving...",
 		"actions": {
 			"archive": "Archive",
 			"delete": "Delete",
