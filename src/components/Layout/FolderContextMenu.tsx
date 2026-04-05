@@ -160,7 +160,6 @@ export function FolderContextMenu({
 	const [deleteOpen, setDeleteOpen] = useState(false)
 	const [deleting, setDeleting] = useState(false)
 	const [isDragOver, setIsDragOver] = useState(false)
-	const triggerRef = useRef<HTMLDivElement>(null)
 	const qc = useQueryClient()
 
 	const isSystem = SYSTEM_ROLES.includes(mailbox.role)
@@ -326,7 +325,6 @@ export function FolderContextMenu({
 		<>
 			<DropdownMenu open={open} onOpenChange={setOpen}>
 				<div
-					ref={triggerRef}
 					className='group/folder-item relative w-full'
 					onContextMenu={(e) => {
 						e.preventDefault()
@@ -370,7 +368,7 @@ export function FolderContextMenu({
 						onClick={() => setCreateSubOpen(true)}
 						className='flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:bg-[var(--surface-hover)] focus:text-[var(--text-primary)]'>
 						<FolderPlus className='h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]' />
-						New subfolder
+						{t('inbox:folderMenu.newSubfolder')}
 					</DropdownMenuItem>
 
 					{!isSystem && (
@@ -398,29 +396,33 @@ export function FolderContextMenu({
 			<FolderNameDialog
 				open={renameOpen}
 				onOpenChange={setRenameOpen}
-				title={`Rename "${mailbox.display_name}"`}
+				title={t('inbox:folderMenu.renameTitle', { name: mailbox.display_name })}
 				initialValue={mailbox.display_name}
-				placeholder='New folder name'
-				confirmLabel='Rename'
+				placeholder={t('inbox:folderMenu.renamePlaceholder')}
+				confirmLabel={t('inbox:folderMenu.renameConfirm')}
 				onConfirm={handleRename}
 			/>
 
 			<FolderNameDialog
 				open={createSubOpen}
 				onOpenChange={setCreateSubOpen}
-				title={`New subfolder in "${mailbox.display_name}"`}
-				placeholder='Subfolder name'
-				confirmLabel='Create'
+				title={t('inbox:folderMenu.subfolderTitle', { name: mailbox.display_name })}
+				placeholder={t('inbox:folderMenu.subfolderPlaceholder')}
+				confirmLabel={t('inbox:folderMenu.subfolderConfirm')}
 				onConfirm={handleCreateSub}
 			/>
 
 			<ConfirmationDialog
 				open={deleteOpen}
 				onOpenChange={setDeleteOpen}
-				title='Delete folder'
-				description={`Delete "${mailbox.display_name}"? All messages inside will be permanently removed.`}
-				confirmLabel={deleting ? 'Deleting…' : 'Delete'}
-				cancelLabel='Cancel'
+				title={t('inbox:folderMenu.deleteTitle')}
+				description={t('inbox:folderMenu.deleteDescription', {
+					name: mailbox.display_name,
+				})}
+				confirmLabel={
+					deleting ? t('inbox:folderMenu.deleting') : t('inbox:folderMenu.deleteConfirm')
+				}
+				cancelLabel={t('inbox:folderMenu.cancel')}
 				confirmClassName='w-full border-0 bg-red-500 font-medium text-white shadow-lg hover:bg-red-600'
 				onConfirm={handleDelete}
 			/>
