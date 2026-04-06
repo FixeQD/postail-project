@@ -75,14 +75,25 @@ export const MessageViewBody = ({
   <body>
     <div class="email-wrapper">${htmlContent}</div>
     <script>
+      let resizeTimer;
+      let lastHeight = 0;
       const sendHeight = () => {
-        window.parent.postMessage({
-          type: 'resize',
-          height: document.body.scrollHeight,
-        }, '*');
+        const height = document.documentElement.scrollHeight || document.body.scrollHeight;
+        if (Math.abs(height - lastHeight) > 2) {
+          lastHeight = height;
+          window.parent.postMessage({
+            type: 'resize',
+            height: height,
+          }, '*');
+        }
       };
 
-      const ro = new ResizeObserver(() => sendHeight());
+      const debouncedSendHeight = () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(sendHeight, 32);
+      };
+
+      const ro = new ResizeObserver(debouncedSendHeight);
 
       const init = () => {
         ro.observe(document.body);
@@ -139,7 +150,6 @@ export const MessageViewBody = ({
 		setEmailBg(bodyBgMatch)
 		setIframeReady(false)
 		setIframeWidth('100%')
-		setIframeSrc(null)
 
 		const isWindows = navigator.userAgent.includes('Windows')
 		const baseUrl = isWindows ? 'http://postail.localhost' : 'postail://localhost'
@@ -180,9 +190,11 @@ export const MessageViewBody = ({
 			}
 
 			if (e.data?.type === 'resize' && typeof e.data.height === 'number') {
-				iframeRef.current.style.height = `${e.data.height}px`
-				setIframeWidth('100%')
-				setIframeReady(true)
+				const newHeight = `${e.data.height}px`
+				if (iframeRef.current && iframeRef.current.style.height !== newHeight) {
+					iframeRef.current.style.height = newHeight
+				}
+				setIframeReady((prev) => (prev ? prev : true))
 			}
 
 			if (e.data?.type === 'open-link' && e.data.url) {
@@ -203,7 +215,7 @@ export const MessageViewBody = ({
 
 	if (effectiveViewMode === 'plain') {
 		return (
-			<div className='animate-in fade-in slide-in-from-bottom-2 px-5 py-5 transition-all duration-300'>
+			<div className='px-5 py-5'>
 				<pre className='message-view-plain w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-6 font-mono text-[13px] leading-relaxed break-words whitespace-pre-wrap text-[var(--text-primary)] shadow-sm'>
 					{plainContent || '(No content)'}
 				</pre>
@@ -218,10 +230,8 @@ export const MessageViewBody = ({
 				className='overflow-x-auto px-5 py-5'
 				style={{ contain: 'content' }}>
 				<div
-					className={`overflow-hidden rounded-xl border border-[var(--border-faint)] transition-all duration-300 ease-out ${
-						iframeReady
-							? 'translate-y-0 opacity-100 shadow-sm'
-							: 'translate-y-2 opacity-0'
+					className={`overflow-hidden rounded-xl border border-[var(--border-faint)] ${
+						iframeReady ? 'opacity-100 shadow-sm' : 'opacity-0'
 					}`}
 					style={{
 						width: iframeWidth,

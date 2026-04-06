@@ -93,11 +93,16 @@ export const ThreadView = ({
 						{/* Message content - expandable */}
 						{isExpanded && (
 							<motion.div
-								{...(animationsEnabled && {
-									initial: { opacity: 0, height: 0 },
-									animate: { opacity: 1, height: 'auto' },
-									transition: { duration: 0.2 },
-								})}
+								{...(animationsEnabled
+									? {
+											initial: { opacity: 0, height: 0 },
+											animate: { opacity: 1, height: 'auto' },
+											transition: { duration: 0.2 },
+										}
+									: {
+											initial: undefined,
+											animate: undefined,
+										})}
 								className='border-t border-[var(--border-faint)]'>
 								<MessageViewMeta header={msg.header} />
 

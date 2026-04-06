@@ -25,13 +25,12 @@ export const useAutoLock = () => {
 	}, [])
 
 	const recordActivity = useCallback(() => {
-		if (activityTimerRef.current) {
-			clearTimeout(activityTimerRef.current)
-		}
+		if (activityTimerRef.current) return
 
 		activityTimerRef.current = setTimeout(() => {
 			invoke('record_lock_activity')
-		}, 100)
+			activityTimerRef.current = null
+		}, 1000)
 	}, [])
 
 	const unlock = useCallback(() => {
@@ -45,16 +44,18 @@ export const useAutoLock = () => {
 			}
 		}
 
-		document.addEventListener('mousedown', handleActivity)
-		document.addEventListener('keydown', handleActivity)
-		document.addEventListener('scroll', handleActivity)
-		document.addEventListener('touchstart', handleActivity)
+		const options = { passive: true, capture: true }
+
+		document.addEventListener('mousedown', handleActivity, options)
+		document.addEventListener('keydown', handleActivity, options)
+		document.addEventListener('scroll', handleActivity, options)
+		document.addEventListener('touchstart', handleActivity, options)
 
 		return () => {
-			document.removeEventListener('mousedown', handleActivity)
-			document.removeEventListener('keydown', handleActivity)
-			document.removeEventListener('scroll', handleActivity)
-			document.removeEventListener('touchstart', handleActivity)
+			document.removeEventListener('mousedown', handleActivity, options)
+			document.removeEventListener('keydown', handleActivity, options)
+			document.removeEventListener('scroll', handleActivity, options)
+			document.removeEventListener('touchstart', handleActivity, options)
 		}
 	}, [isLocked, recordActivity])
 

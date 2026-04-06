@@ -133,7 +133,7 @@ export const MessageViewHeader = ({
 			className='flex shrink-0 flex-col border-b'
 			style={{ borderColor: 'var(--border-faint)' }}
 			initial={animationsEnabled ? 'hidden' : 'show'}
-			animate='show'
+			animate={animationsEnabled ? 'show' : 'show'}
 			variants={container}>
 			<div className='group/toolbar flex items-center gap-2 px-3 py-2'>
 				{/* Back */}

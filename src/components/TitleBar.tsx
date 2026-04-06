@@ -7,6 +7,7 @@ import icon from '@/assets/icon.png'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { useDraftStore } from '@/stores/draftStore'
 import { useThemeStore } from '@/stores/themeStore'
+import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useAccountStore } from '@/stores/accountStore'
 import { useMessageViewStore } from '@/stores/messageViewStore'
 import { AccountSwitcher } from './TitleBar/AccountSwitcher'
@@ -18,6 +19,7 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 	const { t } = useTypedTranslation()
 	const { isSending } = useDraftStore()
 	const accentColor = useThemeStore((s) => s.accentColor)
+	const animationsEnabled = useAnimationsEnabled()
 	const [isMobile, setIsMobile] = useState<boolean | null>(null)
 	const [searchQuery, setSearchQuery] = useState('')
 	const [searchFocused, setSearchFocused] = useState(false)
@@ -57,7 +59,7 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 
 			{/* Loading animated gradient border */}
 			<AnimatePresence>
-				{isLoading && (
+				{isLoading && animationsEnabled && (
 					<motion.div
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
@@ -83,8 +85,9 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 			<div className='flex w-64 shrink-0 items-center gap-3.5 px-4 pl-6'>
 				<motion.div
 					className='relative flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-white to-slate-100 shadow-sm ring-1 ring-black/5 dark:from-slate-800 dark:to-slate-900 dark:ring-white/10'
-					whileHover={{ scale: 1.05, rotate: -5 }}
-					whileTap={{ scale: 0.95 }}>
+					{...(animationsEnabled
+						? { whileHover: { scale: 1.05, rotate: -5 }, whileTap: { scale: 0.95 } }
+						: {})}>
 					<img src={icon} alt='Postail' className='h-5 w-5 object-contain' />
 				</motion.div>
 				<span className='bg-gradient-to-br from-slate-900 to-slate-600 bg-clip-text text-lg font-bold tracking-tight text-transparent dark:from-white dark:to-slate-400'>
@@ -99,10 +102,29 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 						<motion.div
 							key='subject'
 							className='flex w-full max-w-2xl items-center gap-2'
-							initial={{ opacity: 0, y: 8, scale: 0.98, filter: 'blur(4px)' }}
-							animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-							exit={{ opacity: 0, y: -8, scale: 0.98, filter: 'blur(4px)' }}
-							transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+							{...(animationsEnabled
+								? {
+										initial: {
+											opacity: 0,
+											y: 8,
+											scale: 0.98,
+											filter: 'blur(4px)',
+										},
+										animate: {
+											opacity: 1,
+											y: 0,
+											scale: 1,
+											filter: 'blur(0px)',
+										},
+										exit: {
+											opacity: 0,
+											y: -8,
+											scale: 0.98,
+											filter: 'blur(4px)',
+										},
+										transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] },
+									}
+								: {})}
 							onMouseDown={(e) => e.stopPropagation()}>
 							<div className='flex items-center gap-1 rounded-lg bg-[var(--surface-secondary)] p-0.5 ring-1 ring-[var(--border-subtle)] transition-all hover:ring-[var(--border-strong)]'>
 								<motion.button
@@ -112,11 +134,15 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 										titleMeta?.onPrev?.()
 									}}
 									disabled={isLoading || !titleMeta?.onPrev}
-									whileHover={{
-										backgroundColor: 'var(--surface-hover)',
-										scale: 1.05,
-									}}
-									whileTap={{ scale: 0.9 }}
+									{...(animationsEnabled
+										? {
+												whileHover: {
+													backgroundColor: 'var(--surface-hover)',
+													scale: 1.05,
+												},
+												whileTap: { scale: 0.9 },
+											}
+										: {})}
 									className='flex h-6 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition-all hover:text-[var(--text-primary)] disabled:opacity-30'>
 									<ChevronLeft className='h-3.5 w-3.5' />
 								</motion.button>
@@ -128,11 +154,15 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 										titleMeta?.onNext?.()
 									}}
 									disabled={isLoading || !titleMeta?.onNext}
-									whileHover={{
-										backgroundColor: 'var(--surface-hover)',
-										scale: 1.05,
-									}}
-									whileTap={{ scale: 0.9 }}
+									{...(animationsEnabled
+										? {
+												whileHover: {
+													backgroundColor: 'var(--surface-hover)',
+													scale: 1.05,
+												},
+												whileTap: { scale: 0.9 },
+											}
+										: {})}
 									className='flex h-6 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition-all hover:text-[var(--text-primary)] disabled:opacity-30'>
 									<ChevronRight className='h-3.5 w-3.5' />
 								</motion.button>
@@ -143,9 +173,13 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 									{isLoading ? (
 										<motion.div
 											key='loading'
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											exit={{ opacity: 0 }}
+											{...(animationsEnabled
+												? {
+														initial: { opacity: 0 },
+														animate: { opacity: 1 },
+														exit: { opacity: 0 },
+													}
+												: {})}
 											className='relative h-6 w-48 overflow-hidden rounded-md bg-[var(--surface-active)]'>
 											<motion.div
 												className='absolute inset-0'
@@ -163,9 +197,13 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 									) : (
 										<motion.p
 											key='subject-text'
-											initial={{ opacity: 0, y: 4 }}
-											animate={{ opacity: 1, y: 0 }}
-											exit={{ opacity: 0, y: -4 }}
+											{...(animationsEnabled
+												? {
+														initial: { opacity: 0, y: 4 },
+														animate: { opacity: 1, y: 0 },
+														exit: { opacity: 0, y: -4 },
+													}
+												: {})}
 											className='min-w-0 flex-1 truncate text-center text-sm font-medium text-[var(--text-primary)]'>
 											{titleMeta?.subject || 'No Subject'}
 										</motion.p>
@@ -177,10 +215,29 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 						<motion.div
 							key='search'
 							className='relative w-full max-w-xl'
-							initial={{ opacity: 0, y: -8, scale: 0.98, filter: 'blur(4px)' }}
-							animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-							exit={{ opacity: 0, y: 8, scale: 0.98, filter: 'blur(4px)' }}
-							transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}>
+							{...(animationsEnabled
+								? {
+										initial: {
+											opacity: 0,
+											y: -8,
+											scale: 0.98,
+											filter: 'blur(4px)',
+										},
+										animate: {
+											opacity: 1,
+											y: 0,
+											scale: 1,
+											filter: 'blur(0px)',
+										},
+										exit: {
+											opacity: 0,
+											y: 8,
+											scale: 0.98,
+											filter: 'blur(4px)',
+										},
+										transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] },
+									}
+								: {})}>
 							<div className='pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3'>
 								<Search
 									className='h-4 w-4 transition-colors duration-200'
@@ -226,21 +283,19 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 								e.stopPropagation()
 								onOpenOutbox?.()
 							}}
-							animate={
-								isSending
-									? {
-											color: accentColor,
-										}
-									: {}
-							}
-							whileHover={{ scale: 1.05 }}
-							whileTap={{ scale: 0.9 }}
+							{...(animationsEnabled
+								? {
+										animate: isSending ? { color: accentColor } : {},
+										whileHover: { scale: 1.05 },
+										whileTap: { scale: 0.9 },
+									}
+								: {})}
 							onMouseDown={(e) => e.stopPropagation()}>
 							<Send
 								className='h-[18px] w-[18px]'
 								style={isSending ? { color: accentColor } : {}}
 							/>
-							{isSending && (
+							{isSending && animationsEnabled && (
 								<motion.span
 									className='absolute inset-0 rounded-lg opacity-20'
 									animate={{ scale: [1, 1.4], opacity: [0.2, 0] }}
@@ -256,7 +311,7 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 								e.stopPropagation()
 								onOpenSettings?.()
 							}}
-							whileTap={{ scale: 0.9 }}
+							{...(animationsEnabled ? { whileTap: { scale: 0.9 } } : {})}
 							onMouseDown={(e) => e.stopPropagation()}>
 							<Settings className='h-[18px] w-[18px]' />
 						</motion.button>

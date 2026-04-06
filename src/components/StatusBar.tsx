@@ -25,10 +25,12 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useAccountStore } from '@/stores/accountStore'
 import type { StatusBarProps } from '@/types/components/shared'
+import { useAnimationsEnabled } from '@/hooks/useMotion'
 
 export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 	const { accounts } = useAccountStore()
 	const { t } = useTranslation()
+	const animationsEnabled = useAnimationsEnabled()
 	const { items } = useOutboxStore()
 	const { statuses, getAllStatuses, cancelSync, retrySync } = useSyncStore()
 	const [pendingCount, setPendingCount] = useState(0)
@@ -89,17 +91,26 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 		if (showSuccess)
 			return (
 				<motion.div
-					initial={{ scale: 0 }}
-					animate={{ scale: 1 }}
-					transition={{ type: 'spring', stiffness: 200, damping: 20 }}>
+					{...(animationsEnabled
+						? {
+								initial: { scale: 0 },
+								animate: { scale: 1 },
+								transition: { type: 'spring', stiffness: 200, damping: 20 },
+							}
+						: {})}>
 					<CheckCircle className='h-3 w-3 text-green-400' />
 				</motion.div>
 			)
-		if (sendingCount > 0) return <Loader2 className='h-3 w-3 animate-spin text-amber-400' />
+		if (sendingCount > 0)
+			return (
+				<Loader2
+					className={`h-3 w-3 text-amber-400 ${animationsEnabled ? 'animate-spin' : ''}`}
+				/>
+			)
 		if (failedCount > 0) return <AlertCircle className='h-3 w-3 text-red-400' />
 		if (pendingCount > 0) return <Send className='h-3 w-3 text-blue-400' />
 		return <CheckCircle className='h-3 w-3 text-slate-600' />
-	}, [sendingCount, failedCount, pendingCount, showSuccess])
+	}, [sendingCount, failedCount, pendingCount, showSuccess, animationsEnabled])
 
 	const getOutboxStatusText = useCallback(() => {
 		if (showSuccess) return t('statusBar.sent')
@@ -131,13 +142,17 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 		const globalStatus = getGlobalSyncStatus()
 		switch (globalStatus.status) {
 			case 'syncing':
-				return <Loader2 className='h-3 w-3 animate-spin text-blue-400' />
+				return (
+					<Loader2
+						className={`h-3 w-3 text-blue-400 ${animationsEnabled ? 'animate-spin' : ''}`}
+					/>
+				)
 			case 'error':
 				return <AlertCircle className='h-3 w-3 text-red-400' />
 			default:
 				return <CheckCircle className='h-3 w-3 text-green-500/70' />
 		}
-	}, [getGlobalSyncStatus])
+	}, [getGlobalSyncStatus, animationsEnabled])
 
 	const getGlobalSyncText = useCallback(() => {
 		const globalStatus = getGlobalSyncStatus()
@@ -177,7 +192,9 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 					: null
 				return (
 					<div className='flex items-center gap-2'>
-						<Loader2 className='h-3 w-3 animate-spin text-blue-400' />
+						<Loader2
+							className={`h-3 w-3 text-blue-400 ${animationsEnabled ? 'animate-spin' : ''}`}
+						/>
 						<span className='text-foreground/80'>
 							{status.mailbox
 								? t('statusBar.syncingMailbox', {
@@ -313,10 +330,14 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 														? 'failed'
 														: 'idle'
 										}
-										initial={{ scale: 0.5, opacity: 0 }}
-										animate={{ scale: 1, opacity: 1 }}
-										exit={{ scale: 0.5, opacity: 0 }}
-										transition={{ duration: 0.15 }}>
+										{...(animationsEnabled
+											? {
+													initial: { scale: 0.5, opacity: 0 },
+													animate: { scale: 1, opacity: 1 },
+													exit: { scale: 0.5, opacity: 0 },
+													transition: { duration: 0.15 },
+												}
+											: {})}>
 										{getOutboxStatusIcon()}
 									</motion.div>
 								</AnimatePresence>

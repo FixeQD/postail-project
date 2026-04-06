@@ -58,9 +58,9 @@ const TagBadge = ({
 	const hue = tagHue(tag)
 	return (
 		<motion.span
-			layout={animationsEnabled}
-			initial={animationsEnabled ? { opacity: 0, scale: 0.8 } : false}
-			animate={{ opacity: 1, scale: 1 }}
+			layout={animationsEnabled || false}
+			initial={animationsEnabled ? { opacity: 0, scale: 0.8 } : undefined}
+			{...(animationsEnabled ? { animate: { opacity: 1, scale: 1 } } : {})}
 			exit={animationsEnabled ? { opacity: 0, scale: 0.8 } : undefined}
 			transition={{ duration: 0.15 }}
 			className='group/tag flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 transition-colors'
@@ -183,7 +183,10 @@ const TagPicker = ({
 				onClick={() => setOpen((v) => !v)}
 				className='flex items-center gap-1.5 rounded-full border border-dashed border-[var(--border-subtle)] px-2.5 py-0.5 text-[10px] font-medium text-[var(--text-tertiary)] transition-all hover:border-[var(--border-stronger)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)] active:scale-95'
 				aria-label={t('inbox:messageView.tags.addAria')}
-				style={{ borderColor: open ? accentColor : undefined, color: open ? accentColor : undefined }}>
+				style={{
+					borderColor: open ? accentColor : undefined,
+					color: open ? accentColor : undefined,
+				}}>
 				<Plus className='h-3 w-3' />
 				<span>{t('inbox:messageView.tags.add')}</span>
 			</button>
@@ -191,8 +194,8 @@ const TagPicker = ({
 			<AnimatePresence>
 				{open && (
 					<motion.div
-						initial={animationsEnabled ? { opacity: 0, y: -4, scale: 0.96 } : false}
-						animate={{ opacity: 1, y: 0, scale: 1 }}
+						initial={animationsEnabled ? { opacity: 0, y: -4, scale: 0.96 } : undefined}
+						{...(animationsEnabled ? { animate: { opacity: 1, y: 0, scale: 1 } } : {})}
 						exit={animationsEnabled ? { opacity: 0, y: -4, scale: 0.96 } : undefined}
 						transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
 						className='absolute top-8 left-0 z-50 w-52 overflow-hidden rounded-xl border border-[var(--border-stronger,rgba(255,255,255,0.15))] bg-[#0d1117]/90 shadow-[0_20px_50px_rgba(0,0,0,0.8)] ring-1 ring-white/10'
@@ -241,7 +244,9 @@ const TagPicker = ({
 							{suggestions.length > 0 && (
 								<>
 									<p className='px-3 py-1 text-[9px] font-bold tracking-widest text-[var(--text-tertiary)] uppercase'>
-										{activeTags.length > 0 ? t('inbox:messageView.tags.more') : t('inbox:messageView.tags.title')}
+										{activeTags.length > 0
+											? t('inbox:messageView.tags.more')
+											: t('inbox:messageView.tags.title')}
 									</p>
 									{suggestions.map((tag) => (
 										<button
@@ -273,7 +278,9 @@ const TagPicker = ({
 
 							{activeTags.length === 0 && suggestions.length === 0 && !canCreate && (
 								<p className='px-3 py-2 text-xs text-[var(--text-tertiary)]'>
-									{trimmed ? t('inbox:messageView.tags.noMatch') : t('inbox:messageView.tags.empty')}
+									{trimmed
+										? t('inbox:messageView.tags.noMatch')
+										: t('inbox:messageView.tags.empty')}
 								</p>
 							)}
 						</div>
@@ -373,7 +380,9 @@ export const MessageViewMeta = ({
 						className='flex items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]'>
 						<span>{t('inbox:messageView.toLabel', { name: recipientSummary })}</span>
 						<motion.div
-							animate={{ rotate: expanded ? 180 : 0 }}
+							{...(animationsEnabled
+								? { animate: { rotate: expanded ? 180 : 0 } }
+								: {})}
 							transition={{ duration: 0.2 }}>
 							<ChevronDown className='h-3 w-3' />
 						</motion.div>
@@ -405,9 +414,19 @@ export const MessageViewMeta = ({
 				<AnimatePresence>
 					{expanded && (
 						<motion.div
-							initial={{ opacity: 0, height: 0, filter: 'blur(4px)' }}
-							animate={{ opacity: 1, height: 'auto', filter: 'blur(0px)' }}
-							exit={{ opacity: 0, height: 0, filter: 'blur(4px)' }}
+							initial={
+								animationsEnabled
+									? { opacity: 0, height: 0, filter: 'blur(4px)' }
+									: undefined
+							}
+							{...(animationsEnabled
+								? { animate: { opacity: 1, height: 'auto', filter: 'blur(0px)' } }
+								: {})}
+							exit={
+								animationsEnabled
+									? { opacity: 0, height: 0, filter: 'blur(4px)' }
+									: undefined
+							}
 							transition={{
 								duration: animationsEnabled ? 0.25 : 0,
 								ease: [0.16, 1, 0.3, 1],

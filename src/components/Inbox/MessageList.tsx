@@ -2,7 +2,7 @@ import { useRef, useCallback, useState, useEffect, useMemo, memo } from 'react'
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
-import { invokeWithErrorLog } from '@/lib/tauri'
+
 import { listen } from '@tauri-apps/api/event'
 import { format, isToday, isYesterday, isThisYear } from 'date-fns'
 import { Star, Trash2, MailOpen, Mail, FolderSync } from 'lucide-react'

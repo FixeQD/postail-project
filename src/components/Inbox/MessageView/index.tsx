@@ -395,10 +395,7 @@ export const MessageView = ({
 				currentMailbox={mailbox}
 			/>
 
-			<div
-				ref={scrollContainerRef}
-				className='message-view-body flex-1 overflow-y-auto'
-				style={{ willChange: 'transform' }}>
+			<div ref={scrollContainerRef} className='message-view-body flex-1 overflow-y-auto'>
 				{threadViewEnabled && thread && thread.messages.length > 1 && !threadLoading ? (
 					<ThreadView
 						thread={thread}

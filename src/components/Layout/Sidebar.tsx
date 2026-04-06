@@ -394,8 +394,12 @@ export const Sidebar = ({
 										<motion.button
 											type='button'
 											onClick={() => setNewFolderOpen(true)}
-											whileHover={{ scale: 1.1 }}
-											whileTap={{ scale: 0.9 }}
+											{...(animationsEnabled
+												? {
+														whileHover: { scale: 1.1 },
+														whileTap: { scale: 0.9 },
+													}
+												: {})}
 											title={t('inbox:sidebar.folders.new')}
 											className='hover:text-muted-foreground group-hover/folders-header:text-muted-foreground/60 flex h-4 w-4 items-center justify-center rounded text-transparent transition-all duration-150 hover:bg-[var(--surface-hover)]'>
 											<Plus className='h-3 w-3' />
