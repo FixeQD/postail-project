@@ -381,7 +381,7 @@ export function FolderContextMenu({
 							}}
 							initial={false}
 							className='absolute top-1/2 right-1.5 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-md text-[var(--text-tertiary)] opacity-0 transition-all duration-150 group-hover/folder-item:opacity-100 hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)]'
-							aria-label='Folder options'>
+							aria-label={t('inbox:folderMenu.ariaOptions')}>
 							<MoreHorizontal className='h-3.5 w-3.5' />
 						</motion.button>
 					</DropdownMenuTrigger>

@@ -162,6 +162,7 @@ export interface InboxTranslations {
 		shown: string
 		deleted: string
 		nestedWarning: string
+		ariaOptions: string
 	}
 	messageView: {
 		back: string

@@ -58,7 +58,8 @@
 		"hidden": "Folder hidden",
 		"shown": "Folder shown",
 		"deleted": "\"{{name}}\" deleted",
-		"nestedWarning": "Using the delimiter (\"{{separator}}\") will create a nested folder structure."
+		"nestedWarning": "Using the delimiter (\"{{separator}}\") will create a nested folder structure.",
+		"ariaOptions": "Folder options"
 	},
 	"messageView": {
 		"back": "Back to list",
