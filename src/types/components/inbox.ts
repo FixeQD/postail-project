@@ -25,4 +25,12 @@ export interface MessageRowProps {
 	onDelete: () => void
 	onToggleRead: () => void
 	onToggleStar: () => void
+	onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void
+}
+
+export interface DragMessagePayload {
+	accountId: string
+	mailbox: string
+	uid: number
+	message: import('../../types/mail').MailHeader
 }

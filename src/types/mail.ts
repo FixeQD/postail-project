@@ -2,9 +2,11 @@ export interface Mailbox {
 	name: string
 	display_name: string
 	role: string
+	separator: string
 	uid_validity?: number
 	highest_modseq?: number
 	last_synced_uid?: number
+	hidden?: boolean
 }
 
 // Keep in sync with src-tauri/src/db/mod.rs => MailHeader

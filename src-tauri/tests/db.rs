@@ -1,20 +1,20 @@
 use chrono::Utc;
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use std::fs;
 use tempfile::NamedTempFile;
 
-use postail_project_lib::db::backup::run_migrations;
+use postail_project_lib::db::run_migrations;
 use postail_project_lib::db::tables::create_tables;
 use postail_project_lib::db::{
-    add_account, list_accounts, remove_account, AccountInput, Credentials, ImapConfig,
-    MessageUpsertData, OAuthCredentials, PasswordCredentials, SmtpConfig,
+    AccountInput, Credentials, ImapConfig, MessageUpsertData, OAuthCredentials,
+    PasswordCredentials, SmtpConfig, add_account, list_accounts, remove_account,
 };
 use postail_project_lib::security::SecurityManager;
 
 fn init_temp_db() -> Connection {
     let temp_file = NamedTempFile::new().unwrap();
-    let db_path = temp_file.path();
-    fs::remove_file(db_path).unwrap();
+    let (_, db_path) = temp_file.keep().unwrap();
+    fs::remove_file(&db_path).ok();
     let conn = Connection::open(db_path).unwrap();
     create_tables(&conn).unwrap();
     run_migrations(&conn).unwrap();
@@ -203,7 +203,7 @@ pub fn test_manager() -> SecurityManager {
     use postail_project_lib::security::{
         manager::SecurityManager,
         master_key::MasterKey,
-        storage::{argon2::Argon2Store, StorageTier},
+        storage::{StorageTier, argon2::Argon2Store},
     };
 
     let temp_path = temp_dir().join("test_postail_key");
@@ -220,8 +220,8 @@ pub fn test_manager() -> SecurityManager {
 fn test_fts_search() {
     use postail_project_lib::db::tables::create_fts_triggers;
     use postail_project_lib::db::{
-        add_account, escape_fts_query, search_messages, upsert_message, AccountInput, Credentials,
-        ImapConfig, PasswordCredentials, SmtpConfig,
+        AccountInput, Credentials, ImapConfig, PasswordCredentials, SmtpConfig, add_account,
+        escape_fts_query, search_messages, upsert_message,
     };
 
     let conn = init_temp_db();
@@ -312,8 +312,8 @@ fn test_fts_search() {
 #[test]
 fn test_uidvalidity_mismatch() {
     use postail_project_lib::db::{
-        add_account, check_uidvalidity, upsert_mailbox, AccountInput, Credentials, ImapConfig,
-        PasswordCredentials, SmtpConfig,
+        AccountInput, Credentials, ImapConfig, PasswordCredentials, SmtpConfig, add_account,
+        check_uidvalidity, upsert_mailbox,
     };
 
     let conn = init_temp_db();
@@ -357,6 +357,8 @@ fn test_uidvalidity_mismatch() {
             last_synced_uid: None,
             display_name: mailbox.to_string(),
             role: "inbox".to_string(),
+            hidden: false,
+            separator: "/".to_string(),
         },
     )
     .unwrap();
@@ -374,6 +376,8 @@ fn test_uidvalidity_mismatch() {
             last_synced_uid: None,
             display_name: mailbox.to_string(),
             role: "inbox".to_string(),
+            hidden: false,
+            separator: "/".to_string(),
         },
     )
     .unwrap();
@@ -385,8 +389,8 @@ fn test_uidvalidity_mismatch() {
 #[test]
 fn test_concurrent_access() {
     use postail_project_lib::db::{
-        add_account, list_accounts, AccountInput, Credentials, ImapConfig, PasswordCredentials,
-        SmtpConfig,
+        AccountInput, Credentials, ImapConfig, PasswordCredentials, SmtpConfig, add_account,
+        list_accounts,
     };
     use std::sync::{Arc, Mutex};
     use std::thread;
@@ -506,7 +510,7 @@ fn test_attachment_cache_lru() {
 
 #[test]
 fn test_migration_up_down() {
-    use postail_project_lib::db::backup::{run_migrations, MIGRATIONS};
+    use postail_project_lib::db::backup::{MIGRATIONS, run_migrations};
     use rusqlite::Connection;
     use std::fs;
     use tempfile::NamedTempFile;
@@ -552,8 +556,8 @@ fn test_migration_up_down() {
 fn test_performance_large_datasets() {
     use postail_project_lib::db::tables::create_indexes;
     use postail_project_lib::db::{
-        add_account, upsert_message, AccountInput, Credentials, ImapConfig, PasswordCredentials,
-        SmtpConfig,
+        AccountInput, Credentials, ImapConfig, PasswordCredentials, SmtpConfig, add_account,
+        upsert_message,
     };
     use std::time::Instant;
 

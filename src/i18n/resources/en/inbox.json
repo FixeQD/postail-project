@@ -4,6 +4,14 @@
 		"mailboxes": {
 			"drafts": "Drafts",
 			"starred": "Starred"
+		},
+		"folders": {
+			"sectionTitle": "Folders",
+			"new": "New folder",
+			"newPlaceholder": "Folder name",
+			"creating": "Creating…",
+			"create": "Create",
+			"createSuccess": "Folder \"{{name}}\" created"
 		}
 	},
 	"search": {
@@ -16,6 +24,7 @@
 		},
 		"error": "Failed to load messages",
 		"loadingMore": "Loading more messages...",
+		"moving": "Moving...",
 		"actions": {
 			"archive": "Archive",
 			"delete": "Delete",
@@ -25,6 +34,32 @@
 		"date": {
 			"yesterday": "Yesterday"
 		}
+	},
+	"folderMenu": {
+		"newSubfolder": "New subfolder",
+		"rename": "Rename",
+		"hide": "Hide folder",
+		"show": "Show folder",
+		"delete": "Delete",
+		"renamePlaceholder": "New folder name",
+		"renameTitle": "Rename \"{{name}}\"",
+		"renameConfirm": "Rename",
+		"subfolderTitle": "New subfolder in \"{{name}}\"",
+		"subfolderPlaceholder": "Subfolder name",
+		"subfolderConfirm": "Create",
+		"deleteTitle": "Delete folder",
+		"deleteDescription": "Delete \"{{name}}\"? All messages inside will be permanently removed.",
+		"deleteConfirm": "Delete",
+		"deleting": "Deleting…",
+		"cancel": "Cancel",
+		"movedTo": "Moved to \"{{name}}\"",
+		"renamed": "Renamed to \"{{name}}\"",
+		"created": "Folder \"{{name}}\" created",
+		"hidden": "Folder hidden",
+		"shown": "Folder shown",
+		"deleted": "\"{{name}}\" deleted",
+		"nestedWarning": "Using the delimiter (\"{{separator}}\") will create a nested folder structure.",
+		"ariaOptions": "Folder options"
 	},
 	"messageView": {
 		"back": "Back to list",
@@ -36,6 +71,9 @@
 		"deleted": "Message moved to trash",
 		"deleteError": "Failed to delete message",
 		"markUnreadError": "Failed to mark as unread",
+		"archived": "Message archived",
+		"archiveError": "Failed to archive",
+		"moveError": "Failed to move message",
 		"from": "From",
 		"to": "To",
 		"toLabel": "to {{name}}",
@@ -61,6 +99,9 @@
 			"delete": "Delete",
 			"markUnread": "Mark as unread",
 			"moveTo": "Move to...",
+			"moveToPlaceholder": "Move to…",
+			"moveToEmpty": "No folders found",
+			"archive": "Archive",
 			"print": "Print",
 			"star": "Star",
 			"unstar": "Unstar",

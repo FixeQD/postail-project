@@ -29,7 +29,8 @@
 			"forward": "Forward",
 			"toggleRead": "Toggle read/unread",
 			"markUnread": "Mark as unread",
-			"toggleStar": "Star / Flag message"
+			"toggleStar": "Star / Flag message",
+			"archive": "Archive message"
 		},
 		"keys": {
 			"ctrl": "Ctrl",

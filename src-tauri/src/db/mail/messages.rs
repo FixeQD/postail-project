@@ -45,6 +45,13 @@ pub fn batch_insert_messages(
     let mut tx = conn.transaction()?;
 
     for (idx, item) in items.iter().enumerate() {
+        if let Some(ref msg_id) = item.message_id {
+            let _ = tx.execute(
+                "DELETE FROM messages WHERE account_id = ? AND mailbox = ? AND message_id = ? AND uid < 0",
+                rusqlite::params![account_id, mailbox, msg_id],
+            );
+        }
+
         let flags_json = serde_json::to_string(&item.flags).unwrap_or_default();
         let to_json = serde_json::to_string(&item.to).unwrap_or_default();
 
@@ -441,6 +448,20 @@ pub fn move_to_trash(
     }
 
     let placeholders = uids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+
+    let mut params_update: Vec<rusqlite::types::Value> = vec![
+        trash.to_string().into(),
+        account_id.to_string().into(),
+        mailbox.to_string().into(),
+    ];
+    for &uid in uids {
+        params_update.push(uid.into());
+    }
+    conn.execute(
+        &format!("UPDATE OR IGNORE messages SET mailbox = ?, uid = -uid WHERE account_id = ? AND mailbox = ? AND uid IN ({})", placeholders),
+        rusqlite::params_from_iter(params_update)
+    )?;
+
     let query = format!(
         "DELETE FROM messages WHERE account_id = ? AND mailbox = ? AND uid IN ({})",
         placeholders

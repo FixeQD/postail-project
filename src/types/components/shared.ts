@@ -88,10 +88,13 @@ export interface MessageViewHeaderProps {
 	onDelete: () => void
 	onMarkUnread: () => void
 	onToggleStar: () => void
+	onMoveTo: (targetMailbox: string) => void
 	onViewSource?: () => void
 	hasHtml?: boolean
 	isDeleting?: boolean
 	isStarred?: boolean
+	accountId: string
+	currentMailbox: string
 }
 
 export interface MessageViewAttachmentsProps {

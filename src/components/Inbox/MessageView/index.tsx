@@ -232,6 +232,36 @@ export const MessageView = ({
 		}
 	}
 
+	const handleArchive = async () => {
+		onBack()
+		try {
+			await invoke('archive_messages', { accountId, sourceMailbox: mailbox, uids: [uid] })
+			toast.success(t('inbox:messageView.archived'))
+		} catch (error) {
+			toast.error(t('inbox:messageView.archiveError'), { description: String(error) })
+		} finally {
+			queryClient.invalidateQueries({ queryKey: ['messages', accountId, mailbox] })
+		}
+	}
+
+	const handleMoveTo = async (targetMailbox: string) => {
+		onBack()
+		try {
+			await invoke('move_messages', {
+				accountId,
+				sourceMailbox: mailbox,
+				targetMailbox,
+				uids: [uid],
+			})
+			toast.success(t('inbox:messageView.actions.moveTo'))
+		} catch (error) {
+			toast.error(t('inbox:messageView.moveError'), { description: String(error) })
+		} finally {
+			queryClient.invalidateQueries({ queryKey: ['messages', accountId, mailbox] })
+			queryClient.invalidateQueries({ queryKey: ['messages', accountId, targetMailbox] })
+		}
+	}
+
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === 'Escape') {
@@ -261,6 +291,7 @@ export const MessageView = ({
 			const searchInput = document.querySelector('[data-search-input]') as HTMLElement
 			searchInput?.focus()
 		},
+		onArchive: handleArchive,
 		enabled: !isComposing,
 	})
 
@@ -357,8 +388,11 @@ export const MessageView = ({
 				onDelete={handleDelete}
 				onMarkUnread={handleMarkUnread}
 				onToggleStar={handleToggleStar}
+				onMoveTo={handleMoveTo}
 				isStarred={data?.header.starred ?? false}
 				onViewSource={handleViewSource}
+				accountId={accountId}
+				currentMailbox={mailbox}
 			/>
 
 			<div

@@ -63,6 +63,7 @@ export const defaultShortcuts: ShortcutDefinition[] = [
 	{ key: 'shift+u', action: 'mark_unread', scope: 'inbox' },
 	{ key: 's', action: 'toggle_star', scope: 'inbox' },
 	{ key: '/', action: 'focus_search', scope: 'inbox' },
+	{ key: 'e', action: 'archive', scope: 'inbox' },
 ]
 
 export const shortcutsByScope = {
@@ -183,6 +184,7 @@ export const shortcutDescriptions: Record<string, string> = {
 	toggle_read: 'Toggle read/unread',
 	mark_unread: 'Mark as unread',
 	toggle_star: 'Star / Flag message',
+	archive: 'Archive message',
 }
 
 export function formatShortcutKey(key: string): string {

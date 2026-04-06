@@ -85,8 +85,13 @@ pub async fn process_flag_queue(account_id: &str) -> Result<(), String> {
     };
 
     let imap_manager = IMAP_MANAGER.lock().await;
+    let mut move_happened = false;
 
     for op in ops {
+        if op.operation_type == "move" {
+            move_happened = true;
+        }
+
         let result = match op.operation_type.as_str() {
             "move" => {
                 if let Some(target) = &op.target_mailbox {
@@ -118,6 +123,7 @@ pub async fn process_flag_queue(account_id: &str) -> Result<(), String> {
         match result {
             Ok(_) => {
                 db::mark_flag_operation_success(&conn, op.id).map_err(|e| e.to_string())?;
+
                 tracing::debug!(target: "postail",
                     "{} sync success: {}@{} uid={}",
                     op.operation_type, op.mailbox, op.account_id, op.uid
@@ -127,12 +133,36 @@ pub async fn process_flag_queue(account_id: &str) -> Result<(), String> {
                 let error_msg = e.to_string();
                 db::mark_flag_operation_failed(&conn, op.id, &error_msg)
                     .map_err(|e| e.to_string())?;
+
+                if op.operation_type == "move" {
+                    if let Some(target) = &op.target_mailbox {
+                        let optimistic_uid = -(op.uid as i64);
+                        if let Err(e) = conn.execute(
+                            "UPDATE OR IGNORE messages SET mailbox = ?, uid = ? WHERE account_id = ? AND mailbox = ? AND uid = ?",
+                            rusqlite::params![op.mailbox, op.uid, op.account_id, target, optimistic_uid],
+                        ) {
+                            tracing::warn!(target: "postail", "[IMAP Move] Failed to revert optimistic message: {}", e);
+                        }
+                    }
+                }
+
                 tracing::warn!(target: "postail",
                     "{} sync failed: {}@{} uid={} - {}",
                     op.operation_type, op.mailbox, op.account_id, op.uid, error_msg
                 );
             }
         }
+    }
+
+    if move_happened {
+        let timestamp = chrono::Utc::now().timestamp() as u64;
+        crate::imap::sync_status::SYNC_STATUS_MANAGER.emit_event(
+            crate::imap::sync_status::SyncEvent::Completed {
+                account_id: account_id.to_string(),
+                timestamp,
+            },
+        );
+        imap_manager.force_idle_wakeup(account_id).await;
     }
 
     Ok(())

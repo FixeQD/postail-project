@@ -87,18 +87,18 @@
     - [x] 12.7 - UI: "Apply rules now" button in filter settings
     - [x] 12.8 - Rust: "Messages from sender" filter — auto-detect & suggest rule when deleting
 
-- [ ] 13 - Folders & Organization
-    - [ ] 13.1 - IMAP: Create new folders (CREATE)
-    - [ ] 13.2 - IMAP: Rename folder (RENAME)
-    - [ ] 13.3 - IMAP: Delete folder (DELETE) with confirmation
-    - [ ] 13.4 - UI: Context menu on sidebar folder (rename/delete/create subfolder)
-    - [ ] 13.5 - IMAP: Move messages between folders via drag & drop in sidebar
-    - [ ] 13.6 - UI: Drag & drop messages from list to folder in sidebar
-    - [ ] 13.7 - UI: "Move to..." button in MessageView with folder list
-    - [ ] 13.8 - IMAP: Archive (COPY to Archive + STORE \Deleted) with one shortcut
-    - [ ] 13.9 - UI: Keyboard shortcut `E` = archive (like Gmail)
-    - [ ] 13.10 - IMAP: Subscribe/unsubscribe folders (SUBSCRIBE/UNSUBSCRIBE)
-    - [ ] 13.11 - UI: "Hide folder" option in account settings without unsubscribing
+- [x] 13 - Folders & Organization
+    - [x] 13.1 - IMAP: Create new folders (CREATE)
+    - [x] 13.2 - IMAP: Rename folder (RENAME)
+    - [x] 13.3 - IMAP: Delete folder (DELETE) with confirmation
+    - [x] 13.4 - UI: Context menu on sidebar folder (rename/delete/create subfolder)
+    - [x] 13.5 - IMAP: Move messages between folders via drag & drop in sidebar
+    - [x] 13.6 - UI: Drag & drop messages from list to folder in sidebar
+    - [x] 13.7 - UI: "Move to..." button in MessageView with folder list
+    - [x] 13.8 - IMAP: Archive (COPY to Archive + STORE \Deleted) with one shortcut
+    - [x] 13.9 - UI: Keyboard shortcut `E` = archive (like Gmail)
+    - [x] 13.10 - IMAP: Subscribe/unsubscribe folders (SUBSCRIBE/UNSUBSCRIBE)
+    - [x] 13.11 - UI: "Hide folder" option in account settings without unsubscribing
 
 - [ ] 14 - Advanced Search
     - [ ] 14.1 - UI: Advanced search panel (from/to/subject/body/date range/has attachment/folder)
