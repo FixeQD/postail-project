@@ -56,7 +56,6 @@ async fn do_move(
 
         let mut params_update: Vec<rusqlite::types::Value> = vec![
             target_mailbox.to_string().into(),
-            1000000000_u32.into(),
             account_id.to_string().into(),
             source_mailbox.to_string().into(),
         ];
@@ -64,7 +63,7 @@ async fn do_move(
             params_update.push(uid.into());
         }
         conn.execute(
-            &format!("UPDATE OR IGNORE messages SET mailbox = ?, uid = uid + ? WHERE account_id = ? AND mailbox = ? AND uid IN ({})", placeholders),
+            &format!("UPDATE OR IGNORE messages SET mailbox = ?, uid = -uid WHERE account_id = ? AND mailbox = ? AND uid IN ({})", placeholders),
             rusqlite::params_from_iter(params_update)
         ).map_err(|e| e.to_string())?;
 

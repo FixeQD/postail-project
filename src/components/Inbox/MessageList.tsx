@@ -151,7 +151,7 @@ const MessageRow = memo(
 		}`
 		const snippetClass = 'text-xs leading-snug text-[var(--text-tertiary)]'
 
-		const isOptimistic = message.uid >= 1000000000
+		const isOptimistic = message.uid < 0
 
 		const rowBase = `message-unread-indicator group relative flex w-full cursor-pointer select-none border-b text-left transition-all duration-200 outline-none ${
 			isUnread && !zenMode ? 'is-unread' : ''
@@ -912,7 +912,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 						const isUnread = !message.flags.includes('\\Seen')
 						const isHovered = hoveredMessageId === message.uid
 
-						const isOptimistic = message.uid >= 1000000000
+						const isOptimistic = message.uid < 0
 
 						const canDrag =
 							currentMailbox?.role !== 'sent' &&

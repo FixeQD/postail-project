@@ -248,7 +248,7 @@ export function FolderContextMenu({
 				const movedMsg = {
 					...payload.message,
 					mailbox: mailbox.name,
-					uid: payload.uid + 1000000000,
+					uid: -payload.uid,
 				}
 				qc.setQueryData(['messages', payload.accountId, mailbox.name], (old: any) => {
 					if (!old?.pages) return old
