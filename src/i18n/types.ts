@@ -127,6 +127,7 @@ export interface InboxTranslations {
 		}
 		error: string
 		loadingMore: string
+		moving: string
 		actions: {
 			archive: string
 			delete: string
