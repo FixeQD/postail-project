@@ -350,7 +350,10 @@ export const Sidebar = ({
 							{systemMailboxes.map((mailbox) => {
 								const parts = mailbox.name.split(mailbox.separator)
 								const depth = Math.max(0, parts.length - 1)
-								const shortName = parts[parts.length - 1] || mailbox.display_name
+								const shortName =
+									depth === 0
+										? mailbox.display_name
+										: parts[parts.length - 1] || mailbox.display_name
 								const parentPrefix =
 									depth > 0
 										? mailbox.name.substring(
@@ -406,7 +409,10 @@ export const Sidebar = ({
 												const parts = mailbox.name.split(mailbox.separator)
 												const depth = Math.max(0, parts.length - 1)
 												const shortName =
-													parts[parts.length - 1] || mailbox.display_name
+													depth === 0
+														? mailbox.display_name
+														: parts[parts.length - 1] ||
+															mailbox.display_name
 												const parentPrefix =
 													depth > 0
 														? mailbox.name.substring(
