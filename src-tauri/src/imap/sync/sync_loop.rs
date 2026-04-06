@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::sync::LazyLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use futures::StreamExt;
 use tokio::sync::Mutex;
 use tokio::time::{Duration, timeout};
 
@@ -245,29 +246,40 @@ impl crate::imap::ImapManager {
         let mailboxes = self.fetch_mailboxes(account_id).await?;
         let total_mailboxes = mailboxes.len() as u32;
 
-        // Set total mailbox count
         SYNC_STATUS_MANAGER
             .set_mailbox_counters(account_id, 0, total_mailboxes)
             .await;
 
+        // One connection for the entire initial sync — SELECT switches mailbox on the same session
+        let mut session = self.connect_imap(account_id).await?;
+
         for (idx, mailbox) in mailboxes.iter().enumerate() {
             if stop_flag.load(Ordering::SeqCst) {
+                let _ = session.logout().await;
                 return Ok(());
             }
 
-            // Update current mailbox counter
             SYNC_STATUS_MANAGER
                 .set_mailbox_counters(account_id, idx as u32 + 1, total_mailboxes)
                 .await;
 
-            match self.sync_mailbox(account_id, &mailbox.name).await {
-                Ok(()) => {}
-                Err(e) => {
-                    tracing::error!(target: "postail", "[IMAP] Mailbox error for {}@{}: {}", mailbox.name, account_id, e);
-                    // Continue with other mailboxes even if one fails
+            if let Err(e) = self
+                .sync_mailbox_with_session(&mut session, account_id, &mailbox.name)
+                .await
+            {
+                tracing::error!(target: "postail", "[IMAP] Mailbox error for {}@{}: {}", mailbox.name, account_id, e);
+                // Try to reconnect so the next mailbox still works
+                match self.connect_imap(account_id).await {
+                    Ok(new_session) => session = new_session,
+                    Err(e2) => {
+                        tracing::error!(target: "postail", "[IMAP] Reconnect failed during sync: {}", e2);
+                        return Err(AppError::from(e2));
+                    }
                 }
             }
         }
+
+        let _ = session.logout().await;
 
         if stop_flag.load(Ordering::SeqCst) {
             return Ok(());
@@ -288,6 +300,240 @@ impl crate::imap::ImapManager {
                 tracing::error!(target: "postail", "[IMAP] IDLE error for {}@{}: {}", inbox_name, account_id, e);
                 mark_sync_error(account_id, &e.to_string()).await;
             }
+        }
+
+        Ok(())
+    }
+
+    /// Sync one mailbox using an already-open session.
+    /// Calls SELECT on the session, fetches missing messages + flags. Does not logout.
+    async fn sync_mailbox_with_session(
+        &self,
+        session: &mut crate::imap::connection::ImapSession,
+        account_id: &str,
+        mailbox_name: &str,
+    ) -> Result<(), AppError> {
+        update_sync_status(account_id, mailbox_name, 0, 0).await;
+
+        let selected = session.select(mailbox_name).await.map_err(AppError::from)?;
+
+        let uid_validity = selected.uid_validity.unwrap_or(0);
+        let highest_uid = selected.uid_next.map(|u| u.saturating_sub(1)).unwrap_or(0);
+
+        self.check_uidvalidity(account_id, mailbox_name, uid_validity)
+            .await?;
+
+        let last_uid = self.get_last_synced_uid(account_id, mailbox_name).await?;
+
+        if highest_uid > last_uid {
+            let start = if highest_uid > last_uid.saturating_add(50) {
+                highest_uid.saturating_sub(50)
+            } else {
+                last_uid.saturating_add(1)
+            };
+
+            tracing::info!(target: "postail",
+                "[IMAP] Catching up {}@{} (local: {}, remote: {}, fetch_start: {})",
+                mailbox_name, account_id, last_uid, highest_uid, start
+            );
+
+            // Fetch headers + store to DB on the existing session (no snippets — they're lazy)
+            let uid_set = format!("{}:{}", start, highest_uid);
+            let mut fetches = session
+                .uid_fetch(&uid_set, "(UID INTERNALDATE FLAGS ENVELOPE)")
+                .await
+                .map_err(AppError::from)?;
+
+            let mut batch: Vec<crate::db::MessageBatchItem> = Vec::new();
+
+            while let Some(fetch) = fetches.next().await {
+                let fetch = fetch.map_err(AppError::from)?;
+                let uid = match fetch.uid {
+                    Some(u) => u,
+                    None => continue,
+                };
+                let envelope = match fetch.envelope() {
+                    Some(e) => e,
+                    None => continue,
+                };
+
+                use chrono::{TimeZone, Utc};
+
+                let subject = crate::utils::mail::decode_mime_header(envelope.subject.as_deref());
+                let from: Vec<String> = envelope
+                    .from
+                    .as_deref()
+                    .map(|addrs| {
+                        addrs
+                            .iter()
+                            .map(|a| {
+                                let mbox = a
+                                    .mailbox
+                                    .as_ref()
+                                    .map(|b| String::from_utf8_lossy(b).into_owned())
+                                    .unwrap_or_default();
+                                let host = a
+                                    .host
+                                    .as_ref()
+                                    .map(|b| String::from_utf8_lossy(b).into_owned())
+                                    .unwrap_or_default();
+                                let email = format!("{}@{}", mbox, host);
+                                match a
+                                    .name
+                                    .as_ref()
+                                    .and_then(|b| {
+                                        crate::utils::mail::decode_mime_header(Some(b.as_ref()))
+                                    })
+                                    .filter(|n| !n.is_empty())
+                                {
+                                    Some(n) => format!("{} <{}>", n, email),
+                                    None => email,
+                                }
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let to: Vec<String> = envelope
+                    .to
+                    .as_deref()
+                    .map(|addrs| {
+                        addrs
+                            .iter()
+                            .map(|a| {
+                                let mbox = a
+                                    .mailbox
+                                    .as_ref()
+                                    .map(|b| String::from_utf8_lossy(b).into_owned())
+                                    .unwrap_or_default();
+                                let host = a
+                                    .host
+                                    .as_ref()
+                                    .map(|b| String::from_utf8_lossy(b).into_owned())
+                                    .unwrap_or_default();
+                                format!("{}@{}", mbox, host)
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let cc: Vec<String> = envelope
+                    .cc
+                    .as_deref()
+                    .map(|addrs| {
+                        addrs
+                            .iter()
+                            .map(|a| {
+                                let mbox = a
+                                    .mailbox
+                                    .as_ref()
+                                    .map(|b| String::from_utf8_lossy(b).into_owned())
+                                    .unwrap_or_default();
+                                let host = a
+                                    .host
+                                    .as_ref()
+                                    .map(|b| String::from_utf8_lossy(b).into_owned())
+                                    .unwrap_or_default();
+                                format!("{}@{}", mbox, host)
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                let all_flags: Vec<String> = fetch
+                    .flags()
+                    .map(|f| match f {
+                        async_imap::types::Flag::Seen => "\\Seen".to_string(),
+                        async_imap::types::Flag::Answered => "\\Answered".to_string(),
+                        async_imap::types::Flag::Flagged => "\\Flagged".to_string(),
+                        async_imap::types::Flag::Deleted => "\\Deleted".to_string(),
+                        async_imap::types::Flag::Draft => "\\Draft".to_string(),
+                        async_imap::types::Flag::Recent => "\\Recent".to_string(),
+                        async_imap::types::Flag::MayCreate => "\\MayCreate".to_string(),
+                        async_imap::types::Flag::Custom(s) => s.to_string(),
+                    })
+                    .collect();
+
+                let mut system_flags = Vec::new();
+                let mut tags = Vec::new();
+                for f in all_flags {
+                    if f.starts_with('\\') {
+                        system_flags.push(f);
+                    } else {
+                        tags.push(f);
+                    }
+                }
+
+                let internal_date = match fetch.internal_date() {
+                    Some(d) => Utc
+                        .timestamp_opt(d.timestamp(), 0)
+                        .single()
+                        .unwrap_or_else(Utc::now),
+                    None => Utc::now(),
+                };
+
+                let message_id = envelope
+                    .message_id
+                    .as_ref()
+                    .map(|s| String::from_utf8_lossy(s).to_string());
+
+                batch.push(crate::db::MessageBatchItem {
+                    uid,
+                    message_id,
+                    internal_date,
+                    from: from.first().cloned(),
+                    to,
+                    cc,
+                    subject,
+                    snippet: None,
+                    flags: system_flags,
+                    tags,
+                    structure_json: None,
+                });
+            }
+
+            if !batch.is_empty() {
+                let pool = get_db_pool()
+                    .await
+                    .map_err(|e| AppError::from(e.to_string()))?;
+                let mut conn = pool.get().map_err(|e| AppError::from(e.to_string()))?;
+                let new_uids = crate::db::batch_insert_messages(
+                    &mut *conn,
+                    account_id,
+                    mailbox_name,
+                    &batch,
+                    crate::db::DEFAULT_BATCH_SIZE,
+                )
+                .map_err(|e| AppError::from(e.to_string()))?;
+
+                if let Err(e) = crate::db::filters::apply_rules_to_messages(
+                    &mut *conn,
+                    account_id,
+                    mailbox_name,
+                    &new_uids,
+                ) {
+                    tracing::warn!(target: "postail", "[Filters] Rule apply error for {} in {}: {}", mailbox_name, account_id, e);
+                }
+            }
+
+            // Update last_synced_uid
+            let pool = get_db_pool()
+                .await
+                .map_err(|e| AppError::from(e.to_string()))?;
+            let conn = pool.get().map_err(|e| AppError::from(e.to_string()))?;
+            conn.execute(
+                "UPDATE mailboxes SET last_synced_uid = ? WHERE account_id = ? AND name = ?",
+                rusqlite::params![highest_uid, account_id, mailbox_name],
+            )
+            .map_err(|e| AppError::from(e.to_string()))?;
+        }
+
+        if let Err(e) = self
+            .sync_flags_with_session(session, account_id, mailbox_name, None)
+            .await
+        {
+            tracing::warn!(target: "postail",
+                "[IMAP] Initial flag sync failed for {}@{}: {}",
+                mailbox_name, account_id, e
+            );
         }
 
         Ok(())
@@ -315,14 +561,13 @@ impl crate::imap::ImapManager {
             };
 
             tracing::info!(target: "postail", "[IMAP] Catching up {}@{} (local: {}, remote: {}, fetch_start: {})", mailbox_name, account_id, last_uid, highest_uid, start);
-            // Startup catch-up: silent, no notification emitted
             let _ = self
                 .fetch_missing_messages(account_id, mailbox_name, start, highest_uid)
                 .await?;
         }
 
         if let Err(e) = self
-            .sync_flags_from_server(account_id, mailbox_name, None)
+            .sync_flags_with_session(&mut session, account_id, mailbox_name, None)
             .await
         {
             tracing::warn!(target: "postail",
@@ -331,6 +576,7 @@ impl crate::imap::ImapManager {
             );
         }
 
+        session.logout().await.map_err(AppError::from)?;
         Ok(())
     }
 

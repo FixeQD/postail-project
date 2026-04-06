@@ -101,15 +101,15 @@ impl ImapManager {
         Ok(())
     }
 
-    pub async fn sync_flags_from_server(
+    /// Sync flags using an already-open, already-selected session.
+    /// Does not open a new connection or call logout.
+    pub async fn sync_flags_with_session(
         &self,
+        session: &mut crate::imap::connection::ImapSession,
         account_id: &str,
         mailbox: &str,
         uid_range: Option<(u32, u32)>,
     ) -> Result<(), AppError> {
-        let mut session = self.connect_imap(account_id).await?;
-        session.select(mailbox).await.map_err(AppError::from)?;
-
         let uid_set = if let Some((start, end)) = uid_range {
             format!("{}:{}", start, end)
         } else {
@@ -137,7 +137,6 @@ impl ImapManager {
         }
 
         drop(fetches);
-        session.logout().await.map_err(AppError::from)?;
 
         let pool = crate::globals::get_db_pool()
             .await
@@ -147,7 +146,6 @@ impl ImapManager {
         let update_count = flag_updates.len();
 
         for (uid, flags) in flag_updates {
-            // Skip if this UID has pending or recently synced flag changes in the queue
             let recent_threshold = chrono::Utc::now().timestamp() - 10;
             let has_pending: bool = conn
                 .query_row(
@@ -190,40 +188,44 @@ impl ImapManager {
             .map_err(|e| AppError::from(e.to_string()))?;
 
             if rows_updated > 0 {
-                // Get the message_id for tag sync
-                let message_id: i64 = conn.query_row(
-                    "SELECT id FROM messages WHERE account_id = ? AND mailbox = ? AND uid = ?",
-                    rusqlite::params![account_id, mailbox, uid],
-                    |row| row.get(0),
-                ).map_err(|e| AppError::from(e.to_string()))?;
+                let message_id: i64 = conn
+                    .query_row(
+                        "SELECT id FROM messages WHERE account_id = ? AND mailbox = ? AND uid = ?",
+                        rusqlite::params![account_id, mailbox, uid],
+                        |row| row.get(0),
+                    )
+                    .map_err(|e| AppError::from(e.to_string()))?;
 
-                // Get local tags for this message
-                let mut stmt = conn.prepare("SELECT tag FROM message_tags WHERE message_id = ?").map_err(|e| AppError::from(e.to_string()))?;
-                let local_tags: std::collections::HashSet<String> = stmt.query_map(rusqlite::params![message_id], |row| row.get(0))
+                let mut stmt = conn
+                    .prepare("SELECT tag FROM message_tags WHERE message_id = ?")
+                    .map_err(|e| AppError::from(e.to_string()))?;
+                let local_tags: std::collections::HashSet<String> = stmt
+                    .query_map(rusqlite::params![message_id], |row| row.get(0))
                     .map_err(|e| AppError::from(e.to_string()))?
                     .filter_map(|r| r.ok())
                     .collect();
                 drop(stmt);
 
-                let server_tags_set: std::collections::HashSet<String> = server_tags.into_iter().collect();
+                let server_tags_set: std::collections::HashSet<String> =
+                    server_tags.into_iter().collect();
 
-                // Tags to add
                 for tag in &server_tags_set {
                     if !local_tags.contains(tag) {
                         conn.execute(
                             "INSERT OR IGNORE INTO message_tags (message_id, tag) VALUES (?, ?)",
                             rusqlite::params![message_id, tag],
-                        ).map_err(|e| AppError::from(e.to_string()))?;
+                        )
+                        .map_err(|e| AppError::from(e.to_string()))?;
                     }
                 }
 
-                // Tags to remove
                 for tag in &local_tags {
                     if !server_tags_set.contains(tag) {
                         conn.execute(
                             "DELETE FROM message_tags WHERE message_id = ? AND tag = ?",
                             rusqlite::params![message_id, tag],
-                        ).map_err(|e| AppError::from(e.to_string()))?;
+                        )
+                        .map_err(|e| AppError::from(e.to_string()))?;
                     }
                 }
             } else {
@@ -239,7 +241,6 @@ impl ImapManager {
             update_count, mailbox, account_id
         );
 
-        // Cleanup old synced operations (older than 10 seconds)
         let deleted = crate::db::cleanup_old_synced_operations(&conn)
             .map_err(|e| AppError::from(e.to_string()))?;
 
@@ -250,6 +251,21 @@ impl ImapManager {
             );
         }
 
+        Ok(())
+    }
+
+    pub async fn sync_flags_from_server(
+        &self,
+        account_id: &str,
+        mailbox: &str,
+        uid_range: Option<(u32, u32)>,
+    ) -> Result<(), AppError> {
+        let mut session = self.connect_imap(account_id).await?;
+        session.select(mailbox).await.map_err(AppError::from)?;
+
+        self.sync_flags_with_session(&mut session, account_id, mailbox, uid_range)
+            .await?;
+        session.logout().await.map_err(AppError::from)?;
         Ok(())
     }
 
