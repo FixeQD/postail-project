@@ -136,7 +136,7 @@ pub async fn process_flag_queue(account_id: &str) -> Result<(), String> {
 
                 if op.operation_type == "move" {
                     if let Some(target) = &op.target_mailbox {
-                        let optimistic_uid = op.uid + 1_000_000_000;
+                        let optimistic_uid = -(op.uid as i64);
                         if let Err(e) = conn.execute(
                             "UPDATE OR IGNORE messages SET mailbox = ?, uid = ? WHERE account_id = ? AND mailbox = ? AND uid = ?",
                             rusqlite::params![op.mailbox, op.uid, op.account_id, target, optimistic_uid],
