@@ -32,5 +32,5 @@ export interface DragMessagePayload {
 	accountId: string
 	mailbox: string
 	uid: number
-	message: any
+	message: import('../../types/mail').MailHeader
 }
