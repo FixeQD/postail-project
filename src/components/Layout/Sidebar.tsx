@@ -285,7 +285,7 @@ export const Sidebar = ({
 				toast.success(t('inbox:sidebar.folders.createSuccess', { name }))
 			} catch (e) {
 				toast.error(String(e))
-				throw e
+				return Promise.reject(e)
 			} finally {
 				setCreatingFolder(false)
 			}
@@ -368,9 +368,7 @@ export const Sidebar = ({
 										accountId={activeAccount?.id ?? ''}
 										activeMailbox={activeMailbox}
 										onMailboxSelect={onMailboxSelect}
-										// @ts-ignore
 										shortName={shortName}
-										// @ts-ignore
 										parentPrefix={parentPrefix}>
 										<MailboxItem
 											mailbox={mailbox}

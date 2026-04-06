@@ -76,6 +76,8 @@ export function FolderNameDialog({
 		try {
 			await onConfirm(trimmed)
 			onOpenChange(false)
+		} catch (e) {
+			// Dialog stays open on error
 		} finally {
 			setLoading(false)
 		}
@@ -290,7 +292,7 @@ export function FolderContextMenu({
 			toast.success(t('inbox:folderMenu.renamed', { name: newName }))
 		} catch (e) {
 			toast.error(String(e))
-			throw e
+			return Promise.reject(e)
 		}
 	}
 
@@ -305,7 +307,7 @@ export function FolderContextMenu({
 			toast.success(t('inbox:folderMenu.created', { name: subName }))
 		} catch (e) {
 			toast.error(String(e))
-			throw e
+			return Promise.reject(e)
 		}
 	}
 
