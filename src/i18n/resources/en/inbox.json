@@ -57,7 +57,8 @@
 		"created": "Folder \"{{name}}\" created",
 		"hidden": "Folder hidden",
 		"shown": "Folder shown",
-		"deleted": "\"{{name}}\" deleted"
+		"deleted": "\"{{name}}\" deleted",
+		"nestedWarning": "Using the delimiter (\"{{separator}}\") will create a nested folder structure."
 	},
 	"messageView": {
 		"back": "Back to list",

@@ -161,6 +161,7 @@ export interface InboxTranslations {
 		hidden: string
 		shown: string
 		deleted: string
+		nestedWarning: string
 	}
 	messageView: {
 		back: string
