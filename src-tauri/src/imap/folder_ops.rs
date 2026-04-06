@@ -99,6 +99,17 @@ impl ImapManager {
         let mut conn = pool.get().map_err(|e| AppError::from(e.to_string()))?;
         let tx = conn.transaction().map_err(AppError::from)?;
 
+        let separator: String = tx
+            .query_row(
+                "SELECT separator FROM mailboxes WHERE account_id = ? AND name = ?",
+                params![account_id, old_name],
+                |row| row.get(0),
+            )
+            .unwrap_or_else(|_| "/".to_string());
+
+        let old_prefix = format!("{}{}", old_name, separator);
+        let new_prefix = format!("{}{}", new_name, separator);
+
         tx.execute(
             "UPDATE mailboxes SET name = ? WHERE account_id = ? AND name = ?",
             params![new_name, account_id, old_name],
@@ -108,6 +119,32 @@ impl ImapManager {
         tx.execute(
             "UPDATE messages SET mailbox = ? WHERE account_id = ? AND mailbox = ?",
             params![new_name, account_id, old_name],
+        )
+        .map_err(AppError::from)?;
+
+        tx.execute(
+            "UPDATE mailboxes
+             SET name = ? || substr(name, ?)
+             WHERE account_id = ? AND name LIKE ?",
+            params![
+                new_prefix,
+                (old_prefix.len() + 1) as i64,
+                account_id,
+                format!("{}%", old_prefix)
+            ],
+        )
+        .map_err(AppError::from)?;
+
+        tx.execute(
+            "UPDATE messages
+             SET mailbox = ? || substr(mailbox, ?)
+             WHERE account_id = ? AND mailbox LIKE ?",
+            params![
+                new_prefix,
+                (old_prefix.len() + 1) as i64,
+                account_id,
+                format!("{}%", old_prefix)
+            ],
         )
         .map_err(AppError::from)?;
 

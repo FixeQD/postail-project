@@ -389,14 +389,12 @@ export function FolderContextMenu({
 					className='w-44 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-glass)] p-1 shadow-xl backdrop-blur-xl'
 					align='start'
 					sideOffset={2}>
-					{!parentPrefix && (
-						<DropdownMenuItem
-							onClick={() => setCreateSubOpen(true)}
-							className='flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:bg-[var(--surface-hover)] focus:text-[var(--text-primary)]'>
-							<FolderPlus className='h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]' />
-							{t('inbox:folderMenu.newSubfolder')}
-						</DropdownMenuItem>
-					)}
+					<DropdownMenuItem
+						onClick={() => setCreateSubOpen(true)}
+						className='flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:bg-[var(--surface-hover)] focus:text-[var(--text-primary)]'>
+						<FolderPlus className='h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]' />
+						{t('inbox:folderMenu.newSubfolder')}
+					</DropdownMenuItem>
 
 					{!isSystem && (
 						<>
