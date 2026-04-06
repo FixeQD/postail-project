@@ -223,12 +223,19 @@ export function FolderContextMenu({
 			return
 		const raw = e.dataTransfer.getData('application/postail-message')
 		if (!raw) return
-		const payload = JSON.parse(raw) as {
+
+		let payload: {
 			accountId: string
 			mailbox: string
 			uid: number
 			message?: any
 		}
+		try {
+			payload = JSON.parse(raw)
+		} catch {
+			return
+		}
+
 		if (payload.mailbox === mailbox.name) return
 
 		try {
