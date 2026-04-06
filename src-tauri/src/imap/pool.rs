@@ -115,7 +115,7 @@ impl ConnectionPool {
 
         if account_idle_count < max_idle {
             // Start IDLE watch
-            tracing::info!(target: "postail", "[Pool] Starting IDLE for {}@{} (slot {}/{}",
+            tracing::info!(target: "postail", "[Pool] Starting IDLE for {}@{} (slot {}/{})",
                 mailbox, account_id, account_idle_count + 1, max_idle);
             self.start_idle_watch(account_id, mailbox, provider_kind, is_virtual)
                 .await?;

@@ -108,6 +108,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 
 	removeAccount: async (id: string) => {
 		try {
+			await invoke('unwatch_all_mailboxes', { accountId: id }).catch(() => {})
 			await invoke('remove_account', { id })
 			const { accounts, activeAccount } = get()
 			const updatedAccounts = accounts.filter((a) => a.id !== id)

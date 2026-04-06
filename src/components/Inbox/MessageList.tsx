@@ -463,15 +463,6 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 			}
 		}
 		startWatch()
-
-		return () => {
-			stopped = true
-			invokeWithErrorLog(
-				'unwatch_mailbox',
-				{ accountId: account.id, mailbox },
-				'unwatch_mailbox'
-			)
-		}
 	}, [account.id, mailbox, isSyncing, syncError, needsSync])
 
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
