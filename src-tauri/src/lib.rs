@@ -225,6 +225,7 @@ pub fn run() {
             cmd::smtp::send_read_receipt,
             cmd::utils::process_email_content,
             cmd::utils::show_notification,
+            cmd::utils::show_main_window,
             cmd::utils::auto_fix_email_html,
             cmd::utils::set_email_view_content,
             cmd::settings::get_all_settings,

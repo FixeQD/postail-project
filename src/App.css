@@ -231,8 +231,12 @@
 	* {
 		@apply border-border outline-ring/50;
 	}
+	html {
+		background: #020617;
+	}
 	body {
-		@apply bg-background text-foreground;
+		@apply text-foreground;
+		background: var(--app-bg, #020617);
 	}
 }
 
@@ -723,12 +727,7 @@ textarea:focus {
 	content: '';
 	position: absolute;
 	inset: 0;
-	background: linear-gradient(
-		90deg,
-		transparent 0%,
-		var(--skeleton-to) 50%,
-		transparent 100%
-	);
+	background: linear-gradient(90deg, transparent 0%, var(--skeleton-to) 50%, transparent 100%);
 	transform: translateX(-100%);
 	animation: shimmer-slide 1.5s ease-in-out infinite;
 	will-change: transform;
@@ -737,12 +736,7 @@ textarea:focus {
 .skeleton-shimmer {
 	position: absolute;
 	inset: 0;
-	background: linear-gradient(
-		90deg,
-		transparent,
-		rgba(var(--accent-rgb), 0.08),
-		transparent
-	);
+	background: linear-gradient(90deg, transparent, rgba(var(--accent-rgb), 0.08), transparent);
 	transform: translateX(-100%);
 	animation: shimmer-slide 1.5s ease-in-out infinite;
 	will-change: transform;
@@ -819,6 +813,8 @@ textarea:focus {
 	flex: 1;
 	overflow-y: auto;
 	padding: 0;
+	will-change: transform;
+	overscroll-behavior: contain;
 }
 
 /* Iframe for sanitized HTML content */
@@ -828,6 +824,8 @@ textarea:focus {
 	display: block;
 	background: #0f172a;
 	border-radius: 8px;
+	will-change: transform;
+	transform: translateZ(0);
 }
 
 /* Plain text view */
@@ -856,16 +854,16 @@ body.is-dragging .compose-drag-root * {
 
 /* Respect system reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .animate-subtle-float,
-  .animate-subtle-pulse-ring,
-  .animate-shimmer,
-  .animate-gradient-shift,
-  .animate-glow-breathe,
-  .animate-status-pulse,
-  .badge-pulse::after,
-  .skeleton,
-  .skeleton-shimmer,
-  .skeleton::after {
-    animation: none !important;
-  }
+	.animate-subtle-float,
+	.animate-subtle-pulse-ring,
+	.animate-shimmer,
+	.animate-gradient-shift,
+	.animate-glow-breathe,
+	.animate-status-pulse,
+	.badge-pulse::after,
+	.skeleton,
+	.skeleton-shimmer,
+	.skeleton::after {
+		animation: none !important;
+	}
 }

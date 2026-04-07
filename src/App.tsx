@@ -1,4 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TitleBar } from './components/TitleBar'
 import { WelcomeScreen } from './components/Welcome/WelcomeScreen'
@@ -61,7 +62,13 @@ function App() {
 	useEffect(() => {
 		// Apply dark class immediately so there's no flash before loadTheme resolves
 		document.documentElement.classList.add('dark')
-		loadTheme()
+
+		const showWindow = () => {
+			document.getElementById('root')?.classList.add('app-ready')
+			invoke('show_main_window')
+		}
+
+		loadTheme().then(showWindow).catch(showWindow)
 	}, [loadTheme])
 
 	useEffect(() => {

@@ -90,7 +90,7 @@ export const MessageViewBody = ({
 
       const debouncedSendHeight = () => {
         clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(sendHeight, 32);
+        resizeTimer = setTimeout(sendHeight, 100);
       };
 
       const ro = new ResizeObserver(debouncedSendHeight);

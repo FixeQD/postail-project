@@ -1,12 +1,12 @@
 use crate::email_view::EmailViewState;
 use crate::globals::SECURITY;
 use crate::network::rewriter::rewrite_external_resources;
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use html_transpiler::{
-    auto_fix_email_html as sanitizer_fix, sanitize_email_html_with_details, SanitizeResult,
+    SanitizeResult, auto_fix_email_html as sanitizer_fix, sanitize_email_html_with_details,
 };
-use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::{Deserialize, Serialize};
-use tauri::{command, State};
+use tauri::{State, command};
 use tauri_plugin_notification::NotificationExt;
 
 #[derive(Deserialize)]
@@ -47,6 +47,15 @@ pub fn show_notification(app: tauri::AppHandle, title: String, body: String) {
         .title(&title)
         .body(&body)
         .show();
+}
+
+#[command]
+pub fn show_main_window(app: tauri::AppHandle) {
+    use tauri::Manager;
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
 }
 
 #[command]
