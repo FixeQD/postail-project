@@ -298,6 +298,28 @@ export const MessageView = ({
 	const scrollContainerRef = useRef<HTMLDivElement>(null)
 
 	useEffect(() => {
+		const el = scrollContainerRef.current
+		if (!el) return
+
+		let timer: ReturnType<typeof setTimeout>
+		const onScroll = () => {
+			const iframe = el.querySelector('iframe')
+			if (iframe) (iframe as HTMLElement).style.pointerEvents = 'none'
+			clearTimeout(timer)
+			timer = setTimeout(() => {
+				const iframe = el.querySelector('iframe')
+				if (iframe) (iframe as HTMLElement).style.pointerEvents = ''
+			}, 150)
+		}
+
+		el.addEventListener('scroll', onScroll, { passive: true })
+		return () => {
+			el.removeEventListener('scroll', onScroll)
+			clearTimeout(timer)
+		}
+	}, [uid])
+
+	useEffect(() => {
 		if (scrollContainerRef.current) {
 			scrollContainerRef.current.scrollTo({ top: 0, behavior: 'auto' })
 		}

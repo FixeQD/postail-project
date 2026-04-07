@@ -20,7 +20,7 @@ export const MessageViewBody = ({
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const iframeRef = useRef<HTMLIFrameElement>(null)
 	const containerRef = useRef<HTMLDivElement>(null)
-	const [iframeSrc, setIframeSrc] = useState<string | null>(null)
+	const [iframeSrcDoc, setIframeSrcDoc] = useState<string | null>(null)
 	const [warningOpen, setWarningOpen] = useState(false)
 	const [pendingUrl, setPendingUrl] = useState<string | null>(null)
 	const [iframeWidth, setIframeWidth] = useState<string>('100%')
@@ -45,6 +45,7 @@ export const MessageViewBody = ({
 <html>
   <head>
     <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' data:; img-src data: blob:; font-src data:; connect-src 'none';">
     <style>
       * { box-sizing: border-box; }
       body {
@@ -151,12 +152,8 @@ export const MessageViewBody = ({
 		setIframeReady(false)
 		setIframeWidth('100%')
 
-		const isWindows = navigator.userAgent.includes('Windows')
-		const baseUrl = isWindows ? 'http://postail.localhost' : 'postail://localhost'
-
-		const src = `${baseUrl}/message/current?v=${Date.now()}`
 		onLoadingChange?.(true)
-		invoke<{ hasExternalResources: boolean; failedResources: string[] }>(
+		invoke<{ hasExternalResources: boolean; failedResources: string[]; processedHtml: string }>(
 			'set_email_view_content',
 			{
 				html,
@@ -174,7 +171,7 @@ export const MessageViewBody = ({
 				if (result.hasExternalResources) {
 					onExternalDetected?.()
 				}
-				setIframeSrc(src)
+				setIframeSrcDoc(result.processedHtml)
 				onLoadingChange?.(false)
 			})
 			.catch(() => {
@@ -184,10 +181,8 @@ export const MessageViewBody = ({
 
 	useEffect(() => {
 		const handler = (e: MessageEvent) => {
-			const validOrigins = ['http://postail.localhost', 'postail://localhost', 'null']
-			if (!validOrigins.includes(e.origin) || e.source !== iframeRef.current?.contentWindow) {
-				return
-			}
+			// srcDoc iframes always have null origin
+			if (e.source !== iframeRef.current?.contentWindow) return
 
 			if (e.data?.type === 'resize' && typeof e.data.height === 'number') {
 				const newHeight = `${e.data.height}px`
@@ -225,24 +220,21 @@ export const MessageViewBody = ({
 
 	return (
 		<>
-			<div
-				ref={containerRef}
-				className='overflow-x-auto px-5 py-5'
-				style={{ contain: 'content' }}>
+			<div ref={containerRef} className='overflow-x-auto px-5 py-5'>
 				<div
-					className={`overflow-hidden rounded-xl border border-[var(--border-faint)] ${
+					className={`rounded-xl border border-[var(--border-faint)] ${
 						iframeReady ? 'opacity-100 shadow-sm' : 'opacity-0'
 					}`}
 					style={{
 						width: iframeWidth,
 						backgroundColor: emailBg,
 					}}>
-					{iframeSrc && (
+					{iframeSrcDoc && (
 						<iframe
-							key={iframeSrc}
+							key={iframeSrcDoc.length}
 							ref={iframeRef}
 							title='Message Content'
-							src={iframeSrc}
+							srcDoc={iframeSrcDoc}
 							sandbox='allow-scripts'
 							className='message-view-iframe block w-full border-none'
 							style={{ minHeight: iframeReady ? undefined : '0px' }}

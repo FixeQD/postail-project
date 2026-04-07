@@ -813,7 +813,7 @@ textarea:focus {
 	flex: 1;
 	overflow-y: auto;
 	padding: 0;
-	will-change: transform;
+	will-change: scroll-position;
 	overscroll-behavior: contain;
 }
 

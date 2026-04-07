@@ -22,6 +22,7 @@ pub struct InlineImageInfo {
 pub struct SetEmailViewResult {
     pub has_external_resources: bool,
     pub failed_resources: Vec<String>,
+    pub processed_html: String,
 }
 
 #[command]
@@ -98,11 +99,12 @@ pub async fn set_email_view_content(
     let rewrite = rewrite_external_resources(&processed, allow_external).await;
     processed = rewrite.html;
 
-    *state.html.lock().map_err(|e| e.to_string())? = Some(processed);
+    *state.html.lock().map_err(|e| e.to_string())? = Some(processed.clone());
     *state.allow_external.lock().map_err(|e| e.to_string())? = allow_external;
 
     Ok(SetEmailViewResult {
         has_external_resources: rewrite.has_external,
         failed_resources: rewrite.failed,
+        processed_html: processed,
     })
 }
