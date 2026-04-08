@@ -97,6 +97,11 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         set_db_version(conn, 12)?;
     }
 
+    if current_version < 13 {
+        migrate_to_v13(conn)?;
+        set_db_version(conn, 13)?;
+    }
+
     Ok(())
 }
 
@@ -300,6 +305,29 @@ fn migrate_to_v12(conn: &Connection) -> Result<(), DBError> {
     Ok(())
 }
 
+fn migrate_to_v13(conn: &Connection) -> Result<(), DBError> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS saved_searches (
+            id TEXT PRIMARY KEY,
+            account_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            query_json TEXT NOT NULL,
+            icon TEXT NOT NULL DEFAULT 'bookmark',
+            position INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL,
+            FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_saved_searches_account ON saved_searches(account_id, position)",
+        [],
+    )?;
+
+    Ok(())
+}
+
 // Whitelist of allowed table names to prevent SQL injection
 const ALLOWED_TABLES: &[&str] = &[
     "messages",
@@ -312,6 +340,7 @@ const ALLOWED_TABLES: &[&str] = &[
     "message_bodies",
     "messages",
     "outbox",
+    "saved_searches",
     "schema_versions",
     "settings",
     "message_tags",

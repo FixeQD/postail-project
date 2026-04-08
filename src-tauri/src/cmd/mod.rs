@@ -4,6 +4,7 @@ pub mod drafts;
 pub mod mail;
 pub mod maintenance;
 pub mod network;
+pub mod search;
 pub mod security;
 pub mod settings;
 pub mod smtp;
