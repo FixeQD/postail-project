@@ -102,6 +102,11 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         set_db_version(conn, 13)?;
     }
 
+    if current_version < 14 {
+        migrate_to_v14(conn)?;
+        set_db_version(conn, 14)?;
+    }
+
     Ok(())
 }
 
@@ -328,6 +333,47 @@ fn migrate_to_v13(conn: &Connection) -> Result<(), DBError> {
     Ok(())
 }
 
+fn migrate_to_v14(conn: &Connection) -> Result<(), DBError> {
+    conn.execute(
+        "CREATE VIRTUAL TABLE IF NOT EXISTS message_bodies_fts
+         USING fts5(body_plain, content='message_bodies', content_rowid='message_id')",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER IF NOT EXISTS message_bodies_fts_insert
+         AFTER INSERT ON message_bodies BEGIN
+           INSERT INTO message_bodies_fts(rowid, body_plain) VALUES (NEW.message_id, NEW.body_plain);
+         END",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER IF NOT EXISTS message_bodies_fts_update
+         AFTER UPDATE ON message_bodies BEGIN
+           UPDATE message_bodies_fts SET body_plain = NEW.body_plain WHERE rowid = NEW.message_id;
+         END",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER IF NOT EXISTS message_bodies_fts_delete
+         AFTER DELETE ON message_bodies BEGIN
+           DELETE FROM message_bodies_fts WHERE rowid = OLD.message_id;
+         END",
+        [],
+    )?;
+
+    // Backfill existing body data
+    conn.execute(
+        "INSERT INTO message_bodies_fts(rowid, body_plain)
+         SELECT message_id, body_plain FROM message_bodies WHERE body_plain != ''",
+        [],
+    )?;
+
+    Ok(())
+}
+
 // Whitelist of allowed table names to prevent SQL injection
 const ALLOWED_TABLES: &[&str] = &[
     "messages",
@@ -338,6 +384,7 @@ const ALLOWED_TABLES: &[&str] = &[
     "contacts",
     "drafts",
     "message_bodies",
+    "message_bodies_fts",
     "messages",
     "outbox",
     "saved_searches",

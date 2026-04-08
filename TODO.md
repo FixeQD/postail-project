@@ -108,7 +108,7 @@
     - [ ] 14.5 - UI: Saved searches as virtual mailboxes in sidebar
     - [x] 14.6 - DB: `saved_searches` table (name, query, icon)
     - [ ] 14.7 - UI: Highlight matching fragments in search results
-    - [ ] 14.8 - Rust: Full-text search in message body via FTS5
+    - [x] 14.8 - Rust: Full-text search in message body via FTS5
 
 - [ ] 15 - Templates & Signatures
     - [ ] 15.1 - DB: `signatures` table (id, account_id, name, html_content, is_default)

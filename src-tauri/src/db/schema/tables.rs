@@ -157,6 +157,14 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
 
     create_fts_table(conn, "contacts_fts", &["email", "name"], "contacts", "id")?;
 
+    create_fts_table(
+        conn,
+        "message_bodies_fts",
+        &["body_plain"],
+        "message_bodies",
+        "message_id",
+    )?;
+
     create_table_if_not_exists(
         conn,
         "message_bodies",
@@ -332,6 +340,33 @@ pub fn create_fts_triggers(conn: &Connection) -> Result<(), DBError> {
         "DELETE",
         "contacts",
         "DELETE FROM contacts_fts WHERE rowid = OLD.id;",
+    )?;
+
+    create_trigger_if_not_exists(
+        conn,
+        "message_bodies_fts_insert",
+        "AFTER",
+        "INSERT",
+        "message_bodies",
+        "INSERT INTO message_bodies_fts(rowid, body_plain) VALUES (NEW.message_id, NEW.body_plain);",
+    )?;
+
+    create_trigger_if_not_exists(
+        conn,
+        "message_bodies_fts_update",
+        "AFTER",
+        "UPDATE",
+        "message_bodies",
+        "UPDATE message_bodies_fts SET body_plain = NEW.body_plain WHERE rowid = NEW.message_id;",
+    )?;
+
+    create_trigger_if_not_exists(
+        conn,
+        "message_bodies_fts_delete",
+        "AFTER",
+        "DELETE",
+        "message_bodies",
+        "DELETE FROM message_bodies_fts WHERE rowid = OLD.message_id;",
     )?;
 
     Ok(())

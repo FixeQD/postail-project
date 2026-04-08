@@ -22,6 +22,41 @@ pub async fn search_messages(
 }
 
 #[command]
+pub async fn search_messages_advanced(
+    account_id: Option<String>,
+    mailbox: Option<String>,
+    query: String,
+    body_query: Option<String>,
+    limit: u32,
+) -> Result<Vec<db::search::SearchResult>, String> {
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+
+    let body = body_query.as_deref().unwrap_or("");
+
+    if body.trim().is_empty() {
+        db::search::search_messages_advanced(
+            &conn,
+            account_id.as_deref(),
+            mailbox.as_deref(),
+            &query,
+            limit,
+        )
+        .map_err(|e| e.to_string())
+    } else {
+        db::search::search_messages_with_body(
+            &conn,
+            account_id.as_deref(),
+            mailbox.as_deref(),
+            &query,
+            body,
+            limit,
+        )
+        .map_err(|e| e.to_string())
+    }
+}
+
+#[command]
 pub async fn mark_read(
     account_id: String,
     mailbox: String,

@@ -201,6 +201,7 @@ pub fn run() {
             cmd::maintenance::dev_reset_data,
             cmd::mail::sync::record_mailbox_activity,
             cmd::mail::actions::search_messages,
+            cmd::mail::actions::search_messages_advanced,
             cmd::mail::actions::mark_read,
             cmd::mail::listing::fetch_raw_eml_text,
             cmd::mail::listing::fetch_thread,
