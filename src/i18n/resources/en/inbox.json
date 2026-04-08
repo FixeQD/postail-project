@@ -15,7 +15,27 @@
 		}
 	},
 	"search": {
-		"placeholder": "Search in inbox..."
+		"placeholder": "Search in inbox...",
+		"fields": {
+			"from": "From",
+			"to": "To",
+			"subject": "Subject",
+			"body": "Body contains",
+			"dateFrom": "After",
+			"dateTo": "Before",
+			"hasAttachment": "Has attachment",
+			"folder": "Folder",
+			"allFolders": "All folders"
+		},
+		"actions": {
+			"search": "Search",
+			"clear": "Clear"
+		},
+		"results": {
+			"empty": "No messages found",
+			"count": "{{count}} results",
+			"searching": "Searching..."
+		}
 	},
 	"messageList": {
 		"empty": {
