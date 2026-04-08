@@ -15,6 +15,9 @@ import type { FilterRule } from '@/types/filters'
 
 import { useAccountStore } from '@/stores/accountStore'
 import { SuggestRuleDialog } from '@/components/Inbox/SuggestRuleDialog'
+import { useAdvancedSearch } from '@/hooks/useAdvancedSearch'
+import { SearchResultsList } from '@/components/Inbox/Search/SearchResultsList'
+import type { AdvancedSearchQuery } from '@/components/TitleBar/SearchBar'
 
 export const InboxScreen = (props: InboxScreenProps) => {
 	const [suggestedRules, setSuggestedRules] = useState<FilterRule[]>([])
@@ -56,6 +59,30 @@ const InboxScreenInner = ({}: InboxScreenProps) => {
 	const { openMessage: openMessageInStore, closeMessage: closeMessageInStore } =
 		useMessageViewStore()
 	const queryClient = useQueryClient()
+
+	const {
+		results,
+		isLoading: searchLoading,
+		error: searchError,
+		rawQueryString,
+		isActive: isSearchActive,
+		search,
+		clear: clearSearch,
+	} = useAdvancedSearch(activeAccount?.id)
+
+	// Listen for search events from SearchBar
+	useEffect(() => {
+		const handleSearch = (e: Event) => {
+			const query = (e as CustomEvent<AdvancedSearchQuery | null>).detail
+			if (!query) {
+				clearSearch()
+			} else {
+				search(query)
+			}
+		}
+		window.addEventListener('postail:search', handleSearch)
+		return () => window.removeEventListener('postail:search', handleSearch)
+	}, [search, clearSearch])
 
 	const getMessagesList = useCallback(() => {
 		if (!activeAccount || !activeMailbox) return []
@@ -265,6 +292,18 @@ const InboxScreenInner = ({}: InboxScreenProps) => {
 							onDraftClick={(draft: ComposeDraft) => {
 								loadDraft(draft)
 								setIsComposeOpen(true)
+							}}
+						/>
+					) : isSearchActive ? (
+						<SearchResultsList
+							results={results}
+							isLoading={searchLoading}
+							error={searchError}
+							query={rawQueryString}
+							onMessageClick={(uid: number, mailbox: string) => {
+								setSelectedMessage({ uid, mailbox })
+								openMessageInStore(activeAccount!.id, mailbox, uid)
+								setFocusedUid(uid)
 							}}
 						/>
 					) : (

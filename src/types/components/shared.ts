@@ -1,9 +1,10 @@
 import type { AccountMeta } from '../accounts'
 import type { Mailbox } from '../mail'
+import type { AdvancedSearchQuery } from '@/components/TitleBar/SearchBar'
 
 export interface TitleBarProps {
 	isDashboard?: boolean
-	onSearch?: (query: string) => void
+	onSearch?: (query: AdvancedSearchQuery | null) => void
 	onOpenSettings?: () => void
 	onOpenOutbox?: () => void
 }

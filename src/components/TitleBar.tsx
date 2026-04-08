@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { platform } from '@tauri-apps/plugin-os'
-import { Search, Settings, Send, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Settings, Send, ChevronLeft, ChevronRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import icon from '@/assets/icon.png'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
@@ -12,17 +12,17 @@ import { useAccountStore } from '@/stores/accountStore'
 import { useMessageViewStore } from '@/stores/messageViewStore'
 import { AccountSwitcher } from './TitleBar/AccountSwitcher'
 import { NotificationCenter } from './TitleBar/NotificationCenter'
+import { SearchBar } from './TitleBar/SearchBar'
 import type { TitleBarProps } from '@/types/components/shared'
 
 export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }: TitleBarProps) {
 	const { activeAccount } = useAccountStore()
 	const { t } = useTypedTranslation()
+	void t
 	const { isSending } = useDraftStore()
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const animationsEnabled = useAnimationsEnabled()
 	const [isMobile, setIsMobile] = useState<boolean | null>(null)
-	const [searchQuery, setSearchQuery] = useState('')
-	const [searchFocused, setSearchFocused] = useState(false)
 	const titleMeta = useMessageViewStore((s) => s.titleMeta)
 	const selectedMessage = useMessageViewStore((s) => s.selectedMessage)
 	const isLoading = useMessageViewStore((s) => s.isLoading)
@@ -237,35 +237,9 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 										},
 										transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] },
 									}
-								: {})}>
-							<div className='pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3'>
-								<Search
-									className='h-4 w-4 transition-colors duration-200'
-									style={{
-										color: searchFocused ? accentColor : 'var(--text-tertiary)',
-									}}
-								/>
-							</div>
-							<input
-								type='text'
-								data-search-input
-								value={searchQuery}
-								onChange={(e) => {
-									setSearchQuery(e.target.value)
-									onSearch?.(e.target.value)
-								}}
-								onFocus={() => setSearchFocused(true)}
-								onBlur={() => setSearchFocused(false)}
-								onMouseDown={(e) => e.stopPropagation()}
-								placeholder={t('inbox:search.placeholder')}
-								className='h-9 w-full rounded-xl border bg-slate-100/50 pr-4 pl-9 text-sm text-slate-900 placeholder-slate-500 transition-all duration-300 focus:bg-white focus:outline-none dark:bg-white/5 dark:text-white dark:placeholder-slate-500 dark:focus:bg-slate-800/80'
-								style={{
-									borderColor: searchFocused ? accentColor : 'transparent',
-									boxShadow: searchFocused
-										? `0 0 0 1px ${accentColor}, 0 4px 16px ${accentColor}1A`
-										: 'none',
-								}}
-							/>
+								: {})}
+							onMouseDown={(e) => e.stopPropagation()}>
+							<SearchBar onSearch={onSearch!} />
 						</motion.div>
 					) : null}
 				</AnimatePresence>
