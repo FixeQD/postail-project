@@ -1,5 +1,6 @@
 use crate::db;
 use crate::globals::{IMAP_MANAGER, get_db_pool};
+use crate::imap::search::ImapSearchCriteria;
 use tauri::command;
 
 #[command]
@@ -54,6 +55,18 @@ pub async fn search_messages_advanced(
         )
         .map_err(|e| e.to_string())
     }
+}
+
+#[command]
+pub async fn imap_search_messages(
+    account_id: String,
+    mailbox: String,
+    criteria: ImapSearchCriteria,
+) -> Result<Vec<db::MailHeader>, String> {
+    let imap = IMAP_MANAGER.lock().await.clone();
+    imap.uid_search_messages(&account_id, &mailbox, &criteria)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[command]
