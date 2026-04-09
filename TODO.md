@@ -101,7 +101,7 @@
     - [x] 13.11 - UI: "Hide folder" option in account settings without unsubscribing
 
 - [ ] 14 - Advanced Search
-    - [ ] 14.1 - UI: Advanced search panel (from/to/subject/body/date range/has attachment/folder)
+    - [x] 14.1 - UI: Advanced search panel (from/to/subject/body/date range/has attachment/folder)
     - [x] 14.2 - Rust: IMAP SEARCH for server-side search when local FTS isn't enough
     - [ ] 14.3 - UI: Search operators in search field (from:, to:, subject:, before:, after:, has:attachment)
     - [ ] 14.4 - UI: Search history (last 20 queries in localStorage)
