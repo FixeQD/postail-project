@@ -21,6 +21,8 @@ import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAccountStore } from '@/stores/accountStore'
 import type { Mailbox } from '@/types/mail'
+import { parseSearchOperators, SEARCH_OPERATORS } from '@/lib/searchQueryParser'
+import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover'
 
 export interface AdvancedSearchQuery {
 	from?: string
@@ -113,9 +115,10 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 	}, [])
 
 	const handleSubmit = useCallback(() => {
+		const parsed = parseSearchOperators(rawInput)
 		const finalQuery: AdvancedSearchQuery = {
 			...query,
-			rawQuery: rawInput.trim() || query.rawQuery,
+			...parsed,
 		}
 
 		const isEmpty =
@@ -178,11 +181,67 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 		? { whileHover: { scale: 1.05 }, whileTap: { scale: 0.95 } }
 		: {}
 
+	const lastWord = rawInput.split(/\s+/).pop()?.toLowerCase() || ''
+	const isTypingOperator =
+		lastWord.length > 0 && SEARCH_OPERATORS.some((op) => op.startsWith(lastWord))
+
 	return (
 		<div
 			ref={containerRef}
 			className='relative w-full max-w-xl'
 			onMouseDown={(e) => e.stopPropagation()}>
+			<Popover
+				open={focused && !panelOpen && !hasActiveSearch && isTypingOperator}
+				onOpenChange={() => {}}>
+				<PopoverAnchor className='absolute top-10 left-0 w-full' />
+				<PopoverContent
+					className='w-[var(--radix-popover-trigger-width)] p-3 text-sm'
+					align='start'
+					onOpenAutoFocus={(e) => e.preventDefault()}
+					sideOffset={8}>
+					<div className='mb-2 font-medium text-slate-900 dark:text-white'>
+						{t('inbox:search.operatorHint')}
+					</div>
+					<div className='grid grid-cols-2 gap-2 text-slate-500 dark:text-slate-400'>
+						<div>
+							<kbd className='rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800'>
+								from:
+							</kbd>{' '}
+							{t('inbox:search.operators.sender')}
+						</div>
+						<div>
+							<kbd className='rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800'>
+								to:
+							</kbd>{' '}
+							{t('inbox:search.operators.recipient')}
+						</div>
+						<div>
+							<kbd className='rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800'>
+								subject:
+							</kbd>{' '}
+							{t('inbox:search.operators.title')}
+						</div>
+						<div>
+							<kbd className='rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800'>
+								has:attachment
+							</kbd>
+						</div>
+						<div>
+							<kbd className='rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800'>
+								before:
+							</kbd>{' '}
+							{t('inbox:search.operators.date')}
+						</div>
+						<div>
+							<kbd className='rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800'>
+								after:
+							</kbd>{' '}
+							{t('inbox:search.operators.date')}
+						</div>
+					</div>
+				</PopoverContent>
+			</Popover>
+
 			{/* Main input row */}
 			<div className='relative flex items-center gap-1.5'>
 				{/* Search input */}

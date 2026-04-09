@@ -16,6 +16,13 @@
 	},
 	"search": {
 		"placeholder": "Search in inbox...",
+		"operatorHint": "Available operators:",
+		"operators": {
+			"sender": "sender",
+			"recipient": "recipient",
+			"title": "title",
+			"date": "date"
+		},
 		"fields": {
 			"from": "From",
 			"to": "To",
