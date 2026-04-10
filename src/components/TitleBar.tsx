@@ -17,8 +17,6 @@ import type { TitleBarProps } from '@/types/components/shared'
 
 export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }: TitleBarProps) {
 	const { activeAccount } = useAccountStore()
-	const { t } = useTypedTranslation()
-	void t
 	const { isSending } = useDraftStore()
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const animationsEnabled = useAnimationsEnabled()

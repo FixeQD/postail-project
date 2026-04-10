@@ -19,19 +19,16 @@ interface SearchResultsListProps {
 const ResultRow = memo(function ResultRow({
 	result,
 	query,
-	accentColor,
 	animationsEnabled,
 	index,
 	onClick,
 }: {
 	result: SearchResult
 	query: string
-	accentColor: string
 	animationsEnabled: boolean
 	index: number
 	onClick: () => void
 }) {
-	void accentColor
 	const { t } = useTypedTranslation()
 
 	return (
@@ -151,7 +148,6 @@ export function SearchResultsList({
 							key={`${result.account_id}-${result.mailbox}-${result.uid}`}
 							result={result}
 							query={query}
-							accentColor={accentColor}
 							animationsEnabled={animationsEnabled}
 							index={i}
 							onClick={() => onMessageClick(result.uid, result.mailbox)}
