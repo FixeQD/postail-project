@@ -1,4 +1,4 @@
-import type { AdvancedSearchQuery } from '@/components/TitleBar/SearchBar'
+import type { AdvancedSearchQuery } from '@/types/search'
 
 export const SEARCH_OPERATORS = ['from:', 'to:', 'subject:', 'before:', 'after:', 'has:']
 

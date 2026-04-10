@@ -17,7 +17,7 @@ import { useAccountStore } from '@/stores/accountStore'
 import { SuggestRuleDialog } from '@/components/Inbox/SuggestRuleDialog'
 import { useAdvancedSearch } from '@/hooks/useAdvancedSearch'
 import { SearchResultsList } from '@/components/Inbox/Search/SearchResultsList'
-import type { AdvancedSearchQuery } from '@/components/TitleBar/SearchBar'
+import type { AdvancedSearchQuery } from '@/types/search'
 
 export const InboxScreen = (props: InboxScreenProps) => {
 	const [suggestedRules, setSuggestedRules] = useState<FilterRule[]>([])

@@ -1,6 +1,6 @@
 import type { AccountMeta } from '../accounts'
 import type { Mailbox } from '../mail'
-import type { AdvancedSearchQuery } from '@/components/TitleBar/SearchBar'
+import type { AdvancedSearchQuery } from '../search'
 
 export interface TitleBarProps {
 	isDashboard?: boolean

@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import type { SearchResult } from '@/types/mail'
-import type { AdvancedSearchQuery } from '@/components/TitleBar/SearchBar'
+import type { SearchResult, AdvancedSearchQuery } from '@/types/search'
 
 interface SearchState {
 	results: SearchResult[]

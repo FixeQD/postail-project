@@ -59,16 +59,3 @@ export interface ThreadMessage {
 export interface ThreadView {
 	messages: ThreadMessage[]
 }
-
-export interface SearchResult {
-	message_id: number
-	account_id: string
-	mailbox: string
-	uid: number
-	subject?: string
-	from_addr?: string
-	snippet?: string
-	rank: number
-	has_attachments: boolean
-	date: number
-}

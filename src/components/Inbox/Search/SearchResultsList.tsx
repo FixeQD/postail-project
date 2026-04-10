@@ -6,7 +6,7 @@ import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useThemeStore } from '@/stores/themeStore'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { HighlightedText } from './HighlightedText'
-import type { SearchResult } from '@/types/mail'
+import type { SearchResult } from '@/types/search'
 
 interface SearchResultsListProps {
 	results: SearchResult[]
