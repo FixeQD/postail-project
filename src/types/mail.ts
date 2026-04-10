@@ -69,7 +69,6 @@ export interface SearchResult {
 	from_addr?: string
 	snippet?: string
 	rank: number
-	// Client-side extras
-	has_attachments?: boolean
-	date?: string
+	has_attachments: boolean
+	date: number
 }

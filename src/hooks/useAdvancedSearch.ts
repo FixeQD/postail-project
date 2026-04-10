@@ -53,11 +53,11 @@ export function useAdvancedSearch(accountId: string | undefined) {
 					if (query.hasAttachment === true && !r.has_attachments) return false
 					if (query.dateFrom) {
 						const from = new Date(query.dateFrom).getTime()
-						if (new Date(r.date ?? 0).getTime() < from) return false
+						if (r.date < from) return false
 					}
 					if (query.dateTo) {
 						const to = new Date(query.dateTo).getTime() + 86_400_000
-						if (new Date(r.date ?? 0).getTime() > to) return false
+						if (r.date > to) return false
 					}
 					return true
 				})

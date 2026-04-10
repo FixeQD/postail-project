@@ -13,6 +13,8 @@ pub struct SearchResult {
     pub from_addr: Option<String>,
     pub snippet: Option<String>,
     pub rank: f64,
+    pub has_attachments: bool,
+    pub date: i64,
 }
 
 pub fn escape_fts_query(query: &str) -> String {
@@ -128,7 +130,7 @@ pub fn search_messages(
 
     let sql = format!(
         "SELECT m.id, m.account_id, m.mailbox, m.uid, m.subject, m.from_addr,
-                m.snippet, messages_fts.rank
+                m.snippet, messages_fts.rank, m.has_attachments, m.internal_date
          FROM messages_fts
          JOIN messages m ON messages_fts.rowid = m.id
          WHERE messages_fts MATCH ? {}
@@ -151,6 +153,8 @@ pub fn search_messages(
             from_addr: row.get(5)?,
             snippet: row.get(6)?,
             rank: row.get(7)?,
+            has_attachments: row.get(8)?,
+            date: row.get(9)?,
         })
     })?;
 
@@ -177,7 +181,7 @@ pub fn search_messages_advanced(
 
     let sql = format!(
         "SELECT m.id, m.account_id, m.mailbox, m.uid, m.subject, m.from_addr,
-                m.snippet, messages_fts.rank
+                m.snippet, messages_fts.rank, m.has_attachments, m.internal_date
          FROM messages_fts
          JOIN messages m ON messages_fts.rowid = m.id
          WHERE messages_fts MATCH ? {}
@@ -200,6 +204,8 @@ pub fn search_messages_advanced(
             from_addr: row.get(5)?,
             snippet: row.get(6)?,
             rank: row.get(7)?,
+            has_attachments: row.get(8)?,
+            date: row.get(9)?,
         })
     })?;
 
@@ -226,7 +232,7 @@ fn run_body_search(
 
     let sql = format!(
         "SELECT m.id, m.account_id, m.mailbox, m.uid, m.subject, m.from_addr,
-                m.snippet, bf.rank
+                m.snippet, bf.rank, m.has_attachments, m.internal_date
          FROM message_bodies_fts bf
          JOIN messages m ON bf.rowid = m.id
          WHERE bf MATCH ? {}
@@ -249,6 +255,8 @@ fn run_body_search(
             from_addr: row.get(5)?,
             snippet: row.get(6)?,
             rank: row.get(7)?,
+            has_attachments: row.get(8)?,
+            date: row.get(9)?,
         })
     })?;
 

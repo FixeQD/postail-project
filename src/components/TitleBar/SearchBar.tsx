@@ -60,6 +60,8 @@ export interface SearchResult {
 	from_addr?: string
 	snippet?: string
 	rank: number
+	has_attachments: boolean
+	date: number
 }
 
 interface SearchBarProps {
