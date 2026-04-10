@@ -26,8 +26,9 @@ export function useAdvancedSearch(accountId: string | undefined) {
 
 			const parts: string[] = []
 			if (query.rawQuery?.trim()) parts.push(query.rawQuery.trim())
-			if (query.subject?.trim()) parts.push(query.subject.trim())
-			if (query.from?.trim()) parts.push(query.from.trim())
+			if (query.subject?.trim()) parts.push(`subject:"${query.subject.trim()}"`)
+			if (query.from?.trim()) parts.push(`from_addr:"${query.from.trim()}"`)
+			if (query.to?.trim()) parts.push(`"${query.to.trim()}"`)
 			const rawQueryString = parts.join(' ')
 
 			setState((prev) => ({
