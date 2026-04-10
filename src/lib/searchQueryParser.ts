@@ -26,43 +26,47 @@ export function parseSearchOperators(input: string): AdvancedSearchQuery {
 		if (currentOp === 'subject:') {
 			query.subject = query.subject ? `${query.subject} ${trimmed}` : trimmed
 			currentOp = null
-		} else if (currentOp === 'from:') {
-			const words = trimmed.split(/\s+/)
-			query.from = words[0]
-			if (words.length > 1) {
-				rawQuery += (rawQuery ? ' ' : '') + words.slice(1).join(' ')
-			}
-			currentOp = null
-		} else if (currentOp === 'to:') {
-			const words = trimmed.split(/\s+/)
-			query.to = words[0]
-			if (words.length > 1) {
-				rawQuery += (rawQuery ? ' ' : '') + words.slice(1).join(' ')
-			}
-			currentOp = null
-		} else if (currentOp === 'before:') {
-			const words = trimmed.split(/\s+/)
-			query.dateTo = words[0]
-			if (words.length > 1) {
-				rawQuery += (rawQuery ? ' ' : '') + words.slice(1).join(' ')
-			}
-			currentOp = null
-		} else if (currentOp === 'after:') {
-			const words = trimmed.split(/\s+/)
-			query.dateFrom = words[0]
-			if (words.length > 1) {
-				rawQuery += (rawQuery ? ' ' : '') + words.slice(1).join(' ')
-			}
-			currentOp = null
-		} else if (currentOp === 'has:') {
-			const words = trimmed.split(/\s+/)
-			if (words[0].toLowerCase() === 'attachment') {
-				query.hasAttachment = true
+		} else if (
+			currentOp === 'from:' ||
+			currentOp === 'to:' ||
+			currentOp === 'before:' ||
+			currentOp === 'after:' ||
+			currentOp === 'has:'
+		) {
+			let val = ''
+			let rem = ''
+
+			if (trimmed.startsWith('"')) {
+				const endQuote = trimmed.indexOf('"', 1)
+				if (endQuote !== -1) {
+					val = trimmed.substring(1, endQuote)
+					rem = trimmed.substring(endQuote + 1).trim()
+				} else {
+					const words = trimmed.split(/\s+/)
+					val = words[0]
+					rem = words.slice(1).join(' ')
+				}
 			} else {
-				rawQuery += (rawQuery ? ' ' : '') + 'has:' + words[0]
+				const words = trimmed.split(/\s+/)
+				val = words[0]
+				rem = words.slice(1).join(' ')
 			}
-			if (words.length > 1) {
-				rawQuery += (rawQuery ? ' ' : '') + words.slice(1).join(' ')
+
+			if (currentOp === 'from:') query.from = val
+			else if (currentOp === 'to:') query.to = val
+			else if (currentOp === 'before:') query.dateTo = val
+			else if (currentOp === 'after:') query.dateFrom = val
+			else if (currentOp === 'has:') {
+				if (val.toLowerCase() === 'attachment') {
+					query.hasAttachment = true
+				} else {
+					rem = val + (rem ? ' ' + rem : '')
+					rawQuery += (rawQuery ? ' ' : '') + 'has:'
+				}
+			}
+
+			if (rem) {
+				rawQuery += (rawQuery ? ' ' : '') + rem
 			}
 			currentOp = null
 		} else {
