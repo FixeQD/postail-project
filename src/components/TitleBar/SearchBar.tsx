@@ -15,8 +15,11 @@ import {
 	Loader2,
 	ChevronDown,
 	Clock,
+	Bookmark,
+	Trash2,
+	Check,
 } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useThemeStore } from '@/stores/themeStore'
@@ -36,6 +39,16 @@ export interface AdvancedSearchQuery {
 	hasAttachment?: boolean
 	folder?: string
 	rawQuery?: string
+}
+
+export interface SavedSearch {
+	id: string
+	account_id: string
+	name: string
+	query_json: string
+	icon: string
+	position: number
+	created_at: number
 }
 
 export interface SearchResult {
@@ -70,6 +83,7 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const animationsEnabled = useAnimationsEnabled()
 	const { activeAccount } = useAccountStore()
+	const queryClient = useQueryClient()
 
 	const [focused, setFocused] = useState(false)
 	const [rawInput, setRawInput] = useState('')
@@ -78,6 +92,10 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 	const [hasActiveSearch, setHasActiveSearch] = useState(false)
 	const [historyOpen, setHistoryOpen] = useState(false)
 
+	const [isSaveMode, setIsSaveMode] = useState(false)
+	const [saveName, setSaveName] = useState('')
+	const [isSaving, setIsSaving] = useState(false)
+
 	const {
 		queries: searchHistory,
 		addQuery: addToHistory,
@@ -85,7 +103,15 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 		clearHistory,
 	} = useSearchHistory()
 
+	const { data: savedSearches = [] } = useQuery<SavedSearch[]>({
+		queryKey: ['saved_searches', activeAccount?.id],
+		queryFn: () =>
+			invoke<SavedSearch[]>('get_saved_searches', { accountId: activeAccount!.id }),
+		enabled: !!activeAccount?.id,
+	})
+
 	const inputRef = useRef<HTMLInputElement>(null)
+	const saveInputRef = useRef<HTMLInputElement>(null)
 	const containerRef = useRef<HTMLDivElement>(null)
 
 	const { data: mailboxes } = useQuery<Mailbox[]>({
@@ -94,18 +120,19 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 		enabled: !!activeAccount?.id && panelOpen,
 	})
 
-	// Close panel on outside click
+	const hasDropdownItems = searchHistory.length > 0 || savedSearches.length > 0
+
 	useEffect(() => {
 		function handleClick(e: MouseEvent) {
 			if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
 				setPanelOpen(false)
+				setIsSaveMode(false)
 			}
 		}
 		document.addEventListener('mousedown', handleClick)
 		return () => document.removeEventListener('mousedown', handleClick)
 	}, [])
 
-	// Keyboard: Escape clears, Cmd+F focuses
 	useEffect(() => {
 		function handleKey(e: KeyboardEvent) {
 			if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
@@ -117,17 +144,23 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 		return () => window.removeEventListener('keydown', handleKey)
 	}, [])
 
+	useEffect(() => {
+		if (isSaveMode) {
+			setTimeout(() => saveInputRef.current?.focus(), 50)
+		}
+	}, [isSaveMode])
+
 	const handleInputChange = useCallback(
 		(value: string) => {
 			setRawInput(value)
 			if (!value.trim()) {
 				setQuery({})
-				if (searchHistory.length > 0) setHistoryOpen(true)
+				if (hasDropdownItems) setHistoryOpen(true)
 			} else {
 				setHistoryOpen(false)
 			}
 		},
-		[searchHistory.length]
+		[hasDropdownItems]
 	)
 
 	const handleSubmit = useCallback(() => {
@@ -152,6 +185,7 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 		setHasActiveSearch(true)
 		setPanelOpen(false)
 		setHistoryOpen(false)
+		setIsSaveMode(false)
 		addToHistory(rawInput.trim())
 		onSearch(finalQuery)
 		window.dispatchEvent(new CustomEvent('postail:search', { detail: finalQuery }))
@@ -163,6 +197,8 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 		setHasActiveSearch(false)
 		setPanelOpen(false)
 		setHistoryOpen(false)
+		setIsSaveMode(false)
+		setSaveName('')
 		onSearch(null)
 		window.dispatchEvent(new CustomEvent('postail:search', { detail: null }))
 		inputRef.current?.blur()
@@ -184,6 +220,68 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 			setQuery((prev) => ({ ...prev, [field]: value }))
 		},
 		[]
+	)
+
+	const handleActivateSavedSearch = useCallback(
+		(saved: SavedSearch) => {
+			try {
+				const parsedQuery = JSON.parse(saved.query_json) as AdvancedSearchQuery
+				setRawInput(saved.name)
+				setHasActiveSearch(true)
+				setHistoryOpen(false)
+				setPanelOpen(false)
+				onSearch(parsedQuery)
+				window.dispatchEvent(
+					new CustomEvent('postail:activateSavedSearch', {
+						detail: { id: saved.id, name: saved.name, query: parsedQuery },
+					})
+				)
+			} catch {
+				// malformed query_json
+			}
+		},
+		[onSearch]
+	)
+
+	const handleSaveSearch = useCallback(async () => {
+		if (!activeAccount?.id || !saveName.trim() || isSaving) return
+
+		const parsed = parseSearchOperators(rawInput)
+		const finalQuery: AdvancedSearchQuery = { ...query, ...parsed }
+		const queryJson = JSON.stringify(finalQuery)
+
+		setIsSaving(true)
+		try {
+			await invoke('create_saved_search', {
+				accountId: activeAccount.id,
+				name: saveName.trim(),
+				queryJson,
+				icon: 'bookmark',
+			})
+			await queryClient.invalidateQueries({
+				queryKey: ['saved_searches', activeAccount.id],
+			})
+			setIsSaveMode(false)
+			setSaveName('')
+		} finally {
+			setIsSaving(false)
+		}
+	}, [activeAccount?.id, saveName, rawInput, query, isSaving, queryClient])
+
+	const handleDeleteSavedSearch = useCallback(
+		async (e: React.MouseEvent, saved: SavedSearch) => {
+			e.stopPropagation()
+			if (!activeAccount?.id) return
+			try {
+				await invoke('delete_saved_search', { id: saved.id, accountId: activeAccount.id })
+				await queryClient.invalidateQueries({
+					queryKey: ['saved_searches', activeAccount.id],
+				})
+			} catch {
+				// ignore
+			}
+		},
+		[activeAccount?.id, queryClient]
 	)
 
 	const hasAdvancedFilled =
@@ -263,7 +361,6 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 
 			{/* Main input row */}
 			<div className='relative flex items-center gap-1.5'>
-				{/* Search input */}
 				<div className='relative flex-1'>
 					<div className='pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3'>
 						{isSearching ? (
@@ -298,11 +395,10 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 						onChange={(e) => handleInputChange(e.target.value)}
 						onFocus={() => {
 							setFocused(true)
-							if (!rawInput.trim() && searchHistory.length > 0) setHistoryOpen(true)
+							if (!rawInput.trim() && hasDropdownItems) setHistoryOpen(true)
 						}}
 						onBlur={() => {
 							setFocused(false)
-							// Delay so clicks on history items register first
 							setTimeout(() => setHistoryOpen(false), 150)
 						}}
 						onKeyDown={handleKeyDown}
@@ -322,9 +418,9 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 						}}
 					/>
 
-					{/* History dropdown */}
+					{/* History + Saved Searches dropdown */}
 					<AnimatePresence>
-						{historyOpen && !rawInput && searchHistory.length > 0 && (
+						{historyOpen && !rawInput && hasDropdownItems && (
 							<motion.div
 								key='history'
 								initial={
@@ -337,47 +433,100 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 								style={{
 									boxShadow: `0 8px 32px rgba(0,0,0,0.2), 0 0 0 1px var(--border-subtle)`,
 								}}>
-								<div className='flex items-center justify-between px-3 py-1.5'>
-									<span className='text-[10px] font-semibold tracking-wider text-[var(--text-tertiary)] uppercase'>
-										{t('inbox:search.history.title')}
-									</span>
-									<button
-										type='button'
-										onClick={clearHistory}
-										className='text-[10px] text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-secondary)]'>
-										{t('inbox:search.history.clearAll')}
-									</button>
-								</div>
-								{searchHistory.map((q) => (
-									<div key={q} className='group flex items-center gap-2 px-2'>
-										<button
-											type='button'
-											onMouseDown={(e) => {
-												e.preventDefault()
-												setRawInput(q)
-												setHistoryOpen(false)
-												setTimeout(() => inputRef.current?.focus(), 0)
-											}}
-											className='flex flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
-											<Clock className='h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]' />
-											<span className='truncate'>{q}</span>
-										</button>
-										<button
-											type='button'
-											onMouseDown={(e) => {
-												e.preventDefault()
-												removeFromHistory(q)
-											}}
-											className='hidden h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--text-tertiary)] transition-colors group-hover:flex hover:text-[var(--text-primary)]'>
-											<X className='h-3 w-3' />
-										</button>
-									</div>
-								))}
+								{/* Recent searches */}
+								{searchHistory.length > 0 && (
+									<>
+										<div className='flex items-center justify-between px-3 py-1.5'>
+											<span className='text-[10px] font-semibold tracking-wider text-[var(--text-tertiary)] uppercase'>
+												{t('inbox:search.history.title')}
+											</span>
+											<button
+												type='button'
+												onClick={clearHistory}
+												className='text-[10px] text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-secondary)]'>
+												{t('inbox:search.history.clearAll')}
+											</button>
+										</div>
+										{searchHistory.map((q) => (
+											<div
+												key={q}
+												className='group flex items-center gap-2 px-2'>
+												<button
+													type='button'
+													onMouseDown={(e) => {
+														e.preventDefault()
+														setRawInput(q)
+														setHistoryOpen(false)
+														setTimeout(
+															() => inputRef.current?.focus(),
+															0
+														)
+													}}
+													className='flex flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
+													<Clock className='h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]' />
+													<span className='truncate'>{q}</span>
+												</button>
+												<button
+													type='button'
+													onMouseDown={(e) => {
+														e.preventDefault()
+														removeFromHistory(q)
+													}}
+													className='hidden h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--text-tertiary)] transition-colors group-hover:flex hover:text-[var(--text-primary)]'>
+													<X className='h-3 w-3' />
+												</button>
+											</div>
+										))}
+									</>
+								)}
+
+								{/* Separator between history and saved searches */}
+								{searchHistory.length > 0 && savedSearches.length > 0 && (
+									<div className='mx-3 my-1 border-t border-[var(--border-subtle)]' />
+								)}
+
+								{/* Saved searches */}
+								{savedSearches.length > 0 && (
+									<>
+										<div className='px-3 py-1.5'>
+											<span className='text-[10px] font-semibold tracking-wider text-[var(--text-tertiary)] uppercase'>
+												{t('inbox:search.savedSearches.title')}
+											</span>
+										</div>
+										{savedSearches.map((saved) => (
+											<div
+												key={saved.id}
+												className='group flex items-center gap-2 px-2'>
+												<button
+													type='button'
+													onMouseDown={(e) => {
+														e.preventDefault()
+														handleActivateSavedSearch(saved)
+													}}
+													className='flex flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
+													<Bookmark
+														className='h-3.5 w-3.5 shrink-0'
+														style={{ color: accentColor }}
+													/>
+													<span className='truncate'>{saved.name}</span>
+												</button>
+												<button
+													type='button'
+													onMouseDown={(e) =>
+														handleDeleteSavedSearch(e, saved)
+													}
+													className='hidden h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--text-tertiary)] transition-colors group-hover:flex hover:text-red-400'>
+													<Trash2 className='h-3 w-3' />
+												</button>
+											</div>
+										))}
+									</>
+								)}
 							</motion.div>
 						)}
 					</AnimatePresence>
 
-					{/* Clear + Advanced toggle inside input */}
+					{/* Clear + Save + Advanced toggle inside input */}
 					<div className='absolute inset-y-0 right-0 flex items-center gap-0.5 pr-1.5'>
 						<AnimatePresence>
 							{(rawInput || hasActiveSearch) && (
@@ -390,6 +539,24 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 									transition={{ duration: 0.15 }}
 									className='flex h-5 w-5 items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)]'>
 									<X className='h-3 w-3' />
+								</motion.button>
+							)}
+						</AnimatePresence>
+
+						<AnimatePresence>
+							{hasActiveSearch && (
+								<motion.button
+									type='button'
+									onClick={() => setIsSaveMode((o) => !o)}
+									initial={animationsEnabled ? { opacity: 0, scale: 0.7 } : {}}
+									animate={animationsEnabled ? { opacity: 1, scale: 1 } : {}}
+									exit={animationsEnabled ? { opacity: 0, scale: 0.7 } : {}}
+									transition={{ duration: 0.15 }}
+									className='flex h-5 w-5 items-center justify-center rounded-full transition-colors hover:bg-[var(--surface-active)]'
+									style={{
+										color: isSaveMode ? accentColor : 'var(--text-tertiary)',
+									}}>
+									<Bookmark className='h-3 w-3' />
 								</motion.button>
 							)}
 						</AnimatePresence>
@@ -413,6 +580,64 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 						</motion.button>
 					</div>
 				</div>
+
+				{/* Save-mode name input dropdown */}
+				<AnimatePresence>
+					{isSaveMode && (
+						<motion.div
+							key='save-dropdown'
+							initial={animationsEnabled ? { opacity: 0, y: -4, scale: 0.98 } : {}}
+							animate={animationsEnabled ? { opacity: 1, y: 0, scale: 1 } : {}}
+							exit={animationsEnabled ? { opacity: 0, y: -4, scale: 0.98 } : {}}
+							transition={{ duration: 0.15, ease: EASE_OUT_EXPO }}
+							className='glass absolute top-[calc(100%+4px)] right-0 z-50 flex items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] px-2 py-2 shadow-xl backdrop-blur-xl'
+							style={{
+								boxShadow: `0 8px 32px rgba(0,0,0,0.2), 0 0 0 1px var(--border-subtle)`,
+							}}
+							onMouseDown={(e) => e.stopPropagation()}>
+							<Bookmark
+								className='h-3.5 w-3.5 shrink-0'
+								style={{ color: accentColor }}
+							/>
+							<input
+								ref={saveInputRef}
+								type='text'
+								value={saveName}
+								onChange={(e) => setSaveName(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === 'Enter') handleSaveSearch()
+									if (e.key === 'Escape') {
+										setIsSaveMode(false)
+										setSaveName('')
+									}
+								}}
+								placeholder={t('inbox:search.savedSearches.namePlaceholder')}
+								className='h-7 w-40 bg-transparent pl-1 text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none'
+							/>
+							<button
+								type='button'
+								onClick={handleSaveSearch}
+								disabled={!saveName.trim() || isSaving}
+								className='flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition-colors disabled:opacity-40'
+								style={{ backgroundColor: accentColor, color: 'white' }}>
+								{isSaving ? (
+									<Loader2 className='h-3 w-3 animate-spin' />
+								) : (
+									<Check className='h-3 w-3' />
+								)}
+							</button>
+							<button
+								type='button'
+								onClick={() => {
+									setIsSaveMode(false)
+									setSaveName('')
+								}}
+								className='flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)]'>
+								<X className='h-3 w-3' />
+							</button>
+						</motion.div>
+					)}
+				</AnimatePresence>
 			</div>
 
 			{/* Advanced panel */}
@@ -598,15 +823,18 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 								className='text-xs text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-secondary)]'>
 								{t('inbox:search.actions.clear')}
 							</button>
-							<motion.button
-								type='button'
-								onClick={handleSubmit}
-								{...motionProps}
-								className='flex h-8 items-center gap-2 rounded-xl px-4 text-xs font-semibold text-white transition-all'
-								style={{ backgroundColor: accentColor }}>
-								<Search className='h-3.5 w-3.5' />
-								{t('inbox:search.actions.search')}
-							</motion.button>
+
+							<div className='flex items-center gap-2'>
+								<motion.button
+									type='button'
+									onClick={handleSubmit}
+									{...motionProps}
+									className='flex h-8 items-center gap-2 rounded-xl px-4 text-xs font-semibold text-white transition-all'
+									style={{ backgroundColor: accentColor }}>
+									<Search className='h-3.5 w-3.5' />
+									{t('inbox:search.actions.search')}
+								</motion.button>
+							</div>
 						</div>
 					</motion.div>
 				)}

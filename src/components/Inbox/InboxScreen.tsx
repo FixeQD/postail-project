@@ -84,6 +84,19 @@ const InboxScreenInner = ({}: InboxScreenProps) => {
 		return () => window.removeEventListener('postail:search', handleSearch)
 	}, [search, clearSearch])
 
+	// Listen for saved search activation from SearchBar
+	useEffect(() => {
+		const handleActivateSavedSearch = (e: Event) => {
+			const { query } = (
+				e as CustomEvent<{ id: string; name: string; query: AdvancedSearchQuery }>
+			).detail
+			search(query)
+		}
+		window.addEventListener('postail:activateSavedSearch', handleActivateSavedSearch)
+		return () =>
+			window.removeEventListener('postail:activateSavedSearch', handleActivateSavedSearch)
+	}, [search])
+
 	const getMessagesList = useCallback(() => {
 		if (!activeAccount || !activeMailbox) return []
 		const data = queryClient.getQueryData<{ pages: MailHeader[][] }>([

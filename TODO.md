@@ -100,12 +100,12 @@
     - [x] 13.10 - IMAP: Subscribe/unsubscribe folders (SUBSCRIBE/UNSUBSCRIBE)
     - [x] 13.11 - UI: "Hide folder" option in account settings without unsubscribing
 
-- [ ] 14 - Advanced Search
+- [x] 14 - Advanced Search
     - [x] 14.1 - UI: Advanced search panel (from/to/subject/body/date range/has attachment/folder)
     - [x] 14.2 - Rust: IMAP SEARCH for server-side search when local FTS isn't enough
     - [x] 14.3 - UI: Search operators in search field (from:, to:, subject:, before:, after:, has:attachment)
     - [x] 14.4 - UI: Search history (last 20 queries in localStorage)
-    - [ ] 14.5 - UI: Saved searches as virtual mailboxes in ~~in sidebar~~ under search history
+    - [x] 14.5 - UI: Saved searches as virtual mailboxes in ~~in sidebar~~ under search history
     - [x] 14.6 - DB: `saved_searches` table (name, query, icon)
     - [x] 14.7 - UI: Highlight matching fragments in search results
     - [x] 14.8 - Rust: Full-text search in message body via FTS5

@@ -36,7 +36,12 @@
 		},
 		"actions": {
 			"search": "Search",
-			"clear": "Clear"
+			"clear": "Clear",
+			"save": "Save search"
+		},
+		"savedSearches": {
+			"title": "Saved searches",
+			"namePlaceholder": "Search name…"
 		},
 		"results": {
 			"empty": "No messages found",
