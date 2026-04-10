@@ -211,7 +211,7 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 								</AnimatePresence>
 							</div>
 						</motion.div>
-					) : isDashboard ? (
+					) : isDashboard && onSearch ? (
 						<motion.div
 							key='search'
 							className='relative w-full max-w-xl'
@@ -239,7 +239,7 @@ export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }
 									}
 								: {})}
 							onMouseDown={(e) => e.stopPropagation()}>
-							<SearchBar onSearch={onSearch!} />
+							<SearchBar onSearch={onSearch} />
 						</motion.div>
 					) : null}
 				</AnimatePresence>
