@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format, isToday, isYesterday, isThisYear } from 'date-fns'
-import { Search, Paperclip } from 'lucide-react'
+import { Search, Paperclip, Loader2, AlertCircle } from 'lucide-react'
 
 // Keep unused imports
 void format
@@ -82,10 +82,39 @@ const ResultRow = memo(function ResultRow({
 	)
 })
 
-export function SearchResultsList({ results, query, onMessageClick }: SearchResultsListProps) {
+export function SearchResultsList({
+	results,
+	isLoading,
+	error,
+	query,
+	onMessageClick,
+}: SearchResultsListProps) {
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const animationsEnabled = useAnimationsEnabled()
 	const { t } = useTypedTranslation()
+
+	if (isLoading) {
+		return (
+			<motion.div
+				initial={animationsEnabled ? { opacity: 0 } : {}}
+				animate={animationsEnabled ? { opacity: 1 } : {}}
+				className='flex h-full flex-col items-center justify-center gap-3 text-[var(--text-tertiary)]'>
+				<Loader2 className='h-6 w-6 animate-spin' style={{ color: accentColor }} />
+			</motion.div>
+		)
+	}
+
+	if (error) {
+		return (
+			<motion.div
+				initial={animationsEnabled ? { opacity: 0 } : {}}
+				animate={animationsEnabled ? { opacity: 1 } : {}}
+				className='flex h-full flex-col items-center justify-center gap-2 p-6 text-center'>
+				<AlertCircle className='h-6 w-6 text-red-400' />
+				<p className='text-sm font-medium text-red-400'>{error}</p>
+			</motion.div>
+		)
+	}
 
 	if (!results.length) {
 		return (
