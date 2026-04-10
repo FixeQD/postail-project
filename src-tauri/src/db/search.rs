@@ -264,7 +264,7 @@ fn run_body_search(
     results.map_err(DBError::Sqlite)
 }
 
-/// Search across header fields and/or body. Merges and deduplicates by message_id, keeping the best rank (closest to 0) when a message matches in both
+/// Search across header fields and/or body. Merges and deduplicates by message_id, keeping the highest rank when a message matches in both
 pub fn search_messages_with_body(
     conn: &Connection,
     account_id: Option<&str>,
@@ -289,8 +289,8 @@ pub fn search_messages_with_body(
         for r in body_results {
             seen.entry(r.message_id)
                 .and_modify(|existing| {
-                    // closer to 0 = worse, more negative = better
-                    if r.rank < existing.rank {
+                    // closer to 0 = better
+                    if r.rank > existing.rank {
                         existing.rank = r.rank;
                     }
                 })
@@ -299,10 +299,10 @@ pub fn search_messages_with_body(
     }
 
     let mut results: Vec<SearchResult> = seen.into_values().collect();
-    // sort DESC: rank is negative, so sort ascending by rank gives most-negative first
+    // sort DESC: to match the SQL ORDER BY rank DESC used in the search queries
     results.sort_by(|a, b| {
-        a.rank
-            .partial_cmp(&b.rank)
+        b.rank
+            .partial_cmp(&a.rank)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     results.truncate(limit as usize);
