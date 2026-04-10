@@ -25,12 +25,13 @@ export const HighlightedText = memo(function HighlightedText({
 	}
 
 	const regex = new RegExp(`(${terms.join('|')})`, 'gi')
+	const matchRegex = new RegExp(`^(${terms.join('|')})$`, 'i')
 	const parts = text.split(regex)
 
 	return (
 		<span className={className}>
 			{parts.map((part, i) =>
-				regex.test(part) ? (
+				matchRegex.test(part) ? (
 					<mark
 						key={i}
 						className='rounded-[2px] bg-yellow-300/30 text-inherit dark:bg-yellow-500/25'>
