@@ -27,9 +27,15 @@ fn to_imap_date(iso: &str) -> Option<String> {
         return None;
     }
     let year = parts[0];
-    let month: usize = parts[1].parse::<usize>().ok()?.saturating_sub(1);
+    let month: usize = parts[1].parse::<usize>().ok()?;
+    if !(1..=12).contains(&month) {
+        return None;
+    }
     let day: u32 = parts[2].parse().ok()?;
-    let month_name = IMAP_MONTHS.get(month)?;
+    if !(1..=31).contains(&day) {
+        return None;
+    }
+    let month_name = IMAP_MONTHS.get(month - 1)?;
     Some(format!("{:02}-{}-{}", day, month_name, year))
 }
 
