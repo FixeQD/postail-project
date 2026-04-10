@@ -107,7 +107,7 @@
     - [x] 14.4 - UI: Search history (last 20 queries in localStorage)
     - [ ] 14.5 - UI: Saved searches as virtual mailboxes in sidebar
     - [x] 14.6 - DB: `saved_searches` table (name, query, icon)
-    - [ ] 14.7 - UI: Highlight matching fragments in search results
+    - [x] 14.7 - UI: Highlight matching fragments in search results
     - [x] 14.8 - Rust: Full-text search in message body via FTS5
 
 - [ ] 15 - Templates & Signatures

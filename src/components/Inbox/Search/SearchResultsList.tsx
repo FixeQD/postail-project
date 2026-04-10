@@ -12,6 +12,7 @@ void Paperclip
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useThemeStore } from '@/stores/themeStore'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
+import { HighlightedText } from './HighlightedText'
 import type { SearchResult } from '@/types/mail'
 
 interface SearchResultsListProps {
@@ -20,32 +21,6 @@ interface SearchResultsListProps {
 	error?: string | null
 	query: string
 	onMessageClick: (uid: number, mailbox: string) => void
-}
-
-function highlightTerms(text: string, query: string): React.ReactNode {
-	if (!query.trim()) return text
-
-	const terms = query
-		.split(/\s+/)
-		.filter((t) => t.length > 2 && !t.includes(':'))
-		.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-
-	if (!terms.length) return text
-
-	const regex = new RegExp(`(${terms.join('|')})`, 'gi')
-	const parts = text.split(regex)
-
-	return parts.map((part, i) =>
-		regex.test(part) ? (
-			<mark
-				key={i}
-				className='rounded-[2px] bg-yellow-300/30 text-inherit dark:bg-yellow-500/25'>
-				{part}
-			</mark>
-		) : (
-			part
-		)
-	)
 }
 
 const ResultRow = memo(function ResultRow({
@@ -81,9 +56,11 @@ const ResultRow = memo(function ResultRow({
 			className='flex w-full flex-col gap-1 rounded-xl px-4 py-3 text-left transition-colors'>
 			<div className='flex items-start justify-between gap-2'>
 				<p className='min-w-0 flex-1 truncate text-sm font-medium text-[var(--text-primary)]'>
-					{result.subject
-						? highlightTerms(result.subject, query)
-						: t('inbox:messageView.noSubject')}
+					{result.subject ? (
+						<HighlightedText text={result.subject} query={query} />
+					) : (
+						t('inbox:messageView.noSubject')
+					)}
 				</p>
 				<span className='shrink-0 text-[11px] text-[var(--text-tertiary)]'>
 					{result.mailbox}
@@ -92,13 +69,13 @@ const ResultRow = memo(function ResultRow({
 
 			{result.from_addr && (
 				<p className='truncate text-xs text-[var(--text-secondary)]'>
-					{highlightTerms(result.from_addr, query)}
+					<HighlightedText text={result.from_addr} query={query} />
 				</p>
 			)}
 
 			{result.snippet && (
 				<p className='line-clamp-2 text-xs leading-relaxed text-[var(--text-tertiary)]'>
-					{highlightTerms(result.snippet, query)}
+					<HighlightedText text={result.snippet} query={query} />
 				</p>
 			)}
 		</motion.button>
