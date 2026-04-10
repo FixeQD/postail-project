@@ -134,7 +134,7 @@ pub fn search_messages(
          FROM messages_fts
          JOIN messages m ON messages_fts.rowid = m.id
          WHERE messages_fts MATCH ? {}
-         ORDER BY rank DESC LIMIT ?",
+         ORDER BY rank ASC LIMIT ?",
         where_clause
     );
 
@@ -185,7 +185,7 @@ pub fn search_messages_advanced(
          FROM messages_fts
          JOIN messages m ON messages_fts.rowid = m.id
          WHERE messages_fts MATCH ? {}
-         ORDER BY rank DESC LIMIT ?",
+         ORDER BY rank ASC LIMIT ?",
         where_clause
     );
 
@@ -236,7 +236,7 @@ fn run_body_search(
          FROM message_bodies_fts bf
          JOIN messages m ON bf.rowid = m.id
          WHERE bf MATCH ? {}
-         ORDER BY bf.rank DESC LIMIT ?",
+         ORDER BY bf.rank ASC LIMIT ?",
         where_clause
     );
 
@@ -264,7 +264,7 @@ fn run_body_search(
     results.map_err(DBError::Sqlite)
 }
 
-/// Search across header fields and/or body. Merges and deduplicates by message_id, keeping the highest rank when a message matches in both
+/// Search across header fields and/or body. Merges and deduplicates by message_id, keeping the best rank (more negative) when a message matches in both
 pub fn search_messages_with_body(
     conn: &Connection,
     account_id: Option<&str>,
@@ -289,8 +289,8 @@ pub fn search_messages_with_body(
         for r in body_results {
             seen.entry(r.message_id)
                 .and_modify(|existing| {
-                    // closer to 0 = better
-                    if r.rank > existing.rank {
+                    // more negative = better
+                    if r.rank < existing.rank {
                         existing.rank = r.rank;
                     }
                 })
@@ -299,10 +299,10 @@ pub fn search_messages_with_body(
     }
 
     let mut results: Vec<SearchResult> = seen.into_values().collect();
-    // sort DESC: to match the SQL ORDER BY rank DESC used in the search queries
+    // sort ASC: more negative rank is better
     results.sort_by(|a, b| {
-        b.rank
-            .partial_cmp(&a.rank)
+        a.rank
+            .partial_cmp(&b.rank)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     results.truncate(limit as usize);
