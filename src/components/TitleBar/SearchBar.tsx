@@ -14,6 +14,7 @@ import {
 	FolderOpen,
 	Loader2,
 	ChevronDown,
+	Clock,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
@@ -23,6 +24,7 @@ import { useAccountStore } from '@/stores/accountStore'
 import type { Mailbox } from '@/types/mail'
 import { parseSearchOperators, SEARCH_OPERATORS } from '@/lib/searchQueryParser'
 import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover'
+import { useSearchHistory } from '@/hooks/useSearchHistory'
 
 export interface AdvancedSearchQuery {
 	from?: string
@@ -74,6 +76,14 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 	const [panelOpen, setPanelOpen] = useState(false)
 	const [query, setQuery] = useState<AdvancedSearchQuery>({})
 	const [hasActiveSearch, setHasActiveSearch] = useState(false)
+	const [historyOpen, setHistoryOpen] = useState(false)
+
+	const {
+		queries: searchHistory,
+		addQuery: addToHistory,
+		removeQuery: removeFromHistory,
+		clearHistory,
+	} = useSearchHistory()
 
 	const inputRef = useRef<HTMLInputElement>(null)
 	const containerRef = useRef<HTMLDivElement>(null)
@@ -107,12 +117,18 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 		return () => window.removeEventListener('keydown', handleKey)
 	}, [])
 
-	const handleInputChange = useCallback((value: string) => {
-		setRawInput(value)
-		if (!value.trim()) {
-			setQuery({})
-		}
-	}, [])
+	const handleInputChange = useCallback(
+		(value: string) => {
+			setRawInput(value)
+			if (!value.trim()) {
+				setQuery({})
+				if (searchHistory.length > 0) setHistoryOpen(true)
+			} else {
+				setHistoryOpen(false)
+			}
+		},
+		[searchHistory.length]
+	)
 
 	const handleSubmit = useCallback(() => {
 		const parsed = parseSearchOperators(rawInput)
@@ -135,6 +151,8 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 
 		setHasActiveSearch(true)
 		setPanelOpen(false)
+		setHistoryOpen(false)
+		addToHistory(rawInput.trim())
 		onSearch(finalQuery)
 		window.dispatchEvent(new CustomEvent('postail:search', { detail: finalQuery }))
 	}, [query, rawInput, onSearch])
@@ -144,6 +162,7 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 		setQuery({})
 		setHasActiveSearch(false)
 		setPanelOpen(false)
+		setHistoryOpen(false)
 		onSearch(null)
 		window.dispatchEvent(new CustomEvent('postail:search', { detail: null }))
 		inputRef.current?.blur()
@@ -277,8 +296,15 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 						data-search-input
 						value={rawInput}
 						onChange={(e) => handleInputChange(e.target.value)}
-						onFocus={() => setFocused(true)}
-						onBlur={() => setFocused(false)}
+						onFocus={() => {
+							setFocused(true)
+							if (!rawInput.trim() && searchHistory.length > 0) setHistoryOpen(true)
+						}}
+						onBlur={() => {
+							setFocused(false)
+							// Delay so clicks on history items register first
+							setTimeout(() => setHistoryOpen(false), 150)
+						}}
 						onKeyDown={handleKeyDown}
 						placeholder={t('inbox:search.placeholder')}
 						className='h-9 w-full rounded-xl border bg-slate-100/50 pr-16 pl-9 text-sm text-slate-900 placeholder-slate-500 transition-all duration-300 focus:bg-white focus:outline-none dark:bg-white/5 dark:text-white dark:placeholder-slate-500 dark:focus:bg-slate-800/80'
@@ -295,6 +321,61 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 									: 'none',
 						}}
 					/>
+
+					{/* History dropdown */}
+					<AnimatePresence>
+						{historyOpen && !rawInput && searchHistory.length > 0 && (
+							<motion.div
+								key='history'
+								initial={
+									animationsEnabled ? { opacity: 0, y: -6, scale: 0.98 } : {}
+								}
+								animate={animationsEnabled ? { opacity: 1, y: 0, scale: 1 } : {}}
+								exit={animationsEnabled ? { opacity: 0, y: -6, scale: 0.98 } : {}}
+								transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+								className='glass absolute top-[calc(100%+4px)] right-0 left-0 z-50 overflow-hidden rounded-xl border border-[var(--border-subtle)] py-1 shadow-xl backdrop-blur-xl'
+								style={{
+									boxShadow: `0 8px 32px rgba(0,0,0,0.2), 0 0 0 1px var(--border-subtle)`,
+								}}>
+								<div className='flex items-center justify-between px-3 py-1.5'>
+									<span className='text-[10px] font-semibold tracking-wider text-[var(--text-tertiary)] uppercase'>
+										{t('inbox:search.history.title')}
+									</span>
+									<button
+										type='button'
+										onClick={clearHistory}
+										className='text-[10px] text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-secondary)]'>
+										{t('inbox:search.history.clearAll')}
+									</button>
+								</div>
+								{searchHistory.map((q) => (
+									<div key={q} className='group flex items-center gap-2 px-2'>
+										<button
+											type='button'
+											onMouseDown={(e) => {
+												e.preventDefault()
+												setRawInput(q)
+												setHistoryOpen(false)
+												setTimeout(() => inputRef.current?.focus(), 0)
+											}}
+											className='flex flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
+											<Clock className='h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]' />
+											<span className='truncate'>{q}</span>
+										</button>
+										<button
+											type='button'
+											onMouseDown={(e) => {
+												e.preventDefault()
+												removeFromHistory(q)
+											}}
+											className='hidden h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--text-tertiary)] transition-colors group-hover:flex hover:text-[var(--text-primary)]'>
+											<X className='h-3 w-3' />
+										</button>
+									</div>
+								))}
+							</motion.div>
+						)}
+					</AnimatePresence>
 
 					{/* Clear + Advanced toggle inside input */}
 					<div className='absolute inset-y-0 right-0 flex items-center gap-0.5 pr-1.5'>

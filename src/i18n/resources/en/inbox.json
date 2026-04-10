@@ -42,6 +42,10 @@
 			"empty": "No messages found",
 			"count": "{{count}} results",
 			"searching": "Searching..."
+		},
+		"history": {
+			"title": "Recent searches",
+			"clearAll": "Clear all"
 		}
 	},
 	"messageList": {
