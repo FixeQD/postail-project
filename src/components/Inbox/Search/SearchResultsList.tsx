@@ -1,14 +1,7 @@
 import { memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { format, isToday, isYesterday, isThisYear } from 'date-fns'
-import { Search, Paperclip, Loader2, AlertCircle } from 'lucide-react'
+import { Search, Loader2, AlertCircle } from 'lucide-react'
 
-// Keep unused imports
-void format
-void isToday
-void isYesterday
-void isThisYear
-void Paperclip
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useThemeStore } from '@/stores/themeStore'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
