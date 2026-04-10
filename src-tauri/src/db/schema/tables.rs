@@ -157,14 +157,6 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
 
     create_fts_table(conn, "contacts_fts", &["email", "name"], "contacts", "id")?;
 
-    create_fts_table(
-        conn,
-        "message_bodies_fts",
-        &["body_plain"],
-        "message_bodies",
-        "message_id",
-    )?;
-
     create_table_if_not_exists(
         conn,
         "message_bodies",
@@ -178,6 +170,14 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
                 "",
             ),
         ],
+    )?;
+
+    create_fts_table(
+        conn,
+        "message_bodies_fts",
+        &["body_plain"],
+        "message_bodies",
+        "message_id",
     )?;
 
     create_table_if_not_exists(
