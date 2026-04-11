@@ -5,23 +5,23 @@ export function serializeSearchQuery(query: AdvancedSearchQuery): string {
 
 	if (query.rawQuery?.trim()) parts.push(query.rawQuery.trim())
 	if (query.from?.trim()) {
-		const val = query.from.trim()
+		const val = query.from.trim().replace(/"/g, '""')
 		parts.push(`from:${val.includes(' ') ? `"${val}"` : val}`)
 	}
 	if (query.to?.trim()) {
-		const val = query.to.trim()
+		const val = query.to.trim().replace(/"/g, '""')
 		parts.push(`to:${val.includes(' ') ? `"${val}"` : val}`)
 	}
 	if (query.subject?.trim()) {
-		const val = query.subject.trim()
+		const val = query.subject.trim().replace(/"/g, '""')
 		parts.push(`subject:${val.includes(' ') ? `"${val}"` : val}`)
 	}
 	if (query.body?.trim()) {
-		const val = query.body.trim()
+		const val = query.body.trim().replace(/"/g, '""')
 		parts.push(`body:${val.includes(' ') ? `"${val}"` : val}`)
 	}
 	if (query.folder?.trim()) {
-		const val = query.folder.trim()
+		const val = query.folder.trim().replace(/"/g, '""')
 		parts.push(`folder:${val.includes(' ') ? `"${val}"` : val}`)
 	}
 	if (query.dateFrom?.trim()) parts.push(`after:${query.dateFrom.trim()}`)
