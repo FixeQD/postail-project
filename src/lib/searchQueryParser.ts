@@ -23,10 +23,8 @@ export function parseSearchOperators(input: string): AdvancedSearchQuery {
 			continue
 		}
 
-		if (currentOp === 'subject:') {
-			query.subject = query.subject ? `${query.subject} ${trimmed}` : trimmed
-			currentOp = null
-		} else if (
+		if (
+			currentOp === 'subject:' ||
 			currentOp === 'from:' ||
 			currentOp === 'to:' ||
 			currentOp === 'before:' ||
@@ -54,6 +52,8 @@ export function parseSearchOperators(input: string): AdvancedSearchQuery {
 
 			if (currentOp === 'from:') query.from = val
 			else if (currentOp === 'to:') query.to = val
+			else if (currentOp === 'subject:')
+				query.subject = query.subject ? `${query.subject} ${val}` : val
 			else if (currentOp === 'before:') query.dateTo = val
 			else if (currentOp === 'after:') query.dateFrom = val
 			else if (currentOp === 'has:') {
