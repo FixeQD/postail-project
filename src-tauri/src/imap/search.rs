@@ -118,8 +118,14 @@ fn get_headers_by_uids(
         placeholders
     );
 
-    let mut params: Vec<String> = vec![account_id.to_string(), mailbox.to_string()];
-    params.extend(uids.iter().map(|u| u.to_string()));
+    let mut params: Vec<rusqlite::types::Value> = vec![
+        rusqlite::types::Value::Text(account_id.to_string()),
+        rusqlite::types::Value::Text(mailbox.to_string()),
+    ];
+    params.extend(
+        uids.iter()
+            .map(|&u| rusqlite::types::Value::Integer(u as i64)),
+    );
 
     let mut stmt = conn.prepare(&sql)?;
     let headers_iter = stmt.query_map(params_from_iter(params.iter()), |row| {
