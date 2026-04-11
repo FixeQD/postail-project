@@ -64,7 +64,7 @@ const InboxScreenInner = ({}: InboxScreenProps) => {
 		results,
 		isLoading: searchLoading,
 		error: searchError,
-		rawQueryString,
+		displayQueryString,
 		isActive: isSearchActive,
 		search,
 		clear: clearSearch,
@@ -312,7 +312,7 @@ const InboxScreenInner = ({}: InboxScreenProps) => {
 							results={results}
 							isLoading={searchLoading}
 							error={searchError}
-							query={rawQueryString}
+							query={displayQueryString}
 							onMessageClick={(uid: number, mailbox: string) => {
 								setSelectedMessage({ uid, mailbox })
 								openMessageInStore(activeAccount!.id, mailbox, uid)

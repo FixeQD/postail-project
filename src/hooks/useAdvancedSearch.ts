@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import type { SearchResult, AdvancedSearchQuery } from '@/types/search'
 
@@ -8,24 +8,29 @@ interface SearchState {
 	error: string | null
 	activeQuery: AdvancedSearchQuery | null
 	rawQueryString: string
+	displayQueryString: string
 }
 
 export function useAdvancedSearch(accountId: string | undefined) {
+	const searchIdRef = useRef(0)
 	const [state, setState] = useState<SearchState>({
 		results: [],
 		isLoading: false,
 		error: null,
 		activeQuery: null,
 		rawQueryString: '',
+		displayQueryString: '',
 	})
 
 	useEffect(() => {
+		searchIdRef.current += 1
 		setState({
 			results: [],
 			isLoading: false,
 			error: null,
 			activeQuery: null,
 			rawQueryString: '',
+			displayQueryString: '',
 		})
 	}, [accountId])
 
@@ -33,12 +38,24 @@ export function useAdvancedSearch(accountId: string | undefined) {
 		async (query: AdvancedSearchQuery) => {
 			if (!accountId) return
 
+			const currentSearchId = ++searchIdRef.current
+
 			const parts: string[] = []
 			if (query.rawQuery?.trim()) parts.push(query.rawQuery.trim())
-			if (query.subject?.trim()) parts.push(`subject:"${query.subject.trim()}"`)
-			if (query.from?.trim()) parts.push(`from_addr:"${query.from.trim()}"`)
-			if (query.to?.trim()) parts.push(`to_json:"${query.to.trim()}"`)
+			if (query.subject?.trim())
+				parts.push(`subject:"${query.subject.trim().replace(/"/g, '""')}"`)
+			if (query.from?.trim())
+				parts.push(`from_addr:"${query.from.trim().replace(/"/g, '""')}"`)
+			if (query.to?.trim()) parts.push(`to_json:"${query.to.trim().replace(/"/g, '""')}"`)
 			const rawQueryString = parts.join(' ')
+
+			const displayParts: string[] = []
+			if (query.rawQuery?.trim()) displayParts.push(query.rawQuery.trim())
+			if (query.subject?.trim()) displayParts.push(`subject:"${query.subject.trim()}"`)
+			if (query.from?.trim()) displayParts.push(`from:"${query.from.trim()}"`)
+			if (query.to?.trim()) displayParts.push(`to:"${query.to.trim()}"`)
+			if (query.body?.trim()) displayParts.push(`body:"${query.body.trim()}"`)
+			const displayQueryString = displayParts.join(' ')
 
 			setState((prev) => ({
 				...prev,
@@ -46,6 +63,7 @@ export function useAdvancedSearch(accountId: string | undefined) {
 				error: null,
 				activeQuery: query,
 				rawQueryString,
+				displayQueryString,
 			}))
 
 			try {
@@ -56,6 +74,8 @@ export function useAdvancedSearch(accountId: string | undefined) {
 					bodyQuery: query.body?.trim() ?? null,
 					limit: 200,
 				})
+
+				if (currentSearchId !== searchIdRef.current) return
 
 				// Client-side date + attachment filter
 				const filtered = results.filter((r) => {
@@ -78,6 +98,7 @@ export function useAdvancedSearch(accountId: string | undefined) {
 					error: null,
 				}))
 			} catch (e) {
+				if (currentSearchId !== searchIdRef.current) return
 				setState((prev) => ({
 					...prev,
 					isLoading: false,
@@ -89,12 +110,14 @@ export function useAdvancedSearch(accountId: string | undefined) {
 	)
 
 	const clear = useCallback(() => {
+		searchIdRef.current += 1
 		setState({
 			results: [],
 			isLoading: false,
 			error: null,
 			activeQuery: null,
 			rawQueryString: '',
+			displayQueryString: '',
 		})
 	}, [])
 
@@ -104,6 +127,7 @@ export function useAdvancedSearch(accountId: string | undefined) {
 		error: state.error,
 		activeQuery: state.activeQuery,
 		rawQueryString: state.rawQueryString,
+		displayQueryString: state.displayQueryString,
 		isActive: state.activeQuery !== null,
 		search,
 		clear,
