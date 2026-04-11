@@ -108,8 +108,12 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 	}, [])
 
 	useEffect(() => {
+		let timeoutId: ReturnType<typeof setTimeout>
 		if (isSaveMode) {
-			setTimeout(() => saveInputRef.current?.focus(), 50)
+			timeoutId = setTimeout(() => saveInputRef.current?.focus(), 50)
+		}
+		return () => {
+			if (timeoutId) clearTimeout(timeoutId)
 		}
 	}, [isSaveMode])
 
