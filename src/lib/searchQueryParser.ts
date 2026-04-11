@@ -42,6 +42,9 @@ export const SEARCH_OPERATORS = [
 	'has:',
 ]
 
+export const SEARCH_SPLIT_REGEX = /(?<=^|\s)(from:|to:|subject:|body:|folder:|before:|after:|has:)/i
+export const SEARCH_MATCH_REGEX = /^(from:|to:|subject:|body:|folder:|before:|after:|has:)$/i
+
 export function parseSearchOperators(input: string): AdvancedSearchQuery {
 	const query: AdvancedSearchQuery = {}
 	let rawQuery = ''

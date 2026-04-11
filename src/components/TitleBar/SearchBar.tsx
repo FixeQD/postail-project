@@ -34,6 +34,8 @@ import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover'
 import { useSearchHistory } from '@/hooks/useSearchHistory'
 import type { AdvancedSearchQuery, SavedSearch } from '@/types/search'
 
+import { SEARCH_SPLIT_REGEX, SEARCH_MATCH_REGEX } from '@/lib/searchQueryParser'
+
 interface SearchBarProps {
 	onSearch: (query: AdvancedSearchQuery | null) => void
 	isSearching?: boolean
@@ -74,6 +76,7 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 	})
 
 	const inputRef = useRef<HTMLInputElement>(null)
+	const overlayRef = useRef<HTMLDivElement>(null)
 	const saveInputRef = useRef<HTMLInputElement>(null)
 	const containerRef = useRef<HTMLDivElement>(null)
 
@@ -368,36 +371,63 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 						)}
 					</div>
 
-					<input
-						ref={inputRef}
-						type='text'
-						data-search-input
-						value={rawInput}
-						onChange={(e) => handleInputChange(e.target.value)}
-						onFocus={() => {
-							setFocused(true)
-							if (!rawInput.trim() && hasDropdownItems) setHistoryOpen(true)
-						}}
-						onBlur={() => {
-							setFocused(false)
-							setTimeout(() => setHistoryOpen(false), 150)
-						}}
-						onKeyDown={handleKeyDown}
-						placeholder={t('inbox:search.placeholder')}
-						className='h-9 w-full rounded-xl border bg-slate-100/50 pr-16 pl-9 text-sm text-slate-900 placeholder-slate-500 transition-all duration-300 focus:bg-white focus:outline-none dark:bg-white/5 dark:text-white dark:placeholder-slate-500 dark:focus:bg-slate-800/80'
-						style={{
-							borderColor: hasActiveSearch
-								? accentColor
-								: focused
+					<div className='relative w-full'>
+						<div
+							ref={overlayRef}
+							className='pointer-events-none absolute inset-0 flex items-center overflow-hidden pr-16 pl-9 text-sm whitespace-pre'
+							aria-hidden='true'>
+							{rawInput.split(SEARCH_SPLIT_REGEX).map((part, i) => {
+								const isOp = SEARCH_MATCH_REGEX.test(part)
+								return (
+									<span
+										key={i}
+										style={
+											isOp
+												? { color: accentColor, fontWeight: 600 }
+												: { color: 'var(--text-primary)' }
+										}>
+										{part}
+									</span>
+								)
+							})}
+						</div>
+						<input
+							ref={inputRef}
+							type='text'
+							data-search-input
+							value={rawInput}
+							onChange={(e) => handleInputChange(e.target.value)}
+							onScroll={(e) => {
+								if (overlayRef.current) {
+									overlayRef.current.scrollLeft = e.currentTarget.scrollLeft
+								}
+							}}
+							onFocus={() => {
+								setFocused(true)
+								if (!rawInput.trim() && hasDropdownItems) setHistoryOpen(true)
+							}}
+							onBlur={() => {
+								setFocused(false)
+								setTimeout(() => setHistoryOpen(false), 150)
+							}}
+							onKeyDown={handleKeyDown}
+							placeholder={t('inbox:search.placeholder')}
+							className='relative h-9 w-full rounded-xl border bg-slate-100/50 pr-16 pl-9 text-sm text-transparent placeholder-slate-500 transition-all duration-300 focus:bg-white focus:outline-none dark:bg-white/5 dark:text-transparent dark:placeholder-slate-500 dark:focus:bg-slate-800/80'
+							style={{
+								caretColor: 'var(--text-primary)',
+								borderColor: hasActiveSearch
 									? accentColor
-									: 'transparent',
-							boxShadow: focused
-								? `0 0 0 1px ${accentColor}, 0 4px 16px ${accentColor}1A`
-								: hasActiveSearch
-									? `0 0 0 1px ${accentColor}66`
-									: 'none',
-						}}
-					/>
+									: focused
+										? accentColor
+										: 'transparent',
+								boxShadow: focused
+									? `0 0 0 1px ${accentColor}, 0 4px 16px ${accentColor}1A`
+									: hasActiveSearch
+										? `0 0 0 1px ${accentColor}66`
+										: 'none',
+							}}
+						/>
+					</div>
 
 					{/* History + Saved Searches dropdown */}
 					<AnimatePresence>
