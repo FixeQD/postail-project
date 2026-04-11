@@ -687,6 +687,166 @@ impl crate::imap::ImapManager {
         headers.sort_by(|a, b| b.uid.cmp(&a.uid));
         Ok(headers)
     }
+
+    pub async fn fetch_uids_from_imap(
+        &self,
+        account_id: &str,
+        mailbox: &str,
+        uids: &[u32],
+    ) -> Result<Vec<MailHeader>, String> {
+        if uids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut session = self.connect_imap(account_id).await?;
+        let _ = session.select(mailbox).await.map_err(|e| e.to_string())?;
+
+        let mut batch_items: Vec<MessageBatchItem> = Vec::with_capacity(uids.len());
+        let mut headers: Vec<MailHeader> = Vec::new();
+        let mut snippet_targets: Vec<SnippetTarget> = Vec::new();
+
+        for chunk in uids.chunks(500) {
+            let uid_set = chunk
+                .iter()
+                .map(|u| u.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            let mut fetches = session
+                .uid_fetch(&uid_set, "(UID INTERNALDATE FLAGS ENVELOPE BODYSTRUCTURE)")
+                .await
+                .map_err(|e| e.to_string())?;
+
+            while let Some(fetch) = fetches.next().await {
+                let fetch = fetch.map_err(|e| e.to_string())?;
+                let uid = fetch.uid.ok_or("No UID")?;
+                let envelope = fetch.envelope().ok_or("No envelope")?;
+
+                let subject = crate::utils::mail::decode_mime_header(envelope.subject.as_deref());
+                let from = envelope
+                    .from
+                    .as_deref()
+                    .map(|a| parse_address_list!(a))
+                    .unwrap_or_default();
+                let to = envelope
+                    .to
+                    .as_deref()
+                    .map(|a| parse_address_list!(a))
+                    .unwrap_or_default();
+                let cc = envelope
+                    .cc
+                    .as_deref()
+                    .map(|a| parse_address_list!(a))
+                    .unwrap_or_default();
+                let all_flags = fetch
+                    .flags()
+                    .map(|f| flag_to_string(&f))
+                    .collect::<Vec<_>>();
+
+                let mut system_flags = Vec::new();
+                let mut tags = Vec::new();
+                for f in all_flags {
+                    if f.starts_with('\\') {
+                        system_flags.push(f);
+                    } else {
+                        tags.push(f);
+                    }
+                }
+
+                let internal_date = fetch.internal_date().ok_or("No internal date")?;
+                let internal_date = Utc
+                    .timestamp_opt(internal_date.timestamp(), 0)
+                    .single()
+                    .unwrap_or_else(Utc::now);
+
+                if let Some((path, mime, charset, encoding)) =
+                    fetch.bodystructure().and_then(|bs| find_text_part(bs, &[]))
+                {
+                    snippet_targets.push(SnippetTarget {
+                        uid,
+                        section: section_path_to_string(&path),
+                        mime,
+                        charset,
+                        encoding,
+                    });
+                }
+
+                let header = MailHeader {
+                    uid,
+                    mailbox: mailbox.to_string(),
+                    message_id: envelope
+                        .message_id
+                        .as_ref()
+                        .map(|s| String::from_utf8_lossy(s).to_string()),
+                    internal_date,
+                    subject: subject.clone(),
+                    from: from.clone(),
+                    to: to.clone(),
+                    cc: cc.clone(),
+                    flags: system_flags.clone(),
+                    snippet: None,
+                    has_attachments: false,
+                    starred: system_flags.iter().any(|f| f == "\\Flagged"),
+                    tags: tags.clone(),
+                };
+
+                batch_items.push(MessageBatchItem {
+                    uid,
+                    message_id: header.message_id.clone(),
+                    internal_date: header.internal_date,
+                    from: header.from.first().cloned(),
+                    to,
+                    cc,
+                    subject: header.subject.clone(),
+                    snippet: None,
+                    flags: system_flags,
+                    tags,
+                    structure_json: None,
+                });
+
+                headers.push(header);
+            }
+        }
+
+        if !batch_items.is_empty() {
+            let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+            let mut conn = pool.get().map_err(|e| e.to_string())?;
+            let new_uids = crate::db::batch_insert_messages(
+                &mut *conn,
+                account_id,
+                mailbox,
+                &batch_items,
+                DEFAULT_BATCH_SIZE,
+            )
+            .map_err(|e| e.to_string())?;
+
+            if let Err(e) = crate::db::filters::apply_rules_to_messages(
+                &mut *conn, account_id, mailbox, &new_uids,
+            ) {
+                tracing::warn!(target: "postail", "[Filters] Rule apply error for batch in {}: {}", mailbox, e);
+            }
+        }
+
+        let aid = account_id.to_string();
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = crate::cmd::mail::actions::process_flag_queue(&aid).await {
+                tracing::error!(target: "postail", "[Filters] Failed to process flag queue after rules: {}", e);
+            }
+        });
+
+        // Pass 2 – snippet bytes
+        fetch_snippets_pass2(
+            &mut session,
+            &snippet_targets,
+            &mut headers,
+            account_id,
+            mailbox,
+        )
+        .await;
+
+        let _ = session.logout().await;
+        headers.sort_by(|a, b| b.uid.cmp(&a.uid));
+        Ok(headers)
+    }
 }
 
 /// Second pass: for each unique section path, batch-fetch snippet bytes an patch the in-memory headers + DB rows.

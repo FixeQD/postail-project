@@ -99,7 +99,7 @@ export function SearchResultsList({
 	const animationsEnabled = useAnimationsEnabled()
 	const { t } = useTypedTranslation()
 
-	if (isLoading) {
+	if (isLoading && !results.length) {
 		return (
 			<motion.div
 				initial={animationsEnabled ? { opacity: 0 } : {}}
@@ -170,6 +170,12 @@ export function SearchResultsList({
 						/>
 					))}
 				</AnimatePresence>
+
+				{isLoading && results.length > 0 && (
+					<div className='flex justify-center p-4 text-[var(--text-tertiary)]'>
+						<Loader2 className='h-5 w-5 animate-spin' style={{ color: accentColor }} />
+					</div>
+				)}
 			</div>
 		</div>
 	)

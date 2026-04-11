@@ -11,7 +11,10 @@ interface SearchState {
 	displayQueryString: string
 }
 
-export function useAdvancedSearch(accountId: string | undefined) {
+export function useAdvancedSearch(
+	accountId: string | undefined,
+	activeMailbox: string | undefined
+) {
 	const searchIdRef = useRef(0)
 	const [state, setState] = useState<SearchState>({
 		results: [],
@@ -32,7 +35,7 @@ export function useAdvancedSearch(accountId: string | undefined) {
 			rawQueryString: '',
 			displayQueryString: '',
 		})
-	}, [accountId])
+	}, [accountId, activeMailbox])
 
 	const search = useCallback(
 		async (query: AdvancedSearchQuery) => {
@@ -67,9 +70,10 @@ export function useAdvancedSearch(accountId: string | undefined) {
 			}))
 
 			try {
-				const results = await invoke<SearchResult[]>('search_messages_advanced', {
+				// 1. Fetch local results first
+				const localResults = await invoke<SearchResult[]>('search_messages_advanced', {
 					accountId,
-					mailbox: query.folder ?? null,
+					mailbox: query.folder ?? activeMailbox ?? null,
 					query: rawQueryString,
 					bodyQuery: query.body?.trim() ?? null,
 					limit: 200,
@@ -77,26 +81,85 @@ export function useAdvancedSearch(accountId: string | undefined) {
 
 				if (currentSearchId !== searchIdRef.current) return
 
-				// Client-side date + attachment filter
-				const filtered = results.filter((r) => {
-					if (query.hasAttachment === true && !r.has_attachments) return false
-					if (query.dateFrom) {
-						const from = new Date(query.dateFrom).getTime()
-						if (r.date * 1000 < from) return false
-					}
-					if (query.dateTo) {
-						const to = new Date(query.dateTo).getTime() + 86_400_000
-						if (r.date * 1000 > to) return false
-					}
-					return true
-				})
+				// Client-side filter helper
+				const filterResults = (res: SearchResult[]) =>
+					res.filter((r) => {
+						if (query.hasAttachment === true && !r.has_attachments) return false
+						if (query.dateFrom) {
+							const from = new Date(query.dateFrom).getTime()
+							if (r.date * 1000 < from) return false
+						}
+						if (query.dateTo) {
+							const to = new Date(query.dateTo).getTime() + 86_400_000
+							if (r.date * 1000 > to) return false
+						}
+						return true
+					})
 
 				setState((prev) => ({
 					...prev,
-					results: filtered,
-					isLoading: false,
+					results: filterResults(localResults),
+					// Keep loading true since IMAP search is next
+					isLoading: true,
 					error: null,
 				}))
+
+				// 2. Fetch from IMAP in background
+				const targetMailbox = query.folder ?? activeMailbox ?? 'INBOX'
+				try {
+					const headers = await invoke<any[]>('imap_search_messages', {
+						accountId,
+						mailbox: targetMailbox,
+						criteria: {
+							from: query.from?.trim() || null,
+							to: query.to?.trim() || null,
+							subject: query.subject?.trim() || null,
+							body: query.body?.trim() || query.rawQuery?.trim() || null,
+							since: query.dateFrom || null,
+							before: query.dateTo || null,
+							has_attachment: query.hasAttachment || null,
+						},
+					})
+
+					if (currentSearchId !== searchIdRef.current) return
+
+					const imapResults: SearchResult[] = headers.map((h: any) => ({
+						message_id: h.message_id || 0,
+						account_id: accountId,
+						mailbox: h.mailbox,
+						uid: h.uid,
+						subject: h.subject,
+						from_addr: h.from?.[0] ?? '',
+						snippet: h.snippet,
+						rank: 0,
+						has_attachments: h.has_attachments,
+						date: new Date(h.internal_date).getTime() / 1000,
+					}))
+
+					setState((prev) => {
+						// Merge local and imap results, preferring IMAP order
+						const existingUids = new Set(imapResults.map((r) => r.uid))
+						const combined = [
+							...imapResults,
+							...prev.results.filter((r) => !existingUids.has(r.uid)),
+						]
+						// Sort by date desc
+						combined.sort((a, b) => b.date - a.date)
+
+						return {
+							...prev,
+							results: filterResults(combined),
+							isLoading: false,
+						}
+					})
+				} catch (err) {
+					console.warn('IMAP search failed or skipped', err)
+					if (currentSearchId !== searchIdRef.current) return
+					setState((prev) => ({
+						...prev,
+						isLoading: false,
+					}))
+				}
 			} catch (e) {
 				if (currentSearchId !== searchIdRef.current) return
 				setState((prev) => ({
@@ -106,7 +169,7 @@ export function useAdvancedSearch(accountId: string | undefined) {
 				}))
 			}
 		},
-		[accountId]
+		[accountId, activeMailbox]
 	)
 
 	const clear = useCallback(() => {

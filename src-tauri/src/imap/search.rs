@@ -231,7 +231,31 @@ impl ImapManager {
             .get()
             .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
-        get_headers_by_uids(&conn, account_id, mailbox, &uids)
-            .map_err(|e| AppError::DatabaseError(e.to_string()))
+        let mut local_headers = get_headers_by_uids(&conn, account_id, mailbox, &uids)
+            .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        let found_uids: std::collections::HashSet<u32> =
+            local_headers.iter().map(|h| h.uid).collect();
+        let missing_uids: Vec<u32> = uids
+            .into_iter()
+            .filter(|u| !found_uids.contains(u))
+            .collect();
+
+        if !missing_uids.is_empty() {
+            tracing::debug!(
+                target: "postail",
+                "[IMAP] Fetching {} missing headers for SEARCH results",
+                missing_uids.len()
+            );
+            if let Ok(mut new_headers) = self
+                .fetch_uids_from_imap(account_id, mailbox, &missing_uids)
+                .await
+            {
+                local_headers.append(&mut new_headers);
+            }
+        }
+
+        local_headers.sort_by(|a, b| b.uid.cmp(&a.uid));
+        Ok(local_headers)
     }
 }

@@ -68,7 +68,7 @@ const InboxScreenInner = ({}: InboxScreenProps) => {
 		isActive: isSearchActive,
 		search,
 		clear: clearSearch,
-	} = useAdvancedSearch(activeAccount?.id)
+	} = useAdvancedSearch(activeAccount?.id, activeMailbox)
 
 	// Listen for search events from SearchBar
 	useEffect(() => {
