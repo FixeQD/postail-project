@@ -25,7 +25,11 @@ import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAccountStore } from '@/stores/accountStore'
 import type { Mailbox } from '@/types/mail'
-import { parseSearchOperators, SEARCH_OPERATORS } from '@/lib/searchQueryParser'
+import {
+	parseSearchOperators,
+	serializeSearchQuery,
+	SEARCH_OPERATORS,
+} from '@/lib/searchQueryParser'
 import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover'
 import { useSearchHistory } from '@/hooks/useSearchHistory'
 import type { AdvancedSearchQuery, SavedSearch } from '@/types/search'
@@ -161,7 +165,7 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 		setPanelOpen(false)
 		setHistoryOpen(false)
 		setIsSaveMode(false)
-		addToHistory(rawInput.trim())
+		addToHistory(serializeSearchQuery(finalQuery))
 		onSearch(finalQuery)
 		window.dispatchEvent(new CustomEvent('postail:search', { detail: finalQuery }))
 	}, [query, rawInput, onSearch, addToHistory, handleClear])
@@ -188,7 +192,8 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 		(saved: SavedSearch) => {
 			try {
 				const parsedQuery = JSON.parse(saved.query_json) as AdvancedSearchQuery
-				setRawInput(saved.name)
+				setQuery(parsedQuery)
+				setRawInput(serializeSearchQuery(parsedQuery))
 				setHasActiveSearch(true)
 				setHistoryOpen(false)
 				setPanelOpen(false)

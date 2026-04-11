@@ -1,5 +1,28 @@
 import type { AdvancedSearchQuery } from '@/types/search'
 
+export function serializeSearchQuery(query: AdvancedSearchQuery): string {
+	const parts: string[] = []
+
+	if (query.rawQuery?.trim()) parts.push(query.rawQuery.trim())
+	if (query.from?.trim()) {
+		const val = query.from.trim()
+		parts.push(`from:${val.includes(' ') ? `"${val}"` : val}`)
+	}
+	if (query.to?.trim()) {
+		const val = query.to.trim()
+		parts.push(`to:${val.includes(' ') ? `"${val}"` : val}`)
+	}
+	if (query.subject?.trim()) {
+		const val = query.subject.trim()
+		parts.push(`subject:${val.includes(' ') ? `"${val}"` : val}`)
+	}
+	if (query.dateFrom?.trim()) parts.push(`after:${query.dateFrom.trim()}`)
+	if (query.dateTo?.trim()) parts.push(`before:${query.dateTo.trim()}`)
+	if (query.hasAttachment) parts.push('has:attachment')
+
+	return parts.join(' ')
+}
+
 export const SEARCH_OPERATORS = ['from:', 'to:', 'subject:', 'before:', 'after:', 'has:']
 
 export function parseSearchOperators(input: string): AdvancedSearchQuery {
