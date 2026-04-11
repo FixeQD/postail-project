@@ -161,7 +161,7 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 		addToHistory(rawInput.trim())
 		onSearch(finalQuery)
 		window.dispatchEvent(new CustomEvent('postail:search', { detail: finalQuery }))
-	}, [query, rawInput, onSearch])
+	}, [query, rawInput, onSearch, addToHistory])
 
 	const handleClear = useCallback(() => {
 		setRawInput('')
