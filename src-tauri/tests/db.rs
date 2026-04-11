@@ -303,11 +303,6 @@ fn test_search_messages_with_body() {
         rusqlite::params![msg2_id, "Body match only keyword"],
     )
     .unwrap();
-    conn.execute(
-        "INSERT INTO message_bodies_fts (rowid, body_plain) VALUES (?1, ?2)",
-        rusqlite::params![msg2_id, "Body match only keyword"],
-    )
-    .unwrap();
 
     // Message 3: Matches in both header and body (best rank)
     upsert_message(
@@ -330,11 +325,6 @@ fn test_search_messages_with_body() {
     let msg3_id: i64 = conn.last_insert_rowid();
     conn.execute(
         "INSERT INTO message_bodies (message_id, body_plain) VALUES (?1, ?2)",
-        rusqlite::params![msg3_id, "Body match keyword keyword keyword"],
-    )
-    .unwrap();
-    conn.execute(
-        "INSERT INTO message_bodies_fts (rowid, body_plain) VALUES (?1, ?2)",
         rusqlite::params![msg3_id, "Body match keyword keyword keyword"],
     )
     .unwrap();
