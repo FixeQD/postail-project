@@ -37,19 +37,6 @@ interface SearchBarProps {
 
 const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1]
 
-export function buildFtsQuery(q: AdvancedSearchQuery): string {
-	const parts: string[] = []
-	if (q.from?.trim())
-		parts.push(`from:${q.from.includes(' ') ? `"${q.from.trim()}"` : q.from.trim()}`)
-	if (q.to?.trim()) parts.push(`to:${q.to.includes(' ') ? `"${q.to.trim()}"` : q.to.trim()}`)
-	if (q.subject?.trim())
-		parts.push(
-			`subject:${q.subject.includes(' ') ? `"${q.subject.trim()}"` : q.subject.trim()}`
-		)
-	if (q.rawQuery?.trim()) parts.push(q.rawQuery.trim())
-	return parts.join(' ')
-}
-
 export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 	const { t } = useTypedTranslation()
 	const accentColor = useThemeStore((s) => s.accentColor)
