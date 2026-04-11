@@ -122,6 +122,19 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 		[hasDropdownItems]
 	)
 
+	const handleClear = useCallback(() => {
+		setRawInput('')
+		setQuery({})
+		setHasActiveSearch(false)
+		setPanelOpen(false)
+		setHistoryOpen(false)
+		setIsSaveMode(false)
+		setSaveName('')
+		onSearch(null)
+		window.dispatchEvent(new CustomEvent('postail:search', { detail: null }))
+		inputRef.current?.blur()
+	}, [onSearch])
+
 	const handleSubmit = useCallback(() => {
 		const parsed = parseSearchOperators(rawInput)
 		const finalQuery: AdvancedSearchQuery = {
@@ -139,7 +152,10 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 			!finalQuery.hasAttachment &&
 			!finalQuery.rawQuery
 
-		if (isEmpty) return
+		if (isEmpty) {
+			handleClear()
+			return
+		}
 
 		setHasActiveSearch(true)
 		setPanelOpen(false)
@@ -148,20 +164,7 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 		addToHistory(rawInput.trim())
 		onSearch(finalQuery)
 		window.dispatchEvent(new CustomEvent('postail:search', { detail: finalQuery }))
-	}, [query, rawInput, onSearch, addToHistory])
-
-	const handleClear = useCallback(() => {
-		setRawInput('')
-		setQuery({})
-		setHasActiveSearch(false)
-		setPanelOpen(false)
-		setHistoryOpen(false)
-		setIsSaveMode(false)
-		setSaveName('')
-		onSearch(null)
-		window.dispatchEvent(new CustomEvent('postail:search', { detail: null }))
-		inputRef.current?.blur()
-	}, [onSearch])
+	}, [query, rawInput, onSearch, addToHistory, handleClear])
 
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
