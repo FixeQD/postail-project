@@ -391,7 +391,7 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 
 					{/* History + Saved Searches dropdown */}
 					<AnimatePresence>
-						{historyOpen && !rawInput && hasDropdownItems && (
+						{historyOpen && !rawInput.trim() && hasDropdownItems && (
 							<motion.div
 								key='history'
 								initial={
