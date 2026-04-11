@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Loader2, AlertCircle } from 'lucide-react'
+import { format, isToday, isYesterday, isThisYear } from 'date-fns'
+import { Search, Loader2, AlertCircle, Paperclip } from 'lucide-react'
 
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useThemeStore } from '@/stores/themeStore'
@@ -31,6 +32,13 @@ const ResultRow = memo(function ResultRow({
 }) {
 	const { t } = useTypedTranslation()
 
+	const date = new Date(result.date * 1000)
+	let formattedDate = ''
+	if (isToday(date)) formattedDate = format(date, 'HH:mm')
+	else if (isYesterday(date)) formattedDate = t('inbox:messageList.date.yesterday')
+	else if (isThisYear(date)) formattedDate = format(date, 'MMM d')
+	else formattedDate = format(date, 'dd/MM/yyyy')
+
 	return (
 		<motion.button
 			type='button'
@@ -52,16 +60,24 @@ const ResultRow = memo(function ResultRow({
 						t('inbox:messageView.noSubject')
 					)}
 				</p>
-				<span className='shrink-0 text-[11px] text-[var(--text-tertiary)]'>
+				<div className='flex shrink-0 items-center gap-1.5 text-[11px] text-[var(--text-tertiary)]'>
+					{result.has_attachments && <Paperclip className='h-3 w-3' />}
+					<span>{formattedDate}</span>
+				</div>
+			</div>
+
+			<div className='flex items-center justify-between gap-2'>
+				{result.from_addr ? (
+					<p className='min-w-0 truncate text-xs text-[var(--text-secondary)]'>
+						<HighlightedText text={result.from_addr} query={query} />
+					</p>
+				) : (
+					<div />
+				)}
+				<span className='shrink-0 text-[10px] text-[var(--text-tertiary)]'>
 					{result.mailbox}
 				</span>
 			</div>
-
-			{result.from_addr && (
-				<p className='truncate text-xs text-[var(--text-secondary)]'>
-					<HighlightedText text={result.from_addr} query={query} />
-				</p>
-			)}
 
 			{result.snippet && (
 				<p className='line-clamp-2 text-xs leading-relaxed text-[var(--text-tertiary)]'>
