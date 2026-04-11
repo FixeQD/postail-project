@@ -2,7 +2,7 @@ use crate::db::compose::outbox::cleanup_old_sent_messages;
 use crate::db::mail::message_bodies;
 use crate::error::DBError;
 use crate::security::SecurityManager;
-use rusqlite::{params, Connection, Result as SqlResult};
+use rusqlite::{Connection, Result as SqlResult, params};
 use std::env;
 use std::fs;
 use std::io::Write;
@@ -98,17 +98,17 @@ pub const MIGRATIONS: &[Migration] = &[
             conn.execute(
                 "CREATE TRIGGER IF NOT EXISTS messages_fts_insert
                  AFTER INSERT ON messages BEGIN
-                    INSERT INTO messages_fts(rowid, subject, from_addr, snippet)
-                    VALUES (NEW.id, NEW.subject, NEW.from_addr, NEW.snippet);
+                    INSERT INTO messages_fts(rowid, subject, from_addr, to_json, snippet)
+                    VALUES (NEW.id, NEW.subject, NEW.from_addr, NEW.to_json, NEW.snippet);
                  END",
                 [],
             )?;
 
             conn.execute(
                 "CREATE TRIGGER IF NOT EXISTS messages_fts_update
-                 AFTER UPDATE OF subject, from_addr, snippet ON messages BEGIN
+                 AFTER UPDATE ON messages BEGIN
                     UPDATE messages_fts
-                    SET subject = NEW.subject, from_addr = NEW.from_addr, snippet = NEW.snippet
+                    SET subject = NEW.subject, from_addr = NEW.from_addr, to_json = NEW.to_json, snippet = NEW.snippet
                     WHERE rowid = NEW.id;
                  END",
                 [],
@@ -169,7 +169,7 @@ pub fn export_backup(
     security: &SecurityManager,
     passphrase: Option<String>,
 ) -> Result<PathBuf, DBError> {
-    use zip::{write::FileOptions, ZipWriter};
+    use zip::{ZipWriter, write::FileOptions};
 
     let temp_dir = env::temp_dir().join(format!("postail_backup_{}", Uuid::new_v4()));
     fs::create_dir_all(&temp_dir)?;

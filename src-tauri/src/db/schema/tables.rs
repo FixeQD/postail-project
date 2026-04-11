@@ -76,7 +76,7 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
     create_fts_table(
         conn,
         "messages_fts",
-        &["subject", "from_addr", "snippet"],
+        &["subject", "from_addr", "to_json", "snippet"],
         "messages",
         "id",
     )?;
@@ -294,7 +294,7 @@ pub fn create_fts_triggers(conn: &Connection) -> Result<(), DBError> {
         "AFTER",
         "INSERT",
         "messages",
-        "INSERT INTO messages_fts(rowid, subject, from_addr, snippet) VALUES (NEW.id, NEW.subject, NEW.from_addr, NEW.snippet);",
+        "INSERT INTO messages_fts(rowid, subject, from_addr, to_json, snippet) VALUES (NEW.id, NEW.subject, NEW.from_addr, NEW.to_json, NEW.snippet);",
     )?;
 
     create_trigger_if_not_exists(
@@ -303,7 +303,7 @@ pub fn create_fts_triggers(conn: &Connection) -> Result<(), DBError> {
         "AFTER",
         "UPDATE",
         "messages",
-        "UPDATE messages_fts SET subject = NEW.subject, from_addr = NEW.from_addr, snippet = NEW.snippet WHERE rowid = NEW.id;",
+        "UPDATE messages_fts SET subject = NEW.subject, from_addr = NEW.from_addr, to_json = NEW.to_json, snippet = NEW.snippet WHERE rowid = NEW.id;",
     )?;
 
     create_trigger_if_not_exists(

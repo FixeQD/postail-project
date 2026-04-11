@@ -107,6 +107,11 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         set_db_version(conn, 14)?;
     }
 
+    if current_version < 15 {
+        migrate_to_v15(conn)?;
+        set_db_version(conn, 15)?;
+    }
+
     Ok(())
 }
 
@@ -368,6 +373,52 @@ fn migrate_to_v14(conn: &Connection) -> Result<(), DBError> {
     conn.execute(
         "INSERT INTO message_bodies_fts(rowid, body_plain)
          SELECT message_id, body_plain FROM message_bodies WHERE body_plain != ''",
+        [],
+    )?;
+
+    Ok(())
+}
+
+fn migrate_to_v15(conn: &Connection) -> Result<(), DBError> {
+    conn.execute("DROP TRIGGER IF EXISTS messages_fts_insert", [])?;
+    conn.execute("DROP TRIGGER IF EXISTS messages_fts_update", [])?;
+    conn.execute("DROP TRIGGER IF EXISTS messages_fts_delete", [])?;
+    conn.execute("DROP TABLE IF EXISTS messages_fts", [])?;
+
+    conn.execute(
+        "CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(subject, from_addr, to_json, snippet, content='messages', content_rowid='id')",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER IF NOT EXISTS messages_fts_insert
+         AFTER INSERT ON messages BEGIN
+            INSERT INTO messages_fts(rowid, subject, from_addr, to_json, snippet)
+            VALUES (NEW.id, NEW.subject, NEW.from_addr, NEW.to_json, NEW.snippet);
+         END",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER IF NOT EXISTS messages_fts_update
+         AFTER UPDATE ON messages BEGIN
+            UPDATE messages_fts
+            SET subject = NEW.subject, from_addr = NEW.from_addr, to_json = NEW.to_json, snippet = NEW.snippet
+            WHERE rowid = NEW.id;
+         END",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER IF NOT EXISTS messages_fts_delete
+         AFTER DELETE ON messages BEGIN
+            DELETE FROM messages_fts WHERE rowid = OLD.id;
+         END",
+        [],
+    )?;
+
+    conn.execute(
+        "INSERT INTO messages_fts(messages_fts) VALUES ('rebuild')",
         [],
     )?;
 
