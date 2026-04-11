@@ -66,6 +66,31 @@ pub fn parse_fts_query(query: &str) -> String {
     }
 }
 
+pub fn tokenize_fts_query(query: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    let mut in_quotes = false;
+    for c in query.chars() {
+        match c {
+            '"' => {
+                in_quotes = !in_quotes;
+                current.push(c);
+            }
+            ' ' | '\t' | '\n' | '\r' if !in_quotes => {
+                if !current.is_empty() {
+                    tokens.push(current.clone());
+                    current.clear();
+                }
+            }
+            _ => current.push(c),
+        }
+    }
+    if !current.is_empty() {
+        tokens.push(current);
+    }
+    tokens
+}
+
 pub fn parse_advanced_fts_query(query: &str) -> String {
     let normalized = query.trim();
 
@@ -73,20 +98,18 @@ pub fn parse_advanced_fts_query(query: &str) -> String {
         return "\"\"".to_string();
     }
 
-    if normalized.starts_with('"') && normalized.ends_with('"') {
-        return escape_fts_query(normalized);
-    }
+    let is_advanced = normalized.contains(" AND ")
+        || normalized.contains(" OR ")
+        || normalized.contains(" NOT ")
+        || normalized.contains(':');
 
-    let has_boolean =
-        normalized.contains(" AND ") || normalized.contains(" OR ") || normalized.contains(" NOT ");
-
-    if has_boolean {
-        let tokens: Vec<&str> = normalized.split_whitespace().collect();
+    if is_advanced {
+        let tokens = tokenize_fts_query(normalized);
         let mut result = String::new();
         let mut expect_operand = true;
 
         for token in tokens {
-            match token {
+            match token.as_str() {
                 "AND" | "OR" | "NOT" => {
                     result.push_str(&format!(" {} ", token.to_uppercase()));
                     expect_operand = true;
@@ -95,10 +118,27 @@ pub fn parse_advanced_fts_query(query: &str) -> String {
                     if !expect_operand {
                         result.push(' ');
                     }
-                    if token.starts_with('-') || token.contains(':') {
-                        result.push_str(token);
+
+                    if token.starts_with("subject:")
+                        || token.starts_with("from_addr:")
+                        || token.starts_with("to_json:")
+                        || token.starts_with("snippet:")
+                        || token.starts_with("body_plain:")
+                    {
+                        result.push_str(&token);
+                    } else if token.starts_with('-') && token.len() > 1 {
+                        let term = &token[1..];
+                        if term.starts_with('"') && term.ends_with('"') {
+                            result.push_str(&format!("-{}", term));
+                        } else {
+                            result.push_str(&format!("-\"{}\"", escape_fts_query(term)));
+                        }
                     } else {
-                        result.push_str(&format!("\"{}\"", escape_fts_query(token)));
+                        if token.starts_with('"') && token.ends_with('"') && token.len() >= 2 {
+                            result.push_str(&token);
+                        } else {
+                            result.push_str(&format!("\"{}\"", escape_fts_query(&token)));
+                        }
                     }
                     expect_operand = false;
                 }
