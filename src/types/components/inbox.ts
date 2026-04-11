@@ -12,7 +12,6 @@ export interface MessageListProps {
 export interface MessageRowProps {
 	message: import('../../types/mail').MailHeader
 	isUnread: boolean
-	isHovered: boolean
 	isFocused: boolean
 	zenMode: boolean
 	accentColor: string
@@ -20,8 +19,6 @@ export interface MessageRowProps {
 	previewLines: number
 	formatDate: (date: string) => string
 	onMessageClick: (uid: number, mailbox: string) => void
-	onMouseEnter: () => void
-	onMouseLeave: () => void
 	onDelete: () => void
 	onToggleRead: () => void
 	onToggleStar: () => void

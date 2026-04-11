@@ -120,21 +120,19 @@ const MessageRow = memo(
 	({
 		message,
 		isUnread,
-		isHovered,
 		zenMode,
 		accentColor,
 		animationsEnabled,
 		previewLines,
 		formatDate,
 		onMessageClick,
-		onMouseEnter,
-		onMouseLeave,
 		onDelete,
 		onToggleRead,
 		onToggleStar,
 		isFocused,
 	}: MessageRowProps) => {
 		const { t } = useTypedTranslation()
+		const [isHovered, setIsHovered] = useState(false)
 
 		const sender = message.from[0]?.replace(/<.*>/g, '').trim() || message.from.join(', ')
 		const subject = message.subject || '(No Subject)'
@@ -245,8 +243,8 @@ const MessageRow = memo(
 				<motion.div
 					role='button'
 					tabIndex={0}
-					onMouseEnter={onMouseEnter}
-					onMouseLeave={onMouseLeave}
+					onMouseEnter={() => setIsHovered(true)}
+					onMouseLeave={() => setIsHovered(false)}
 					onClick={(e) => {
 						if (isOptimistic) {
 							e.preventDefault()
@@ -316,8 +314,8 @@ const MessageRow = memo(
 			<motion.div
 				role='button'
 				tabIndex={0}
-				onMouseEnter={onMouseEnter}
-				onMouseLeave={onMouseLeave}
+				onMouseEnter={() => setIsHovered(true)}
+				onMouseLeave={() => setIsHovered(false)}
 				onClick={(e) => {
 					if (isOptimistic) {
 						e.preventDefault()
@@ -381,7 +379,6 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 	const animationsEnabled = useAnimationsEnabled()
 	const queryClient = useQueryClient()
 	const virtuosoRef = useRef<VirtuosoHandle>(null)
-	const [hoveredMessageId, setHoveredMessageId] = useState<number | null>(null)
 	const [isSyncing, setIsSyncing] = useState(false)
 	const [syncError, setSyncError] = useState<string | null>(null)
 	const syncingRef = useRef(false)
@@ -901,7 +898,6 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 					}}
 					itemContent={(_index, message) => {
 						const isUnread = !message.flags.includes('\\Seen')
-						const isHovered = hoveredMessageId === message.uid
 
 						const isOptimistic = message.uid < 0
 
@@ -934,7 +930,6 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 								<MessageRow
 									message={message}
 									isUnread={isUnread}
-									isHovered={isHovered}
 									isFocused={message.uid === focusedUid}
 									zenMode={zenMode}
 									accentColor={accentColor}
@@ -942,8 +937,6 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 									previewLines={previewLines}
 									formatDate={formatDate}
 									onMessageClick={onMessageClick}
-									onMouseEnter={() => setHoveredMessageId(message.uid)}
-									onMouseLeave={() => setHoveredMessageId(null)}
 									onDelete={() =>
 										handleDeleteMessage(message.uid, message.mailbox)
 									}
