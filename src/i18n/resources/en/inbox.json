@@ -15,7 +15,7 @@
 		}
 	},
 	"search": {
-		"placeholder": "Search in inbox...",
+		"placeholder": "Search in inbox…",
 		"operatorHint": "Available operators:",
 		"operators": {
 			"sender": "sender",
@@ -46,7 +46,7 @@
 		"results": {
 			"empty": "No messages found",
 			"count": "{{count}} results",
-			"searching": "Searching..."
+			"searching": "Searching…"
 		},
 		"history": {
 			"title": "Recent searches",
@@ -59,8 +59,8 @@
 			"subtitle": "All caught up!"
 		},
 		"error": "Failed to load messages",
-		"loadingMore": "Loading more messages...",
-		"moving": "Moving...",
+		"loadingMore": "Loading more messages…",
+		"moving": "Moving…",
 		"actions": {
 			"archive": "Archive",
 			"delete": "Delete",
@@ -99,7 +99,7 @@
 	},
 	"messageView": {
 		"back": "Back to list",
-		"loading": "Loading message...",
+		"loading": "Loading message…",
 		"error": "Failed to load message",
 		"errorRetry": "Try again",
 		"notFound": "Message not found",
@@ -134,7 +134,7 @@
 			"forward": "Forward",
 			"delete": "Delete",
 			"markUnread": "Mark as unread",
-			"moveTo": "Move to...",
+			"moveTo": "Move to…",
 			"moveToPlaceholder": "Move to…",
 			"moveToEmpty": "No folders found",
 			"archive": "Archive",
@@ -169,7 +169,7 @@
 		"readReceipt": {
 			"label": "Sender requested read receipt",
 			"send": "Send Receipt",
-			"sending": "Sending...",
+			"sending": "Sending…",
 			"sent": "Read receipt sent",
 			"error": "Failed to send read receipt",
 			"dismiss": "Dismiss"
