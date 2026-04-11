@@ -354,6 +354,11 @@ pub fn connect_db_with_key(hex_key: &str) -> Result<DbPool, DBError> {
     let manager = SqlCipherConnectionManager::new(db_path, hex_key.to_string());
     let pool = Pool::builder().max_size(4).build(manager)?;
 
+    {
+        let conn = pool.get()?;
+        run_migrations(&conn)?;
+    }
+
     Ok(pool)
 }
 
