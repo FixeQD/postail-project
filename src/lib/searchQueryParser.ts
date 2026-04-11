@@ -16,6 +16,14 @@ export function serializeSearchQuery(query: AdvancedSearchQuery): string {
 		const val = query.subject.trim()
 		parts.push(`subject:${val.includes(' ') ? `"${val}"` : val}`)
 	}
+	if (query.body?.trim()) {
+		const val = query.body.trim()
+		parts.push(`body:${val.includes(' ') ? `"${val}"` : val}`)
+	}
+	if (query.folder?.trim()) {
+		const val = query.folder.trim()
+		parts.push(`folder:${val.includes(' ') ? `"${val}"` : val}`)
+	}
 	if (query.dateFrom?.trim()) parts.push(`after:${query.dateFrom.trim()}`)
 	if (query.dateTo?.trim()) parts.push(`before:${query.dateTo.trim()}`)
 	if (query.hasAttachment) parts.push('has:attachment')
@@ -23,14 +31,23 @@ export function serializeSearchQuery(query: AdvancedSearchQuery): string {
 	return parts.join(' ')
 }
 
-export const SEARCH_OPERATORS = ['from:', 'to:', 'subject:', 'before:', 'after:', 'has:']
+export const SEARCH_OPERATORS = [
+	'from:',
+	'to:',
+	'subject:',
+	'body:',
+	'folder:',
+	'before:',
+	'after:',
+	'has:',
+]
 
 export function parseSearchOperators(input: string): AdvancedSearchQuery {
 	const query: AdvancedSearchQuery = {}
 	let rawQuery = ''
 
 	// Split by operators
-	const regex = /(?:^|\s)(from:|to:|subject:|before:|after:|has:)/i
+	const regex = /(?:^|\s)(from:|to:|subject:|body:|folder:|before:|after:|has:)/i
 	const parts = input.split(regex).filter(Boolean)
 
 	let currentOp: string | null = null
@@ -46,14 +63,7 @@ export function parseSearchOperators(input: string): AdvancedSearchQuery {
 			continue
 		}
 
-		if (
-			currentOp === 'subject:' ||
-			currentOp === 'from:' ||
-			currentOp === 'to:' ||
-			currentOp === 'before:' ||
-			currentOp === 'after:' ||
-			currentOp === 'has:'
-		) {
+		if (currentOp && SEARCH_OPERATORS.includes(currentOp)) {
 			let val = ''
 			let rem = ''
 
@@ -77,6 +87,8 @@ export function parseSearchOperators(input: string): AdvancedSearchQuery {
 			else if (currentOp === 'to:') query.to = val
 			else if (currentOp === 'subject:')
 				query.subject = query.subject ? `${query.subject} ${val}` : val
+			else if (currentOp === 'body:') query.body = query.body ? `${query.body} ${val}` : val
+			else if (currentOp === 'folder:') query.folder = val
 			else if (currentOp === 'before:') query.dateTo = val
 			else if (currentOp === 'after:') query.dateFrom = val
 			else if (currentOp === 'has:') {
