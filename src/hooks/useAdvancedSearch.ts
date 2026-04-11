@@ -83,18 +83,20 @@ export function useAdvancedSearch(
 
 				// Client-side filter helper
 				const filterResults = (res: SearchResult[]) =>
-					res.filter((r) => {
-						if (query.hasAttachment === true && !r.has_attachments) return false
-						if (query.dateFrom) {
-							const from = new Date(query.dateFrom).getTime()
-							if (r.date * 1000 < from) return false
-						}
-						if (query.dateTo) {
-							const to = new Date(query.dateTo).getTime() + 86_400_000
-							if (r.date * 1000 > to) return false
-						}
-						return true
-					})
+					res
+						.filter((r) => {
+							if (query.hasAttachment === true && !r.has_attachments) return false
+							if (query.dateFrom) {
+								const from = new Date(query.dateFrom).getTime()
+								if (r.date * 1000 < from) return false
+							}
+							if (query.dateTo) {
+								const to = new Date(query.dateTo).getTime() + 86_400_000
+								if (r.date * 1000 > to) return false
+							}
+							return true
+						})
+						.sort((a, b) => b.date - a.date)
 
 				setState((prev) => ({
 					...prev,

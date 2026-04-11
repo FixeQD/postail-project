@@ -174,7 +174,7 @@ pub fn search_messages(
          FROM messages_fts
          JOIN messages m ON messages_fts.rowid = m.id
          WHERE messages_fts MATCH ? {}
-         ORDER BY rank ASC LIMIT ?",
+         ORDER BY m.internal_date DESC LIMIT ?",
         where_clause
     );
 
@@ -225,7 +225,7 @@ pub fn search_messages_advanced(
          FROM messages_fts
          JOIN messages m ON messages_fts.rowid = m.id
          WHERE messages_fts MATCH ? {}
-         ORDER BY rank ASC LIMIT ?",
+         ORDER BY m.internal_date DESC LIMIT ?",
         where_clause
     );
 
@@ -276,7 +276,7 @@ fn run_body_search(
          FROM message_bodies_fts
          JOIN messages m ON message_bodies_fts.rowid = m.id
          WHERE message_bodies_fts MATCH ? {}
-         ORDER BY rank ASC LIMIT ?",
+         ORDER BY m.internal_date DESC LIMIT ?",
         where_clause
     );
 
@@ -339,12 +339,8 @@ pub fn search_messages_with_body(
     }
 
     let mut results: Vec<SearchResult> = seen.into_values().collect();
-    // sort ASC: more negative rank is better
-    results.sort_by(|a, b| {
-        a.rank
-            .partial_cmp(&b.rank)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    // sort DESC by date
+    results.sort_by(|a, b| b.date.cmp(&a.date));
     results.truncate(limit as usize);
 
     Ok(results)
