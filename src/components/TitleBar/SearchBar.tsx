@@ -497,23 +497,8 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 						)}
 					</AnimatePresence>
 
-					{/* Clear + Save + Advanced toggle inside input */}
+					{/* Save + Advanced toggle inside input */}
 					<div className='absolute inset-y-0 right-0 flex items-center gap-0.5 pr-1.5'>
-						<AnimatePresence>
-							{(rawInput || hasActiveSearch) && (
-								<motion.button
-									type='button'
-									onClick={handleClear}
-									initial={animationsEnabled ? { opacity: 0, scale: 0.7 } : {}}
-									animate={animationsEnabled ? { opacity: 1, scale: 1 } : {}}
-									exit={animationsEnabled ? { opacity: 0, scale: 0.7 } : {}}
-									transition={{ duration: 0.15 }}
-									className='flex h-5 w-5 items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-active)] hover:text-[var(--text-primary)]'>
-									<X className='h-3 w-3' />
-								</motion.button>
-							)}
-						</AnimatePresence>
-
 						<AnimatePresence>
 							{hasActiveSearch && (
 								<motion.button
@@ -551,6 +536,22 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 						</motion.button>
 					</div>
 				</div>
+
+				<AnimatePresence>
+					{(rawInput || hasActiveSearch) && (
+						<motion.button
+							type='button'
+							onClick={handleClear}
+							initial={animationsEnabled ? { opacity: 0, scale: 0.7 } : {}}
+							animate={animationsEnabled ? { opacity: 1, scale: 1 } : {}}
+							exit={animationsEnabled ? { opacity: 0, scale: 0.7 } : {}}
+							transition={{ duration: 0.15 }}
+							className='flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-transparent bg-slate-100/50 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-900 dark:bg-white/5 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white'
+							title={t('inbox:search.actions.clear')}>
+							<X className='h-4 w-4' />
+						</motion.button>
+					)}
+				</AnimatePresence>
 
 				{/* Save-mode name input dropdown */}
 				<AnimatePresence>
