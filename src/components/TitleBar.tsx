@@ -15,8 +15,8 @@ import { SearchBar } from './TitleBar/SearchBar'
 import type { TitleBarProps } from '@/types/components/shared'
 
 export function TitleBar({ isDashboard, onSearch, onOpenSettings, onOpenOutbox }: TitleBarProps) {
-	const { activeAccount } = useAccountStore()
-	const { isSending } = useDraftStore()
+	const activeAccount = useAccountStore((s) => s.activeAccount)
+	const isSending = useDraftStore((s) => s.isSending)
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const animationsEnabled = useAnimationsEnabled()
 	const [isMobile, setIsMobile] = useState<boolean | null>(null)

@@ -41,7 +41,10 @@ export const MessageView = ({
 }: MessageViewProps) => {
 	const { t } = useTypedTranslation(['common', 'inbox'])
 	const queryClient = useQueryClient()
-	const { viewMode, toggleViewMode, setTitleMeta, setLoading } = useMessageViewStore()
+	const viewMode = useMessageViewStore((s) => s.viewMode)
+	const toggleViewMode = useMessageViewStore((s) => s.toggleViewMode)
+	const setTitleMeta = useMessageViewStore((s) => s.setTitleMeta)
+	const setLoading = useMessageViewStore((s) => s.setLoading)
 	const blockExternalImages = useSettingsStore((s) => s.settings['block-external-images'])
 	const blockReadReceipts = useSettingsStore((s) => s.settings['block-read-receipts'])
 	const markAsReadDelay = useSettingsStore((s) => s.settings['mark-as-read-delay'])
@@ -302,13 +305,23 @@ export const MessageView = ({
 		if (!el) return
 
 		let timer: ReturnType<typeof setTimeout>
+		let cachedIframe: HTMLElement | null = null
+		let iframeSearched = false
+		let isScrolling = false
+
 		const onScroll = () => {
-			const iframe = el.querySelector('iframe')
-			if (iframe) (iframe as HTMLElement).style.pointerEvents = 'none'
+			if (!iframeSearched) {
+				cachedIframe = el.querySelector('iframe')
+				iframeSearched = true
+			}
+			if (cachedIframe && !isScrolling) {
+				isScrolling = true
+				cachedIframe.style.pointerEvents = 'none'
+			}
 			clearTimeout(timer)
 			timer = setTimeout(() => {
-				const iframe = el.querySelector('iframe')
-				if (iframe) (iframe as HTMLElement).style.pointerEvents = ''
+				isScrolling = false
+				if (cachedIframe) cachedIframe.style.pointerEvents = ''
 			}, 150)
 		}
 

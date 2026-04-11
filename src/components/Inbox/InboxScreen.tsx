@@ -47,8 +47,11 @@ export const InboxScreen = (props: InboxScreenProps) => {
 }
 
 const InboxScreenInner = ({}: InboxScreenProps) => {
-	const { accounts, activeAccount, setActiveAccount, activeMailbox, setActiveMailbox } =
-		useAccountStore()
+	const accounts = useAccountStore((s) => s.accounts)
+	const activeAccount = useAccountStore((s) => s.activeAccount)
+	const setActiveAccount = useAccountStore((s) => s.setActiveAccount)
+	const activeMailbox = useAccountStore((s) => s.activeMailbox)
+	const setActiveMailbox = useAccountStore((s) => s.setActiveMailbox)
 	const [isComposeOpen, setIsComposeOpen] = useState(false)
 	const [selectedMessage, setSelectedMessage] = useState<{
 		uid: number
@@ -56,8 +59,8 @@ const InboxScreenInner = ({}: InboxScreenProps) => {
 	} | null>(null)
 	const [focusedUid, setFocusedUid] = useState<number | null>(null)
 	const { loadDraft } = useDraftStore()
-	const { openMessage: openMessageInStore, closeMessage: closeMessageInStore } =
-		useMessageViewStore()
+	const openMessageInStore = useMessageViewStore((s) => s.openMessage)
+	const closeMessageInStore = useMessageViewStore((s) => s.closeMessage)
 	const queryClient = useQueryClient()
 
 	const {
