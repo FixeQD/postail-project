@@ -52,7 +52,7 @@ export function useAdvancedSearch(accountId: string | undefined) {
 				const results = await invoke<SearchResult[]>('search_messages_advanced', {
 					accountId,
 					mailbox: query.folder ?? null,
-					query: rawQueryString || '""',
+					query: rawQueryString,
 					bodyQuery: query.body?.trim() ?? null,
 					limit: 200,
 				})
