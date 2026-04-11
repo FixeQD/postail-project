@@ -143,6 +143,12 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 		inputRef.current?.blur()
 	}, [onSearch])
 
+	useEffect(() => {
+		const onClear = () => handleClear()
+		window.addEventListener('postail:search:clear', onClear)
+		return () => window.removeEventListener('postail:search:clear', onClear)
+	}, [handleClear])
+
 	const handleSubmit = useCallback(() => {
 		const parsed = parseSearchOperators(rawInput)
 		const finalQuery: AdvancedSearchQuery = {

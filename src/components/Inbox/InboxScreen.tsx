@@ -282,8 +282,14 @@ const InboxScreenInner = ({}: InboxScreenProps) => {
 			<div className='flex h-full overflow-hidden'>
 				<Sidebar
 					activeAccount={activeAccount}
-					activeMailbox={activeMailbox}
-					onMailboxSelect={setActiveMailbox}
+					activeMailbox={isSearchActive ? '' : activeMailbox}
+					onMailboxSelect={(mailbox) => {
+						if (isSearchActive) {
+							clearSearch()
+							window.dispatchEvent(new CustomEvent('postail:search:clear'))
+						}
+						setActiveMailbox(mailbox)
+					}}
 					onCompose={() => setIsComposeOpen(true)}
 				/>
 				<div className='flex flex-1 flex-col overflow-hidden'>
