@@ -138,10 +138,14 @@ export function useAdvancedSearch(
 
 					setState((prev) => {
 						// Merge local and imap results, preferring IMAP order
-						const existingUids = new Set(imapResults.map((r) => r.uid))
+						const existingKeys = new Set(
+							imapResults.map((r) => `${r.account_id}:${r.mailbox}:${r.uid}`)
+						)
 						const combined = [
 							...imapResults,
-							...prev.results.filter((r) => !existingUids.has(r.uid)),
+							...prev.results.filter(
+								(r) => !existingKeys.has(`${r.account_id}:${r.mailbox}:${r.uid}`)
+							),
 						]
 						// Sort by date desc
 						combined.sort((a, b) => b.date - a.date)
