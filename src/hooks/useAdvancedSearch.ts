@@ -105,8 +105,13 @@ export function useAdvancedSearch(
 				}))
 
 				// 2. Fetch from IMAP in background
-				// IMAP SEARCH requires a specific mailbox; fallback to activeMailbox or INBOX for the server request
-				const targetMailbox = query.folder || activeMailbox || 'INBOX'
+				// IMAP SEARCH requires a specific mailbox; skip if searching across all folders
+				if (!query.folder) {
+					setState((prev) => ({ ...prev, isLoading: false }))
+					return
+				}
+
+				const targetMailbox = query.folder
 				try {
 					const headers = await invoke<any[]>('imap_search_messages', {
 						accountId,
