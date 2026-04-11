@@ -107,68 +107,76 @@ fn get_headers_by_uids(
         return Ok(vec![]);
     }
 
-    let placeholders = build_uid_in_clause(uids.len());
-    let sql = format!(
-        "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet,
-                has_attachments, starred, mailbox,
-                (SELECT json_group_array(tag) FROM message_tags mt WHERE mt.message_id = m.id) as tags_json
-         FROM messages m
-         WHERE account_id = ? AND mailbox = ? AND uid IN ({})
-         ORDER BY uid DESC",
-        placeholders
-    );
+    let mut all_headers = Vec::new();
 
-    let mut params: Vec<rusqlite::types::Value> = vec![
-        rusqlite::types::Value::Text(account_id.to_string()),
-        rusqlite::types::Value::Text(mailbox.to_string()),
-    ];
-    params.extend(
-        uids.iter()
-            .map(|&u| rusqlite::types::Value::Integer(u as i64)),
-    );
+    for chunk in uids.chunks(500) {
+        let placeholders = build_uid_in_clause(chunk.len());
+        let sql = format!(
+            "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet,
+                    has_attachments, starred, mailbox,
+                    (SELECT json_group_array(tag) FROM message_tags mt WHERE mt.message_id = m.id) as tags_json
+             FROM messages m
+             WHERE account_id = ? AND mailbox = ? AND uid IN ({})
+             ORDER BY uid DESC",
+            placeholders
+        );
 
-    let mut stmt = conn.prepare(&sql)?;
-    let headers_iter = stmt.query_map(params_from_iter(params.iter()), |row| {
-        let to_json: Option<String> = row.get(5)?;
-        let to: Vec<String> = to_json
-            .map(|s| serde_json::from_str(&s).unwrap_or_default())
-            .unwrap_or_default();
-        let cc_json: Option<String> = row.get(6)?;
-        let cc: Vec<String> = cc_json
-            .map(|s| serde_json::from_str(&s).unwrap_or_default())
-            .unwrap_or_default();
-        let flags_json: Option<String> = row.get(7)?;
-        let flags: Vec<String> = flags_json
-            .map(|s| serde_json::from_str(&s).unwrap_or_default())
-            .unwrap_or_default();
-        let tags_json: Option<String> = row.get(12)?;
-        let tags: Vec<String> = tags_json
-            .map(|s| serde_json::from_str(&s).unwrap_or_default())
-            .unwrap_or_default();
+        let mut params: Vec<rusqlite::types::Value> = vec![
+            rusqlite::types::Value::Text(account_id.to_string()),
+            rusqlite::types::Value::Text(mailbox.to_string()),
+        ];
+        params.extend(
+            chunk
+                .iter()
+                .map(|&u| rusqlite::types::Value::Integer(u as i64)),
+        );
 
-        let ts: i64 = row.get(2)?;
-        let internal_date = crate::db::mail::messages::safe_timestamp_from_utc(ts)
-            .ok_or_else(|| rusqlite::Error::InvalidColumnName("internal_date".into()))?;
+        let mut stmt = conn.prepare(&sql)?;
+        let headers_iter = stmt.query_map(params_from_iter(params.iter()), |row| {
+            let to_json: Option<String> = row.get(5)?;
+            let to: Vec<String> = to_json
+                .map(|s| serde_json::from_str(&s).unwrap_or_default())
+                .unwrap_or_default();
+            let cc_json: Option<String> = row.get(6)?;
+            let cc: Vec<String> = cc_json
+                .map(|s| serde_json::from_str(&s).unwrap_or_default())
+                .unwrap_or_default();
+            let flags_json: Option<String> = row.get(7)?;
+            let flags: Vec<String> = flags_json
+                .map(|s| serde_json::from_str(&s).unwrap_or_default())
+                .unwrap_or_default();
+            let tags_json: Option<String> = row.get(12)?;
+            let tags: Vec<String> = tags_json
+                .map(|s| serde_json::from_str(&s).unwrap_or_default())
+                .unwrap_or_default();
 
-        Ok(MailHeader {
-            uid: row.get::<_, u32>(0)?,
-            mailbox: row.get(11)?,
-            message_id: row.get(1)?,
-            internal_date,
-            subject: row.get(3)?,
-            from: vec![row.get::<_, Option<String>>(4)?.unwrap_or_default()],
-            to,
-            cc,
-            flags,
-            snippet: row.get(8)?,
-            has_attachments: row.get::<_, i64>(9)? != 0,
-            starred: row.get::<_, i64>(10)? != 0,
-            tags,
-        })
-    })?;
+            let ts: i64 = row.get(2)?;
+            let internal_date = crate::db::mail::messages::safe_timestamp_from_utc(ts)
+                .ok_or_else(|| rusqlite::Error::InvalidColumnName("internal_date".into()))?;
 
-    let results: Result<Vec<MailHeader>, _> = headers_iter.collect();
-    results.map_err(crate::error::DBError::Sqlite)
+            Ok(MailHeader {
+                uid: row.get::<_, u32>(0)?,
+                mailbox: row.get(11)?,
+                message_id: row.get(1)?,
+                internal_date,
+                subject: row.get(3)?,
+                from: vec![row.get::<_, Option<String>>(4)?.unwrap_or_default()],
+                to,
+                cc,
+                flags,
+                snippet: row.get(8)?,
+                has_attachments: row.get::<_, i64>(9)? != 0,
+                starred: row.get::<_, i64>(10)? != 0,
+                tags,
+            })
+        })?;
+
+        for header in headers_iter {
+            all_headers.push(header.map_err(crate::error::DBError::Sqlite)?);
+        }
+    }
+
+    Ok(all_headers)
 }
 
 impl ImapManager {
@@ -204,6 +212,7 @@ impl ImapManager {
 
             let mut uids: Vec<u32> = uid_set.into_iter().collect();
             uids.sort_unstable_by(|a, b| b.cmp(a)); // newest first
+            uids.truncate(1000);
             uids
         };
 
