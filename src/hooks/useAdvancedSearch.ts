@@ -73,7 +73,7 @@ export function useAdvancedSearch(
 				// 1. Fetch local results first
 				const localResults = await invoke<SearchResult[]>('search_messages_advanced', {
 					accountId,
-					mailbox: query.folder ?? activeMailbox ?? null,
+					mailbox: query.folder || null,
 					query: rawQueryString,
 					bodyQuery: query.body?.trim() ?? null,
 					limit: 200,
@@ -105,7 +105,8 @@ export function useAdvancedSearch(
 				}))
 
 				// 2. Fetch from IMAP in background
-				const targetMailbox = query.folder ?? activeMailbox ?? 'INBOX'
+				// IMAP SEARCH requires a specific mailbox; fallback to activeMailbox or INBOX for the server request
+				const targetMailbox = query.folder || activeMailbox || 'INBOX'
 				try {
 					const headers = await invoke<any[]>('imap_search_messages', {
 						accountId,
