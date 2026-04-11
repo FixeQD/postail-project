@@ -210,6 +210,10 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 
 		const parsed = parseSearchOperators(rawInput)
 		const finalQuery: AdvancedSearchQuery = { ...query, ...parsed }
+
+		const isEmpty = Object.values(finalQuery).every((v) => !v)
+		if (isEmpty) return
+
 		const queryJson = JSON.stringify(finalQuery)
 
 		setIsSaving(true)
@@ -778,10 +782,7 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 						<div className='mt-3 flex items-center justify-between border-t border-[var(--border-subtle)] pt-3'>
 							<button
 								type='button'
-								onClick={() => {
-									setQuery({})
-									setRawInput('')
-								}}
+								onClick={handleClear}
 								className='text-xs text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-secondary)]'>
 								{t('inbox:search.actions.clear')}
 							</button>
