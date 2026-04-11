@@ -13,7 +13,10 @@ pub struct SavedSearch {
     pub created_at: i64,
 }
 
-pub fn get_saved_searches(conn: &Connection, account_id: &str) -> Result<Vec<SavedSearch>, DBError> {
+pub fn get_saved_searches(
+    conn: &Connection,
+    account_id: &str,
+) -> Result<Vec<SavedSearch>, DBError> {
     let mut stmt = conn.prepare(
         "SELECT id, account_id, name, query_json, icon, position, created_at
          FROM saved_searches
@@ -47,20 +50,15 @@ pub fn create_saved_search(
     icon: &str,
     created_at: i64,
 ) -> Result<SavedSearch, DBError> {
-    let position: i32 = conn
-        .query_row(
-            "SELECT COALESCE(MAX(position), -1) FROM saved_searches WHERE account_id = ?",
-            [account_id],
-            |row| row.get::<_, i32>(0),
-        )
-        .optional()?
-        .unwrap_or(-1)
-        + 1;
-
-    conn.execute(
+    let position: i32 = conn.query_row(
         "INSERT INTO saved_searches (id, account_id, name, query_json, icon, position, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)",
-        params![id, account_id, name, query_json, icon, position, created_at],
+         SELECT ?, ?, ?, ?, ?, COALESCE(MAX(position), -1) + 1, ?
+         FROM saved_searches WHERE account_id = ?
+         RETURNING position",
+        params![
+            id, account_id, name, query_json, icon, created_at, account_id
+        ],
+        |row| row.get::<_, i32>(0),
     )?;
 
     Ok(SavedSearch {
