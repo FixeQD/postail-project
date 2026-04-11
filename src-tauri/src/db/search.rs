@@ -232,11 +232,11 @@ fn run_body_search(
 
     let sql = format!(
         "SELECT m.id, m.account_id, m.mailbox, m.uid, m.subject, m.from_addr,
-                m.snippet, bf.rank, m.has_attachments, m.internal_date
-         FROM message_bodies_fts bf
-         JOIN messages m ON bf.rowid = m.id
-         WHERE bf MATCH ? {}
-         ORDER BY bf.rank ASC LIMIT ?",
+                m.snippet, message_bodies_fts.rank, m.has_attachments, m.internal_date
+         FROM message_bodies_fts
+         JOIN messages m ON message_bodies_fts.rowid = m.id
+         WHERE message_bodies_fts MATCH ? {}
+         ORDER BY rank ASC LIMIT ?",
         where_clause
     );
 
