@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import type { SearchResult, AdvancedSearchQuery } from '@/types/search'
 
@@ -18,6 +18,16 @@ export function useAdvancedSearch(accountId: string | undefined) {
 		activeQuery: null,
 		rawQueryString: '',
 	})
+
+	useEffect(() => {
+		setState({
+			results: [],
+			isLoading: false,
+			error: null,
+			activeQuery: null,
+			rawQueryString: '',
+		})
+	}, [accountId])
 
 	const search = useCallback(
 		async (query: AdvancedSearchQuery) => {
