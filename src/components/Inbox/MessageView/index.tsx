@@ -301,38 +301,6 @@ export const MessageView = ({
 	const scrollContainerRef = useRef<HTMLDivElement>(null)
 
 	useEffect(() => {
-		const el = scrollContainerRef.current
-		if (!el) return
-
-		let timer: ReturnType<typeof setTimeout>
-		let cachedIframe: HTMLElement | null = null
-		let iframeSearched = false
-		let isScrolling = false
-
-		const onScroll = () => {
-			if (!iframeSearched) {
-				cachedIframe = el.querySelector('iframe')
-				iframeSearched = true
-			}
-			if (cachedIframe && !isScrolling) {
-				isScrolling = true
-				cachedIframe.style.pointerEvents = 'none'
-			}
-			clearTimeout(timer)
-			timer = setTimeout(() => {
-				isScrolling = false
-				if (cachedIframe) cachedIframe.style.pointerEvents = ''
-			}, 150)
-		}
-
-		el.addEventListener('scroll', onScroll, { passive: true })
-		return () => {
-			el.removeEventListener('scroll', onScroll)
-			clearTimeout(timer)
-		}
-	}, [uid])
-
-	useEffect(() => {
 		if (scrollContainerRef.current) {
 			scrollContainerRef.current.scrollTo({ top: 0, behavior: 'auto' })
 		}

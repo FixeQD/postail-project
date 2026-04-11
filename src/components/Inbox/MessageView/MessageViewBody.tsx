@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useThemeStore } from '@/stores/themeStore'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
@@ -18,181 +18,143 @@ export const MessageViewBody = ({
 }: MessageViewBodyProps) => {
 	const { t } = useTypedTranslation(['security', 'common'])
 	const accentColor = useThemeStore((s) => s.accentColor)
+
 	const iframeRef = useRef<HTMLIFrameElement>(null)
-	const containerRef = useRef<HTMLDivElement>(null)
+	const isReadyRef = useRef(false)
+
 	const [iframeSrcDoc, setIframeSrcDoc] = useState<string | null>(null)
-	const [warningOpen, setWarningOpen] = useState(false)
+
 	const [pendingUrl, setPendingUrl] = useState<string | null>(null)
-	const [iframeWidth, setIframeWidth] = useState<string>('100%')
-	const [iframeReady, setIframeReady] = useState(false)
-	const [emailBg, setEmailBg] = useState<string>('#ffffff')
+	const [warningOpen, setWarningOpen] = useState(false)
 
-	const effectiveViewMode = !htmlContent || !htmlContent.trim() ? 'plain' : viewMode
+	const effectiveMode = !htmlContent || !htmlContent.trim() ? 'plain' : viewMode
 
+	// Memoize mapped images to prevent unnecessary re-renders
+	const mappedImages = useMemo(() => {
+		return inline_images
+			.filter((img) => img.cid && img.cached_path)
+			.map((img) => ({
+				cid: img.cid!,
+				cachedPath: img.cached_path!,
+				mimeType: img.mime_type,
+			}))
+	}, [inline_images])
+
+	// 1. Process HTML Content
 	useEffect(() => {
-		if (effectiveViewMode !== 'html') return
+		if (effectiveMode !== 'html') return
 
-		const hasDarkModeSupport =
+		isReadyRef.current = false
+		onLoadingChange?.(true)
+
+		const hasDarkMode =
 			htmlContent.includes('prefers-color-scheme: dark') ||
 			htmlContent.includes('data-ogsc') ||
 			htmlContent.includes('data-ogsb')
 
-		const iframeColorScheme = hasDarkModeSupport ? 'dark light' : 'light'
-		const iframeBg = hasDarkModeSupport ? 'transparent' : '#ffffff'
-		const iframeTextColor = hasDarkModeSupport ? 'inherit' : '#1a1a1a'
+		const iframeBg = hasDarkMode ? 'transparent' : '#ffffff'
+		const iframeTextColor = hasDarkMode ? 'inherit' : '#1a1a1a'
+		const colorScheme = hasDarkMode ? 'dark light' : 'light'
 
-		const html = `<!DOCTYPE html>
+		// Minimalist, fast HTML wrapper
+		const htmlTemplate = `<!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' data:; img-src data: blob:; font-src data:; connect-src 'none';">
-    <style>
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        padding: 24px;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        color: ${iframeTextColor};
-        background: ${iframeBg};
-        font-size: 14px;
-        line-height: 1.6;
-        word-break: break-word;
-        color-scheme: ${iframeColorScheme};
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' data:; img-src data: blob:; font-src data:; connect-src 'none';">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 24px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: ${iframeTextColor}; background: ${iframeBg};
+      font-size: 14px; line-height: 1.6; word-wrap: break-word;
+      color-scheme: ${colorScheme};
+    }
+    a { color: ${accentColor}; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    img, table, td, th { max-width: 100% !important; height: auto !important; }
+    pre { overflow-x: auto; max-width: 100%; white-space: pre-wrap; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  ${htmlContent}
+  <script>
+    const post = (msg) => window.parent.postMessage(msg, '*');
+
+    // Efficient resize observer
+    let lastH = 0;
+    let resizeTimer;
+    const checkHeight = () => {
+      const h = document.documentElement.scrollHeight || document.body.scrollHeight;
+      if (Math.abs(h - lastH) > 2) {
+        lastH = h;
+        post({ type: 'resize', height: h });
       }
-      a { color: ${accentColor}; text-decoration: none; }
-      a:hover { text-decoration: underline; }
-      img { max-width: 100% !important; }
-      img[width] { height: auto !important; }
-      table, td, th { max-width: 100% !important; }
-      table[width], td[width] { width: auto !important; }
-      table[width="100%"], td[width="100%"] { width: 100% !important; }
-      pre { overflow-x: auto; max-width: 100%; }
-      ::-webkit-scrollbar { width: 8px; height: 8px; }
-      ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 4px; }
-      ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
-    </style>
-  </head>
-  <body>
-    <div class="email-wrapper">${htmlContent}</div>
-    <script>
-      let resizeTimer;
-      let lastHeight = 0;
-      const sendHeight = () => {
-        const height = document.documentElement.scrollHeight || document.body.scrollHeight;
-        if (Math.abs(height - lastHeight) > 2) {
-          lastHeight = height;
-          window.parent.postMessage({
-            type: 'resize',
-            height: height,
-          }, '*');
-        }
-      };
+    };
 
-      const debouncedSendHeight = () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(sendHeight, 100);
-      };
+    const ro = new ResizeObserver(() => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(checkHeight, 50);
+    });
+    ro.observe(document.documentElement);
+    ro.observe(document.body);
+    window.addEventListener('load', checkHeight);
+    if (document.readyState === 'complete') checkHeight();
 
-      const ro = new ResizeObserver(debouncedSendHeight);
-
-      const init = () => {
-        ro.observe(document.body);
-        sendHeight();
-      };
-
-      if (document.readyState === 'complete') {
-        init();
-      } else {
-        window.addEventListener('load', init);
+    // Link interception
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('a');
+      if (a && a.href) {
+        e.preventDefault();
+        post({ type: 'link', url: a.href });
       }
-
-
-      window.open = function(url) {
-        if (url) window.parent.postMessage({ type: 'open-link', url: String(url) }, '*');
-        return null;
-      };
-
-      if (window.navigation) {
-        // Navigation API catches everything: clicks, JS navigation, meta refresh
-        window.navigation.addEventListener('navigate', (e) => {
-          const dest = e.destination.url;
-          if (dest === location.href) return;
-          e.preventDefault();
-          window.parent.postMessage({ type: 'open-link', url: dest }, '*');
-        });
-      } else {
-        // Fallback for older WebViews
-        document.addEventListener('click', function(e) {
-          const a = e.target.closest('a');
-          if (a && a.href) {
-            e.preventDefault();
-            window.parent.postMessage({ type: 'open-link', url: a.href }, '*');
-          }
-        });
-      }
-
-      document.addEventListener('securitypolicyviolation', function(e) {
-        if (e.blockedURI && e.blockedURI !== 'inline' && e.blockedURI !== 'eval') {
-          window.parent.postMessage({ type: 'csp-blocked' }, '*');
-        }
-      });
-    </script>
-  </body>
+    });
+  </script>
+</body>
 </html>`
 
-		const bodyBgMatch =
-			htmlContent.match(/body[^{]*\{[^}]*background-color:\s*(#[0-9a-fA-F]{3,8})/)?.[1] ??
-			htmlContent.match(
-				/body[^>]*style="[^"]*background-color:\s*(#[0-9a-fA-F]{3,8})/
-			)?.[1] ??
-			'#ffffff'
-
-		setEmailBg(bodyBgMatch)
-		setIframeReady(false)
-		setIframeWidth('100%')
-
-		onLoadingChange?.(true)
-		invoke<{ hasExternalResources: boolean; failedResources: string[]; processedHtml: string }>(
-			'set_email_view_content',
-			{
-				html,
-				inlineImages: inline_images
-					.filter((img) => img.cid && img.cached_path)
-					.map((img) => ({
-						cid: img.cid!,
-						cachedPath: img.cached_path!,
-						mimeType: img.mime_type,
-					})),
-				allowExternal: allowExternalResources,
-			}
-		)
-			.then((result) => {
-				if (result.hasExternalResources) {
-					onExternalDetected?.()
-				}
-				setIframeSrcDoc(result.processedHtml)
-				onLoadingChange?.(false)
+		invoke<{ hasExternalResources: boolean; processedHtml: string }>('set_email_view_content', {
+			html: htmlTemplate,
+			inlineImages: mappedImages,
+			allowExternal: allowExternalResources,
+		})
+			.then((res) => {
+				if (res.hasExternalResources) onExternalDetected?.()
+				setIframeSrcDoc(res.processedHtml)
 			})
-			.catch(() => {
-				onLoadingChange?.(false)
-			})
-	}, [htmlContent, effectiveViewMode, accentColor, allowExternalResources, inline_images])
+			.catch(console.error)
+			.finally(() => onLoadingChange?.(false))
+	}, [
+		htmlContent,
+		effectiveMode,
+		accentColor,
+		allowExternalResources,
+		mappedImages,
+		onExternalDetected,
+		onLoadingChange,
+	])
 
+	// 2. Handle Iframe Messages
 	useEffect(() => {
 		const handler = (e: MessageEvent) => {
-			// srcDoc iframes always have null origin
 			if (e.source !== iframeRef.current?.contentWindow) return
 
 			if (e.data?.type === 'resize' && typeof e.data.height === 'number') {
-				const newHeight = `${e.data.height}px`
-				if (iframeRef.current && iframeRef.current.style.height !== newHeight) {
-					iframeRef.current.style.height = newHeight
+				// Bypass React state for height to prevent laggy re-renders
+				if (iframeRef.current) {
+					iframeRef.current.style.height = `${e.data.height}px`
 				}
-				setIframeReady((prev) => (prev ? prev : true))
+
+				if (!isReadyRef.current) {
+					isReadyRef.current = true
+				}
 			}
 
-			if (e.data?.type === 'open-link' && e.data.url) {
+			if (e.data?.type === 'link' && e.data.url) {
 				setPendingUrl(e.data.url)
 				setWarningOpen(true)
 			}
@@ -202,42 +164,31 @@ export const MessageViewBody = ({
 		return () => window.removeEventListener('message', handler)
 	}, [])
 
-	const handleConfirmOpenLink = () => {
-		if (pendingUrl) openUrl(pendingUrl)
-		setWarningOpen(false)
-		setPendingUrl(null)
-	}
-
-	if (effectiveViewMode === 'plain') {
+	// 3. Render Plain Text
+	if (effectiveMode === 'plain') {
 		return (
 			<div className='px-5 py-5'>
-				<pre className='message-view-plain w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-6 font-mono text-[13px] leading-relaxed break-words whitespace-pre-wrap text-[var(--text-primary)] shadow-sm'>
+				<pre className='w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-6 font-mono text-[13px] leading-relaxed break-words whitespace-pre-wrap text-[var(--text-primary)] shadow-sm'>
 					{plainContent || '(No content)'}
 				</pre>
 			</div>
 		)
 	}
 
+	// 4. Render HTML
 	return (
 		<>
-			<div ref={containerRef} className='overflow-x-auto px-5 py-5'>
-				<div
-					className={`rounded-xl border border-[var(--border-faint)] ${
-						iframeReady ? 'opacity-100 shadow-sm' : 'opacity-0'
-					}`}
-					style={{
-						width: iframeWidth,
-						backgroundColor: emailBg,
-					}}>
+			<div className='overflow-x-auto px-5 py-5'>
+				<div className='rounded-xl border border-[var(--border-faint)] bg-white opacity-100 shadow-sm transition-opacity duration-200'>
 					{iframeSrcDoc && (
 						<iframe
-							key={iframeSrcDoc.length}
 							ref={iframeRef}
 							title='Message Content'
 							srcDoc={iframeSrcDoc}
 							sandbox='allow-scripts'
-							className='message-view-iframe block w-full border-none'
-							style={{ minHeight: iframeReady ? undefined : '0px' }}
+							scrolling='no'
+							className='block w-full border-none'
+							style={{ minHeight: '200px' }}
 						/>
 					)}
 				</div>
@@ -250,7 +201,11 @@ export const MessageViewBody = ({
 				description={t('security:externalLink.description')}
 				cancelLabel={t('security:externalLink.cancel')}
 				confirmLabel={t('security:externalLink.open')}
-				onConfirm={handleConfirmOpenLink}
+				onConfirm={() => {
+					if (pendingUrl) openUrl(pendingUrl)
+					setWarningOpen(false)
+					setPendingUrl(null)
+				}}
 				confirmClassName='w-full border-0 font-semibold shadow-lg bg-sky-500 text-white hover:bg-sky-600'>
 				<div className='flex flex-col gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-3'>
 					<p className='text-[10px] font-bold tracking-wider text-[var(--text-tertiary)] uppercase'>
