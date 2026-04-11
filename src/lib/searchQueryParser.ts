@@ -64,23 +64,12 @@ export function parseSearchOperators(input: string): AdvancedSearchQuery {
 		}
 
 		if (currentOp && SEARCH_OPERATORS.includes(currentOp)) {
-			let val = ''
-			let rem = ''
+			let val = trimmed
 
-			if (trimmed.startsWith('"')) {
-				const endQuote = trimmed.indexOf('"', 1)
-				if (endQuote !== -1) {
-					val = trimmed.substring(1, endQuote)
-					rem = trimmed.substring(endQuote + 1).trim()
-				} else {
-					const words = trimmed.split(/\s+/)
-					val = words[0]
-					rem = words.slice(1).join(' ')
-				}
+			if (val.startsWith('"') && val.endsWith('"') && val.length >= 2) {
+				val = val.substring(1, val.length - 1).replace(/""/g, '"')
 			} else {
-				const words = trimmed.split(/\s+/)
-				val = words[0]
-				rem = words.slice(1).join(' ')
+				val = val.replace(/""/g, '"')
 			}
 
 			if (currentOp === 'from:') query.from = val
@@ -95,14 +84,10 @@ export function parseSearchOperators(input: string): AdvancedSearchQuery {
 				if (val.toLowerCase() === 'attachment') {
 					query.hasAttachment = true
 				} else {
-					rem = val + (rem ? ' ' + rem : '')
-					rawQuery += (rawQuery ? ' ' : '') + 'has:'
+					rawQuery += (rawQuery ? ' ' : '') + 'has:' + val
 				}
 			}
 
-			if (rem) {
-				rawQuery += (rawQuery ? ' ' : '') + rem
-			}
 			currentOp = null
 		} else {
 			rawQuery += (rawQuery ? ' ' : '') + trimmed
