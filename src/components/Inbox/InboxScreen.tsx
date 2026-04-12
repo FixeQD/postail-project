@@ -15,6 +15,9 @@ import type { FilterRule } from '@/types/filters'
 
 import { useAccountStore } from '@/stores/accountStore'
 import { SuggestRuleDialog } from '@/components/Inbox/SuggestRuleDialog'
+import { useAdvancedSearch } from '@/hooks/useAdvancedSearch'
+import { SearchResultsList } from '@/components/Inbox/Search/SearchResultsList'
+import type { AdvancedSearchQuery } from '@/types/search'
 
 export const InboxScreen = (props: InboxScreenProps) => {
 	const [suggestedRules, setSuggestedRules] = useState<FilterRule[]>([])
@@ -44,8 +47,11 @@ export const InboxScreen = (props: InboxScreenProps) => {
 }
 
 const InboxScreenInner = ({}: InboxScreenProps) => {
-	const { accounts, activeAccount, setActiveAccount, activeMailbox, setActiveMailbox } =
-		useAccountStore()
+	const accounts = useAccountStore((s) => s.accounts)
+	const activeAccount = useAccountStore((s) => s.activeAccount)
+	const setActiveAccount = useAccountStore((s) => s.setActiveAccount)
+	const activeMailbox = useAccountStore((s) => s.activeMailbox)
+	const setActiveMailbox = useAccountStore((s) => s.setActiveMailbox)
 	const [isComposeOpen, setIsComposeOpen] = useState(false)
 	const [selectedMessage, setSelectedMessage] = useState<{
 		uid: number
@@ -53,9 +59,46 @@ const InboxScreenInner = ({}: InboxScreenProps) => {
 	} | null>(null)
 	const [focusedUid, setFocusedUid] = useState<number | null>(null)
 	const { loadDraft } = useDraftStore()
-	const { openMessage: openMessageInStore, closeMessage: closeMessageInStore } =
-		useMessageViewStore()
+	const openMessageInStore = useMessageViewStore((s) => s.openMessage)
+	const closeMessageInStore = useMessageViewStore((s) => s.closeMessage)
 	const queryClient = useQueryClient()
+
+	const {
+		results,
+		isLoading: searchLoading,
+		error: searchError,
+		displayQueryString,
+		isActive: isSearchActive,
+		search,
+		clear: clearSearch,
+	} = useAdvancedSearch(activeAccount?.id, activeMailbox)
+
+	// Listen for search events from SearchBar
+	useEffect(() => {
+		const handleSearch = (e: Event) => {
+			const query = (e as CustomEvent<AdvancedSearchQuery | null>).detail
+			if (!query) {
+				clearSearch()
+			} else {
+				search(query)
+			}
+		}
+		window.addEventListener('postail:search', handleSearch)
+		return () => window.removeEventListener('postail:search', handleSearch)
+	}, [search, clearSearch])
+
+	// Listen for saved search activation from SearchBar
+	useEffect(() => {
+		const handleActivateSavedSearch = (e: Event) => {
+			const { query } = (
+				e as CustomEvent<{ id: string; name: string; query: AdvancedSearchQuery }>
+			).detail
+			search(query)
+		}
+		window.addEventListener('postail:activateSavedSearch', handleActivateSavedSearch)
+		return () =>
+			window.removeEventListener('postail:activateSavedSearch', handleActivateSavedSearch)
+	}, [search])
 
 	const getMessagesList = useCallback(() => {
 		if (!activeAccount || !activeMailbox) return []
@@ -242,8 +285,14 @@ const InboxScreenInner = ({}: InboxScreenProps) => {
 			<div className='flex h-full overflow-hidden'>
 				<Sidebar
 					activeAccount={activeAccount}
-					activeMailbox={activeMailbox}
-					onMailboxSelect={setActiveMailbox}
+					activeMailbox={isSearchActive ? '' : activeMailbox}
+					onMailboxSelect={(mailbox) => {
+						if (isSearchActive) {
+							clearSearch()
+							window.dispatchEvent(new CustomEvent('postail:search:clear'))
+						}
+						setActiveMailbox(mailbox)
+					}}
 					onCompose={() => setIsComposeOpen(true)}
 				/>
 				<div className='flex flex-1 flex-col overflow-hidden'>
@@ -265,6 +314,18 @@ const InboxScreenInner = ({}: InboxScreenProps) => {
 							onDraftClick={(draft: ComposeDraft) => {
 								loadDraft(draft)
 								setIsComposeOpen(true)
+							}}
+						/>
+					) : isSearchActive ? (
+						<SearchResultsList
+							results={results}
+							isLoading={searchLoading}
+							error={searchError}
+							query={displayQueryString}
+							onMessageClick={(uid: number, mailbox: string) => {
+								setSelectedMessage({ uid, mailbox })
+								openMessageInStore(activeAccount!.id, mailbox, uid)
+								setFocusedUid(uid)
 							}}
 						/>
 					) : (

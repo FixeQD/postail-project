@@ -11,6 +11,7 @@ pub mod flags;
 pub mod folder_ops;
 pub mod mailbox;
 pub mod pool;
+pub mod search;
 pub mod sync;
 pub mod sync_status;
 

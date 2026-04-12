@@ -28,11 +28,14 @@ import type { StatusBarProps } from '@/types/components/shared'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 
 export function StatusBar({ onOpenOutbox }: StatusBarProps) {
-	const { accounts } = useAccountStore()
+	const accounts = useAccountStore((s) => s.accounts)
 	const { t } = useTranslation()
 	const animationsEnabled = useAnimationsEnabled()
-	const { items } = useOutboxStore()
-	const { statuses, getAllStatuses, cancelSync, retrySync } = useSyncStore()
+	const items = useOutboxStore((s) => s.items)
+	const statuses = useSyncStore((s) => s.statuses)
+	const getAllStatuses = useSyncStore((s) => s.getAllStatuses)
+	const cancelSync = useSyncStore((s) => s.cancelSync)
+	const retrySync = useSyncStore((s) => s.retrySync)
 	const [pendingCount, setPendingCount] = useState(0)
 	const [sendingCount, setSendingCount] = useState(0)
 	const [failedCount, setFailedCount] = useState(0)

@@ -201,6 +201,8 @@ pub fn run() {
             cmd::maintenance::dev_reset_data,
             cmd::mail::sync::record_mailbox_activity,
             cmd::mail::actions::search_messages,
+            cmd::mail::actions::search_messages_advanced,
+            cmd::mail::actions::imap_search_messages,
             cmd::mail::actions::mark_read,
             cmd::mail::listing::fetch_raw_eml_text,
             cmd::mail::listing::fetch_thread,
@@ -238,7 +240,10 @@ pub fn run() {
             cmd::settings::set_theme_config,
             cmd::settings::get_build_info,
             cmd::network::clear_resource_cache,
-            cmd::network::get_resource_cache_stats
+            cmd::network::get_resource_cache_stats,
+            cmd::search::get_saved_searches,
+            cmd::search::create_saved_search,
+            cmd::search::delete_saved_search
         ])
         .register_uri_scheme_protocol("postail", protocol::handler)
         .build(tauri::generate_context!())

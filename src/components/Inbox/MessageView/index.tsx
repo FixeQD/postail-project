@@ -41,7 +41,10 @@ export const MessageView = ({
 }: MessageViewProps) => {
 	const { t } = useTypedTranslation(['common', 'inbox'])
 	const queryClient = useQueryClient()
-	const { viewMode, toggleViewMode, setTitleMeta, setLoading } = useMessageViewStore()
+	const viewMode = useMessageViewStore((s) => s.viewMode)
+	const toggleViewMode = useMessageViewStore((s) => s.toggleViewMode)
+	const setTitleMeta = useMessageViewStore((s) => s.setTitleMeta)
+	const setLoading = useMessageViewStore((s) => s.setLoading)
 	const blockExternalImages = useSettingsStore((s) => s.settings['block-external-images'])
 	const blockReadReceipts = useSettingsStore((s) => s.settings['block-read-receipts'])
 	const markAsReadDelay = useSettingsStore((s) => s.settings['mark-as-read-delay'])
@@ -296,28 +299,6 @@ export const MessageView = ({
 	})
 
 	const scrollContainerRef = useRef<HTMLDivElement>(null)
-
-	useEffect(() => {
-		const el = scrollContainerRef.current
-		if (!el) return
-
-		let timer: ReturnType<typeof setTimeout>
-		const onScroll = () => {
-			const iframe = el.querySelector('iframe')
-			if (iframe) (iframe as HTMLElement).style.pointerEvents = 'none'
-			clearTimeout(timer)
-			timer = setTimeout(() => {
-				const iframe = el.querySelector('iframe')
-				if (iframe) (iframe as HTMLElement).style.pointerEvents = ''
-			}, 150)
-		}
-
-		el.addEventListener('scroll', onScroll, { passive: true })
-		return () => {
-			el.removeEventListener('scroll', onScroll)
-			clearTimeout(timer)
-		}
-	}, [uid])
 
 	useEffect(() => {
 		if (scrollContainerRef.current) {

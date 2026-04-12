@@ -217,6 +217,155 @@ pub fn test_manager() -> SecurityManager {
 }
 
 #[test]
+fn test_search_messages_with_body() {
+    use postail_project_lib::db::search::search_messages_with_body;
+    use postail_project_lib::db::tables::create_fts_triggers;
+    use postail_project_lib::db::{
+        AccountInput, Credentials, ImapConfig, PasswordCredentials, SmtpConfig, add_account,
+        upsert_message,
+    };
+
+    let conn = init_temp_db();
+    create_fts_triggers(&conn).unwrap();
+    let security = test_manager();
+    let mailbox = "INBOX";
+
+    let account = add_account(
+        &conn,
+        AccountInput {
+            name: "Test Body Search".to_string(),
+            email: "test-body@example.com".to_string(),
+            provider_type: "generic".to_string(),
+            auth_type: "password".to_string(),
+            imap_config: ImapConfig {
+                host: "imap.example.com".to_string(),
+                port: 993,
+                tls: true,
+            },
+            smtp_config: SmtpConfig {
+                host: "smtp.example.com".to_string(),
+                port: 587,
+                tls: true,
+            },
+            credentials: Credentials::Password(PasswordCredentials {
+                username: "test-body@example.com".to_string(),
+                password: "secret".to_string(),
+            }),
+        },
+        &security,
+    )
+    .unwrap();
+    let account_id = account.id;
+
+    let created_at = chrono::Utc::now();
+
+    // Message 1: Matches only in header
+    upsert_message(
+        &conn,
+        &account_id,
+        mailbox,
+        &postail_project_lib::db::MessageUpsertData {
+            uid: 1,
+            message_id: Some("msg1@example.com".to_string()),
+            internal_date: created_at,
+            from: Some("sender1@example.com".to_string()),
+            to_json: Some("recipient@example.com".to_string()),
+            subject: Some("Header match only keyword".to_string()),
+            snippet: Some("Snippet".to_string()),
+            flags_json: Some("[]".to_string()),
+            structure_json: Some("structure".to_string()),
+        },
+    )
+    .unwrap();
+    let msg1_id: i64 = conn.last_insert_rowid();
+
+    // Message 2: Matches only in body
+    upsert_message(
+        &conn,
+        &account_id,
+        mailbox,
+        &postail_project_lib::db::MessageUpsertData {
+            uid: 2,
+            message_id: Some("msg2@example.com".to_string()),
+            internal_date: created_at,
+            from: Some("sender2@example.com".to_string()),
+            to_json: Some("recipient@example.com".to_string()),
+            subject: Some("Different subject".to_string()),
+            snippet: Some("Different snippet".to_string()),
+            flags_json: Some("[]".to_string()),
+            structure_json: Some("structure".to_string()),
+        },
+    )
+    .unwrap();
+    let msg2_id: i64 = conn.last_insert_rowid();
+    conn.execute(
+        "INSERT INTO message_bodies (message_id, body_plain) VALUES (?1, ?2)",
+        rusqlite::params![msg2_id, "Body match only keyword"],
+    )
+    .unwrap();
+
+    // Message 3: Matches in both header and body (best rank)
+    upsert_message(
+        &conn,
+        &account_id,
+        mailbox,
+        &postail_project_lib::db::MessageUpsertData {
+            uid: 3,
+            message_id: Some("msg3@example.com".to_string()),
+            internal_date: created_at,
+            from: Some("sender3@example.com".to_string()),
+            to_json: Some("recipient@example.com".to_string()),
+            subject: Some("Header match keyword keyword".to_string()),
+            snippet: Some("Snippet".to_string()),
+            flags_json: Some("[]".to_string()),
+            structure_json: Some("structure".to_string()),
+        },
+    )
+    .unwrap();
+    let msg3_id: i64 = conn.last_insert_rowid();
+    conn.execute(
+        "INSERT INTO message_bodies (message_id, body_plain) VALUES (?1, ?2)",
+        rusqlite::params![msg3_id, "Body match keyword keyword keyword"],
+    )
+    .unwrap();
+
+    // Test 1: Header only
+    let header_results =
+        search_messages_with_body(&conn, Some(&account_id), Some(mailbox), "keyword", "", 10)
+            .unwrap();
+    assert_eq!(header_results.len(), 2);
+    assert!(header_results.iter().any(|r| r.uid == 1));
+    assert!(header_results.iter().any(|r| r.uid == 3));
+
+    // Test 2: Body only
+    let body_results =
+        search_messages_with_body(&conn, Some(&account_id), Some(mailbox), "", "keyword", 10)
+            .unwrap();
+    assert_eq!(body_results.len(), 2);
+    assert!(body_results.iter().any(|r| r.uid == 2));
+    assert!(body_results.iter().any(|r| r.uid == 3));
+
+    // Test 3: Merged search deduplicates by message_id
+    let merged_results = search_messages_with_body(
+        &conn,
+        Some(&account_id),
+        Some(mailbox),
+        "keyword",
+        "keyword",
+        10,
+    )
+    .unwrap();
+    assert_eq!(merged_results.len(), 3);
+
+    // Sort ordering: rank is more negative -> comes first
+    assert!(merged_results[0].rank <= merged_results[1].rank);
+    assert!(merged_results[1].rank <= merged_results[2].rank);
+
+    // Test 4: Verify uid 3 is correctly matched due to best rank
+    assert_eq!(merged_results[0].uid, 3);
+}
+
+#[test]
 fn test_fts_search() {
     use postail_project_lib::db::tables::create_fts_triggers;
     use postail_project_lib::db::{
@@ -307,6 +456,122 @@ fn test_fts_search() {
 
     let escaped = escape_fts_query("test -query");
     assert!(escaped.contains(r"\-"));
+}
+
+#[test]
+fn test_saved_searches() {
+    use postail_project_lib::db::saved_searches::{
+        create_saved_search, delete_saved_search, get_saved_searches,
+    };
+    use postail_project_lib::db::{
+        AccountInput, Credentials, ImapConfig, PasswordCredentials, SmtpConfig, add_account,
+    };
+
+    let conn = init_temp_db();
+    let security = test_manager();
+
+    // Account 1
+    let account1 = add_account(
+        &conn,
+        AccountInput {
+            name: "Account 1".to_string(),
+            email: "acc1@example.com".to_string(),
+            provider_type: "generic".to_string(),
+            auth_type: "password".to_string(),
+            imap_config: ImapConfig {
+                host: "imap".to_string(),
+                port: 993,
+                tls: true,
+            },
+            smtp_config: SmtpConfig {
+                host: "smtp".to_string(),
+                port: 587,
+                tls: true,
+            },
+            credentials: Credentials::Password(PasswordCredentials {
+                username: "acc1".to_string(),
+                password: "pass".to_string(),
+            }),
+        },
+        &security,
+    )
+    .unwrap();
+    let acc1 = account1.id;
+
+    // Account 2
+    let account2 = add_account(
+        &conn,
+        AccountInput {
+            name: "Account 2".to_string(),
+            email: "acc2@example.com".to_string(),
+            provider_type: "generic".to_string(),
+            auth_type: "password".to_string(),
+            imap_config: ImapConfig {
+                host: "imap".to_string(),
+                port: 993,
+                tls: true,
+            },
+            smtp_config: SmtpConfig {
+                host: "smtp".to_string(),
+                port: 587,
+                tls: true,
+            },
+            credentials: Credentials::Password(PasswordCredentials {
+                username: "acc2".to_string(),
+                password: "pass".to_string(),
+            }),
+        },
+        &security,
+    )
+    .unwrap();
+    let acc2 = account2.id;
+
+    // Add 3 searches for acc1
+    create_saved_search(&conn, "s1", &acc1, "S1", "{}", "icon1", 100).unwrap();
+    create_saved_search(&conn, "s2", &acc1, "S2", "{}", "icon2", 200).unwrap();
+    create_saved_search(&conn, "s3", &acc1, "S3", "{}", "icon3", 300).unwrap();
+
+    // Add 1 search for acc2
+    create_saved_search(&conn, "s4", &acc2, "S4", "{}", "icon4", 400).unwrap();
+
+    // Verify position increments per account
+    let acc1_searches = get_saved_searches(&conn, &acc1).unwrap();
+    assert_eq!(acc1_searches.len(), 3);
+    assert_eq!(acc1_searches[0].position, 0);
+    assert_eq!(acc1_searches[1].position, 1);
+    assert_eq!(acc1_searches[2].position, 2);
+
+    let acc2_searches = get_saved_searches(&conn, &acc2).unwrap();
+    assert_eq!(acc2_searches.len(), 1);
+    assert_eq!(acc2_searches[0].position, 0); // Scoped to acc2
+
+    // Verify ordering by position, created_at
+    // Modify position of s3 to be 0 and s1 to be 2
+    conn.execute("UPDATE saved_searches SET position = 2 WHERE id = 's1'", ())
+        .unwrap();
+    conn.execute("UPDATE saved_searches SET position = 0 WHERE id = 's3'", ())
+        .unwrap();
+
+    let reordered = get_saved_searches(&conn, &acc1).unwrap();
+    assert_eq!(reordered[0].id, "s3");
+    assert_eq!(reordered[1].id, "s2");
+    assert_eq!(reordered[2].id, "s1");
+
+    // Verify same position orders by created_at (s3: 300, s2: 200 -> s2 should be first if both are pos 1)
+    conn.execute("UPDATE saved_searches SET position = 1 WHERE id = 's3'", ())
+        .unwrap();
+    let reordered_date = get_saved_searches(&conn, &acc1).unwrap();
+    assert_eq!(reordered_date[0].id, "s2");
+    assert_eq!(reordered_date[1].id, "s3");
+
+    // Verify delete scoping
+    // Try deleting s4 from acc1 (should not delete since it belongs to acc2)
+    delete_saved_search(&conn, "s4", &acc1).unwrap();
+    assert_eq!(get_saved_searches(&conn, &acc2).unwrap().len(), 1);
+
+    // Delete from acc2 correctly
+    delete_saved_search(&conn, "s4", &acc2).unwrap();
+    assert_eq!(get_saved_searches(&conn, &acc2).unwrap().len(), 0);
 }
 
 #[test]

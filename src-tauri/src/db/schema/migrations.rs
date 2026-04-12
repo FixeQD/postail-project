@@ -97,6 +97,21 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         set_db_version(conn, 12)?;
     }
 
+    if current_version < 13 {
+        migrate_to_v13(conn)?;
+        set_db_version(conn, 13)?;
+    }
+
+    if current_version < 14 {
+        migrate_to_v14(conn)?;
+        set_db_version(conn, 14)?;
+    }
+
+    if current_version < 15 {
+        migrate_to_v15(conn)?;
+        set_db_version(conn, 15)?;
+    }
+
     Ok(())
 }
 
@@ -300,6 +315,116 @@ fn migrate_to_v12(conn: &Connection) -> Result<(), DBError> {
     Ok(())
 }
 
+fn migrate_to_v13(conn: &Connection) -> Result<(), DBError> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS saved_searches (
+            id TEXT PRIMARY KEY,
+            account_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            query_json TEXT NOT NULL,
+            icon TEXT NOT NULL DEFAULT 'bookmark',
+            position INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL,
+            FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_saved_searches_account ON saved_searches(account_id, position)",
+        [],
+    )?;
+
+    Ok(())
+}
+
+fn migrate_to_v14(conn: &Connection) -> Result<(), DBError> {
+    conn.execute(
+        "CREATE VIRTUAL TABLE IF NOT EXISTS message_bodies_fts
+         USING fts5(body_plain, content='message_bodies', content_rowid='message_id')",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER IF NOT EXISTS message_bodies_fts_insert
+         AFTER INSERT ON message_bodies BEGIN
+           INSERT INTO message_bodies_fts(rowid, body_plain) VALUES (NEW.message_id, NEW.body_plain);
+         END",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER IF NOT EXISTS message_bodies_fts_update
+         AFTER UPDATE ON message_bodies BEGIN
+           UPDATE message_bodies_fts SET body_plain = NEW.body_plain WHERE rowid = NEW.message_id;
+         END",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER IF NOT EXISTS message_bodies_fts_delete
+         AFTER DELETE ON message_bodies BEGIN
+           DELETE FROM message_bodies_fts WHERE rowid = OLD.message_id;
+         END",
+        [],
+    )?;
+
+    // Backfill existing body data
+    conn.execute(
+        "INSERT INTO message_bodies_fts(rowid, body_plain)
+         SELECT message_id, body_plain FROM message_bodies WHERE body_plain != ''",
+        [],
+    )?;
+
+    Ok(())
+}
+
+fn migrate_to_v15(conn: &Connection) -> Result<(), DBError> {
+    conn.execute("DROP TRIGGER IF EXISTS messages_fts_insert", [])?;
+    conn.execute("DROP TRIGGER IF EXISTS messages_fts_update", [])?;
+    conn.execute("DROP TRIGGER IF EXISTS messages_fts_delete", [])?;
+    conn.execute("DROP TABLE IF EXISTS messages_fts", [])?;
+
+    conn.execute(
+        "CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(subject, from_addr, to_json, snippet, content='messages', content_rowid='id')",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER IF NOT EXISTS messages_fts_insert
+         AFTER INSERT ON messages BEGIN
+            INSERT INTO messages_fts(rowid, subject, from_addr, to_json, snippet)
+            VALUES (NEW.id, NEW.subject, NEW.from_addr, NEW.to_json, NEW.snippet);
+         END",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER IF NOT EXISTS messages_fts_update
+         AFTER UPDATE ON messages BEGIN
+            UPDATE messages_fts
+            SET subject = NEW.subject, from_addr = NEW.from_addr, to_json = NEW.to_json, snippet = NEW.snippet
+            WHERE rowid = NEW.id;
+         END",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER IF NOT EXISTS messages_fts_delete
+         AFTER DELETE ON messages BEGIN
+            DELETE FROM messages_fts WHERE rowid = OLD.id;
+         END",
+        [],
+    )?;
+
+    conn.execute(
+        "INSERT INTO messages_fts(messages_fts) VALUES ('rebuild')",
+        [],
+    )?;
+
+    Ok(())
+}
+
 // Whitelist of allowed table names to prevent SQL injection
 const ALLOWED_TABLES: &[&str] = &[
     "messages",
@@ -310,8 +435,10 @@ const ALLOWED_TABLES: &[&str] = &[
     "contacts",
     "drafts",
     "message_bodies",
+    "message_bodies_fts",
     "messages",
     "outbox",
+    "saved_searches",
     "schema_versions",
     "settings",
     "message_tags",

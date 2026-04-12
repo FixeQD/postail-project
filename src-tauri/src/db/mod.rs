@@ -2,6 +2,7 @@ pub mod account;
 pub mod compose;
 pub mod filters;
 pub mod mail;
+pub mod saved_searches;
 pub mod schema;
 pub mod search;
 pub mod sql_helpers;
@@ -19,6 +20,7 @@ pub use crate::db::account::*;
 pub use crate::db::compose::*;
 pub use crate::db::filters::*;
 pub use crate::db::mail::*;
+pub use crate::db::saved_searches::*;
 pub use crate::db::schema::*;
 pub use crate::db::search::*;
 pub use crate::db::sql_helpers::*;
@@ -351,6 +353,11 @@ pub fn connect_db_with_key(hex_key: &str) -> Result<DbPool, DBError> {
 
     let manager = SqlCipherConnectionManager::new(db_path, hex_key.to_string());
     let pool = Pool::builder().max_size(4).build(manager)?;
+
+    {
+        let conn = pool.get()?;
+        run_migrations(&conn)?;
+    }
 
     Ok(pool)
 }
