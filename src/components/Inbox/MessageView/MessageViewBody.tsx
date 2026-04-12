@@ -179,7 +179,7 @@ export const MessageViewBody = ({
 	return (
 		<>
 			<div className='overflow-x-auto px-5 py-5'>
-				<div className='rounded-xl border border-[var(--border-faint)] bg-white opacity-100 shadow-sm transition-opacity duration-200'>
+				<div className='bg-white'>
 					{iframeSrcDoc && (
 						<iframe
 							ref={iframeRef}
