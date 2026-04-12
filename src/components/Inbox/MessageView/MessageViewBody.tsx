@@ -29,6 +29,8 @@ export const MessageViewBody = ({
 
 	const effectiveMode = !htmlContent || !htmlContent.trim() ? 'plain' : viewMode
 
+	const inlineImagesHash = JSON.stringify(inline_images)
+
 	// Memoize mapped images to prevent unnecessary re-renders
 	const mappedImages = useMemo(() => {
 		return inline_images
@@ -38,7 +40,8 @@ export const MessageViewBody = ({
 				cachedPath: img.cached_path!,
 				mimeType: img.mime_type,
 			}))
-	}, [inline_images])
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [inlineImagesHash])
 
 	// 1. Process HTML Content
 	useEffect(() => {
@@ -56,7 +59,7 @@ export const MessageViewBody = ({
 		const iframeTextColor = hasDarkMode ? 'inherit' : '#1a1a1a'
 		const colorScheme = hasDarkMode ? 'dark light' : 'light'
 
-		// Minimalist, fast HTML wrapper
+		// Minimalist HTML wrapper relying on ResizeObserver
 		const htmlTemplate = `<!DOCTYPE html>
 <html>
 <head>
@@ -70,6 +73,7 @@ export const MessageViewBody = ({
       color: ${iframeTextColor}; background: ${iframeBg};
       font-size: 14px; line-height: 1.6; word-wrap: break-word;
       color-scheme: ${colorScheme};
+      overflow-x: hidden;
     }
     a { color: ${accentColor}; text-decoration: none; }
     a:hover { text-decoration: underline; }
@@ -81,7 +85,7 @@ export const MessageViewBody = ({
   </style>
 </head>
 <body>
-  ${htmlContent}
+  <div id="email-wrapper">${htmlContent}</div>
   <script>
     const post = (msg) => window.parent.postMessage(msg, '*');
 
@@ -89,7 +93,8 @@ export const MessageViewBody = ({
     let lastH = 0;
     let resizeTimer;
     const checkHeight = () => {
-      const h = document.documentElement.scrollHeight || document.body.scrollHeight;
+      const wrapper = document.getElementById('email-wrapper');
+      const h = wrapper ? wrapper.scrollHeight : document.body.scrollHeight;
       if (Math.abs(h - lastH) > 2) {
         lastH = h;
         post({ type: 'resize', height: h });
@@ -100,8 +105,9 @@ export const MessageViewBody = ({
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(checkHeight, 50);
     });
-    ro.observe(document.documentElement);
-    ro.observe(document.body);
+    const wrapper = document.getElementById('email-wrapper');
+    if (wrapper) ro.observe(wrapper);
+    else ro.observe(document.body);
     window.addEventListener('load', checkHeight);
     if (document.readyState === 'complete') checkHeight();
 
@@ -128,15 +134,8 @@ export const MessageViewBody = ({
 			})
 			.catch(console.error)
 			.finally(() => onLoadingChange?.(false))
-	}, [
-		htmlContent,
-		effectiveMode,
-		accentColor,
-		allowExternalResources,
-		mappedImages,
-		onExternalDetected,
-		onLoadingChange,
-	])
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [htmlContent, effectiveMode, accentColor, allowExternalResources, mappedImages])
 
 	// 2. Handle Iframe Messages
 	useEffect(() => {
@@ -147,10 +146,6 @@ export const MessageViewBody = ({
 				// Bypass React state for height to prevent laggy re-renders
 				if (iframeRef.current) {
 					iframeRef.current.style.height = `${e.data.height}px`
-				}
-
-				if (!isReadyRef.current) {
-					isReadyRef.current = true
 				}
 			}
 
@@ -186,9 +181,11 @@ export const MessageViewBody = ({
 							title='Message Content'
 							srcDoc={iframeSrcDoc}
 							sandbox='allow-scripts'
-							scrolling='no'
-							className='block w-full border-none'
+							className='block w-full border-none opacity-0 transition-opacity duration-500 ease-in-out'
 							style={{ minHeight: '200px' }}
+							onLoad={(e) => {
+								;(e.target as HTMLIFrameElement).style.opacity = '1'
+							}}
 						/>
 					)}
 				</div>
