@@ -1,10 +1,22 @@
 //! Stage 1: Preprocessing — CSS variable resolution and body normalization.
 
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use kuchikiki::traits::TendrilSink;
 use kuchikiki::NodeRef;
 use markup5ever::{namespace_url, ns, QualName};
+use regex::Regex;
+
+static ROOT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?s):root\s*\{([^}]*)\}").expect("invalid :root regex"));
+
+static VAR_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"var\(\s*(--[a-zA-Z0-9_-]+)\s*(?:,\s*((?:[^()]*|\([^()]*\))*))?\ ?\)").unwrap()
+});
+
+static BODY_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?s)(?:html,\s*)?body\s*\{([^}]+)\}").unwrap());
 
 // ---------------------------------------------------------------------------
 // CSS variable resolution
@@ -54,8 +66,7 @@ pub fn resolve_css_variables_dom(document: &NodeRef) {
 
 fn parse_css_variables(css: &str) -> HashMap<String, String> {
     let mut vars = HashMap::new();
-    let re = regex::Regex::new(r"(?s):root\s*\{([^}]*)\}").expect("invalid :root regex");
-    if let Some(cap) = re.captures(css) {
+    if let Some(cap) = ROOT_RE.captures(css) {
         for decl in cap[1].split(';') {
             let decl = decl.trim();
             if let Some(colon) = decl.find(':') {
@@ -72,13 +83,9 @@ fn parse_css_variables(css: &str) -> HashMap<String, String> {
 
 /// Substitute `var(--name, fallback)` references, up to 8 nesting levels.
 fn resolve_var_refs(value: &str, vars: &HashMap<String, String>) -> String {
-    let re =
-        regex::Regex::new(r"var\(\s*(--[a-zA-Z0-9_-]+)\s*(?:,\s*((?:[^()]*|\([^()]*\))*))?\ ?\)")
-            .unwrap();
-
     let mut result = value.to_string();
     for _ in 0..8 {
-        let next = re
+        let next = VAR_RE
             .replace_all(&result, |caps: &regex::Captures| {
                 let name = &caps[1];
                 if let Some(v) = vars.get(name) {
@@ -117,8 +124,7 @@ pub fn extract_body_styles_dom(document: &NodeRef) -> String {
 }
 
 pub fn extract_body_styles_from_css(css: &str) -> String {
-    let re = regex::Regex::new(r"(?s)(?:html,\s*)?body\s*\{([^}]+)\}").unwrap();
-    let Some(cap) = re.captures(css) else {
+    let Some(cap) = BODY_RE.captures(css) else {
         return String::new();
     };
 

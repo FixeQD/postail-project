@@ -7,6 +7,10 @@ use kuchikiki::NodeRef;
 use markup5ever::{namespace_url, ns, QualName};
 use regex::Regex;
 use std::collections::HashSet;
+use std::sync::LazyLock;
+
+static PSEUDO_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\s*\.([\w-]+)::(before|after)\s*$").unwrap());
 
 /// HTML-escape content for safe interpolation
 fn html_escape(text: &str) -> String {
@@ -250,7 +254,7 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
     }
 
     // ── Step 2: merge CSS bodies for same class+pseudo, THEN extract rules ─
-    let pseudo_re = Regex::new(r"^\s*\.([\w-]+)::(before|after)\s*$").unwrap();
+    let pseudo_re = &*PSEUDO_RE;
 
     // Group by (class, pseudo_kind) and merge CSS bodies
     let mut grouped: std::collections::HashMap<(String, bool), Vec<String>> =

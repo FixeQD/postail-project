@@ -2,19 +2,23 @@
 
 use kuchikiki::NodeRef;
 use regex::Regex;
+use std::sync::LazyLock;
+
+static CLEAN_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(\s+[a-zA-Z-]+)="""#).expect("invalid clean regex"));
+
+static BODY_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?s)<body[^>]*>(.*)</body>").unwrap());
 
 /// Serialize document and clean up empty attributes
 pub fn serialize_clean(document: &NodeRef) -> String {
     let html = document.to_string();
-    let clean_re = Regex::new(r#"(\s+[a-zA-Z-]+)="""#).expect("invalid clean regex");
-    clean_re.replace_all(&html, "$1").to_string()
+    CLEAN_RE.replace_all(&html, "$1").to_string()
 }
 
 /// Extract content from inside <body> tags
 pub fn extract_body_content(html: &str) -> String {
-    let body_re = Regex::new(r"(?s)<body[^>]*>(.*)</body>").unwrap();
-
-    if let Some(caps) = body_re.captures(html) {
+    if let Some(caps) = BODY_RE.captures(html) {
         caps[1].trim().to_string()
     } else {
         html.to_string()

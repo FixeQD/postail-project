@@ -6,6 +6,24 @@ use kuchikiki::traits::*;
 use kuchikiki::NodeRef;
 use regex::Regex;
 use std::collections::HashMap;
+use std::sync::LazyLock;
+
+static STYLE_BLOCK_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?s)(<style[^>]*>)(.*?)(</style>)").unwrap());
+
+static ANIM_NAME_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"animation(?:-name)?\s*:\s*([a-zA-Z_][\w-]*)").unwrap());
+
+static STYLE_ATTR_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"style="([^"]*)"#).unwrap());
+
+static ANIM_PROP_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"animation[^:]*:\s*[^;]+;?").unwrap());
+
+static TO_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?:^|\s|;|\})(to|100\s*%)\s*\{").unwrap());
+
+static CLAMP_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"clamp\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^)]+)\s*\)").unwrap());
 
 // ---------------------------------------------------------------------------
 // Public entry point
@@ -60,7 +78,7 @@ fn apply_final_states_to_css_rules(
         return html.to_string();
     }
 
-    let style_re = Regex::new(r"(?s)(<style[^>]*>)(.*?)(</style>)").unwrap();
+    let style_re = &*STYLE_BLOCK_RE;
 
     style_re
         .replace_all(html, |caps: &regex::Captures| {
@@ -75,7 +93,7 @@ fn apply_final_states_to_css_rules(
 }
 
 fn patch_css_rules(css: &str, keyframe_finals: &HashMap<String, Vec<(String, String)>>) -> String {
-    let anim_name_re = Regex::new(r"animation(?:-name)?\s*:\s*([a-zA-Z_][\w-]*)").unwrap();
+    let anim_name_re = &*ANIM_NAME_RE;
 
     let mut result = String::new();
     let mut i = 0;
@@ -209,9 +227,9 @@ fn is_initial_value(val: &str) -> bool {
 fn strip_animation_from_inline_styles(html: &str) -> String {
     let keyframe_finals = parse_keyframe_final_states(html);
 
-    let style_re = Regex::new(r#"style="([^"]*)"#).unwrap();
-    let animation_prop_re = Regex::new(r"animation[^:]*:\s*[^;]+;?").unwrap();
-    let anim_name_re = Regex::new(r"animation(?:-name)?\s*:\s*([a-zA-Z_][\w-]*)").unwrap();
+    let style_re = &*STYLE_ATTR_RE;
+    let animation_prop_re = &*ANIM_PROP_RE;
+    let anim_name_re = &*ANIM_NAME_RE;
 
     style_re
         .replace_all(html, |caps: &regex::Captures| {
@@ -322,7 +340,7 @@ fn parse_keyframe_final_states(html: &str) -> HashMap<String, Vec<(String, Strin
 
 /// Inside a @keyframes body, find the `to { ... }` or `100% { ... }` block and return its parsed declarations.
 fn extract_final_frame(keyframe_body: &str) -> Option<Vec<(String, String)>> {
-    let to_re = Regex::new(r"(?:^|\s|;|\})(to|100\s*%)\s*\{").unwrap();
+    let to_re = &*TO_RE;
 
     let mut last_match = None;
     for m in to_re.find_iter(keyframe_body) {
@@ -393,7 +411,7 @@ fn find_matching_brace(s: &str, start: usize) -> Option<usize> {
 // ---------------------------------------------------------------------------
 
 fn resolve_clamp_values(style: &str) -> String {
-    let clamp_re = Regex::new(r"clamp\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^)]+)\s*\)").unwrap();
+    let clamp_re = &*CLAMP_RE;
     clamp_re
         .replace_all(style, |caps: &regex::Captures| {
             let min_val = caps[1].trim();
