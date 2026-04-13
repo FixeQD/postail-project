@@ -191,7 +191,7 @@ const MessageRow = memo(
 					}`}
 					onClick={(e) => {
 						e.stopPropagation()
-						onToggleStar()
+						onToggleStar(message.uid, message.mailbox)
 					}}
 					aria-label={message.starred ? 'Unstar message' : 'Star message'}
 					aria-pressed={message.starred}>
@@ -297,8 +297,10 @@ const MessageRow = memo(
 							zenMode={zenMode}
 							animationsEnabled={animationsEnabled}
 							formattedDate={formattedDate}
-							onDelete={onDelete}
-							onToggleRead={onToggleRead}
+							onDelete={() => onDelete(message.uid, message.mailbox)}
+							onToggleRead={() =>
+								onToggleRead(message.uid, isUnread, message.mailbox)
+							}
 							t={t}
 							isOptimistic={isOptimistic}
 						/>
@@ -346,8 +348,10 @@ const MessageRow = memo(
 								zenMode={zenMode}
 								animationsEnabled={animationsEnabled}
 								formattedDate={formattedDate}
-								onDelete={onDelete}
-								onToggleRead={onToggleRead}
+								onDelete={() => onDelete(message.uid, message.mailbox)}
+								onToggleRead={() =>
+									onToggleRead(message.uid, isUnread, message.mailbox)
+								}
 								t={t}
 								isOptimistic={isOptimistic}
 							/>
@@ -793,11 +797,9 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 						previewLines={context.previewLines}
 						formatDate={context.formatDate}
 						onMessageClick={context.onMessageClick}
-						onDelete={() => context.handleDeleteMessage(message.uid, message.mailbox)}
-						onToggleRead={() =>
-							context.handleToggleReadStatus(message.uid, isUnread, message.mailbox)
-						}
-						onToggleStar={() => context.handleToggleStar(message.uid, message.mailbox)}
+						onDelete={context.handleDeleteMessage}
+						onToggleRead={context.handleToggleReadStatus}
+						onToggleStar={context.handleToggleStar}
 					/>
 				</div>
 			)

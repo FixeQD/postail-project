@@ -216,6 +216,15 @@ const InboxScreenInner = ({}: InboxScreenProps) => {
 		// MessageView wires its own handler via useInboxShortcuts
 	}, [])
 
+	const handleMessageClick = useCallback(
+		(uid: number, mailbox: string) => {
+			setSelectedMessage({ uid, mailbox })
+			openMessageInStore(activeAccount!.id, mailbox, uid)
+			setFocusedUid(uid)
+		},
+		[activeAccount, openMessageInStore]
+	)
+
 	useInboxShortcuts({
 		onNextMessage: handleNextMessage,
 		onPrevMessage: handlePrevMessage,
@@ -322,22 +331,14 @@ const InboxScreenInner = ({}: InboxScreenProps) => {
 							isLoading={searchLoading}
 							error={searchError}
 							query={displayQueryString}
-							onMessageClick={(uid: number, mailbox: string) => {
-								setSelectedMessage({ uid, mailbox })
-								openMessageInStore(activeAccount!.id, mailbox, uid)
-								setFocusedUid(uid)
-							}}
+							onMessageClick={handleMessageClick}
 						/>
 					) : (
 						<MessageList
 							account={activeAccount}
 							mailbox={activeMailbox}
 							focusedUid={focusedUid}
-							onMessageClick={(uid: number, mailbox: string) => {
-								setSelectedMessage({ uid, mailbox })
-								openMessageInStore(activeAccount!.id, mailbox, uid)
-								setFocusedUid(uid)
-							}}
+							onMessageClick={handleMessageClick}
 						/>
 					)}
 				</div>
