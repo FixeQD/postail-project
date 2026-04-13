@@ -120,13 +120,16 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 			setIsCountingDown(true)
 
 			const cancelled = await new Promise<boolean>((resolve) => {
+				const timer = setTimeout(() => resolve(false), delayMs)
 				toast.loading(t('compose.sendingIn', 'Sending…'), {
 					id: TOAST_ID,
 					duration: delayMs,
 					withCountdown: true,
-					cancelFn: () => resolve(true),
+					cancelFn: () => {
+						clearTimeout(timer)
+						resolve(true)
+					},
 				})
-				setTimeout(() => resolve(false), delayMs)
 			})
 
 			setIsCountingDown(false)
