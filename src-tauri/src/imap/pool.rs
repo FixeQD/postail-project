@@ -75,6 +75,16 @@ impl ConnectionPool {
 
     /// Start background workers
     pub fn start_workers(&mut self) {
+        if let Some(task) = self.polling_task.take() {
+            task.abort();
+        }
+        if let Some(task) = self.rebalance_task.take() {
+            task.abort();
+        }
+        if let Some(task) = self.cleanup_task.take() {
+            task.abort();
+        }
+
         self.polling_task = Some(tokio::spawn(polling_worker()));
         self.rebalance_task = Some(tokio::spawn(rebalance_worker()));
         self.cleanup_task = Some(tokio::spawn(cleanup_worker()));
