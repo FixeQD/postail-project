@@ -19,10 +19,9 @@ export interface MessageRowProps {
 	previewLines: number
 	formatDate: (date: string) => string
 	onMessageClick: (uid: number, mailbox: string) => void
-	onDelete: () => void
-	onToggleRead: () => void
-	onToggleStar: () => void
-	onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void
+	onDelete: (uid: number, mailbox: string) => void
+	onToggleRead: (uid: number, isUnread: boolean, mailbox: string) => void
+	onToggleStar: (uid: number, mailbox: string) => void
 }
 
 export interface DragMessagePayload {
