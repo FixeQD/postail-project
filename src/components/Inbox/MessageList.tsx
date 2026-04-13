@@ -690,6 +690,121 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 		[account.id, mailbox, queryClient]
 	)
 
+	const virtuosoContext = useMemo(
+		() => ({
+			accountId: account.id,
+			currentMailboxRole: currentMailbox?.role,
+			focusedUid,
+			zenMode,
+			accentColor,
+			animationsEnabled,
+			previewLines,
+			formatDate,
+			onMessageClick,
+			handleDeleteMessage,
+			handleToggleReadStatus,
+			handleToggleStar,
+			isFetchingNextPage,
+			t,
+		}),
+		[
+			account.id,
+			currentMailbox?.role,
+			focusedUid,
+			zenMode,
+			accentColor,
+			animationsEnabled,
+			previewLines,
+			formatDate,
+			onMessageClick,
+			handleDeleteMessage,
+			handleToggleReadStatus,
+			handleToggleStar,
+			isFetchingNextPage,
+			t,
+		]
+	)
+
+	const virtuosoComponents = useMemo(
+		() => ({
+			Footer: ({ context }: { context?: typeof virtuosoContext }) => {
+				if (!context?.isFetchingNextPage) return null
+
+				return (
+					<div className='flex items-center justify-center py-4'>
+						<motion.div
+							{...(context.animationsEnabled
+								? {
+										initial: { opacity: 0, scale: 0.9 },
+										animate: { opacity: 1, scale: 1 },
+									}
+								: {})}
+							className='flex items-center gap-2'>
+							<div
+								className='h-4 w-4 animate-spin rounded-full border-2 border-transparent'
+								style={{ borderTopColor: context.accentColor }}
+							/>
+							<span className='text-muted-foreground text-xs'>
+								{context.t('inbox:messageList.loadingMore')}
+							</span>
+						</motion.div>
+					</div>
+				)
+			},
+		}),
+		[]
+	)
+
+	const renderItemContent = useCallback(
+		(_index: number, message: any, context: typeof virtuosoContext) => {
+			const isUnread = !message.flags.includes('\\Seen')
+			const isOptimistic = message.uid < 0
+
+			const canDrag =
+				context.currentMailboxRole !== 'sent' &&
+				context.currentMailboxRole !== 'drafts' &&
+				!message.mailbox.startsWith('Virtual_') &&
+				!isOptimistic
+
+			const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+				if (!canDrag) {
+					e.preventDefault()
+					return
+				}
+				const payload: DragMessagePayload = {
+					accountId: context.accountId,
+					mailbox: message.mailbox,
+					uid: message.uid,
+					message,
+				}
+				e.dataTransfer.setData('application/postail-message', JSON.stringify(payload))
+				e.dataTransfer.effectAllowed = 'move'
+			}
+
+			return (
+				<div draggable={canDrag} onDragStart={handleDragStart}>
+					<MessageRow
+						message={message}
+						isUnread={isUnread}
+						isFocused={message.uid === context.focusedUid}
+						zenMode={context.zenMode}
+						accentColor={context.accentColor}
+						animationsEnabled={context.animationsEnabled}
+						previewLines={context.previewLines}
+						formatDate={context.formatDate}
+						onMessageClick={context.onMessageClick}
+						onDelete={() => context.handleDeleteMessage(message.uid, message.mailbox)}
+						onToggleRead={() =>
+							context.handleToggleReadStatus(message.uid, isUnread, message.mailbox)
+						}
+						onToggleStar={() => context.handleToggleStar(message.uid, message.mailbox)}
+					/>
+				</div>
+			)
+		},
+		[]
+	)
+
 	// Syncing state
 	if (isSyncing || needsSync) {
 		return (
@@ -870,90 +985,9 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 					data={allMessages}
 					endReached={loadMore}
 					overscan={200}
-					components={{
-						Footer: () => {
-							if (!isFetchingNextPage) return null
-
-							return (
-								<div className='flex items-center justify-center py-4'>
-									<motion.div
-										{...(animationsEnabled
-											? {
-													initial: { opacity: 0, scale: 0.9 },
-													animate: { opacity: 1, scale: 1 },
-												}
-											: {})}
-										className='flex items-center gap-2'>
-										<div
-											className='h-4 w-4 animate-spin rounded-full border-2 border-transparent'
-											style={{ borderTopColor: accentColor }}
-										/>
-										<span className='text-muted-foreground text-xs'>
-											{t('inbox:messageList.loadingMore')}
-										</span>
-									</motion.div>
-								</div>
-							)
-						},
-					}}
-					itemContent={(_index, message) => {
-						const isUnread = !message.flags.includes('\\Seen')
-
-						const isOptimistic = message.uid < 0
-
-						const canDrag =
-							currentMailbox?.role !== 'sent' &&
-							currentMailbox?.role !== 'drafts' &&
-							!message.mailbox.startsWith('Virtual_') &&
-							!isOptimistic
-
-						const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
-							if (!canDrag) {
-								e.preventDefault()
-								return
-							}
-							const payload: DragMessagePayload = {
-								accountId: account.id,
-								mailbox: message.mailbox,
-								uid: message.uid,
-								message,
-							}
-							e.dataTransfer.setData(
-								'application/postail-message',
-								JSON.stringify(payload)
-							)
-							e.dataTransfer.effectAllowed = 'move'
-						}
-
-						return (
-							<div draggable={canDrag} onDragStart={handleDragStart}>
-								<MessageRow
-									message={message}
-									isUnread={isUnread}
-									isFocused={message.uid === focusedUid}
-									zenMode={zenMode}
-									accentColor={accentColor}
-									animationsEnabled={animationsEnabled}
-									previewLines={previewLines}
-									formatDate={formatDate}
-									onMessageClick={onMessageClick}
-									onDelete={() =>
-										handleDeleteMessage(message.uid, message.mailbox)
-									}
-									onToggleRead={() =>
-										handleToggleReadStatus(
-											message.uid,
-											isUnread,
-											message.mailbox
-										)
-									}
-									onToggleStar={() =>
-										handleToggleStar(message.uid, message.mailbox)
-									}
-								/>
-							</div>
-						)
-					}}
+					context={virtuosoContext}
+					components={virtuosoComponents}
+					itemContent={renderItemContent}
 				/>
 			</div>
 		</div>
