@@ -124,93 +124,105 @@ pub async fn process_flag_queue(account_id: &str) -> Result<(), String> {
             .or_insert_with(|| std::sync::Arc::new(tokio::sync::Mutex::new(())))
             .clone()
     };
-    let _guard = account_lock.lock().await;
 
-    let ops = {
-        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
-        let conn = pool.get().map_err(|e| e.to_string())?;
-        db::get_pending_flag_operations(&conn, account_id, 5).map_err(|e| e.to_string())?
+    // If another task is already processing this account, just return.
+    let Ok(_guard) = account_lock.try_lock() else {
+        return Ok(());
     };
 
-    let imap_manager = IMAP_MANAGER.lock().await;
-    let mut move_happened = false;
-
-    for op in ops {
-        if op.operation_type == "move" {
-            move_happened = true;
-        }
-
-        let result = match op.operation_type.as_str() {
-            "move" => {
-                if let Some(target) = &op.target_mailbox {
-                    imap_manager
-                        .move_messages_remote(&op.account_id, &op.mailbox, target, &[op.uid])
-                        .await
-                } else {
-                    Err(crate::error::AppError::from(
-                        "Move operation missing target mailbox",
-                    ))
-                }
-            }
-            _ => {
-                imap_manager
-                    .set_flags_remote(
-                        &op.account_id,
-                        &op.mailbox,
-                        &[op.uid],
-                        &op.operation,
-                        &op.flags,
-                    )
-                    .await
-            }
+    loop {
+        let ops = {
+            let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+            let conn = pool.get().map_err(|e| e.to_string())?;
+            db::get_pending_flag_operations(&conn, account_id, 5).map_err(|e| e.to_string())?
         };
 
-        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
-        let conn = pool.get().map_err(|e| e.to_string())?;
+        if ops.is_empty() {
+            let mut map = lock_map.lock().unwrap();
+            map.remove(account_id);
+            break;
+        }
 
-        match result {
-            Ok(_) => {
-                db::mark_flag_operation_success(&conn, op.id).map_err(|e| e.to_string())?;
+        let imap_manager = IMAP_MANAGER.lock().await;
+        let mut move_happened = false;
 
-                tracing::debug!(target: "postail",
-                    "{} sync success: {}@{} uid={}",
-                    op.operation_type, op.mailbox, op.account_id, op.uid
-                );
+        for op in ops {
+            if op.operation_type == "move" {
+                move_happened = true;
             }
-            Err(e) => {
-                let error_msg = e.to_string();
-                db::mark_flag_operation_failed(&conn, op.id, &error_msg)
-                    .map_err(|e| e.to_string())?;
 
-                if op.operation_type == "move" {
+            let result = match op.operation_type.as_str() {
+                "move" => {
                     if let Some(target) = &op.target_mailbox {
-                        let optimistic_uid = -(op.uid as i64);
-                        if let Err(e) = conn.execute(
+                        imap_manager
+                            .move_messages_remote(&op.account_id, &op.mailbox, target, &[op.uid])
+                            .await
+                    } else {
+                        Err(crate::error::AppError::from(
+                            "Move operation missing target mailbox",
+                        ))
+                    }
+                }
+                _ => {
+                    imap_manager
+                        .set_flags_remote(
+                            &op.account_id,
+                            &op.mailbox,
+                            &[op.uid],
+                            &op.operation,
+                            &op.flags,
+                        )
+                        .await
+                }
+            };
+
+            let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+            let conn = pool.get().map_err(|e| e.to_string())?;
+
+            match result {
+                Ok(_) => {
+                    db::mark_flag_operation_success(&conn, op.id).map_err(|e| e.to_string())?;
+
+                    tracing::debug!(target: "postail",
+                        "{} sync success: {}@{} uid={}",
+                        op.operation_type, op.mailbox, op.account_id, op.uid
+                    );
+                }
+                Err(e) => {
+                    let error_msg = e.to_string();
+                    db::mark_flag_operation_failed(&conn, op.id, &error_msg)
+                        .map_err(|e| e.to_string())?;
+
+                    if op.operation_type == "move" {
+                        if let Some(target) = &op.target_mailbox {
+                            let optimistic_uid = -(op.uid as i64);
+                            if let Err(e) = conn.execute(
                             "UPDATE OR IGNORE messages SET mailbox = ?, uid = ? WHERE account_id = ? AND mailbox = ? AND uid = ?",
                             rusqlite::params![op.mailbox, op.uid, op.account_id, target, optimistic_uid],
                         ) {
                             tracing::warn!(target: "postail", "[IMAP Move] Failed to revert optimistic message: {}", e);
                         }
+                        }
                     }
-                }
 
-                tracing::warn!(target: "postail",
-                    "{} sync failed: {}@{} uid={} - {}",
-                    op.operation_type, op.mailbox, op.account_id, op.uid, error_msg
-                );
+                    tracing::warn!(target: "postail",
+                        "{} sync failed: {}@{} uid={} - {}",
+                        op.operation_type, op.mailbox, op.account_id, op.uid, error_msg
+                    );
+                }
             }
         }
-    }
 
-    if move_happened {
-        let timestamp = chrono::Utc::now().timestamp() as u64;
-        crate::imap::sync_status::SYNC_STATUS_MANAGER.emit_event(
-            crate::imap::sync_status::SyncEvent::Completed {
-                account_id: account_id.to_string(),
-                timestamp,
-            },
-        );
-        imap_manager.force_idle_wakeup(account_id).await;
+        if move_happened {
+            let timestamp = chrono::Utc::now().timestamp() as u64;
+            crate::imap::sync_status::SYNC_STATUS_MANAGER.emit_event(
+                crate::imap::sync_status::SyncEvent::Completed {
+                    account_id: account_id.to_string(),
+                    timestamp,
+                },
+            );
+            imap_manager.force_idle_wakeup(account_id).await;
+        }
     }
 
     Ok(())
