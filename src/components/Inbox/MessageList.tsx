@@ -6,7 +6,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { format, isToday, isYesterday, isThisYear } from 'date-fns'
 import { Star, Trash2, MailOpen, Mail, FolderSync } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { toast } from '@/components/ui/custom/Toaster'
 import type { MailHeader, Mailbox } from '@/types/mail'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
@@ -26,7 +26,6 @@ const syncedMailboxes = new Set<string>()
 
 const DateOrActions = memo(
 	({
-		isHovered,
 		isUnread,
 		zenMode,
 		animationsEnabled,
@@ -36,7 +35,6 @@ const DateOrActions = memo(
 		t,
 		isOptimistic,
 	}: {
-		isHovered: boolean
 		isUnread: boolean
 		zenMode: boolean
 		animationsEnabled: boolean
@@ -55,63 +53,42 @@ const DateOrActions = memo(
 			)
 		}
 
-		const dateClass = `text-xs tabular-nums ${
+		const dateClass = `text-xs tabular-nums ${animationsEnabled ? 'transition-opacity duration-150 ease-out group-hover:opacity-0' : 'group-hover:hidden'} ${
 			isUnread && !zenMode ? 'text-foreground/80 font-medium' : 'text-tertiary'
 		}`
 
-		const actions = (
-			<div className='flex items-center gap-0.5'>
-				<ActionBtn
-					icon={<Trash2 className='h-[15px] w-[15px]' />}
-					tooltip={t('inbox:messageList.actions.delete')}
-					destructive
-					onClick={onDelete}
-				/>
-				<ActionBtn
-					icon={
-						isUnread ? (
-							<MailOpen className='h-[15px] w-[15px]' />
-						) : (
-							<Mail className='h-[15px] w-[15px]' />
-						)
-					}
-					tooltip={
-						isUnread
-							? t('inbox:messageList.actions.markRead')
-							: t('inbox:messageList.actions.markUnread')
-					}
-					onClick={onToggleRead}
-				/>
-			</div>
-		)
-
-		if (!animationsEnabled) {
-			return isHovered ? actions : <span className={dateClass}>{formattedDate}</span>
-		}
-
 		return (
-			<AnimatePresence mode='wait'>
-				{isHovered ? (
-					<motion.div
-						key='actions'
-						initial={{ opacity: 0, x: 8 }}
-						animate={{ opacity: 1, x: 0 }}
-						exit={{ opacity: 0, x: 8 }}
-						transition={{ duration: 0.15, ease: 'easeOut' }}>
-						{actions}
-					</motion.div>
-				) : (
-					<motion.span
-						key='date'
-						initial={{ opacity: 0, x: -8 }}
-						animate={{ opacity: 1, x: 0 }}
-						exit={{ opacity: 0, x: -8 }}
-						transition={{ duration: 0.15, ease: 'easeOut' }}
-						className={dateClass}>
-						{formattedDate}
-					</motion.span>
-				)}
-			</AnimatePresence>
+			<>
+				<span className={dateClass}>{formattedDate}</span>
+				<div
+					className={`absolute right-0 flex items-center gap-0.5 ${
+						animationsEnabled
+							? 'pointer-events-none translate-x-2 opacity-0 transition-all duration-150 ease-out group-hover:pointer-events-auto group-hover:translate-x-0 group-hover:opacity-100'
+							: 'hidden group-hover:flex'
+					}`}>
+					<ActionBtn
+						icon={<Trash2 className='h-[15px] w-[15px]' />}
+						tooltip={t('inbox:messageList.actions.delete')}
+						destructive
+						onClick={onDelete}
+					/>
+					<ActionBtn
+						icon={
+							isUnread ? (
+								<MailOpen className='h-[15px] w-[15px]' />
+							) : (
+								<Mail className='h-[15px] w-[15px]' />
+							)
+						}
+						tooltip={
+							isUnread
+								? t('inbox:messageList.actions.markRead')
+								: t('inbox:messageList.actions.markUnread')
+						}
+						onClick={onToggleRead}
+					/>
+				</div>
+			</>
 		)
 	}
 )
@@ -132,7 +109,6 @@ const MessageRow = memo(
 		isFocused,
 	}: MessageRowProps) => {
 		const { t } = useTypedTranslation()
-		const [isHovered, setIsHovered] = useState(false)
 
 		const sender = message.from[0]?.replace(/<.*>/g, '').trim() || message.from.join(', ')
 		const subject = message.subject || '(No Subject)'
@@ -243,8 +219,6 @@ const MessageRow = memo(
 				<motion.div
 					role='button'
 					tabIndex={0}
-					onMouseEnter={() => setIsHovered(true)}
-					onMouseLeave={() => setIsHovered(false)}
 					onClick={(e) => {
 						if (isOptimistic) {
 							e.preventDefault()
@@ -290,9 +264,8 @@ const MessageRow = memo(
 						</div>
 					</div>
 
-					<div className='ml-3 flex w-24 shrink-0 justify-end'>
+					<div className='relative ml-3 flex w-24 shrink-0 items-center justify-end'>
 						<DateOrActions
-							isHovered={isHovered}
 							isUnread={isUnread}
 							zenMode={zenMode}
 							animationsEnabled={animationsEnabled}
@@ -316,8 +289,6 @@ const MessageRow = memo(
 			<motion.div
 				role='button'
 				tabIndex={0}
-				onMouseEnter={() => setIsHovered(true)}
-				onMouseLeave={() => setIsHovered(false)}
 				onClick={(e) => {
 					if (isOptimistic) {
 						e.preventDefault()
@@ -341,9 +312,8 @@ const MessageRow = memo(
 					{/* Row 1: sender + date */}
 					<div className='flex items-center justify-between gap-2'>
 						<span className={`${senderClass} min-w-0`}>{sender}</span>
-						<div className='ml-2 flex shrink-0 items-center'>
+						<div className='relative ml-2 flex shrink-0 items-center'>
 							<DateOrActions
-								isHovered={isHovered}
 								isUnread={isUnread}
 								zenMode={zenMode}
 								animationsEnabled={animationsEnabled}
