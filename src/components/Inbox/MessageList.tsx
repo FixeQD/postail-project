@@ -234,7 +234,7 @@ const MessageRow = memo(
 							onMessageClick(message.uid, message.mailbox)
 						}
 					}}
-					className={`${rowBase} items-center px-4 py-3 transition-transform duration-150 hover:scale-[1.01]`}
+					className={`${rowBase} items-center px-4 py-3`}
 					style={{ borderColor: 'var(--border-faint)', ...focusedStyle }}>
 					{activeIndicator}
 					{checkboxStar}
@@ -304,7 +304,7 @@ const MessageRow = memo(
 						onMessageClick(message.uid, message.mailbox)
 					}
 				}}
-				className={`${rowBase} items-start px-4 py-3 transition-transform duration-150 hover:scale-[1.005]`}
+				className={`${rowBase} items-start px-4 py-3`}
 				style={{ borderColor: 'var(--border-faint)', ...focusedStyle }}>
 				{activeIndicator}
 				{checkboxStar}
@@ -767,6 +767,7 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 						animationsEnabled={context.animationsEnabled}
 						previewLines={context.previewLines}
 						formatDate={context.formatDate}
+						t={context.t}
 						onMessageClick={context.onMessageClick}
 						onDelete={context.handleDeleteMessage}
 						onToggleRead={context.handleToggleReadStatus}
