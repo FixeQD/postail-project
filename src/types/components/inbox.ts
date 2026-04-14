@@ -18,6 +18,7 @@ export interface MessageRowProps {
 	animationsEnabled: boolean
 	previewLines: number
 	formatDate: (date: string) => string
+	t: (key: string) => string
 	onMessageClick: (uid: number, mailbox: string) => void
 	onDelete: (uid: number, mailbox: string) => void
 	onToggleRead: (uid: number, isUnread: boolean, mailbox: string) => void
