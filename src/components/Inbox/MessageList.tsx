@@ -71,6 +71,7 @@ const DateOrActions = memo(
 						tooltip={t('inbox:messageList.actions.delete')}
 						destructive
 						onClick={onDelete}
+						animationsEnabled={animationsEnabled}
 					/>
 					<ActionBtn
 						icon={
@@ -86,6 +87,7 @@ const DateOrActions = memo(
 								: t('inbox:messageList.actions.markUnread')
 						}
 						onClick={onToggleRead}
+						animationsEnabled={animationsEnabled}
 					/>
 				</div>
 			</>
@@ -102,14 +104,13 @@ const MessageRow = memo(
 		animationsEnabled,
 		previewLines,
 		formatDate,
+		t,
 		onMessageClick,
 		onDelete,
 		onToggleRead,
 		onToggleStar,
 		isFocused,
 	}: MessageRowProps) => {
-		const { t } = useTypedTranslation()
-
 		const sender = message.from[0]?.replace(/<.*>/g, '').trim() || message.from.join(', ')
 		const subject = message.subject || '(No Subject)'
 		const snippet = message.snippet ?? ''
@@ -127,7 +128,7 @@ const MessageRow = memo(
 
 		const isOptimistic = message.uid < 0
 
-		const rowBase = `message-unread-indicator group relative flex w-full cursor-pointer select-none border-b text-left transition-all duration-200 outline-none ${
+		const rowBase = `message-unread-indicator group relative flex w-full cursor-pointer select-none border-b text-left transition-colors duration-150 outline-none ${
 			isUnread && !zenMode ? 'is-unread' : ''
 		} ${
 			isFocused
@@ -971,13 +972,14 @@ const ActionBtn = ({
 	tooltip,
 	destructive,
 	onClick,
+	animationsEnabled,
 }: {
 	icon: React.ReactNode
 	tooltip: string
 	destructive?: boolean
 	onClick?: (e: React.MouseEvent) => void
+	animationsEnabled: boolean
 }) => {
-	const animationsEnabled = useAnimationsEnabled()
 	return (
 		<motion.button
 			type='button'
