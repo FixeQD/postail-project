@@ -266,8 +266,6 @@
 
 /* Smooth scrolling for containers */
 .smooth-scroll-container {
-	scroll-behavior: smooth;
-	overflow-y: auto;
 	height: 100%;
 }
 
