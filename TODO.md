@@ -111,7 +111,7 @@
     - [x] 14.8 - Rust: Full-text search in message body via FTS5
 
 - [ ] 15 - Templates & Signatures
-    - [ ] 15.1 - DB: `signatures` table (id, account_id, name, html_content, is_default)
+    - [x] 15.1 - DB: `signatures` table (id, account_id, name, html_content, is_default)
     - [ ] 15.2 - Rust: CRUD commands for signatures
     - [ ] 15.3 - UI: Signature editor in account settings (same Lexical editor as compose)
     - [ ] 15.4 - UI: Auto-insert default signature on new/reply messages

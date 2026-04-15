@@ -104,6 +104,24 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
 
     create_table_if_not_exists(
         conn,
+        "signatures",
+        &[
+            ("id", "TEXT PRIMARY KEY"),
+            ("account_id", "TEXT NOT NULL"),
+            ("name", "TEXT NOT NULL"),
+            ("html_content", "TEXT NOT NULL DEFAULT ''"),
+            ("is_default", "INTEGER NOT NULL DEFAULT 0"),
+            ("created_at", "INTEGER NOT NULL"),
+            ("updated_at", "INTEGER NOT NULL"),
+            (
+                "FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE",
+                "",
+            ),
+        ],
+    )?;
+
+    create_table_if_not_exists(
+        conn,
         "outbox",
         &[
             ("id", "TEXT PRIMARY KEY"),
@@ -281,6 +299,14 @@ pub fn create_indexes(conn: &Connection) -> Result<(), DBError> {
         "idx_messages_starred",
         "messages",
         &["account_id", "starred"],
+        false,
+    )?;
+
+    create_index_if_not_exists(
+        conn,
+        "idx_signatures_account",
+        "signatures",
+        &["account_id"],
         false,
     )?;
 
