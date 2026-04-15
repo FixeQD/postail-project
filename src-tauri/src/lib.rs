@@ -247,7 +247,10 @@ pub fn run() {
             cmd::signatures::list_signatures,
             cmd::signatures::save_signature,
             cmd::signatures::delete_signature,
-            cmd::signatures::get_default_signature
+            cmd::signatures::get_default_signature,
+            cmd::templates::list_templates,
+            cmd::templates::save_template,
+            cmd::templates::delete_template
         ])
         .register_uri_scheme_protocol("postail", protocol::handler)
         .build(tauri::generate_context!())

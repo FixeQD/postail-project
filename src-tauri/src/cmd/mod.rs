@@ -10,4 +10,5 @@ pub mod security;
 pub mod settings;
 pub mod signatures;
 pub mod smtp;
+pub mod templates;
 pub mod utils;
