@@ -117,6 +117,11 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         set_db_version(conn, 16)?;
     }
 
+    if current_version < 17 {
+        migrate_to_v17(conn)?;
+        set_db_version(conn, 17)?;
+    }
+
     Ok(())
 }
 
@@ -453,6 +458,29 @@ fn migrate_to_v16(conn: &Connection) -> Result<(), DBError> {
     Ok(())
 }
 
+fn migrate_to_v17(conn: &Connection) -> Result<(), DBError> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS templates (
+            id TEXT PRIMARY KEY,
+            account_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            subject TEXT NOT NULL DEFAULT '',
+            html_body TEXT NOT NULL DEFAULT '',
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            FOREIGN KEY(account_id) REFERENCES accounts(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_templates_account ON templates(account_id)",
+        [],
+    )?;
+
+    Ok(())
+}
+
 // Whitelist of allowed table names to prevent SQL injection
 const ALLOWED_TABLES: &[&str] = &[
     "messages",
@@ -473,6 +501,7 @@ const ALLOWED_TABLES: &[&str] = &[
     "tag_colors",
     "filter_rules",
     "signatures",
+    "templates",
 ];
 
 fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool, DBError> {
