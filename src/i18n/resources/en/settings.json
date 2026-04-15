@@ -11,6 +11,7 @@
 		"appearance": "Appearance",
 		"notifications": "Notifications",
 		"composing": "Composing",
+		"signatures": "Signatures",
 		"tags": "Tags",
 		"filters": "Filters",
 		"about": "About",
@@ -491,6 +492,20 @@
 				"label": "Signature Content",
 				"placeholder": "-- \nYour Name"
 			}
+		}
+	},
+	"signatures": {
+		"title": "Signatures",
+		"addSignature": "Add Signature",
+		"noSignatures": "No signatures yet",
+		"name": "Name",
+		"isDefault": "Set as default signature",
+		"defaultBadge": "Default",
+		"deleteConfirm": {
+			"title": "Delete signature \"{{name}}\"?",
+			"description": "This signature will be permanently deleted and cannot be recovered.",
+			"confirm": "Delete",
+			"cancel": "Cancel"
 		}
 	},
 	"mailboxRoles": {

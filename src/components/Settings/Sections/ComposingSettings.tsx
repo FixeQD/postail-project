@@ -1,5 +1,4 @@
-import { useRef, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
 	Mail,
 	Save,
@@ -123,17 +122,6 @@ export function ComposingSettings() {
 	const animationsEnabled = useAnimationsEnabled()
 	const { settings, setSetting } = useSettingsStore()
 	const accentColor = useThemeStore((s) => s.accentColor)
-	const signatureSectionRef = useRef<HTMLElement>(null)
-
-	useEffect(() => {
-		if (!signatureSectionRef.current) return
-		setTimeout(() => {
-			signatureSectionRef.current?.scrollIntoView({
-				behavior: 'smooth',
-				block: settings['signature-enabled'] ? 'end' : 'nearest',
-			})
-		}, 50)
-	}, [settings['signature-enabled']])
 
 	const fade = (delay = 0) =>
 		animationsEnabled
@@ -231,7 +219,7 @@ export function ComposingSettings() {
 										style={{ color: accentColor }}
 									/>
 								</div>
-								<div className="flex flex-col gap-0.5">
+								<div className='flex flex-col gap-0.5'>
 									<h3 className='text-sm font-semibold text-[var(--text-primary)]'>
 										{t('settings:composing.editor.replyPosition.label')}
 									</h3>
@@ -277,47 +265,6 @@ export function ComposingSettings() {
 								/>
 							</div>
 						</div>
-					</div>
-				</motion.section>
-
-				{/* Signature */}
-				<motion.section ref={signatureSectionRef} {...fade(0.14)}>
-					<SectionTitle>{t('settings:composing.signature.title')}</SectionTitle>
-					<div className='space-y-3'>
-						<ToggleSetting
-							icon={PenLine}
-							label={t('settings:composing.signature.enable.label')}
-							description={t('settings:composing.signature.enable.description')}
-							value={settings['signature-enabled']}
-							onChange={(val) => setSetting('signature-enabled', val)}
-						/>
-						<AnimatePresence>
-							{settings['signature-enabled'] && (
-								<motion.div
-									initial={{ opacity: 0, height: 0 }}
-									animate={{ opacity: 1, height: 'auto' }}
-									exit={{ opacity: 0, height: 0 }}
-									transition={{ duration: 0.25, ease: 'easeOut' }}
-									className='overflow-hidden'>
-									<div className='rounded-2xl border border-[var(--border-faint)] bg-[var(--surface-panel)] p-4'>
-										<label className='mb-2 block text-xs font-semibold tracking-wider text-[var(--text-secondary)] uppercase'>
-											{t('settings:composing.signature.content.label')}
-										</label>
-										<textarea
-											value={settings['signature-content']}
-											onChange={(e) =>
-												setSetting('signature-content', e.target.value)
-											}
-											rows={5}
-											placeholder={t(
-												'settings:composing.signature.content.placeholder'
-											)}
-											className='w-full resize-none rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-hover)] px-3 py-2 font-mono text-sm text-[var(--text-primary)] transition-colors outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent-color)] focus:ring-1 focus:ring-[var(--accent-color)]'
-										/>
-									</div>
-								</motion.div>
-							)}
-						</AnimatePresence>
 					</div>
 				</motion.section>
 			</div>

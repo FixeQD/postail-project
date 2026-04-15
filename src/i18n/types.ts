@@ -243,6 +243,8 @@ export interface SettingsTranslations {
 		security: string
 		appearance: string
 		notifications: string
+		composing: string
+		signatures: string
 	}
 	general: {
 		title: string
@@ -276,6 +278,20 @@ export interface SettingsTranslations {
 			}
 			change: string
 			defaultPath: string
+		}
+	}
+	signatures: {
+		title: string
+		addSignature: string
+		noSignatures: string
+		name: string
+		isDefault: string
+		defaultBadge: string
+		deleteConfirm: {
+			title: string
+			description: string
+			confirm: string
+			cancel: string
 		}
 	}
 	accounts: {
