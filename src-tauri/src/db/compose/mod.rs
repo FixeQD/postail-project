@@ -1,6 +1,7 @@
 pub mod drafts;
 pub mod outbox;
 pub mod outbox_db;
+pub mod signatures;
 
 pub use super::drafts::*;
 pub use super::outbox::*;

@@ -243,7 +243,11 @@ pub fn run() {
             cmd::network::get_resource_cache_stats,
             cmd::search::get_saved_searches,
             cmd::search::create_saved_search,
-            cmd::search::delete_saved_search
+            cmd::search::delete_saved_search,
+            cmd::signatures::list_signatures,
+            cmd::signatures::save_signature,
+            cmd::signatures::delete_signature,
+            cmd::signatures::get_default_signature
         ])
         .register_uri_scheme_protocol("postail", protocol::handler)
         .build(tauri::generate_context!())
