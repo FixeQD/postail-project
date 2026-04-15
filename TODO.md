@@ -117,8 +117,8 @@
     - [ ] 15.4 - UI: Auto-insert default signature on new/reply messages
     - [ ] 15.5 - UI: Signature selector in ComposeScreen (dropdown near footer)
     - [ ] 15.6 - UI: Inline editing of signature in compose
-    - [ ] 15.7 - DB: `templates` table (id, account_id, name, subject, html_body)
-    - [ ] 15.8 - Rust: CRUD commands for templates
+    - [x] 15.7 - DB: `templates` table (id, account_id, name, subject, html_body)
+    - [x] 15.8 - Rust: CRUD commands for templates
     - [ ] 15.9 - UI: Template gallery accessible from ComposeScreen
     - [ ] 15.10 - UI: "Save as template" from current message
     - [ ] 15.11 - UI: Insert template into compose with edit before sending
