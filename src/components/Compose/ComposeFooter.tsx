@@ -4,6 +4,7 @@ import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useDraftStore } from '@/stores/draftStore'
 import EditorToolbar from './Editor/EditorToolbar'
+import { SignatureSelector } from './SignatureSelector'
 import type { ComposeFooterProps } from '@/types/components/compose'
 
 export const ComposeFooter = memo(({ onSend, onDiscard, isValid }: ComposeFooterProps) => {
@@ -25,6 +26,7 @@ export const ComposeFooter = memo(({ onSend, onDiscard, isValid }: ComposeFooter
 				</div>
 
 				<div className='flex items-center gap-1'>
+					<SignatureSelector />
 					<Button
 						variant='ghost'
 						size='icon'

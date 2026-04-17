@@ -115,7 +115,7 @@
     - [x] 15.2 - Rust: CRUD commands for signatures
     - [x] 15.3 - UI: Signature editor in account settings (same Lexical editor as compose)
     - [x] 15.4 - UI: Auto-insert default signature on new/reply messages
-    - [ ] 15.5 - UI: Signature selector in ComposeScreen (dropdown near footer)
+    - [x] 15.5 - UI: Signature selector in ComposeScreen (dropdown near footer)
     - [ ] 15.6 - UI: Inline editing of signature in compose
     - [x] 15.7 - DB: `templates` table (id, account_id, name, subject, html_body)
     - [x] 15.8 - Rust: CRUD commands for templates

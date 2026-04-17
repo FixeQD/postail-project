@@ -148,4 +148,7 @@ export interface DraftState {
 	// Keyboard shortcut triggers
 	triggerAttachFile: () => void
 	triggerInsertLink: () => void
+
+	// Signature management
+	replaceSignature: (html: string | null) => void
 }

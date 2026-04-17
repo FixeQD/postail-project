@@ -810,4 +810,33 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 	triggerInsertLink: () => {
 		window.dispatchEvent(new CustomEvent('compose:insert-link'))
 	},
+
+	replaceSignature: (html: string | null) => {
+		const { currentDraft } = get()
+		if (!currentDraft) return
+
+		const signatureBlockRegex = /<br\s*\/?><br\s*\/?><div class="signature">[\s\S]*?<\/div>/gi
+		const currentBody = currentDraft.body || ''
+
+		let updatedBody: string
+		if (html === null) {
+			updatedBody = currentBody.replace(signatureBlockRegex, '')
+		} else {
+			const sigBlock = `<br><br><div class="signature">${html}</div>`
+			if (signatureBlockRegex.test(currentBody)) {
+				updatedBody = currentBody.replace(signatureBlockRegex, sigBlock)
+			} else {
+				updatedBody = currentBody ? currentBody + sigBlock : sigBlock
+			}
+		}
+
+		set({
+			currentDraft: {
+				...currentDraft,
+				body: updatedBody,
+				updatedAt: new Date().toISOString(),
+			},
+			isDirty: true,
+		})
+	},
 }))
