@@ -11,6 +11,7 @@ import type {
 	SanitizeIssue,
 } from '@/types/compose'
 import type { DraftFromRust } from '@/types/stores'
+import type { Signature } from '@/types/signatures'
 
 let validationTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -54,6 +55,34 @@ const prepareReplyBase = (originalMessage: {
 		subject,
 		dateStr,
 		quotedBody,
+	}
+}
+
+/**
+ * Fetches the default signature for an account and appends it to the current draft body
+ */
+const injectDefaultSignature = async (
+	accountId: string,
+	get: () => DraftState,
+	set: (partial: Partial<DraftState>) => void
+): Promise<void> => {
+	try {
+		const sig = await invoke<Signature | null>('get_default_signature', { accountId })
+		if (!sig) return
+
+		const { currentDraft } = get()
+		if (!currentDraft) return
+
+		const sigBlock = `<br><br><div class="signature">${sig.htmlContent}</div>`
+
+		set({
+			currentDraft: {
+				...currentDraft,
+				body: currentDraft.body ? currentDraft.body + sigBlock : sigBlock,
+			},
+		})
+	} catch (e) {
+		console.error('[draftStore] Failed to fetch default signature:', e)
 	}
 }
 
@@ -205,6 +234,8 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 			isComposing: true,
 			isDirty: false,
 		})
+
+		injectDefaultSignature(accountId, get, set)
 	},
 
 	startReply: (accountId, originalMessage) => {
@@ -237,6 +268,8 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 			isComposing: true,
 			isDirty: false,
 		})
+
+		injectDefaultSignature(accountId, get, set)
 	},
 
 	startReplyAll: (accountId, originalMessage) => {
@@ -293,6 +326,8 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 			isComposing: true,
 			isDirty: false,
 		})
+
+		injectDefaultSignature(accountId, get, set)
 	},
 
 	startForward: (accountId, originalMessage) => {
@@ -357,6 +392,8 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 			isComposing: true,
 			isDirty: false,
 		})
+
+		injectDefaultSignature(accountId, get, set)
 	},
 
 	loadDraft: (draft: ComposeDraft) => {
