@@ -120,8 +120,8 @@
     - [x] 15.7 - DB: `templates` table (id, account_id, name, subject, html_body)
     - [x] 15.8 - Rust: CRUD commands for templates
     - [x] 15.9 - UI: Template gallery accessible from ComposeScreen
-    - [ ] 15.10 - UI: "Save as template" from current message
-    - [ ] 15.11 - UI: Insert template into compose with edit before sending
+    - [x] 15.10 - UI: "Save as template" from current message
+    - [x] 15.11 - UI: Insert template into compose with edit before sending
     - [ ] 15.12 - UI: Variables in templates: {{name}}, {{email}}, {{date}} with preview
 
 - [ ] 16 - Contacts

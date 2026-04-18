@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Trash2, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -7,6 +7,7 @@ import EditorToolbar from './Editor/EditorToolbar'
 import { SignatureSelector } from './SignatureSelector'
 import { TemplateGallery } from './TemplateGallery'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { htmlToLexical } from './Editor/utils/conversion'
 import type { ComposeFooterProps } from '@/types/components/compose'
@@ -15,19 +16,34 @@ import type { Template } from '@/types/templates'
 export const ComposeFooter = memo(({ onSend, onDiscard, isValid }: ComposeFooterProps) => {
 	const { t } = useTranslation()
 	const [editor] = useLexicalComposerContext()
-	const { isSaving, isSending, applyTemplate } = useDraftStore()
+	const { isSaving, isSending, applyTemplate, currentDraft } = useDraftStore()
+	const [confirmTemplate, setConfirmTemplate] = useState<Template | null>(null)
 
-	const handleTemplateSelect = (template: Template) => {
+	const applyTemplateToEditor = (template: Template) => {
 		applyTemplate(template)
-		// Re-hydrate editor after a short delay to ensure store update is processed
 		setTimeout(() => {
 			htmlToLexical(editor, template.htmlBody)
 		}, 50)
+		setConfirmTemplate(null)
+	}
+
+	const handleTemplateSelect = (template: Template) => {
+		// Check if we should ask for confirmation
+		const hasSubject = !!currentDraft?.subject?.trim()
+		const bodyWithoutSignature = currentDraft?.body?.replace(
+			/<br\s*\/?><br\s*\/?><div class="signature">[\s\S]*?<\/div>/gi,
+			''
+		)
+		const hasBody = !!bodyWithoutSignature?.trim()
+
+		if (hasSubject || hasBody) {
+			setConfirmTemplate(template)
+		} else {
+			applyTemplateToEditor(template)
+		}
 	}
 
 	const handleManageTemplates = () => {
-		// This should ideally trigger a navigation to settings
-		// For now, we'll assume there's a way to open settings templates
 		window.dispatchEvent(new CustomEvent('app:open-settings', { detail: { section: 'templates' } }))
 	}
 
@@ -73,6 +89,17 @@ export const ComposeFooter = memo(({ onSend, onDiscard, isValid }: ComposeFooter
 					</Button>
 				</div>
 			</div>
+
+			<ConfirmationDialog
+				open={!!confirmTemplate}
+				onOpenChange={(open) => !open && setConfirmTemplate(null)}
+				title={t('settings:templates.applyConfirm.title')}
+				description={t('settings:templates.applyConfirm.description')}
+				confirmLabel={t('settings:templates.applyConfirm.confirm')}
+				cancelLabel={t('settings:templates.applyConfirm.cancel')}
+				onConfirm={() => confirmTemplate && applyTemplateToEditor(confirmTemplate)}
+				confirmClassName='bg-blue-600 text-white hover:bg-blue-700'
+			/>
 		</div>
 	)
 })

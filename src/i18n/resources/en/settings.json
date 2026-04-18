@@ -520,6 +520,17 @@
 		"subject": "Subject",
 		"body": "Body",
 		"placeholder": "Type your template content...",
+		"saveAsTemplate": "Save as template",
+		"saveCurrent": "Save current as template",
+		"templateName": "Template Name",
+		"saveSuccess": "Template saved successfully",
+		"saveError": "Failed to save template",
+		"applyConfirm": {
+			"title": "Replace current content?",
+			"description": "Applying this template will replace your current subject and message body. This cannot be undone.",
+			"confirm": "Replace",
+			"cancel": "Cancel"
+		},
 		"deleteConfirm": {
 			"title": "Delete template \"{{name}}\"?",
 			"description": "This template will be permanently deleted.",

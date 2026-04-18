@@ -310,6 +310,17 @@ export interface SettingsTranslations {
 		subject: string
 		body: string
 		placeholder: string
+		saveAsTemplate: string
+		saveCurrent: string
+		templateName: string
+		saveSuccess: string
+		saveError: string
+		applyConfirm: {
+			title: string
+			description: string
+			confirm: string
+			cancel: string
+		}
 		deleteConfirm: {
 			title: string
 			description: string
