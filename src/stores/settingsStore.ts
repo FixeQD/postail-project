@@ -32,8 +32,6 @@ interface AppSettings {
 	'auto-save-drafts': boolean
 	'spell-check': boolean
 	'default-reply-position': 'top' | 'bottom'
-	'signature-enabled': boolean
-	'signature-content': string
 	'warn-large-attachment-mb': number // 0=disabled, 10, 25, 50
 }
 
@@ -66,8 +64,6 @@ const DEFAULT_SETTINGS: AppSettings = {
 	'auto-save-drafts': true,
 	'spell-check': true,
 	'default-reply-position': 'top',
-	'signature-enabled': false,
-	'signature-content': '',
 	'warn-large-attachment-mb': 25,
 }
 
@@ -134,9 +130,6 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 				const pos = raw['default-reply-position']
 				if (pos === 'top' || pos === 'bottom') s['default-reply-position'] = pos
 			}
-			if ('signature-enabled' in raw)
-				s['signature-enabled'] = parseBool(raw['signature-enabled'])
-			if ('signature-content' in raw) s['signature-content'] = raw['signature-content']
 			if ('warn-large-attachment-mb' in raw)
 				s['warn-large-attachment-mb'] = parseNum(raw['warn-large-attachment-mb'])
 

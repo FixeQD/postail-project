@@ -110,19 +110,19 @@
     - [x] 14.7 - UI: Highlight matching fragments in search results
     - [x] 14.8 - Rust: Full-text search in message body via FTS5
 
-- [ ] 15 - Templates & Signatures
-    - [ ] 15.1 - DB: `signatures` table (id, account_id, name, html_content, is_default)
-    - [ ] 15.2 - Rust: CRUD commands for signatures
-    - [ ] 15.3 - UI: Signature editor in account settings (same Lexical editor as compose)
-    - [ ] 15.4 - UI: Auto-insert default signature on new/reply messages
-    - [ ] 15.5 - UI: Signature selector in ComposeScreen (dropdown near footer)
-    - [ ] 15.6 - UI: Inline editing of signature in compose
-    - [ ] 15.7 - DB: `templates` table (id, account_id, name, subject, html_body)
-    - [ ] 15.8 - Rust: CRUD commands for templates
-    - [ ] 15.9 - UI: Template gallery accessible from ComposeScreen
-    - [ ] 15.10 - UI: "Save as template" from current message
-    - [ ] 15.11 - UI: Insert template into compose with edit before sending
-    - [ ] 15.12 - UI: Variables in templates: {{name}}, {{email}}, {{date}} with preview
+- [x] 15 - Templates & Signatures
+    - [x] 15.1 - DB: `signatures` table (id, account_id, name, html_content, is_default)
+    - [x] 15.2 - Rust: CRUD commands for signatures
+    - [x] 15.3 - UI: Signature editor in account settings (same Lexical editor as compose)
+    - [x] 15.4 - UI: Auto-insert default signature on new/reply messages
+    - [x] 15.5 - UI: Signature selector in ComposeScreen (dropdown near footer)
+    - [x] 15.6 - UI: Inline editing of signature in compose
+    - [x] 15.7 - DB: `templates` table (id, account_id, name, subject, html_body)
+    - [x] 15.8 - Rust: CRUD commands for templates
+    - [x] 15.9 - UI: Template gallery accessible from ComposeScreen
+    - [x] 15.10 - UI: "Save as template" from current message
+    - [x] 15.11 - UI: Insert template into compose with edit before sending
+    - [x] 15.12 - UI: Variables in templates: {{name}}, {{email}}, {{date}} with preview
 
 - [ ] 16 - Contacts
     - [ ] 16.1 - DB: Extend `contacts` table with phone, company, notes, avatar_url, birthday

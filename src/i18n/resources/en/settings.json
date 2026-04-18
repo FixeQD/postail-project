@@ -11,10 +11,12 @@
 		"appearance": "Appearance",
 		"notifications": "Notifications",
 		"composing": "Composing",
+		"signatures": "Signatures",
 		"tags": "Tags",
 		"filters": "Filters",
 		"about": "About",
-		"shortcuts": "Shortcuts"
+		"shortcuts": "Shortcuts",
+		"templates": "Templates"
 	},
 	"tags": {
 		"title": "Tags",
@@ -491,6 +493,58 @@
 				"label": "Signature Content",
 				"placeholder": "-- \nYour Name"
 			}
+		}
+	},
+	"signatures": {
+		"title": "Signatures",
+		"addSignature": "Add Signature",
+		"noSignatures": "No signatures yet",
+		"name": "Name",
+		"isDefault": "Set as default signature",
+		"defaultBadge": "Default",
+		"placeholder": "Type your signature...",
+		"deleteConfirm": {
+			"title": "Delete signature \"{{name}}\"?",
+			"description": "This signature will be permanently deleted and cannot be recovered.",
+			"confirm": "Delete",
+			"cancel": "Cancel"
+		}
+	},
+	"templates": {
+		"title": "Templates",
+		"subtitle": "Create and manage email templates for quick replies.",
+		"addTemplate": "Add Template",
+		"noTemplates": "No templates yet",
+		"noTemplatesDesc": "Save a template to speed up your workflow.",
+		"name": "Template Name",
+		"subject": "Subject",
+		"body": "Body",
+		"placeholder": "Type your template content...",
+		"saveAsTemplate": "Save as template",
+		"saveCurrent": "Save current as template",
+		"templateName": "Template Name",
+		"saveSuccess": "Template saved successfully",
+		"saveError": "Failed to save template",
+		"applyConfirm": {
+			"title": "Replace current content?",
+			"description": "Applying this template will replace your current subject and message body. This cannot be undone.",
+			"confirm": "Replace",
+			"cancel": "Cancel"
+		},
+		"deleteConfirm": {
+			"title": "Delete template \"{{name}}\"?",
+			"description": "This template will be permanently deleted.",
+			"confirm": "Delete",
+			"cancel": "Cancel"
+		},
+		"gallery": {
+			"title": "Insert Template",
+			"search": "Search templates...",
+			"manage": "Manage templates",
+			"empty": "No templates found",
+			"apply": "Apply Template",
+			"replaceSubject": "Replace subject?",
+			"replaceSubjectDesc": "Do you want to replace the current subject with the template subject?"
 		}
 	},
 	"mailboxRoles": {

@@ -1,14 +1,54 @@
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Trash2 } from 'lucide-react'
+import { Trash2, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useDraftStore } from '@/stores/draftStore'
 import EditorToolbar from './Editor/EditorToolbar'
+import { SignatureSelector } from './SignatureSelector'
+import { TemplateGallery } from './TemplateGallery'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
+import { htmlToLexical } from './Editor/utils/conversion'
 import type { ComposeFooterProps } from '@/types/components/compose'
+import type { Template } from '@/types/templates'
 
 export const ComposeFooter = memo(({ onSend, onDiscard, isValid }: ComposeFooterProps) => {
 	const { t } = useTranslation()
-	const { isSaving, isSending } = useDraftStore()
+	const [editor] = useLexicalComposerContext()
+	const { isSaving, isSending, applyTemplate, currentDraft } = useDraftStore()
+	const [confirmTemplate, setConfirmTemplate] = useState<Template | null>(null)
+
+	const applyTemplateToEditor = (template: Template) => {
+		applyTemplate(template)
+		setTimeout(() => {
+			const latestDraft = useDraftStore.getState().currentDraft
+			if (latestDraft?.body !== undefined) {
+				htmlToLexical(editor, latestDraft.body)
+			}
+		}, 50)
+		setConfirmTemplate(null)
+	}
+
+	const handleTemplateSelect = (template: Template) => {
+		// Check if we should ask for confirmation
+		const hasSubject = !!currentDraft?.subject?.trim()
+		const bodyWithoutSignature = currentDraft?.body?.replace(
+			/<br\s*\/?><br\s*\/?><div class="signature">[\s\S]*?<\/div>/gi,
+			''
+		)
+		const hasBody = !!bodyWithoutSignature?.trim()
+
+		if (hasSubject || hasBody) {
+			setConfirmTemplate(template)
+		} else {
+			applyTemplateToEditor(template)
+		}
+	}
+
+	const handleManageTemplates = () => {
+		window.dispatchEvent(new CustomEvent('app:open-settings', { detail: { section: 'templates' } }))
+	}
 
 	return (
 		<div className='mt-auto border-t border-[var(--compose-input-border)] bg-[var(--compose-footer-bg)] p-3'>
@@ -25,6 +65,24 @@ export const ComposeFooter = memo(({ onSend, onDiscard, isValid }: ComposeFooter
 				</div>
 
 				<div className='flex items-center gap-1'>
+					<Popover>
+						<PopoverTrigger asChild>
+							<Button
+								variant='ghost'
+								size='icon'
+								className='h-9 w-9 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'
+								title={t('settings:templates.gallery.title')}>
+								<FileText className='h-4 w-4' />
+							</Button>
+						</PopoverTrigger>
+						<PopoverContent align='end' className='w-auto p-0' sideOffset={8}>
+							<TemplateGallery
+								onSelect={handleTemplateSelect}
+								onManage={handleManageTemplates}
+							/>
+						</PopoverContent>
+					</Popover>
+					<SignatureSelector />
 					<Button
 						variant='ghost'
 						size='icon'
@@ -34,6 +92,17 @@ export const ComposeFooter = memo(({ onSend, onDiscard, isValid }: ComposeFooter
 					</Button>
 				</div>
 			</div>
+
+			<ConfirmationDialog
+				open={!!confirmTemplate}
+				onOpenChange={(open) => !open && setConfirmTemplate(null)}
+				title={t('settings:templates.applyConfirm.title')}
+				description={t('settings:templates.applyConfirm.description')}
+				confirmLabel={t('settings:templates.applyConfirm.confirm')}
+				cancelLabel={t('settings:templates.applyConfirm.cancel')}
+				onConfirm={() => confirmTemplate && applyTemplateToEditor(confirmTemplate)}
+				confirmClassName='bg-blue-600 text-white hover:bg-blue-700'
+			/>
 		</div>
 	)
 })

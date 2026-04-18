@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, memo } from 'react'
+import { useState, useCallback, useMemo, memo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
 	Settings,
@@ -14,6 +14,8 @@ import {
 	Info,
 	Keyboard,
 	Settings2,
+	Signature,
+	FileText,
 } from 'lucide-react'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
@@ -28,6 +30,8 @@ import { AboutSettings } from './Sections/AboutSettings'
 import { KeyboardShortcutsSettings } from './Sections/KeyboardShortcutsSettings'
 import { TagsSettings } from './Sections/TagsSettings'
 import { FiltersSettings } from './Sections/FiltersSettings'
+import { SignaturesSettings } from './Sections/Signatures/SignaturesSettings'
+import { TemplatesSettings } from './Sections/TemplatesSettings'
 import { invoke } from '@tauri-apps/api/core'
 import { useAccountStore } from '@/stores/accountStore'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
@@ -102,7 +106,8 @@ export function SettingsScreen({
 	showSidebar = true,
 	onAccountAdded,
 	onReencrypt,
-}: SettingsScreenProps) {
+	initialSection,
+}: SettingsScreenProps & { initialSection?: string }) {
 	const { accounts, removeAccount: onRemoveAccount } = useAccountStore()
 
 	const onSyncAccount = useCallback(async (id: string) => {
@@ -116,7 +121,12 @@ export function SettingsScreen({
 	const { t } = useSettingsTranslation()
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const animationsEnabled = useAnimationsEnabled()
-	const [activeSection, setActiveSection] = useState('accounts')
+	const [activeSection, setActiveSection] = useState(initialSection || 'accounts')
+	useEffect(() => {
+		if (initialSection) {
+			setActiveSection(initialSection)
+		}
+	}, [initialSection])
 
 	const SETTINGS_SECTIONS = useMemo(
 		() => [
@@ -127,6 +137,8 @@ export function SettingsScreen({
 			{ id: 'appearance', label: t('settings:sections.appearance'), icon: Palette },
 			{ id: 'notifications', label: t('settings:sections.notifications'), icon: Bell },
 			{ id: 'composing', label: t('settings:sections.composing'), icon: PenLine },
+			{ id: 'signatures', label: t('settings:sections.signatures'), icon: Signature },
+			{ id: 'templates', label: t('settings:sections.templates'), icon: FileText },
 			{ id: 'shortcuts', label: t('settings:sections.shortcuts'), icon: Keyboard },
 			{ id: 'tags', label: t('settings:sections.tags'), icon: Tag },
 			{ id: 'filters', label: t('settings:sections.filters'), icon: Settings2 },
@@ -158,6 +170,10 @@ export function SettingsScreen({
 				return <NotificationsSettings />
 			case 'composing':
 				return <ComposingSettings />
+			case 'signatures':
+				return <SignaturesSettings />
+			case 'templates':
+				return <TemplatesSettings />
 			case 'shortcuts':
 				return <KeyboardShortcutsSettings />
 			case 'tags':

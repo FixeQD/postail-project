@@ -64,7 +64,12 @@
 			"seconds": "s…",
 			"undo": "Undo"
 		},
-		"applyLink": "Apply"
+		"applyLink": "Apply",
+		"signature": {
+			"select": "Select signature",
+			"noSignature": "No signature",
+			"noSignatures": "No signatures yet"
+		}
 	},
 	"outbox": {
 		"title": "Outbox",

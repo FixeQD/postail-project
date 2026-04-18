@@ -1,12 +1,14 @@
 pub mod account;
 pub mod attachments;
 pub mod drafts;
+pub mod filters;
 pub mod mail;
 pub mod maintenance;
 pub mod network;
 pub mod search;
 pub mod security;
 pub mod settings;
+pub mod signatures;
 pub mod smtp;
+pub mod templates;
 pub mod utils;
-pub mod filters;

@@ -1,3 +1,5 @@
+import type { Template } from './templates'
+
 export interface EmailAddress {
 	email: string
 	name?: string
@@ -148,4 +150,10 @@ export interface DraftState {
 	// Keyboard shortcut triggers
 	triggerAttachFile: () => void
 	triggerInsertLink: () => void
+
+	// Signature management
+	replaceSignature: (html: string | null) => void
+
+	// Template management
+	applyTemplate: (template: Template) => void
 }

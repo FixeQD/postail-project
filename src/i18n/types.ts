@@ -243,6 +243,13 @@ export interface SettingsTranslations {
 		security: string
 		appearance: string
 		notifications: string
+		composing: string
+		signatures: string
+		tags: string
+		filters: string
+		shortcuts: string
+		templates: string
+		about: string
 	}
 	general: {
 		title: string
@@ -276,6 +283,58 @@ export interface SettingsTranslations {
 			}
 			change: string
 			defaultPath: string
+		}
+	}
+	signatures: {
+		title: string
+		addSignature: string
+		noSignatures: string
+		name: string
+		isDefault: string
+		defaultBadge: string
+		placeholder: string
+		deleteConfirm: {
+			title: string
+			description: string
+			confirm: string
+			cancel: string
+		}
+	}
+	templates: {
+		title: string
+		subtitle: string
+		addTemplate: string
+		noTemplates: string
+		noTemplatesDesc: string
+		name: string
+		subject: string
+		body: string
+		placeholder: string
+		saveAsTemplate: string
+		saveCurrent: string
+		templateName: string
+		saveSuccess: string
+		saveError: string
+		applyConfirm: {
+			title: string
+			description: string
+			confirm: string
+			cancel: string
+		}
+		deleteConfirm: {
+			title: string
+			description: string
+			confirm: string
+			cancel: string
+		}
+		gallery: {
+			title: string
+			search: string
+			manage: string
+			empty: string
+			apply: string
+			replaceSubject: string
+			replaceSubjectDesc: string
 		}
 	}
 	accounts: {
