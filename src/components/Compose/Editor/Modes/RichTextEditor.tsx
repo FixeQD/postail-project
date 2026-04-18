@@ -21,7 +21,9 @@ export const RichTextEditor = memo(
 					placeholder={placeholder}
 					ErrorBoundary={errorBoundary}
 				/>
-				<style>{`.editor-content ul ::marker, .editor-content ol ::marker { color: #e4e4e7; }`}</style>
+				<style>{`.editor-content ul ::marker, .editor-content ol ::marker { color: #e4e4e7; }
+					.editor-content .signature { border-top: 1px solid #e4e4e7; color: #71717a; padding-top: 8px; margin-top: 8px; }
+				`}</style>
 				<MemoHistoryPlugin />
 				<MemoListPlugin />
 				<MemoOnChangePlugin onChange={handleEditorChange} />
