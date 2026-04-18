@@ -13,6 +13,7 @@ import type {
 import type { DraftFromRust } from '@/types/stores'
 import type { Signature } from '@/types/signatures'
 import type { Template } from '@/types/templates'
+import { resolveTemplateVariables, getTemplateContextFromDraft } from '@/lib/templates'
 
 let validationTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -845,17 +846,21 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		const { currentDraft } = get()
 		if (!currentDraft) return
 
+		const context = getTemplateContextFromDraft(currentDraft)
+		const processedSubject = resolveTemplateVariables(template.subject, context)
+		const processedBody = resolveTemplateVariables(template.htmlBody, context)
+
 		// If subject is empty, use template subject
 		let subject = currentDraft.subject
-		if (!subject.trim() && template.subject) {
-			subject = template.subject
+		if (!subject.trim() && processedSubject) {
+			subject = processedSubject
 		}
 
 		set({
 			currentDraft: {
 				...currentDraft,
 				subject,
-				body: template.htmlBody,
+				body: processedBody,
 				updatedAt: new Date().toISOString(),
 			},
 			isDirty: true,

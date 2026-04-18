@@ -147,7 +147,7 @@ function TemplateForm({
 						onChange={(html) => setForm((f) => ({ ...f, htmlBody: html }))}
 					/>
 					<p className='mt-2 text-[10px] text-[var(--text-tertiary)]'>
-						Available variables: <code className='rounded bg-[var(--surface-hover)] px-1'>{'{{name}}'}</code>, <code className='rounded bg-[var(--surface-hover)] px-1'>{'{{email}}'}</code>, <code className='rounded bg-[var(--surface-hover)] px-1'>{'{{date}}'}</code>
+						Available variables: <code className='rounded bg-[var(--surface-hover)] px-1'>{'{{name}}'}</code>, <code className='rounded bg-[var(--surface-hover)] px-1'>{'{{email}}'}</code>, <code className='rounded bg-[var(--surface-hover)] px-1'>{'{{date}}'}</code>, <code className='rounded bg-[var(--surface-hover)] px-1'>{'{{subject}}'}</code>
 					</p>
 				</div>
 

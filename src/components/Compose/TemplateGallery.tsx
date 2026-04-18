@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
-import { FileText, Search, Settings, ChevronRight, Save, X, Check } from 'lucide-react'
+import { FileText, Search, Settings, ChevronRight, Save, X, Check, Eye } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { useAccountStore } from '@/stores/accountStore'
 import { useDraftStore } from '@/stores/draftStore'
+import { resolveTemplateVariables, getTemplateContextFromDraft, getPlaceholderContext } from '@/lib/templates'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Template } from '@/types/templates'
 
 interface TemplateGalleryProps {
@@ -23,6 +25,7 @@ export function TemplateGallery({ onSelect, onManage }: TemplateGalleryProps) {
 	const [search, setSearch] = useState('')
 	const [isSaving, setIsSaving] = useState(false)
 	const [newName, setNewName] = useState('')
+	const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null)
 
 	const { data: templates = [], isLoading } = useQuery<Template[]>({
 		queryKey: ['templates', accountId],
@@ -163,8 +166,17 @@ export function TemplateGallery({ onSelect, onManage }: TemplateGalleryProps) {
 									</span>
 								)}
 								<p className='mt-1 w-full truncate text-[10px] leading-relaxed text-[var(--text-tertiary)]'>
-									{stripHtml(tmpl.htmlBody)}
+									{resolveTemplateVariables(stripHtml(tmpl.htmlBody), getTemplateContextFromDraft(currentDraft))}
 								</p>
+
+								<button
+									onClick={(e) => {
+										e.stopPropagation()
+										setPreviewTemplate(tmpl)
+									}}
+									className='absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-md bg-[var(--surface-hover)] text-[var(--text-tertiary)] opacity-0 transition-all hover:text-[var(--accent-primary)] group-hover:opacity-100'>
+									<Eye className='h-3.5 w-3.5' />
+								</button>
 							</button>
 						))}
 					</div>
@@ -178,7 +190,44 @@ export function TemplateGallery({ onSelect, onManage }: TemplateGalleryProps) {
 					<Settings className='h-3 w-3' />
 					{t('settings:templates.gallery.manage')}
 				</button>
-			</div>
+				</div>
+
+			<Dialog open={!!previewTemplate} onOpenChange={(open) => !open && setPreviewTemplate(null)}>
+				<DialogContent className='max-w-2xl'>
+					<DialogHeader>
+						<DialogTitle>{previewTemplate?.name}</DialogTitle>
+					</DialogHeader>
+					<div className='mt-4 space-y-4'>
+						{previewTemplate?.subject && (
+							<div className='rounded-lg bg-[var(--surface-hover)] p-3'>
+								<span className='text-[10px] font-bold tracking-widest text-[var(--text-tertiary)] uppercase'>
+									Subject
+								</span>
+								<p className='mt-1 text-sm font-medium text-[var(--text-primary)]'>
+									{resolveTemplateVariables(
+										previewTemplate.subject,
+										getTemplateContextFromDraft(currentDraft)
+									)}
+								</p>
+							</div>
+						)}
+						<div className='rounded-lg border border-[var(--border-subtle)] p-4'>
+							<span className='mb-2 block text-[10px] font-bold tracking-widest text-[var(--text-tertiary)] uppercase'>
+								Body Preview (using John Doe placeholder)
+							</span>
+							<div
+								className='prose prose-sm max-w-none text-[var(--text-primary)]'
+								dangerouslySetInnerHTML={{
+									__html: resolveTemplateVariables(
+										previewTemplate?.htmlBody || '',
+										getPlaceholderContext()
+									),
+								}}
+							/>
+						</div>
+					</div>
+				</DialogContent>
+			</Dialog>
 		</div>
 	)
 }

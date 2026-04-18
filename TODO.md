@@ -110,7 +110,7 @@
     - [x] 14.7 - UI: Highlight matching fragments in search results
     - [x] 14.8 - Rust: Full-text search in message body via FTS5
 
-- [ ] 15 - Templates & Signatures
+- [x] 15 - Templates & Signatures
     - [x] 15.1 - DB: `signatures` table (id, account_id, name, html_content, is_default)
     - [x] 15.2 - Rust: CRUD commands for signatures
     - [x] 15.3 - UI: Signature editor in account settings (same Lexical editor as compose)
@@ -122,7 +122,7 @@
     - [x] 15.9 - UI: Template gallery accessible from ComposeScreen
     - [x] 15.10 - UI: "Save as template" from current message
     - [x] 15.11 - UI: Insert template into compose with edit before sending
-    - [ ] 15.12 - UI: Variables in templates: {{name}}, {{email}}, {{date}} with preview
+    - [x] 15.12 - UI: Variables in templates: {{name}}, {{email}}, {{date}} with preview
 
 - [ ] 16 - Contacts
     - [ ] 16.1 - DB: Extend `contacts` table with phone, company, notes, avatar_url, birthday
