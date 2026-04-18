@@ -22,7 +22,10 @@ export const ComposeFooter = memo(({ onSend, onDiscard, isValid }: ComposeFooter
 	const applyTemplateToEditor = (template: Template) => {
 		applyTemplate(template)
 		setTimeout(() => {
-			htmlToLexical(editor, template.htmlBody)
+			const latestDraft = useDraftStore.getState().currentDraft
+			if (latestDraft?.body !== undefined) {
+				htmlToLexical(editor, latestDraft.body)
+			}
 		}, 50)
 		setConfirmTemplate(null)
 	}
