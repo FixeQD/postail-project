@@ -850,11 +850,8 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		const processedSubject = resolveTemplateVariables(template.subject, context)
 		const processedBody = resolveTemplateVariables(template.htmlBody, context)
 
-		// If subject is empty, use template subject
-		let subject = currentDraft.subject
-		if (!subject.trim() && processedSubject) {
-			subject = processedSubject
-		}
+		// Always overwrite the subject if the template has one
+		const subject = processedSubject ? processedSubject : currentDraft.subject
 
 		set({
 			currentDraft: {
