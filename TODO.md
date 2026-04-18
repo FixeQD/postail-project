@@ -119,7 +119,7 @@
     - [x] 15.6 - UI: Inline editing of signature in compose
     - [x] 15.7 - DB: `templates` table (id, account_id, name, subject, html_body)
     - [x] 15.8 - Rust: CRUD commands for templates
-    - [ ] 15.9 - UI: Template gallery accessible from ComposeScreen
+    - [x] 15.9 - UI: Template gallery accessible from ComposeScreen
     - [ ] 15.10 - UI: "Save as template" from current message
     - [ ] 15.11 - UI: Insert template into compose with edit before sending
     - [ ] 15.12 - UI: Variables in templates: {{name}}, {{email}}, {{date}} with preview

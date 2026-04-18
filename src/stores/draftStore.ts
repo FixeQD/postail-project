@@ -12,6 +12,7 @@ import type {
 } from '@/types/compose'
 import type { DraftFromRust } from '@/types/stores'
 import type { Signature } from '@/types/signatures'
+import type { Template } from '@/types/templates'
 
 let validationTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -834,6 +835,27 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 			currentDraft: {
 				...currentDraft,
 				body: updatedBody,
+				updatedAt: new Date().toISOString(),
+			},
+			isDirty: true,
+		})
+	},
+
+	applyTemplate: (template: Template) => {
+		const { currentDraft } = get()
+		if (!currentDraft) return
+
+		// If subject is empty, use template subject
+		let subject = currentDraft.subject
+		if (!subject.trim() && template.subject) {
+			subject = template.subject
+		}
+
+		set({
+			currentDraft: {
+				...currentDraft,
+				subject,
+				body: template.htmlBody,
 				updatedAt: new Date().toISOString(),
 			},
 			isDirty: true,

@@ -245,6 +245,11 @@ export interface SettingsTranslations {
 		notifications: string
 		composing: string
 		signatures: string
+		tags: string
+		filters: string
+		shortcuts: string
+		templates: string
+		about: string
 	}
 	general: {
 		title: string
@@ -292,6 +297,31 @@ export interface SettingsTranslations {
 			description: string
 			confirm: string
 			cancel: string
+		}
+	}
+	templates: {
+		title: string
+		subtitle: string
+		addTemplate: string
+		noTemplates: string
+		noTemplatesDesc: string
+		name: string
+		subject: string
+		body: string
+		deleteConfirm: {
+			title: string
+			description: string
+			confirm: string
+			cancel: string
+		}
+		gallery: {
+			title: string
+			search: string
+			manage: string
+			empty: string
+			apply: string
+			replaceSubject: string
+			replaceSubjectDesc: string
 		}
 	}
 	accounts: {

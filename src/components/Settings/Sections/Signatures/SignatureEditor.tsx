@@ -23,6 +23,7 @@ import { lexicalToHtml, htmlToLexical } from '@/components/Compose/Editor/utils/
 
 interface SignatureEditorProps {
 	initialHtml: string
+	placeholder?: string
 	onChange: (html: string) => void
 }
 
@@ -102,11 +103,11 @@ function SignatureToolbar() {
 		return editor.registerUpdateListener(({ editorState }) => {
 			editorState.read(() => {
 				const selection = editorState._selection
-				if (selection && selection.hasFormat) {
+				if (selection && 'hasFormat' in selection) {
 					setFormats({
-						bold: selection.hasFormat('bold'),
-						italic: selection.hasFormat('italic'),
-						underline: selection.hasFormat('underline'),
+						bold: (selection as any).hasFormat('bold'),
+						italic: (selection as any).hasFormat('italic'),
+						underline: (selection as any).hasFormat('underline'),
 					})
 				} else {
 					setFormats({ bold: false, italic: false, underline: false })
@@ -161,6 +162,7 @@ function SignatureToolbar() {
 
 export const SignatureEditor = memo(function SignatureEditor({
 	initialHtml,
+	placeholder = 'Type your signature...',
 	onChange,
 }: SignatureEditorProps) {
 	const handleChange = useCallback(
@@ -193,7 +195,7 @@ export const SignatureEditor = memo(function SignatureEditor({
 						}
 						placeholder={
 							<div className='pointer-events-none absolute top-3 left-3 text-sm text-[var(--text-tertiary)]'>
-								Type your signature...
+								{placeholder}
 							</div>
 						}
 						ErrorBoundary={ErrorBoundary}
