@@ -166,7 +166,7 @@ function SignatureForm({
 						type='button'
 						onClick={onCancel}
 						className='rounded-xl px-4 py-2 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
-						{t('settings:signatures.deleteConfirm.cancel')}
+						{t('common:actions.cancel')}
 					</button>
 					<button
 						type='button'
@@ -174,7 +174,7 @@ function SignatureForm({
 						disabled={!form.name.trim()}
 						className='rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-[0.97] disabled:opacity-40'
 						style={{ backgroundColor: accentColor }}>
-						{t('settings:signatures.deleteConfirm.confirm')}
+						{t('common:actions.save')}
 					</button>
 				</div>
 			</div>
