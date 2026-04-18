@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, memo } from 'react'
+import { useState, useCallback, useMemo, memo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
 	Settings,
@@ -106,7 +106,8 @@ export function SettingsScreen({
 	showSidebar = true,
 	onAccountAdded,
 	onReencrypt,
-}: SettingsScreenProps) {
+	initialSection,
+}: SettingsScreenProps & { initialSection?: string }) {
 	const { accounts, removeAccount: onRemoveAccount } = useAccountStore()
 
 	const onSyncAccount = useCallback(async (id: string) => {
@@ -120,7 +121,12 @@ export function SettingsScreen({
 	const { t } = useSettingsTranslation()
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const animationsEnabled = useAnimationsEnabled()
-	const [activeSection, setActiveSection] = useState('accounts')
+	const [activeSection, setActiveSection] = useState(initialSection || 'accounts')
+	useEffect(() => {
+		if (initialSection) {
+			setActiveSection(initialSection)
+		}
+	}, [initialSection])
 
 	const SETTINGS_SECTIONS = useMemo(
 		() => [

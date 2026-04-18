@@ -108,6 +108,10 @@ function App() {
 		document.documentElement.setAttribute('data-animations', animationsEnabled ? 'on' : 'off')
 	}, [animationsEnabled])
 
+	const [pendingSettingsSection, setPendingSettingsSection] = useState<string | undefined>(
+		undefined
+	)
+
 	useEffect(() => {
 		const preloadable = ['dashboard', 'accounts', 'settings']
 		if (preloadable.includes(currentState)) {
@@ -181,6 +185,16 @@ function App() {
 			setCurrentState('dashboard')
 		}
 	}
+
+	useEffect(() => {
+		const handleOpenSettings = (e: any) => {
+			const section = e.detail?.section
+			setPendingSettingsSection(section)
+			setCurrentState('settings')
+		}
+		window.addEventListener('app:open-settings', handleOpenSettings)
+		return () => window.removeEventListener('app:open-settings', handleOpenSettings)
+	}, [setCurrentState])
 
 	const renderCurrentScreen = () => {
 		switch (currentState) {
@@ -277,9 +291,13 @@ function App() {
 				return (
 					<Suspense fallback={null}>
 						<SettingsScreen
-							onBack={() => setCurrentState('dashboard')}
+							onBack={() => {
+								setCurrentState('dashboard')
+								setPendingSettingsSection(undefined)
+							}}
 							canGoBack={currentState === 'settings'}
 							showSidebar={currentState === 'settings'}
+							initialSection={pendingSettingsSection}
 							onAccountAdded={
 								currentState === 'accounts' ? handleAccountAdded : undefined
 							}
