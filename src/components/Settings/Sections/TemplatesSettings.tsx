@@ -143,7 +143,7 @@ function TemplateForm({
 					</label>
 					<SignatureEditor
 						initialHtml={form.htmlBody}
-						placeholder='Type your template content...'
+						placeholder={t('settings:templates.placeholder')}
 						onChange={(html) => setForm((f) => ({ ...f, htmlBody: html }))}
 					/>
 					<p className='mt-2 text-[10px] text-[var(--text-tertiary)]'>

@@ -138,6 +138,7 @@ function SignatureForm({
 					</label>
 					<SignatureEditor
 						initialHtml={form.htmlContent}
+						placeholder={t('settings:signatures.placeholder')}
 						onChange={(html) => setForm((f) => ({ ...f, htmlContent: html }))}
 					/>
 				</div>

@@ -292,6 +292,7 @@ export interface SettingsTranslations {
 		name: string
 		isDefault: string
 		defaultBadge: string
+		placeholder: string
 		deleteConfirm: {
 			title: string
 			description: string
@@ -308,6 +309,7 @@ export interface SettingsTranslations {
 		name: string
 		subject: string
 		body: string
+		placeholder: string
 		deleteConfirm: {
 			title: string
 			description: string
