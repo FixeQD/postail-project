@@ -43,23 +43,9 @@ export const SignatureSelector = memo(function SignatureSelector() {
 		replaceSignature(html)
 		setOpen(false)
 		setTimeout(() => {
-			if (currentDraft) {
-				const updatedBody = currentDraft.body
-					? html === null
-						? currentDraft.body.replace(
-								/<br\s*\/?><br\s*\/?><div class="signature">[\s\S]*?<\/div>/gi,
-								''
-							)
-						: currentDraft.body.includes('<div class="signature">')
-							? currentDraft.body.replace(
-									/<br\s*\/?><br\s*\/?><div class="signature">[\s\S]*?<\/div>/gi,
-									`<br><br><div class="signature">${html}</div>`
-								)
-							: currentDraft.body + `<br><br><div class="signature">${html}</div>`
-					: html
-						? `<div class="signature">${html}</div>`
-						: ''
-				htmlToLexical(editor, updatedBody)
+			const latestDraft = useDraftStore.getState().currentDraft
+			if (latestDraft?.body !== undefined) {
+				htmlToLexical(editor, latestDraft.body)
 			}
 		}, 50)
 	}
