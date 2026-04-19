@@ -69,6 +69,17 @@
 			"select": "Select signature",
 			"noSignature": "No signature",
 			"noSignatures": "No signatures yet"
+		},
+		"dragDrop": {
+			"processing": "Processing items...",
+			"insertInline": {
+				"title": "Insert Inline",
+				"description": "Embed directly in email"
+			},
+			"addAttachment": {
+				"title": "Add as Attachment",
+				"description": "Add to file list"
+			}
 		}
 	},
 	"outbox": {

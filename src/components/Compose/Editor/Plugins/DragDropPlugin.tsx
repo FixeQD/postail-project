@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useDraftStore } from '@/stores/draftStore'
 import { invoke } from '@tauri-apps/api/core'
@@ -7,6 +8,7 @@ import type { EmailAttachment } from '@/types/compose'
 import { Image as ImageIcon, Paperclip } from 'lucide-react'
 
 export default function DragDropPlugin(): React.ReactNode {
+	const { t } = useTranslation()
 	const addAttachment = useDraftStore((s) => s.addAttachment)
 	const [isDragging, setIsDragging] = useState(false)
 	const { isLoading: isProcessing, run: runProcessing } = useAsyncState()
@@ -166,7 +168,7 @@ export default function DragDropPlugin(): React.ReactNode {
 			{isProcessing ? (
 				<div className='pointer-events-auto flex flex-col items-center gap-4 text-white'>
 					<div className='h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500'></div>
-					<p className='text-xl font-medium'>Processing items...</p>
+					<p className='text-xl font-medium'>{t('compose.dragDrop.processing')}</p>
 				</div>
 			) : (
 				<div className='pointer-events-none flex h-96 w-full max-w-4xl gap-8'>
@@ -186,9 +188,9 @@ export default function DragDropPlugin(): React.ReactNode {
 						<div className='text-center'>
 							<h3
 								className={`text-xl font-bold ${activeZone === 'inline' ? 'text-blue-200' : 'text-zinc-300'}`}>
-								Insert Inline
+								{t('compose.dragDrop.insertInline.title')}
 							</h3>
-							<p className='mt-1 text-zinc-500'>Embed directly in email</p>
+							<p className='mt-1 text-zinc-500'>{t('compose.dragDrop.insertInline.description')}</p>
 						</div>
 					</div>
 
@@ -208,9 +210,9 @@ export default function DragDropPlugin(): React.ReactNode {
 						<div className='text-center'>
 							<h3
 								className={`text-xl font-bold ${activeZone === 'attachment' ? 'text-green-200' : 'text-zinc-300'}`}>
-								Add as Attachment
+								{t('compose.dragDrop.addAttachment.title')}
 							</h3>
-							<p className='mt-1 text-zinc-500'>Add to file list</p>
+							<p className='mt-1 text-zinc-500'>{t('compose.dragDrop.addAttachment.description')}</p>
 						</div>
 					</div>
 				</div>
