@@ -129,7 +129,7 @@
     - [x] 16.2 - State: Manage raw HTML state directly to avoid Lexical <-> HTML conversion bugs
     - [x] 16.3 - UI: Implement formatting toolbar (Bold, Italic, Underline, Strikethrough, Lists)
     - [ ] 16.4 - UI: Implement Link and Image insertion logic (with CID generation)
-    - [ ] 16.5 - UI: Implement Source Mode toggle (switching between WYSIWYG and Monaco)
+    - [x] 16.5 - UI: Implement Source Mode toggle (switching between WYSIWYG and Monaco)
     - [ ] 16.6 - Logic: Refactor signature insertion to operate on raw HTML directly
     - [ ] 16.7 - Logic: Refactor template application to operate on raw HTML directly
     - [ ] 16.8 - Refactor: Update `ComposeScreen` to use the new editor, handle auto-save draft

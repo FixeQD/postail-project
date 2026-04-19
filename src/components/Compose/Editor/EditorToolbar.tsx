@@ -18,9 +18,73 @@ import {
 	Code,
 	FileType,
 	MailCheck,
+	Heading1,
+	Heading2,
+	Heading3,
+	RemoveFormatting,
+	Pilcrow,
+	ChevronDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useDraftStore } from '@/stores/draftStore'
+
+const HEADING_OPTIONS = [
+	{ tag: 'p', label: 'Paragraph', icon: Pilcrow },
+	{ tag: 'h1', label: 'Heading 1', icon: Heading1 },
+	{ tag: 'h2', label: 'Heading 2', icon: Heading2 },
+	{ tag: 'h3', label: 'Heading 3', icon: Heading3 },
+] as const
+
+function HeadingDropdown({
+	activeHeading,
+	onSelect,
+}: {
+	activeHeading: '' | 'h1' | 'h2' | 'h3'
+	onSelect: (tag: 'p' | 'h1' | 'h2' | 'h3') => void
+}) {
+	const [open, setOpen] = useState(false)
+	const ActiveIcon = activeHeading
+		? (HEADING_OPTIONS.find((o) => o.tag === activeHeading)?.icon ?? Pilcrow)
+		: Pilcrow
+
+	return (
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger asChild>
+				<Button
+					variant='ghost'
+					size='sm'
+					className={`flex h-9 items-center gap-0.5 px-2 ${activeHeading ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}>
+					<ActiveIcon className='h-4 w-4' />
+					<ChevronDown className='h-3 w-3 opacity-50' />
+				</Button>
+			</PopoverTrigger>
+			<PopoverContent
+				align='start'
+				sideOffset={6}
+				className='w-40 p-1'
+				onOpenAutoFocus={(e) => e.preventDefault()}>
+				{HEADING_OPTIONS.map(({ tag, label, icon: Icon }) => (
+					<button
+						key={tag}
+						className={`flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors ${
+							(tag === 'p' && !activeHeading) || activeHeading === tag
+								? 'bg-accent text-accent-foreground'
+								: 'text-popover-foreground hover:bg-accent/50'
+						}`}
+						onMouseDown={(e) => {
+							e.preventDefault()
+							onSelect(tag)
+							setOpen(false)
+						}}>
+						<Icon className='h-4 w-4' />
+						{label}
+					</button>
+				))}
+			</PopoverContent>
+		</Popover>
+	)
+}
 
 const useEditorFormats = () => {
 	const [formats, setFormats] = useState({
@@ -30,6 +94,7 @@ const useEditorFormats = () => {
 		strikethrough: false,
 		ordered: false,
 		unordered: false,
+		heading: '' as '' | 'h1' | 'h2' | 'h3',
 	})
 
 	useEffect(() => {
@@ -67,10 +132,7 @@ const useEditorFormats = () => {
 							return true
 						break
 					case 'underline':
-						if (
-							node.nodeName === 'U' ||
-							style.textDecorationLine.includes('underline')
-						)
+						if (node.nodeName === 'U' || style.textDecorationLine.includes('underline'))
 							return true
 						break
 					case 'strikeThrough':
@@ -94,6 +156,25 @@ const useEditorFormats = () => {
 			return false
 		}
 
+		const getActiveHeading = (): '' | 'h1' | 'h2' | 'h3' => {
+			const selection = window.getSelection()
+			if (!selection || !selection.anchorNode) return ''
+
+			let node: Node | null = selection.anchorNode
+			if (node.nodeType === Node.TEXT_NODE) node = node.parentNode
+
+			while (
+				node &&
+				node instanceof Element &&
+				node.getAttribute('contenteditable') !== 'true'
+			) {
+				const tag = node.nodeName.toLowerCase()
+				if (tag === 'h1' || tag === 'h2' || tag === 'h3') return tag
+				node = node.parentNode
+			}
+			return ''
+		}
+
 		const handleSelectionChange = () => {
 			setFormats({
 				bold: isFormatActive('bold'),
@@ -102,6 +183,7 @@ const useEditorFormats = () => {
 				strikethrough: isFormatActive('strikeThrough'),
 				ordered: isFormatActive('insertOrderedList'),
 				unordered: isFormatActive('insertUnorderedList'),
+				heading: getActiveHeading(),
 			})
 		}
 
@@ -238,6 +320,31 @@ export function EditorToolbar({ onAttach }: EditorToolbarProps) {
 						onClick={() => exec('insertOrderedList')}>
 						<ListOrdered className='h-4 w-4' />
 					</Button>
+					<div className='mx-1 h-4 w-px bg-[var(--compose-separator)]' />
+					<HeadingDropdown
+						activeHeading={formats.heading}
+						onSelect={(tag) => {
+							if (tag === 'p') {
+								exec('formatBlock', '<p>')
+							} else {
+								// Toggle: if already active, revert to <p>
+								if (formats.heading === tag) {
+									exec('formatBlock', '<p>')
+								} else {
+									exec('formatBlock', `<${tag}>`)
+								}
+							}
+						}}
+					/>
+					<Button
+						variant='ghost'
+						size='icon'
+						title='Remove Formatting'
+						className='h-9 w-9 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'
+						onClick={() => exec('removeFormat')}>
+						<RemoveFormatting className='h-4 w-4' />
+					</Button>
+					<div className='mx-1 h-4 w-px bg-[var(--compose-separator)]' />
 					<Button
 						variant='ghost'
 						size='icon'
