@@ -42,13 +42,8 @@ export const SignatureSelector = memo(function SignatureSelector({ htmlRef }: Si
 
 	const handleSelect = (html: string | null) => {
 		replaceSignature(html)
+		window.dispatchEvent(new CustomEvent('compose:update-signature', { detail: html }))
 		setOpen(false)
-		setTimeout(() => {
-			const latestDraft = useDraftStore.getState().currentDraft
-			if (latestDraft?.body !== undefined && htmlRef) {
-				htmlRef.current = latestDraft.body
-			}
-		}, 50)
 	}
 
 	const hasSignature = currentSigHtml && currentSigHtml.trim().length > 0

@@ -98,63 +98,20 @@ const useEditorFormats = () => {
 		link: false,
 	})
 
-	useEffect(() => {
+	const updateFormats = useCallback(() => {
+		// Only update if we are in a contenteditable context
+		const activeEl = document.activeElement
+		const isEditable = activeEl?.getAttribute('contenteditable') === 'true' || 
+						  activeEl?.closest('[contenteditable="true"]')
+		
+		if (!isEditable) return
+
 		const isFormatActive = (command: string) => {
-			const selection = window.getSelection()
-			if (!selection || !selection.anchorNode) return false
-
-			let node: Node | null = selection.anchorNode
-			if (node.nodeType === Node.TEXT_NODE) {
-				node = node.parentNode
+			try {
+				return document.queryCommandState(command)
+			} catch {
+				return false
 			}
-
-			while (
-				node &&
-				node instanceof Element &&
-				node.getAttribute('contenteditable') !== 'true'
-			) {
-				const style = window.getComputedStyle(node)
-				switch (command) {
-					case 'bold':
-						if (
-							node.nodeName === 'B' ||
-							node.nodeName === 'STRONG' ||
-							parseInt(style.fontWeight) >= 600 ||
-							style.fontWeight === 'bold'
-						)
-							return true
-						break
-					case 'italic':
-						if (
-							node.nodeName === 'I' ||
-							node.nodeName === 'EM' ||
-							style.fontStyle === 'italic'
-						)
-							return true
-						break
-					case 'underline':
-						if (node.nodeName === 'U' || style.textDecorationLine.includes('underline'))
-							return true
-						break
-					case 'strikeThrough':
-						if (
-							node.nodeName === 'STRIKE' ||
-							node.nodeName === 'S' ||
-							node.nodeName === 'DEL' ||
-							style.textDecorationLine.includes('line-through')
-						)
-							return true
-						break
-					case 'insertOrderedList':
-						if (node.nodeName === 'OL') return true
-						break
-					case 'insertUnorderedList':
-						if (node.nodeName === 'UL') return true
-						break
-				}
-				node = node.parentNode
-			}
-			return false
 		}
 
 		const isLinkActive = () => {
@@ -188,29 +145,36 @@ const useEditorFormats = () => {
 			return ''
 		}
 
-		const handleSelectionChange = () => {
-			setFormats({
-				bold: isFormatActive('bold'),
-				italic: isFormatActive('italic'),
-				underline: isFormatActive('underline'),
-				strikethrough: isFormatActive('strikeThrough'),
-				ordered: isFormatActive('insertOrderedList'),
-				unordered: isFormatActive('insertUnorderedList'),
-				heading: getActiveHeading(),
-				link: isLinkActive(),
-			})
-		}
-
-		document.addEventListener('selectionchange', handleSelectionChange)
-		return () => document.removeEventListener('selectionchange', handleSelectionChange)
+		setFormats({
+			bold: isFormatActive('bold'),
+			italic: isFormatActive('italic'),
+			underline: isFormatActive('underline'),
+			strikethrough: isFormatActive('strikeThrough'),
+			ordered: isFormatActive('insertOrderedList'),
+			unordered: isFormatActive('insertUnorderedList'),
+			heading: getActiveHeading(),
+			link: isLinkActive(),
+		})
 	}, [])
 
-	return formats
+	useEffect(() => {
+		// Initial check
+		updateFormats()
+
+		document.addEventListener('selectionchange', updateFormats)
+		document.addEventListener('focusin', updateFormats)
+		return () => {
+			document.removeEventListener('selectionchange', updateFormats)
+			document.removeEventListener('focusin', updateFormats)
+		}
+	}, [updateFormats])
+
+	return { formats, updateFormats }
 }
 
-export function EditorToolbar({ onAttach }: EditorToolbarProps) {
+export function EditorToolbar({ onAttach, editorRef }: EditorToolbarProps) {
 	const { t } = useTranslation()
-	const formats = useEditorFormats()
+	const { formats, updateFormats } = useEditorFormats()
 	const { currentDraft, editorMode, setEditorMode, addAttachment, updateCurrentDraft } =
 		useDraftStore()
 	const requestReadReceipt = currentDraft?.requestReadReceipt ?? false
@@ -222,7 +186,12 @@ export function EditorToolbar({ onAttach }: EditorToolbarProps) {
 	const [dialogOpen, setDialogOpen] = useState(false)
 
 	const exec = (command: string, value: string | undefined = undefined) => {
+		const el = editorRef?.current
+		if (el && document.activeElement !== el) {
+			el.focus()
+		}
 		document.execCommand(command, false, value)
+		updateFormats()
 	}
 
 	const handleAttachment = useCallback(async () => {

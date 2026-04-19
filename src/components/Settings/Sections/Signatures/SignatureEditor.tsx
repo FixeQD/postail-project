@@ -1,25 +1,14 @@
-import React, {
-	useCallback,
-	useEffect,
-	useRef,
-	memo,
-	useMemo,
-	useState,
-	type ReactElement,
-} from 'react'
-import { LexicalComposer } from '@lexical/react/LexicalComposer'
-import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
-import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
-import { ListPlugin } from '@lexical/react/LexicalListPlugin'
-import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
-import { ContentEditable } from '@lexical/react/LexicalContentEditable'
-import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
-import { HeadingNode, QuoteNode } from '@lexical/rich-text'
-import { ListNode, ListItemNode } from '@lexical/list'
-import { LinkNode } from '@lexical/link'
-import { FORMAT_TEXT_COMMAND, EditorState, LexicalEditor, type LexicalCommand } from 'lexical'
-import { Bold, Italic, Underline } from 'lucide-react'
-import { lexicalToHtml, htmlToLexical } from '@/components/Compose/Editor/utils/conversion'
+import { useState, useEffect, useCallback, useRef, memo } from 'react'
+import {
+	Bold,
+	Italic,
+	Underline,
+	Strikethrough,
+	List as ListIcon,
+	ListOrdered,
+} from 'lucide-react'
+import { WysiwygEditor } from '@/components/Compose/Editor/Modes/WysiwygEditor'
+import { LinkInsertPopover } from '@/components/Compose/Editor/LinkPopover'
 
 interface SignatureEditorProps {
 	initialHtml: string
@@ -27,135 +16,147 @@ interface SignatureEditorProps {
 	onChange: (html: string) => void
 }
 
-const theme = {
-	text: {
-		bold: 'font-bold',
-		italic: 'italic',
-		underline: 'underline',
-		strikethrough: 'line-through',
-	},
-	list: {
-		listitem: '!ml-4',
-		nested: { listitem: '!ml-8' },
-		ol: '!list-decimal !ml-4',
-		ul: '!list-disc !ml-4',
-	},
-	link: 'underline text-cyan-400',
-}
-
-const nodes = [HeadingNode, QuoteNode, ListNode, ListItemNode, LinkNode]
-
-function useErrorBoundary() {
-	return useMemo(() => {
-		class ErrorBoundary extends React.Component<
-			{ children: ReactElement; onError: (error: Error) => void },
-			{ hasError: boolean }
-		> {
-			constructor(props: { children: ReactElement; onError: (error: Error) => void }) {
-				super(props)
-				this.state = { hasError: false }
-			}
-
-			static getDerivedStateFromError() {
-				return { hasError: true }
-			}
-
-			componentDidCatch(error: Error) {
-				this.props.onError(error)
-			}
-
-			render() {
-				if (this.state.hasError) {
-					return <div className='p-4 text-red-500'>Editor crashed.</div>
-				}
-				return this.props.children
-			}
-		}
-		return ErrorBoundary
-	}, [])
-}
-
-function HydrationPlugin({ initialHtml }: { initialHtml: string }) {
-	const [editor] = useLexicalComposerContext()
-	const lastHtmlRef = useRef(initialHtml)
-	const isInitializedRef = useRef(false)
-
-	useEffect(() => {
-		if (!isInitializedRef.current && initialHtml) {
-			isInitializedRef.current = true
-			lastHtmlRef.current = initialHtml
-			htmlToLexical(editor, initialHtml)
-		}
-	}, [initialHtml, editor])
-
-	return null
-}
-
-function SignatureToolbar() {
-	const [editor] = useLexicalComposerContext()
+const useEditorFormats = () => {
 	const [formats, setFormats] = useState({
 		bold: false,
 		italic: false,
 		underline: false,
+		strikethrough: false,
+		ordered: false,
+		unordered: false,
+		link: false,
 	})
 
-	useEffect(() => {
-		return editor.registerUpdateListener(({ editorState }) => {
-			editorState.read(() => {
-				const selection = editorState._selection
-				if (selection && 'hasFormat' in selection) {
-					setFormats({
-						bold: (selection as any).hasFormat('bold'),
-						italic: (selection as any).hasFormat('italic'),
-						underline: (selection as any).hasFormat('underline'),
-					})
-				} else {
-					setFormats({ bold: false, italic: false, underline: false })
-				}
-			})
-		})
-	}, [editor])
+	const updateFormats = useCallback(() => {
+		// Only update if we are in a contenteditable context
+		const activeEl = document.activeElement
+		const isEditable = activeEl?.getAttribute('contenteditable') === 'true' || 
+						  activeEl?.closest('[contenteditable="true"]')
+		
+		if (!isEditable) return
 
-	const exec = (cmd: string) => {
-		editor.dispatchCommand(FORMAT_TEXT_COMMAND as LexicalCommand<string>, cmd)
-		editor.focus()
+		const isFormatActive = (command: string) => {
+			try {
+				return document.queryCommandState(command)
+			} catch {
+				return false
+			}
+		}
+
+		const isLinkActive = () => {
+			const selection = window.getSelection()
+			if (!selection || !selection.anchorNode) return false
+			let node: Node | null = selection.anchorNode
+			if (node.nodeType === Node.TEXT_NODE) node = node.parentNode
+			while (node && node instanceof Element && node.getAttribute('contenteditable') !== 'true') {
+				if (node.nodeName === 'A') return true
+				node = node.parentNode
+			}
+			return false
+		}
+
+		setFormats({
+			bold: isFormatActive('bold'),
+			italic: isFormatActive('italic'),
+			underline: isFormatActive('underline'),
+			strikethrough: isFormatActive('strikeThrough'),
+			ordered: isFormatActive('insertOrderedList'),
+			unordered: isFormatActive('insertUnorderedList'),
+			link: isLinkActive(),
+		})
+	}, [])
+
+	useEffect(() => {
+		// Initial check
+		updateFormats()
+
+		document.addEventListener('selectionchange', updateFormats)
+		document.addEventListener('focusin', updateFormats)
+		return () => {
+			document.removeEventListener('selectionchange', updateFormats)
+			document.removeEventListener('focusin', updateFormats)
+		}
+	}, [updateFormats])
+
+	return { formats, updateFormats }
+}
+
+function SignatureToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivElement | null> }) {
+	const { formats, updateFormats } = useEditorFormats()
+
+	const exec = (cmd: string, val: string | undefined = undefined) => {
+		const el = editorRef.current
+		if (el && document.activeElement !== el) {
+			el.focus()
+		}
+		document.execCommand(cmd, false, val)
+		updateFormats()
 	}
+
+	const ToolbarButton = ({
+		active,
+		onClick,
+		children,
+		title,
+	}: {
+		active: boolean
+		onClick: () => void
+		children: React.ReactNode
+		title?: string
+	}) => (
+		<button
+			type='button'
+			onMouseDown={(e) => e.preventDefault()}
+			onClick={onClick}
+			title={title}
+			className={`flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
+				active
+					? 'bg-[var(--compose-active)] text-[var(--compose-text)] shadow-sm'
+					: 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'
+			}`}>
+			{children}
+		</button>
+	)
 
 	return (
 		<div className='flex items-center gap-1 border-b border-[var(--border-faint)] px-3 py-1.5'>
-			<button
-				type='button'
-				onMouseDown={(e) => e.preventDefault()}
-				onClick={() => exec('bold')}
-				className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
-					formats.bold
-						? 'bg-[var(--accent-primary)] text-white'
-						: 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
-				}`}>
-				<Bold className='h-3.5 w-3.5' />
-			</button>
-			<button
-				type='button'
-				onMouseDown={(e) => e.preventDefault()}
-				onClick={() => exec('italic')}
-				className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
-					formats.italic
-						? 'bg-[var(--accent-primary)] text-white'
-						: 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
-				}`}>
-				<Italic className='h-3.5 w-3.5' />
-			</button>
-			<button
-				type='button'
-				onMouseDown={(e) => e.preventDefault()}
+			<ToolbarButton active={formats.bold} onClick={() => exec('bold')} title='Bold'>
+				<Bold className='h-4 w-4' />
+			</ToolbarButton>
+			<ToolbarButton active={formats.italic} onClick={() => exec('italic')} title='Italic'>
+				<Italic className='h-4 w-4' />
+			</ToolbarButton>
+			<ToolbarButton
+				active={formats.underline}
 				onClick={() => exec('underline')}
-				className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
-					formats.underline
-						? 'bg-[var(--accent-primary)] text-white'
-						: 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
-				}`}>
-				<Underline className='h-3.5 w-3.5' />
-			</button>
+				title='Underline'>
+				<Underline className='h-4 w-4' />
+			</ToolbarButton>
+			<ToolbarButton
+				active={formats.strikethrough}
+				onClick={() => exec('strikeThrough')}
+				title='Strikethrough'>
+				<Strikethrough className='h-4 w-4' />
+			</ToolbarButton>
+
+			<div className='mx-1 h-4 w-px bg-[var(--border-faint)]' />
+
+			<ToolbarButton
+				active={formats.unordered}
+				onClick={() => exec('insertUnorderedList')}
+				title='Bullet List'>
+				<ListIcon className='h-4 w-4' />
+			</ToolbarButton>
+			<ToolbarButton
+				active={formats.ordered}
+				onClick={() => exec('insertOrderedList')}
+				title='Numbered List'>
+				<ListOrdered className='h-4 w-4' />
+			</ToolbarButton>
+
+			<div className='mx-1 h-4 w-px bg-[var(--border-faint)]' />
+
+			<LinkInsertPopover onInsertLink={(url) => exec('createLink', url)} />
 		</div>
 	)
 }
@@ -165,47 +166,20 @@ export const SignatureEditor = memo(function SignatureEditor({
 	placeholder = 'Type your signature...',
 	onChange,
 }: SignatureEditorProps) {
-	const handleChange = useCallback(
-		(editorState: EditorState, editor: LexicalEditor) => {
-			editorState.read(() => {
-				const html = lexicalToHtml(editor)
-				onChange(html)
-			})
-		},
-		[onChange]
-	)
-
-	const ErrorBoundary = useErrorBoundary()
-
-	const initialConfig = {
-		namespace: 'SignatureEditor',
-		theme,
-		nodes,
-		onError: (err: Error) => console.error(err),
-	}
+	const editorRef = useRef<HTMLDivElement>(null)
 
 	return (
 		<div className='overflow-hidden rounded-lg border border-[var(--border-faint)] bg-[var(--surface-panel)]'>
-			<LexicalComposer initialConfig={initialConfig}>
-				<SignatureToolbar />
-				<div className='relative min-h-[120px] p-3'>
-					<RichTextPlugin
-						contentEditable={
-							<ContentEditable className='min-h-[100px] w-full text-sm text-[var(--text-primary)] outline-none' />
-						}
-						placeholder={
-							<div className='pointer-events-none absolute top-3 left-3 text-sm text-[var(--text-tertiary)]'>
-								{placeholder}
-							</div>
-						}
-						ErrorBoundary={ErrorBoundary}
-					/>
-				</div>
-				<HistoryPlugin />
-				<ListPlugin />
-				<OnChangePlugin onChange={handleChange} />
-				<HydrationPlugin initialHtml={initialHtml} />
-			</LexicalComposer>
+			<SignatureToolbar editorRef={editorRef} />
+			<div className='relative min-h-[120px]'>
+				<WysiwygEditor
+					editorRef={editorRef}
+					value={initialHtml}
+					onChange={onChange}
+					placeholder={placeholder}
+					className='!h-auto !min-h-[120px]'
+				/>
+			</div>
 		</div>
 	)
 })

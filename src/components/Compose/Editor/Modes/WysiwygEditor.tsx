@@ -10,6 +10,7 @@ export interface WysiwygEditorProps {
 	onChange: (html: string) => void
 	placeholder?: string
 	className?: string
+	editorRef?: React.RefObject<HTMLDivElement | null>
 }
 
 interface CaretPosition {
@@ -44,8 +45,9 @@ function restoreCaretPosition(container: HTMLElement, pos: CaretPosition | null)
 }
 
 export const WysiwygEditor = memo(
-	({ value, onChange, placeholder, className }: WysiwygEditorProps) => {
-		const editorRef = useRef<HTMLDivElement>(null)
+	({ value, onChange, placeholder, className, editorRef: externalRef }: WysiwygEditorProps) => {
+		const internalRef = useRef<HTMLDivElement>(null)
+		const editorRef = (externalRef || internalRef) as React.RefObject<HTMLDivElement>
 		const isInternalChange = useRef(false)
 		const lastExternalValue = useRef(value)
 		const savedRangeRef = useRef<Range | null>(null)
@@ -60,14 +62,28 @@ export const WysiwygEditor = memo(
 				return
 			}
 
+			const normalize = (html: string) => 
+				(html || '').replace(/\s+/g, ' ').replace(/<br\s*\/?>/gi, '<br>').trim()
+
+			const isEmpty = (html: string) => {
+				const n = normalize(html)
+				return !n || n === '<br>' || n === '<p><br></p>' || n === '<div><br></div>'
+			}
+
+			// If both are effectively empty, don't touch DOM to preserve pending formats
+			if (isEmpty(value) && isEmpty(el.innerHTML)) {
+				lastExternalValue.current = value
+				return
+			}
+
 			// Skip if DOM already matches
-			if (el.innerHTML === value) {
+			if (normalize(el.innerHTML) === normalize(value)) {
 				lastExternalValue.current = value
 				return
 			}
 
 			const caret = saveCaretPosition(el)
-			el.innerHTML = value
+			el.innerHTML = value || ''
 			lastExternalValue.current = value
 			restoreCaretPosition(el, caret)
 		}, [value])
@@ -104,11 +120,23 @@ export const WysiwygEditor = memo(
 				) {
 					range = savedRangeRef.current
 				} else {
-					// Nothing saved
+					// Nothing saved or invalid
 					range = document.createRange()
 					range.selectNodeContents(el)
 					range.collapse(false)
 				}
+
+				// --- Signature Protection ---
+				const sigWrapper = el.querySelector('.signature-wrapper')
+				if (sigWrapper) {
+					// If range is inside sigWrapper or after it, move before it
+					if (sigWrapper.contains(range.commonAncestorContainer) || 
+					    (range.startContainer === el && range.startOffset > Array.from(el.childNodes).indexOf(sigWrapper))) {
+						range.setStartBefore(sigWrapper)
+						range.collapse(true)
+					}
+				}
+				// ----------------------------
 
 				sel?.removeAllRanges()
 				sel?.addRange(range)
@@ -129,7 +157,7 @@ export const WysiwygEditor = memo(
 			[onChange]
 		)
 
-		// Listen for drag-drop inline image insertions dispatched by DragDropPlugin
+		// Listen for drag-drop inline image insertions
 		useEffect(() => {
 			const handler = (e: Event) => {
 				const attachment = (e as CustomEvent).detail as EmailAttachment
@@ -138,6 +166,7 @@ export const WysiwygEditor = memo(
 			window.addEventListener('compose:insert-inline-image', handler)
 			return () => window.removeEventListener('compose:insert-inline-image', handler)
 		}, [insertImageAtCursor])
+
 
 		const handleImageFile = useCallback(
 			async (file: File) => {

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Link as LinkIcon, Pencil, Check, X, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 
 interface LinkInsertPopoverProps {
 	onInsertLink: (url: string) => void
