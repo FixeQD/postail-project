@@ -129,6 +129,16 @@ export const WysiwygEditor = memo(
 			[onChange]
 		)
 
+		// Listen for drag-drop inline image insertions dispatched by DragDropPlugin
+		useEffect(() => {
+			const handler = (e: Event) => {
+				const attachment = (e as CustomEvent).detail as EmailAttachment
+				insertImageAtCursor(attachment)
+			}
+			window.addEventListener('compose:insert-inline-image', handler)
+			return () => window.removeEventListener('compose:insert-inline-image', handler)
+		}, [insertImageAtCursor])
+
 		const handleImageFile = useCallback(
 			async (file: File) => {
 				try {

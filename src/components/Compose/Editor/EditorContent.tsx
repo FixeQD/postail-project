@@ -1,6 +1,7 @@
 import { memo, useCallback } from 'react'
 import WysiwygEditor from './Modes/WysiwygEditor'
 import SourceEditor from './Modes/SourceEditor'
+import DragDropPlugin from './Plugins/DragDropPlugin'
 import { useDraftStore } from '@/stores/draftStore'
 import { AttachmentList } from '../AttachmentList'
 import type { EditorContentProps } from '@/types/components/compose'
@@ -28,6 +29,7 @@ export const EditorContent = memo(
 
 		return (
 			<>
+				<DragDropPlugin />
 				<div
 					ref={editorRef}
 					className={`editor-content custom-scrollbar relative flex flex-1 flex-col ${editorMode === 'rich-text' ? 'overflow-y-auto' : 'overflow-hidden'} min-h-0 p-0`}>

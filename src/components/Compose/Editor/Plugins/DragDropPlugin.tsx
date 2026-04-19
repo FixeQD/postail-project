@@ -1,17 +1,13 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
-import { $getSelection, $isRangeSelection, $createParagraphNode, $getRoot } from 'lexical'
 import { useDraftStore } from '@/stores/draftStore'
-import { invoke, convertFileSrc } from '@tauri-apps/api/core'
+import { invoke } from '@tauri-apps/api/core'
 import { fileToBytes } from '@/lib/fileUtils'
 import { processFileAsAttachment } from '@/lib/attachmentUtils'
 import { useAsyncState } from '@/hooks/useAsyncState'
-import { $createImageNode } from '../Nodes/ImageNode'
 import type { EmailAttachment } from '@/types/compose'
 import { UploadCloud, Image as ImageIcon, Paperclip } from 'lucide-react'
 
 export default function DragDropPlugin(): React.ReactNode {
-	const [editor] = useLexicalComposerContext()
 	const { addAttachment } = useDraftStore()
 	const [isDragging, setIsDragging] = useState(false)
 	const { isLoading: isProcessing, run: runProcessing } = useAsyncState()
@@ -29,9 +25,9 @@ export default function DragDropPlugin(): React.ReactNode {
 		)
 
 	const checkDragType = useCallback((dataTransfer: DataTransfer) => {
-		const types = Array.from(dataTransfer.types)
-		if (types.some((t) => t.startsWith('image/'))) return 'media'
-		if (types.includes('Files') || types.includes('text/uri-list')) return 'media'
+		const itemTypes = Array.from(dataTransfer.items).map((i) => i.type)
+		if (itemTypes.some((t) => t.startsWith('image/'))) return 'media'
+		if (dataTransfer.types.includes('text/uri-list')) return 'media'
 		return 'file'
 	}, [])
 
@@ -124,26 +120,9 @@ export default function DragDropPlugin(): React.ReactNode {
 		}
 	}, [checkDragType])
 
-	const insertInlineImage = useCallback(
-		(attachment: EmailAttachment) => {
-			editor.update(() => {
-				const selection = $getSelection() || $getRoot().selectEnd()
-
-				if ($isRangeSelection(selection)) {
-					const assetUrl = convertFileSrc(attachment.path!)
-					const node = $createImageNode({
-						altText: attachment.filename,
-						attachmentId: attachment.id,
-						cid: attachment.cid,
-						src: assetUrl,
-					})
-					selection.insertNodes([node])
-					selection.insertNodes([$createParagraphNode()])
-				}
-			})
-		},
-		[editor]
-	)
+	const insertInlineImage = useCallback((attachment: EmailAttachment) => {
+		window.dispatchEvent(new CustomEvent('compose:insert-inline-image', { detail: attachment }))
+	}, [])
 
 	const handleFileProcessing = useCallback(
 		async (files: File[], uris: string[], mode: 'inline' | 'attachment') => {
