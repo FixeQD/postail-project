@@ -22,8 +22,8 @@ export interface EditorContentProps {
 }
 
 export interface EditorToolbarProps {
-	editor: LexicalEditor
 	onAttach?: () => void
+	htmlRef: React.MutableRefObject<string>
 }
 
 export interface LinkPopoverProps {
@@ -108,6 +108,7 @@ export interface ComposeFooterProps {
 	onSend: () => void
 	onDiscard: () => void
 	isValid: boolean
+	htmlRef: React.MutableRefObject<string>
 }
 
 export interface SubjectInputProps {

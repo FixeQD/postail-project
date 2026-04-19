@@ -11,9 +11,12 @@ import type { Signature } from '@/types/signatures'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 
-export const SignatureSelector = memo(function SignatureSelector() {
+interface SignatureSelectorProps {
+	htmlRef?: React.MutableRefObject<string>
+}
+
+export const SignatureSelector = memo(function SignatureSelector({ htmlRef }: SignatureSelectorProps) {
 	const { t } = useTranslation()
-	const [editor] = useLexicalComposerContext()
 	const activeAccount = useAccountStore((s) => s.activeAccount)
 	const accountId = activeAccount?.id ?? ''
 	const [open, setOpen] = useState(false)
@@ -44,8 +47,8 @@ export const SignatureSelector = memo(function SignatureSelector() {
 		setOpen(false)
 		setTimeout(() => {
 			const latestDraft = useDraftStore.getState().currentDraft
-			if (latestDraft?.body !== undefined) {
-				htmlToLexical(editor, latestDraft.body)
+			if (latestDraft?.body !== undefined && htmlRef) {
+				htmlRef.current = latestDraft.body
 			}
 		}, 50)
 	}

@@ -8,14 +8,8 @@ import { SignatureSelector } from './SignatureSelector'
 import { TemplateGallery } from './TemplateGallery'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
-import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
-import { htmlToLexical } from './Editor/utils/conversion'
-import type { ComposeFooterProps } from '@/types/components/compose'
-import type { Template } from '@/types/templates'
-
-export const ComposeFooter = memo(({ onSend, onDiscard, isValid }: ComposeFooterProps) => {
+export const ComposeFooter = memo(({ onSend, onDiscard, isValid, htmlRef }: ComposeFooterProps) => {
 	const { t } = useTranslation()
-	const [editor] = useLexicalComposerContext()
 	const { isSaving, isSending, applyTemplate, currentDraft } = useDraftStore()
 	const [confirmTemplate, setConfirmTemplate] = useState<Template | null>(null)
 
@@ -24,7 +18,7 @@ export const ComposeFooter = memo(({ onSend, onDiscard, isValid }: ComposeFooter
 		setTimeout(() => {
 			const latestDraft = useDraftStore.getState().currentDraft
 			if (latestDraft?.body !== undefined) {
-				htmlToLexical(editor, latestDraft.body)
+				htmlRef.current = latestDraft.body
 			}
 		}, 50)
 		setConfirmTemplate(null)
@@ -61,7 +55,7 @@ export const ComposeFooter = memo(({ onSend, onDiscard, isValid }: ComposeFooter
 						title={!isValid ? t('compose.validation.missingFields') : ''}>
 						{isSaving ? '...' : t('actions.send')}
 					</Button>
-					<EditorToolbar />
+					<EditorToolbar htmlRef={htmlRef} />
 				</div>
 
 				<div className='flex items-center gap-1'>
@@ -82,7 +76,7 @@ export const ComposeFooter = memo(({ onSend, onDiscard, isValid }: ComposeFooter
 							/>
 						</PopoverContent>
 					</Popover>
-					<SignatureSelector />
+					<SignatureSelector htmlRef={htmlRef} />
 					<Button
 						variant='ghost'
 						size='icon'

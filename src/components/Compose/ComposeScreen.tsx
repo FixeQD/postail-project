@@ -409,6 +409,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 						onSend={handleSend}
 						onDiscard={() => setShowDiscardDialog(true)}
 						isValid={isValid}
+						htmlRef={htmlRef}
 					/>
 
 					{tooltipData.visible && tooltipData.rect && isSafeUrl(tooltipData.url) && (
