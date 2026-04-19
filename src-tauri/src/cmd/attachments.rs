@@ -25,6 +25,15 @@ pub async fn add_attachment_bytes(
 }
 
 #[command]
+pub async fn add_inline_attachment_path(path: String) -> Result<DraftAttachment, String> {
+    tokio::task::spawn_blocking(move || {
+        crate::db::attachments::add_inline_attachment_from_path(&path).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[command]
 pub async fn remove_attachment(id: String) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
         crate::db::attachments::remove_attachment(&id).map_err(|e| e.to_string())
