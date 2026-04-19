@@ -1,10 +1,5 @@
 import { useRef, useCallback, useMemo, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { LexicalComposer } from '@lexical/react/LexicalComposer'
-import { EditorState, LexicalEditor } from 'lexical'
-import { HeadingNode, QuoteNode } from '@lexical/rich-text'
-import { ListNode, ListItemNode } from '@lexical/list'
-import { LinkNode } from '@lexical/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from '../ui/custom/Toaster'
 import { useToastStore } from '@/stores/toastStore'
@@ -15,8 +10,6 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useComposeShortcuts } from '@/hooks/useComposeShortcuts'
 import { useDragging, useLinkTooltip } from './useCompose'
 import EditorContent from './Editor/EditorContent'
-import { lexicalToHtml } from './Editor/utils/conversion'
-import { ImageNode } from './Editor/Nodes/ImageNode'
 import { CompatibilityPanel } from './CompatibilityPanel'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 import { ComposeHeader } from './ComposeHeader'
@@ -62,7 +55,6 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	const tooltipData = useLinkTooltip(editorRef)
 
 	const htmlRef = useRef('')
-	const isHydratingRef = useRef(false)
 	const [changeCount, setChangeCount] = useState(0)
 	const [autoFixKey, setAutoFixKey] = useState(0)
 	const [showDiscardDialog, setShowDiscardDialog] = useState(false)
@@ -210,47 +202,17 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		enabled: open,
 	})
 
-	const handleEditorChange = useCallback(
-		(editorState: EditorState, editor: LexicalEditor) => {
-			if (isHydratingRef.current) return
-			editorState.read(() => {
-				htmlRef.current = lexicalToHtml(editor)
-				setChangeCount((c) => c + 1)
-				markDirty()
-			})
-		},
-		[markDirty]
-	)
-
 	const triggerValidation = useCallback(() => {
 		setChangeCount((c) => c + 1)
 		markDirty()
 	}, [markDirty])
 
-	// Lexical initial config
-	const initialConfig = useMemo(
-		() => ({
-			namespace: 'ComposeEditor',
-			theme: {
-				text: {
-					bold: 'font-bold',
-					italic: 'italic',
-					underline: 'underline',
-					strikethrough: 'line-through',
-				},
-				list: {
-					listitem: '!ml-4',
-					nested: { listitem: '!ml-8' },
-					ol: '!list-decimal !ml-4',
-					ul: '!list-disc !ml-4',
-				},
-				link: 'underline text-cyan-400',
-			},
-			nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, LinkNode, ImageNode],
-			onError: (err: Error) => console.error(err),
-		}),
-		[]
-	)
+	// Hydrate htmlRef from draft body
+	useEffect(() => {
+		if (currentDraft?.body && htmlRef.current !== currentDraft.body) {
+			htmlRef.current = currentDraft.body
+		}
+	}, [currentDraft?.id, currentDraft?.body])
 
 	useEffect(() => {
 		if (open && !isComposing && accountId) startComposing(accountId)
@@ -432,26 +394,22 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 						composeHeight={size.height}
 					/>
 
-					<LexicalComposer initialConfig={initialConfig}>
-						<EditorContent
-							editorRef={editorRef}
-							htmlRef={htmlRef}
-							isHydratingRef={isHydratingRef}
-							handleEditorChange={handleEditorChange}
-							attachments={currentDraft?.attachments || []}
-							onRemoveAttachment={removeAttachment}
-							onSourceChange={triggerValidation}
-							autoFixKey={autoFixKey}
-							isFixing={isFixing}
-							onEditorMount={handleEditorMount}
-						/>
+					<EditorContent
+						editorRef={editorRef}
+						htmlRef={htmlRef}
+						attachments={currentDraft?.attachments || []}
+						onRemoveAttachment={removeAttachment}
+						onSourceChange={triggerValidation}
+						autoFixKey={autoFixKey}
+						isFixing={isFixing}
+						onEditorMount={handleEditorMount}
+					/>
 
-						<ComposeFooter
-							onSend={handleSend}
-							onDiscard={() => setShowDiscardDialog(true)}
-							isValid={isValid}
-						/>
-					</LexicalComposer>
+					<ComposeFooter
+						onSend={handleSend}
+						onDiscard={() => setShowDiscardDialog(true)}
+						isValid={isValid}
+					/>
 
 					{tooltipData.visible && tooltipData.rect && isSafeUrl(tooltipData.url) && (
 						<div
