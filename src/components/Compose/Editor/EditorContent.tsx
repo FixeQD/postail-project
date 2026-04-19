@@ -1,10 +1,7 @@
-import React, { useRef, useEffect, memo, useMemo } from 'react'
-import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
-import { ContentEditable } from '@lexical/react/LexicalContentEditable'
-import RichTextEditor from './Modes/RichTextEditor'
+import { memo, useCallback } from 'react'
+import WysiwygEditor from './Modes/WysiwygEditor'
 import SourceEditor from './Modes/SourceEditor'
 import { useDraftStore } from '@/stores/draftStore'
-import { htmlToLexical } from './utils/conversion'
 import { AttachmentList } from '../AttachmentList'
 import type { EditorContentProps } from '@/types/components/compose'
 
@@ -12,8 +9,6 @@ export const EditorContent = memo(
 	({
 		editorRef,
 		htmlRef,
-		isHydratingRef,
-		handleEditorChange,
 		attachments,
 		onRemoveAttachment,
 		onSourceChange,
@@ -21,92 +16,15 @@ export const EditorContent = memo(
 		isFixing,
 		onEditorMount,
 	}: EditorContentProps) => {
-		const { currentDraft, markClean, editorMode } = useDraftStore()
-		const [editor] = useLexicalComposerContext()
-		const lastHydratedIdRef = useRef<string | null>(null)
+		const { currentDraft, editorMode, markDirty } = useDraftStore()
 
-		const contentEditable = useMemo(
-			() => (
-				<ContentEditable className='h-full min-h-50 w-full text-sm text-[var(--compose-text)] outline-none focus:outline-none' />
-			),
-			[]
+		const handleWysiwygChange = useCallback(
+			(html: string) => {
+				htmlRef.current = html
+				markDirty()
+			},
+			[htmlRef, markDirty]
 		)
-
-		const placeholder = useMemo(
-			() => (
-				<div className='pointer-events-none absolute top-4 left-4 text-sm text-[var(--compose-placeholder)]'>
-					Compose message...
-				</div>
-			),
-			[]
-		)
-
-		const errorBoundary = useMemo(() => {
-			return class ErrorBoundary extends React.Component<
-				{ children: React.ReactNode },
-				{ hasError: boolean }
-			> {
-				constructor(props: { children: React.ReactNode }) {
-					super(props)
-					this.state = { hasError: false }
-				}
-
-				static getDerivedStateFromError() {
-					return { hasError: true }
-				}
-
-				render() {
-					if (this.state.hasError) {
-						return <div className='p-4 text-red-500'>Editor crashed.</div>
-					}
-					return this.props.children
-				}
-			}
-		}, [])
-
-		useEffect(() => {
-			if (
-				!currentDraft?.id ||
-				!currentDraft.body ||
-				currentDraft.body.trim() === '' ||
-				!editor ||
-				currentDraft.id === lastHydratedIdRef.current ||
-				editorMode !== 'rich-text'
-			)
-				return
-
-			const timeoutId = setTimeout(() => {
-				try {
-					isHydratingRef.current = true
-					htmlToLexical(editor, currentDraft.body)
-					lastHydratedIdRef.current = currentDraft!.id || null
-					htmlRef.current = currentDraft!.body
-					markClean()
-					isHydratingRef.current = false
-				} catch (error) {
-					isHydratingRef.current = false
-				}
-			}, 100)
-			return () => clearTimeout(timeoutId)
-		}, [
-			currentDraft?.id,
-			currentDraft?.body,
-			editor,
-			isHydratingRef,
-			htmlRef,
-			markClean,
-			editorMode,
-		])
-
-		// Synchronize Source -> Rich Text when switching modes
-		useEffect(() => {
-			if (editorMode !== 'rich-text' || !editor) return
-
-			const currentMonacoHtml = htmlRef.current
-			if (!currentMonacoHtml) return
-
-			htmlToLexical(editor, currentMonacoHtml)
-		}, [editorMode, editor, htmlRef])
 
 		return (
 			<>
@@ -114,11 +32,10 @@ export const EditorContent = memo(
 					ref={editorRef}
 					className={`editor-content custom-scrollbar relative flex flex-1 flex-col ${editorMode === 'rich-text' ? 'overflow-y-auto' : 'overflow-hidden'} min-h-0 p-0`}>
 					{editorMode === 'rich-text' ? (
-						<RichTextEditor
-							contentEditable={contentEditable}
-							placeholder={placeholder}
-							errorBoundary={errorBoundary}
-							handleEditorChange={handleEditorChange}
+						<WysiwygEditor
+							value={htmlRef.current}
+							onChange={handleWysiwygChange}
+							placeholder='Compose message...'
 						/>
 					) : (
 						<SourceEditor
