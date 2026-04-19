@@ -1,4 +1,3 @@
-import type { LexicalEditor, EditorState } from 'lexical'
 import type { OnMount } from '@monaco-editor/react/dist/index'
 import type { EmailAttachment } from '../compose'
 
@@ -11,8 +10,6 @@ export interface ComposeScreenProps {
 export interface EditorContentProps {
 	editorRef: React.RefObject<HTMLDivElement | null>
 	htmlRef: React.MutableRefObject<string>
-	isHydratingRef: React.MutableRefObject<boolean>
-	handleEditorChange: (editorState: EditorState, editor: LexicalEditor) => void
 	attachments: EmailAttachment[]
 	onRemoveAttachment: (id: string) => void
 	onSourceChange?: () => void
@@ -27,7 +24,6 @@ export interface EditorToolbarProps {
 }
 
 export interface LinkPopoverProps {
-	editor: LexicalEditor
 	formats: {
 		bold: boolean
 		italic: boolean
@@ -38,13 +34,6 @@ export interface LinkPopoverProps {
 		link: boolean
 	}
 	linkData: { url: string; text: string }
-}
-
-export interface RichTextEditorProps {
-	contentEditable: React.ReactElement
-	placeholder: React.ReactElement
-	errorBoundary: React.ComponentType<any>
-	handleEditorChange: (editorState: EditorState, editor: LexicalEditor) => void
 }
 
 export interface MonacoEnvironment {
