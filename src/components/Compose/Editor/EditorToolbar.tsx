@@ -22,8 +22,99 @@ import {
 import { Button } from '@/components/ui/button'
 import { useDraftStore } from '@/stores/draftStore'
 
-export function EditorToolbar({ htmlRef }: EditorToolbarProps) {
+const useEditorFormats = () => {
+	const [formats, setFormats] = useState({
+		bold: false,
+		italic: false,
+		underline: false,
+		strikethrough: false,
+		ordered: false,
+		unordered: false,
+	})
+
+	useEffect(() => {
+		const isFormatActive = (command: string) => {
+			const selection = window.getSelection()
+			if (!selection || !selection.anchorNode) return false
+
+			let node: Node | null = selection.anchorNode
+			if (node.nodeType === Node.TEXT_NODE) {
+				node = node.parentNode
+			}
+
+			while (
+				node &&
+				node instanceof Element &&
+				node.getAttribute('contenteditable') !== 'true'
+			) {
+				const style = window.getComputedStyle(node)
+				switch (command) {
+					case 'bold':
+						if (
+							node.nodeName === 'B' ||
+							node.nodeName === 'STRONG' ||
+							parseInt(style.fontWeight) >= 600 ||
+							style.fontWeight === 'bold'
+						)
+							return true
+						break
+					case 'italic':
+						if (
+							node.nodeName === 'I' ||
+							node.nodeName === 'EM' ||
+							style.fontStyle === 'italic'
+						)
+							return true
+						break
+					case 'underline':
+						if (
+							node.nodeName === 'U' ||
+							style.textDecorationLine.includes('underline')
+						)
+							return true
+						break
+					case 'strikeThrough':
+						if (
+							node.nodeName === 'STRIKE' ||
+							node.nodeName === 'S' ||
+							node.nodeName === 'DEL' ||
+							style.textDecorationLine.includes('line-through')
+						)
+							return true
+						break
+					case 'insertOrderedList':
+						if (node.nodeName === 'OL') return true
+						break
+					case 'insertUnorderedList':
+						if (node.nodeName === 'UL') return true
+						break
+				}
+				node = node.parentNode
+			}
+			return false
+		}
+
+		const handleSelectionChange = () => {
+			setFormats({
+				bold: isFormatActive('bold'),
+				italic: isFormatActive('italic'),
+				underline: isFormatActive('underline'),
+				strikethrough: isFormatActive('strikeThrough'),
+				ordered: isFormatActive('insertOrderedList'),
+				unordered: isFormatActive('insertUnorderedList'),
+			})
+		}
+
+		document.addEventListener('selectionchange', handleSelectionChange)
+		return () => document.removeEventListener('selectionchange', handleSelectionChange)
+	}, [])
+
+	return formats
+}
+
+export function EditorToolbar({ onAttach }: EditorToolbarProps) {
 	const { t } = useTranslation()
+	const formats = useEditorFormats()
 	const { currentDraft, editorMode, setEditorMode, addAttachment, updateCurrentDraft } =
 		useDraftStore()
 	const requestReadReceipt = currentDraft?.requestReadReceipt ?? false
@@ -68,12 +159,13 @@ export function EditorToolbar({ htmlRef }: EditorToolbarProps) {
 					break
 				} else {
 					addAttachment({ ...attachment, path })
+					if (onAttach) onAttach()
 				}
 			}
 		} catch (err) {
 			console.error('Failed to open file picker:', err)
 		}
-	}, [currentDraft, addAttachment])
+	}, [currentDraft, addAttachment, onAttach])
 
 	const confirmDuplicate = () => {
 		if (pendingAttachment) {
@@ -106,28 +198,28 @@ export function EditorToolbar({ htmlRef }: EditorToolbarProps) {
 					<Button
 						variant='ghost'
 						size='icon'
-						className='h-9 w-9 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'
+						className={`h-9 w-9 ${formats.bold ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
 						onClick={() => exec('bold')}>
 						<Bold className='h-4 w-4' />
 					</Button>
 					<Button
 						variant='ghost'
 						size='icon'
-						className='h-9 w-9 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'
+						className={`h-9 w-9 ${formats.italic ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
 						onClick={() => exec('italic')}>
 						<Italic className='h-4 w-4' />
 					</Button>
 					<Button
 						variant='ghost'
 						size='icon'
-						className='h-9 w-9 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'
+						className={`h-9 w-9 ${formats.underline ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
 						onClick={() => exec('underline')}>
 						<Underline className='h-4 w-4' />
 					</Button>
 					<Button
 						variant='ghost'
 						size='icon'
-						className='h-9 w-9 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'
+						className={`h-9 w-9 ${formats.strikethrough ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
 						onClick={() => exec('strikeThrough')}>
 						<Strikethrough className='h-4 w-4' />
 					</Button>
@@ -135,14 +227,14 @@ export function EditorToolbar({ htmlRef }: EditorToolbarProps) {
 					<Button
 						variant='ghost'
 						size='icon'
-						className='h-9 w-9 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'
+						className={`h-9 w-9 ${formats.unordered ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
 						onClick={() => exec('insertUnorderedList')}>
 						<ListIcon className='h-4 w-4' />
 					</Button>
 					<Button
 						variant='ghost'
 						size='icon'
-						className='h-9 w-9 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'
+						className={`h-9 w-9 ${formats.ordered ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
 						onClick={() => exec('insertOrderedList')}>
 						<ListOrdered className='h-4 w-4' />
 					</Button>

@@ -8,6 +8,9 @@ import { SignatureSelector } from './SignatureSelector'
 import { TemplateGallery } from './TemplateGallery'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
+import type { ComposeFooterProps } from '@/types/components/compose'
+import type { Template } from '@/types/templates'
+
 export const ComposeFooter = memo(({ onSend, onDiscard, isValid, htmlRef }: ComposeFooterProps) => {
 	const { t } = useTranslation()
 	const { isSaving, isSending, applyTemplate, currentDraft } = useDraftStore()
@@ -55,7 +58,7 @@ export const ComposeFooter = memo(({ onSend, onDiscard, isValid, htmlRef }: Comp
 						title={!isValid ? t('compose.validation.missingFields') : ''}>
 						{isSaving ? '...' : t('actions.send')}
 					</Button>
-					<EditorToolbar htmlRef={htmlRef} />
+					<EditorToolbar />
 				</div>
 
 				<div className='flex items-center gap-1'>

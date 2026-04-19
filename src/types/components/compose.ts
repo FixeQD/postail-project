@@ -20,7 +20,6 @@ export interface EditorContentProps {
 
 export interface EditorToolbarProps {
 	onAttach?: () => void
-	htmlRef: React.MutableRefObject<string>
 }
 
 export interface LinkPopoverProps {
