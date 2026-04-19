@@ -7,7 +7,7 @@ import type { EmailAttachment } from '@/types/compose'
 import { Image as ImageIcon, Paperclip } from 'lucide-react'
 
 export default function DragDropPlugin(): React.ReactNode {
-	const { addAttachment } = useDraftStore()
+	const addAttachment = useDraftStore((s) => s.addAttachment)
 	const [isDragging, setIsDragging] = useState(false)
 	const { isLoading: isProcessing, run: runProcessing } = useAsyncState()
 	const [activeZone, setActiveZone] = useState<'inline' | 'attachment' | null>(null)
@@ -17,6 +17,7 @@ export default function DragDropPlugin(): React.ReactNode {
 		inline: null,
 		attachment: null,
 	})
+	const isProcessingRef = useRef(false)
 	// Track current zone in a ref so the Tauri drop handler can read it without stale closure
 	const activeZoneRef = useRef<'inline' | 'attachment' | null>(null)
 
@@ -26,26 +27,40 @@ export default function DragDropPlugin(): React.ReactNode {
 
 	const handlePaths = useCallback(
 		async (paths: string[], mode: 'inline' | 'attachment') => {
-			await runProcessing(async () => {
-				for (const path of paths) {
-					if (mode === 'inline') {
-						const attachment = await invoke<EmailAttachment>(
-							'add_inline_attachment_path',
-							{ path }
-						)
-						addAttachment(attachment)
-						if (attachment.contentType?.startsWith('image/') || isImagePath(path)) {
-							insertInlineImage(attachment)
+			if (isProcessingRef.current) return
+			isProcessingRef.current = true
+
+			try {
+				await runProcessing(async () => {
+					for (const path of paths) {
+						if (mode === 'inline') {
+							const attachment = await invoke<EmailAttachment>(
+								'add_inline_attachment_path',
+								{ path }
+							)
+							addAttachment(attachment)
+							if (attachment.contentType?.startsWith('image/') || isImagePath(path)) {
+								insertInlineImage(attachment)
+							}
+						} else {
+							const attachment = await invoke<EmailAttachment>('add_attachment', { path })
+							addAttachment(attachment)
 						}
-					} else {
-						const attachment = await invoke<EmailAttachment>('add_attachment', { path })
-						addAttachment(attachment)
 					}
-				}
-			}).catch((err) => console.error('[DragDrop] Processing failure:', err))
+				})
+			} catch (err) {
+				console.error('[DragDrop] Processing failure:', err)
+			} finally {
+				isProcessingRef.current = false
+			}
 		},
 		[addAttachment, insertInlineImage, runProcessing]
 	)
+
+	const handlePathsRef = useRef(handlePaths)
+	useEffect(() => {
+		handlePathsRef.current = handlePaths
+	}, [handlePaths])
 
 	useEffect(() => {
 		const handleDragEnter = (e: DragEvent) => {
@@ -102,10 +117,11 @@ export default function DragDropPlugin(): React.ReactNode {
 
 	useEffect(() => {
 		let unlisten: (() => void) | undefined
+		let isMounted = true
 
 		getCurrentWindow()
 			.onDragDropEvent((event) => {
-				if (event.payload.type !== 'drop') return
+				if (!isMounted || event.payload.type !== 'drop') return
 
 				const { paths, position } = event.payload
 				if (!paths.length) return
@@ -127,14 +143,21 @@ export default function DragDropPlugin(): React.ReactNode {
 				activeZoneRef.current = null
 				dragCounter.current = 0
 
-				handlePaths(paths, mode)
+				handlePathsRef.current(paths, mode)
 			})
 			.then((fn) => {
-				unlisten = fn
+				if (isMounted) {
+					unlisten = fn
+				} else {
+					fn()
+				}
 			})
 
-		return () => unlisten?.()
-	}, [handlePaths])
+		return () => {
+			isMounted = false
+			unlisten?.()
+		}
+	}, [])
 
 	return (
 		<div
