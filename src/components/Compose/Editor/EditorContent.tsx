@@ -16,7 +16,7 @@ export const EditorContent = memo(
 		isFixing,
 		onEditorMount,
 	}: EditorContentProps) => {
-		const { currentDraft, editorMode, markDirty } = useDraftStore()
+		const { editorMode, markDirty } = useDraftStore()
 
 		const handleWysiwygChange = useCallback(
 			(html: string) => {

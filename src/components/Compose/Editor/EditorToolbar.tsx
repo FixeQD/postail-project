@@ -14,7 +14,6 @@ import {
 	Strikethrough,
 	List as ListIcon,
 	ListOrdered,
-	Link as LinkIcon,
 	Code,
 	FileType,
 	MailCheck,
@@ -28,6 +27,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useDraftStore } from '@/stores/draftStore'
+import { LinkInsertPopover } from './LinkPopover'
 
 const HEADING_OPTIONS = [
 	{ tag: 'p', label: 'Paragraph', icon: Pilcrow },
@@ -95,6 +95,7 @@ const useEditorFormats = () => {
 		ordered: false,
 		unordered: false,
 		heading: '' as '' | 'h1' | 'h2' | 'h3',
+		link: false,
 	})
 
 	useEffect(() => {
@@ -156,6 +157,18 @@ const useEditorFormats = () => {
 			return false
 		}
 
+		const isLinkActive = () => {
+			const selection = window.getSelection()
+			if (!selection || !selection.anchorNode) return false
+			let node: Node | null = selection.anchorNode
+			if (node.nodeType === Node.TEXT_NODE) node = node.parentNode
+			while (node && node instanceof Element && node.getAttribute('contenteditable') !== 'true') {
+				if (node.nodeName === 'A') return true
+				node = node.parentNode
+			}
+			return false
+		}
+
 		const getActiveHeading = (): '' | 'h1' | 'h2' | 'h3' => {
 			const selection = window.getSelection()
 			if (!selection || !selection.anchorNode) return ''
@@ -184,6 +197,7 @@ const useEditorFormats = () => {
 				ordered: isFormatActive('insertOrderedList'),
 				unordered: isFormatActive('insertUnorderedList'),
 				heading: getActiveHeading(),
+				link: isLinkActive(),
 			})
 		}
 
@@ -345,16 +359,9 @@ export function EditorToolbar({ onAttach }: EditorToolbarProps) {
 						<RemoveFormatting className='h-4 w-4' />
 					</Button>
 					<div className='mx-1 h-4 w-px bg-[var(--compose-separator)]' />
-					<Button
-						variant='ghost'
-						size='icon'
-						className='h-9 w-9 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'
-						onClick={() => {
-							const url = prompt('Enter URL')
-							if (url) exec('createLink', url)
-						}}>
-						<LinkIcon className='h-4 w-4' />
-					</Button>
+					<LinkInsertPopover
+						onInsertLink={(url) => exec('createLink', url)}
+					/>
 					<div className='mx-1 h-4 w-px bg-[var(--compose-separator)]' />
 					<Button
 						variant='ghost'

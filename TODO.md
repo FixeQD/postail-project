@@ -128,7 +128,7 @@
     - [x] 16.1 - UI: Create base `WysiwygEditor` component (contenteditable wrapper)
     - [x] 16.2 - State: Manage raw HTML state directly to avoid Lexical <-> HTML conversion bugs
     - [x] 16.3 - UI: Implement formatting toolbar (Bold, Italic, Underline, Strikethrough, Lists)
-    - [ ] 16.4 - UI: Implement Link and Image insertion logic (with CID generation)
+    - [x] 16.4 - UI: Implement Link and Image insertion logic (with CID generation)
     - [x] 16.5 - UI: Implement Source Mode toggle (switching between WYSIWYG and Monaco)
     - [ ] 16.6 - Logic: Refactor signature insertion to operate on raw HTML directly
     - [ ] 16.7 - Logic: Refactor template application to operate on raw HTML directly

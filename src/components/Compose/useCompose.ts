@@ -198,45 +198,95 @@ export const useLinkTooltip = (editorRef: React.RefObject<HTMLDivElement | null>
 	const [linkTooltipVisible, setLinkTooltipVisible] = useState(false)
 	const [linkTooltipUrl, setLinkTooltipUrl] = useState('')
 	const [linkTooltipRect, setLinkTooltipRect] = useState<DOMRect | null>(null)
+	const [linkTooltipNode, setLinkTooltipNode] = useState<HTMLAnchorElement | null>(null)
 	const linkTooltipRaf = useRef<number | null>(null)
+	const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+	const showTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+	const visibleRef = useRef(false)
 
 	useEffect(() => {
-		if (!editorRef.current) return
-		const container = editorRef.current
 		const clear = () => {
+			if (showTimeout.current) {
+				clearTimeout(showTimeout.current)
+				showTimeout.current = null
+			}
 			setLinkTooltipVisible(false)
+			visibleRef.current = false
 			setLinkTooltipUrl('')
 			setLinkTooltipRect(null)
+			setLinkTooltipNode(null)
 		}
 
-		const onPointerMove = (e: Event) => {
-			const pe = e as PointerEvent
+		const onMouseMove = (e: Event) => {
+			const me = e as MouseEvent
 			if (linkTooltipRaf.current) cancelAnimationFrame(linkTooltipRaf.current)
+
 			linkTooltipRaf.current = requestAnimationFrame(() => {
-				const target = pe.target as HTMLElement | null
-				if (!target) return clear()
-				const anchor = target.closest
-					? (target.closest('a') as HTMLAnchorElement | null)
-					: null
+				let target = me.target as Node | null
+				if (!target) return
+
+				if (target.nodeType === 3) target = target.parentElement
+				const el = target as HTMLElement
+
+				if (!el || typeof el.closest !== 'function') return
+
+				if (el.closest('.link-edit-tooltip')) {
+					if (hideTimeout.current) {
+						clearTimeout(hideTimeout.current)
+						hideTimeout.current = null
+					}
+					return
+				}
+
+				const anchor = el.closest('a') as HTMLAnchorElement | null
+				const container = editorRef.current
+
 				if (
 					anchor &&
-					(container instanceof Document || (container as HTMLElement).contains(anchor))
+					container &&
+					(container instanceof Document || container.contains(anchor))
 				) {
+					if (hideTimeout.current) {
+						clearTimeout(hideTimeout.current)
+						hideTimeout.current = null
+					}
+
 					const href = anchor.getAttribute('href') || anchor.href || ''
-					setLinkTooltipUrl(href)
-					setLinkTooltipRect(anchor.getBoundingClientRect())
-					setLinkTooltipVisible(true)
+
+					const rect = anchor.getBoundingClientRect()
+					if (!visibleRef.current || linkTooltipUrl !== href) {
+						if (!showTimeout.current) {
+							showTimeout.current = setTimeout(() => {
+								setLinkTooltipUrl(href)
+								setLinkTooltipRect(rect)
+								setLinkTooltipNode(anchor)
+								setLinkTooltipVisible(true)
+								visibleRef.current = true
+								showTimeout.current = null
+							}, 300)
+						}
+					}
 				} else {
-					clear()
+					if (showTimeout.current) {
+						clearTimeout(showTimeout.current)
+						showTimeout.current = null
+					}
+					if (!hideTimeout.current && visibleRef.current) {
+						hideTimeout.current = setTimeout(() => {
+							clear()
+							hideTimeout.current = null
+						}, 300)
+					}
 				}
 			})
 		}
 
-		container.addEventListener('pointermove', onPointerMove)
+		document.addEventListener('mousemove', onMouseMove)
 
 		return () => {
 			if (linkTooltipRaf.current) cancelAnimationFrame(linkTooltipRaf.current)
-			container.removeEventListener('pointermove', onPointerMove)
+			if (hideTimeout.current) clearTimeout(hideTimeout.current)
+			document.removeEventListener('mousemove', onMouseMove)
 		}
 	}, [editorRef])
 
@@ -244,5 +294,6 @@ export const useLinkTooltip = (editorRef: React.RefObject<HTMLDivElement | null>
 		visible: linkTooltipVisible,
 		url: linkTooltipUrl,
 		rect: linkTooltipRect,
+		node: linkTooltipNode,
 	}
 }

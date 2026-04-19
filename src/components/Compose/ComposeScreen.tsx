@@ -15,6 +15,7 @@ import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 import { ComposeHeader } from './ComposeHeader'
 import { ComposeInputs } from './ComposeInputs'
 import { ComposeFooter } from './ComposeFooter'
+import { LinkEditTooltip } from './Editor/LinkPopover'
 import type { ComposeScreenProps } from '@/types/components/compose'
 
 export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenProps) {
@@ -263,20 +264,6 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	const activeSize = isFlying && frozenLayout ? frozenLayout.size : size
 	const activeTarget = isFlying && frozenLayout ? frozenLayout.target : { x: 0, y: 0 }
 
-	// Validate tooltip URL schemes to avoid rendering javascript: or other unsafe protocols. Only allow http:, https:, mailto:.
-	const isSafeUrl = (u: string) => {
-		try {
-			const parsed = new URL(u)
-			return (
-				parsed.protocol === 'http:' ||
-				parsed.protocol === 'https:' ||
-				parsed.protocol === 'mailto:'
-			)
-		} catch (e) {
-			return false
-		}
-	}
-
 	return (
 		<AnimatePresence>
 			{open && (
@@ -412,22 +399,37 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 						htmlRef={htmlRef}
 					/>
 
-					{tooltipData.visible && tooltipData.rect && isSafeUrl(tooltipData.url) && (
-						<div
-							className='bg-popover text-popover-foreground fixed z-50 max-w-md truncate rounded-md px-3 py-1.5 text-xs'
-							style={{
-								left: `${tooltipData.rect.left + tooltipData.rect.width / 2}px`,
-								top: `${tooltipData.rect.top > 40 ? tooltipData.rect.top - 8 : tooltipData.rect.bottom + 8}px`,
-								transform:
-									tooltipData.rect.top > 40
-										? 'translate(-50%, -100%)'
-										: 'translate(-50%, 0)',
-							}}>
-							{tooltipData.url.length > 120
-								? tooltipData.url.slice(0, 116) + '…'
-								: tooltipData.url}
-						</div>
-					)}
+					<AnimatePresence>
+						{tooltipData.visible && tooltipData.rect && tooltipData.node && (
+							<LinkEditTooltip
+								visible={tooltipData.visible}
+								url={tooltipData.url}
+								rect={tooltipData.rect}
+								onEdit={(newUrl) => {
+									const sel = window.getSelection()
+									if (sel) {
+										const range = document.createRange()
+										range.selectNodeContents(tooltipData.node!)
+										sel.removeAllRanges()
+										sel.addRange(range)
+										document.execCommand('createLink', false, newUrl)
+										sel.removeAllRanges()
+									}
+								}}
+								onRemove={() => {
+									const sel = window.getSelection()
+									if (sel) {
+										const range = document.createRange()
+										range.selectNodeContents(tooltipData.node!)
+										sel.removeAllRanges()
+										sel.addRange(range)
+										document.execCommand('unlink')
+										sel.removeAllRanges()
+									}
+								}}
+							/>
+						)}
+					</AnimatePresence>
 
 					<div
 						className='absolute right-0 bottom-0 h-4 w-4 cursor-se-resize'
