@@ -9,7 +9,6 @@ import { useDraftStore } from '@/stores/draftStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useComposeShortcuts } from '@/hooks/useComposeShortcuts'
 import { useDragging, useLinkTooltip } from './useCompose'
-import { EditorToolbar } from './Editor/EditorToolbar'
 import { EditorContent } from './Editor/EditorContent'
 import { CompatibilityPanel } from './CompatibilityPanel'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
@@ -382,7 +381,6 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 						composeHeight={size.height}
 					/>
 
-					<EditorToolbar onAttach={handleAttachFile} editorRef={editorRef} />
 					<EditorContent
 						editorRef={editorRef}
 						htmlRef={htmlRef}
