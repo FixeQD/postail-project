@@ -62,8 +62,11 @@ export const WysiwygEditor = memo(
 				return
 			}
 
-			const normalize = (html: string) => 
-				(html || '').replace(/\s+/g, ' ').replace(/<br\s*\/?>/gi, '<br>').trim()
+			const normalize = (html: string) =>
+				(html || '')
+					.replace(/\s+/g, ' ')
+					.replace(/<br\s*\/?>/gi, '<br>')
+					.trim()
 
 			const isEmpty = (html: string) => {
 				const n = normalize(html)
@@ -130,8 +133,11 @@ export const WysiwygEditor = memo(
 				const sigWrapper = el.querySelector('.signature-wrapper')
 				if (sigWrapper) {
 					// If range is inside sigWrapper or after it, move before it
-					if (sigWrapper.contains(range.commonAncestorContainer) || 
-					    (range.startContainer === el && range.startOffset > Array.from(el.childNodes).indexOf(sigWrapper))) {
+					if (
+						sigWrapper.contains(range.commonAncestorContainer) ||
+						(range.startContainer === el &&
+							range.startOffset > Array.from(el.childNodes).indexOf(sigWrapper))
+					) {
 						range.setStartBefore(sigWrapper)
 						range.collapse(true)
 					}
@@ -167,6 +173,32 @@ export const WysiwygEditor = memo(
 			return () => window.removeEventListener('compose:insert-inline-image', handler)
 		}, [insertImageAtCursor])
 
+		// Listen for template application — replaces the entire editor body, preserving the signature
+		useEffect(() => {
+			const handler = (e: Event) => {
+				const body = (e as CustomEvent).detail as string
+				const el = editorRef.current
+				if (!el) return
+
+				const sigBlockRegex = /<!-- SIGNATURE_START -->[\s\S]*?<!-- SIGNATURE_END -->/i
+				const sigMatch = el.innerHTML.match(sigBlockRegex)
+				const sigBlock = sigMatch ? sigMatch[0] : ''
+
+				el.innerHTML = body + sigBlock
+				isInternalChange.current = true
+				onChange(el.innerHTML)
+
+				// Move cursor to start so user lands at the top of the template
+				const range = document.createRange()
+				range.setStart(el, 0)
+				range.collapse(true)
+				const sel = window.getSelection()
+				sel?.removeAllRanges()
+				sel?.addRange(range)
+			}
+			window.addEventListener('compose:apply-template', handler)
+			return () => window.removeEventListener('compose:apply-template', handler)
+		}, [onChange])
 
 		const handleImageFile = useCallback(
 			async (file: File) => {

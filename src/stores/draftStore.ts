@@ -850,7 +850,6 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		const processedSubject = resolveTemplateVariables(template.subject, context)
 		const processedBody = resolveTemplateVariables(template.htmlBody, context)
 
-		// Always overwrite the subject if the template has one
 		const subject = processedSubject ? processedSubject : currentDraft.subject
 
 		set({
@@ -862,5 +861,7 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 			},
 			isDirty: true,
 		})
+
+		window.dispatchEvent(new CustomEvent('compose:apply-template', { detail: processedBody }))
 	},
 }))
