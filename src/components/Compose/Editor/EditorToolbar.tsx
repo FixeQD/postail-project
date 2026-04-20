@@ -59,11 +59,7 @@ function HeadingDropdown({
 					<ChevronDown className='h-3 w-3 opacity-50' />
 				</Button>
 			</PopoverTrigger>
-			<PopoverContent
-				align='start'
-				sideOffset={6}
-				className='w-40 p-1'
-				onOpenAutoFocus={(e) => e.preventDefault()}>
+			<PopoverContent align='start' sideOffset={6} className='w-40 p-1'>
 				{HEADING_OPTIONS.map(({ tag, label, icon: Icon }) => (
 					<button
 						key={tag}
@@ -101,9 +97,10 @@ const useEditorFormats = () => {
 	const updateFormats = useCallback(() => {
 		// Only update if we are in a contenteditable context
 		const activeEl = document.activeElement
-		const isEditable = activeEl?.getAttribute('contenteditable') === 'true' || 
-						  activeEl?.closest('[contenteditable="true"]')
-		
+		const isEditable =
+			activeEl?.getAttribute('contenteditable') === 'true' ||
+			activeEl?.closest('[contenteditable="true"]')
+
 		if (!isEditable) return
 
 		const isFormatActive = (command: string) => {
@@ -119,7 +116,11 @@ const useEditorFormats = () => {
 			if (!selection || !selection.anchorNode) return false
 			let node: Node | null = selection.anchorNode
 			if (node.nodeType === Node.TEXT_NODE) node = node.parentNode
-			while (node && node instanceof Element && node.getAttribute('contenteditable') !== 'true') {
+			while (
+				node &&
+				node instanceof Element &&
+				node.getAttribute('contenteditable') !== 'true'
+			) {
 				if (node.nodeName === 'A') return true
 				node = node.parentNode
 			}
@@ -328,9 +329,7 @@ export function EditorToolbar({ onAttach, editorRef }: EditorToolbarProps) {
 						<RemoveFormatting className='h-4 w-4' />
 					</Button>
 					<div className='mx-1 h-4 w-px bg-[var(--compose-separator)]' />
-					<LinkInsertPopover
-						onInsertLink={(url) => exec('createLink', url)}
-					/>
+					<LinkInsertPopover onInsertLink={(url) => exec('createLink', url)} />
 					<div className='mx-1 h-4 w-px bg-[var(--compose-separator)]' />
 					<Button
 						variant='ghost'

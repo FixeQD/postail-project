@@ -279,9 +279,7 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 						</DropdownMenuLabel>
 						<DropdownMenuSeparator className='mx-1 my-1 bg-[var(--border-subtle)]' />
 						{accounts.length === 0 ? (
-							<DropdownMenuItem
-								disabled
-								className='text-tertiary px-2 py-1.5 text-xs'>
+							<DropdownMenuItem className='text-tertiary px-2 py-1.5 text-xs'>
 								{t('statusBar.noAccounts')}
 							</DropdownMenuItem>
 						) : (
@@ -347,9 +345,7 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 								<span>{getOutboxStatusText()}</span>
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent
-							side='top'
-							className='text-foreground border-[var(--border-subtle)] bg-[var(--surface-glass)]'>
+						<TooltipContent className='text-foreground border-[var(--border-subtle)] bg-[var(--surface-glass)]'>
 							<p>
 								{hasActivity
 									? t('statusBar.clickToView')

@@ -319,7 +319,6 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 				<PopoverContent
 					className='w-[var(--radix-popover-trigger-width)] p-3 text-sm'
 					align='start'
-					onOpenAutoFocus={(e) => e.preventDefault()}
 					sideOffset={8}>
 					<div className='mb-2 font-medium text-slate-900 dark:text-white'>
 						{t('inbox:search.operatorHint')}

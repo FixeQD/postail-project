@@ -82,7 +82,7 @@ export const CompatibilityButton = memo(function CompatibilityButton({
 						)}
 					</Button>
 				</TooltipTrigger>
-				<TooltipContent side='bottom'>
+				<TooltipContent>
 					<p>{t('compatibilityPanel.toggleTooltip')}</p>
 				</TooltipContent>
 			</Tooltip>

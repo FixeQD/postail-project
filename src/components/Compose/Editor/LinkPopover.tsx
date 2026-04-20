@@ -78,11 +78,7 @@ export function LinkInsertPopover({ onInsertLink }: LinkInsertPopoverProps) {
 					<LinkIcon className='h-4 w-4' />
 				</Button>
 			</PopoverTrigger>
-			<PopoverContent
-				align='center'
-				sideOffset={8}
-				className='w-72 p-2'
-				onOpenAutoFocus={(e) => e.preventDefault()}>
+			<PopoverContent align='center' sideOffset={8} className='w-72 p-2'>
 				<div className='flex items-center gap-1.5'>
 					<input
 						ref={inputRef}
@@ -100,7 +96,7 @@ export function LinkInsertPopover({ onInsertLink }: LinkInsertPopoverProps) {
 								setOpen(false)
 							}
 						}}
-						className='h-8 flex-1 rounded-md border border-input bg-transparent px-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring'
+						className='border-input placeholder:text-muted-foreground focus:ring-ring h-8 flex-1 rounded-md border bg-transparent px-2 text-sm outline-none focus:ring-1'
 					/>
 					<Button
 						variant='ghost'
@@ -179,7 +175,7 @@ export function LinkEditTooltip({ visible, url, rect, onEdit, onRemove }: LinkEd
 								setEditUrl(url)
 							}
 						}}
-						className='h-6 w-48 rounded-sm border border-input bg-transparent px-1.5 outline-none focus:ring-1 focus:ring-ring'
+						className='border-input focus:ring-ring h-6 w-48 rounded-sm border bg-transparent px-1.5 outline-none focus:ring-1'
 					/>
 					<button
 						className='rounded p-0.5 text-green-500 transition-colors hover:bg-green-500/10'
@@ -187,7 +183,7 @@ export function LinkEditTooltip({ visible, url, rect, onEdit, onRemove }: LinkEd
 						<Check className='h-3 w-3' />
 					</button>
 					<button
-						className='rounded p-0.5 text-muted-foreground transition-colors hover:bg-accent'
+						className='text-muted-foreground hover:bg-accent rounded p-0.5 transition-colors'
 						onClick={() => {
 							setIsEditing(false)
 							setEditUrl(url)
@@ -205,9 +201,9 @@ export function LinkEditTooltip({ visible, url, rect, onEdit, onRemove }: LinkEd
 						onClick={(e) => e.stopPropagation()}>
 						{url.length > 60 ? url.slice(0, 56) + '…' : url}
 					</a>
-					<div className='mx-0.5 h-3 w-px bg-border' />
+					<div className='bg-border mx-0.5 h-3 w-px' />
 					<button
-						className='rounded p-0.5 transition-colors hover:bg-accent'
+						className='hover:bg-accent rounded p-0.5 transition-colors'
 						onClick={() => setIsEditing(true)}
 						title='Edit link'>
 						<Pencil className='h-3 w-3' />

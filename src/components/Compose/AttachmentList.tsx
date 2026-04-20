@@ -37,10 +37,7 @@ export const AttachmentList = memo(({ attachments, onRemove }: AttachmentListPro
 								</button>
 							</div>
 						</TooltipTrigger>
-						<TooltipContent
-							side='top'
-							align='start'
-							className='flex max-w-xs min-w-48 flex-col gap-1 border-[var(--compose-ring)] bg-[var(--compose-suggestions-bg)] p-2 text-[var(--compose-text)]'>
+						<TooltipContent className='flex max-w-xs min-w-48 flex-col gap-1 border-[var(--compose-ring)] bg-[var(--compose-suggestions-bg)] p-2 text-[var(--compose-text)]'>
 							<div className='flex flex-col gap-0.5'>
 								<span className='text-[10px] font-bold tracking-wider text-[var(--compose-placeholder)] uppercase'>
 									{t('compose.fileInfo.hash')}
