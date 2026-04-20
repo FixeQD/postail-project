@@ -10,10 +10,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button'
 
 interface SignatureSelectorProps {
-	htmlRef?: React.MutableRefObject<string>
+	htmlRef?: React.RefObject<string>
 }
 
-export const SignatureSelector = memo(function SignatureSelector({ htmlRef }: SignatureSelectorProps) {
+export const SignatureSelector = memo(function SignatureSelector({}: SignatureSelectorProps) {
 	const { t } = useTranslation()
 	const activeAccount = useAccountStore((s) => s.activeAccount)
 	const accountId = activeAccount?.id ?? ''
