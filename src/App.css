@@ -284,14 +284,6 @@
 	color: var(--text-primary);
 }
 
-/* ─── Smooth focus rings ─── */
-*:focus-visible {
-	outline: none;
-	box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.4);
-	border-radius: inherit;
-	transition: box-shadow 0.15s ease;
-}
-
 /* ─── Keyframes ─── */
 @keyframes fade-in {
 	from {
@@ -688,14 +680,6 @@ input,
 	transition-property: color, background-color, border-color, box-shadow, opacity;
 	transition-duration: 0.15s;
 	transition-timing-function: ease;
-}
-
-/* ─── Input focus glow ─── */
-input:focus,
-textarea:focus {
-	box-shadow:
-		0 0 0 1px rgba(var(--accent-rgb), 0.3),
-		0 0 12px -4px rgba(var(--accent-rgb), 0.15);
 }
 
 /* ─── Badge pulse for notifications ─── */
