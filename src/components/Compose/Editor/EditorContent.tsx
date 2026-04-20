@@ -3,6 +3,7 @@ import WysiwygEditor from './Modes/WysiwygEditor'
 import SourceEditor from './Modes/SourceEditor'
 import DragDropPlugin from './Plugins/DragDropPlugin'
 import SignaturePlugin from './Plugins/SignaturePlugin'
+import PastePlugin from './Plugins/PastePlugin'
 import { useDraftStore } from '@/stores/draftStore'
 import { AttachmentList } from '../AttachmentList'
 import type { EditorContentProps } from '@/types/components/compose'
@@ -32,6 +33,7 @@ export const EditorContent = memo(
 			<>
 				<DragDropPlugin />
 				<SignaturePlugin />
+				<PastePlugin />
 				<div
 					className={`editor-content custom-scrollbar relative flex flex-1 flex-col ${editorMode === 'rich-text' ? 'overflow-y-auto' : 'overflow-hidden'} min-h-0 p-0`}>
 					{editorMode === 'rich-text' ? (

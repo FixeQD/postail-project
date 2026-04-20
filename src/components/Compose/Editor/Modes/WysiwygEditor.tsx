@@ -1,17 +1,4 @@
 import { useRef, useEffect, useCallback, memo } from 'react'
-import { convertFileSrc } from '@tauri-apps/api/core'
-import { useDraftStore } from '@/stores/draftStore'
-import { fileToBytes } from '@/lib/fileUtils'
-import { processFileAsAttachment } from '@/lib/attachmentUtils'
-import type { EmailAttachment } from '@/types/compose'
-
-export interface WysiwygEditorProps {
-	value: string
-	onChange: (html: string) => void
-	placeholder?: string
-	className?: string
-	editorRef?: React.RefObject<HTMLDivElement | null>
-}
 
 interface CaretPosition {
 	node: Node
@@ -44,14 +31,20 @@ function restoreCaretPosition(container: HTMLElement, pos: CaretPosition | null)
 	}
 }
 
+export interface WysiwygEditorProps {
+	value: string
+	onChange: (html: string) => void
+	placeholder?: string
+	className?: string
+	editorRef?: React.RefObject<HTMLDivElement | null>
+}
+
 export const WysiwygEditor = memo(
 	({ value, onChange, placeholder, className, editorRef: externalRef }: WysiwygEditorProps) => {
 		const internalRef = useRef<HTMLDivElement>(null)
 		const editorRef = (externalRef || internalRef) as React.RefObject<HTMLDivElement>
 		const isInternalChange = useRef(false)
 		const lastExternalValue = useRef(value)
-		const savedRangeRef = useRef<Range | null>(null)
-		const { addAttachment } = useDraftStore()
 
 		// Sync external value -> DOM (only when it actually changed externally)
 		useEffect(() => {
@@ -101,198 +94,22 @@ export const WysiwygEditor = memo(
 			onChange(html)
 		}, [onChange])
 
-		// Insert an <img> at the saved cursor position or at end if nothing was saved
-		const insertImageAtCursor = useCallback(
-			(attachment: EmailAttachment) => {
-				const el = editorRef.current
-				if (!el) return
-
-				const assetUrl = convertFileSrc(attachment.path!)
-				const img = document.createElement('img')
-				img.src = assetUrl
-				img.alt = attachment.filename
-				img.setAttribute('data-attachment-id', attachment.id)
-				if (attachment.cid) img.setAttribute('data-cid', attachment.cid)
-
-				const sel = window.getSelection()
-				let range: Range
-
-				if (
-					savedRangeRef.current &&
-					el.contains(savedRangeRef.current.commonAncestorContainer)
-				) {
-					range = savedRangeRef.current
-				} else {
-					// Nothing saved or invalid
-					range = document.createRange()
-					range.selectNodeContents(el)
-					range.collapse(false)
-				}
-
-				// --- Signature Protection ---
-				const sigWrapper = el.querySelector('.signature-wrapper')
-				if (sigWrapper) {
-					// If range is inside sigWrapper or after it, move before it
-					if (
-						sigWrapper.contains(range.commonAncestorContainer) ||
-						(range.startContainer === el &&
-							range.startOffset > Array.from(el.childNodes).indexOf(sigWrapper))
-					) {
-						range.setStartBefore(sigWrapper)
-						range.collapse(true)
-					}
-				}
-				// ----------------------------
-
-				sel?.removeAllRanges()
-				sel?.addRange(range)
-				range.deleteContents()
-				range.insertNode(img)
-
-				// Move cursor after the image
-				const afterRange = document.createRange()
-				afterRange.setStartAfter(img)
-				afterRange.collapse(true)
-				sel?.removeAllRanges()
-				sel?.addRange(afterRange)
-				savedRangeRef.current = afterRange
-
-				isInternalChange.current = true
-				onChange(el.innerHTML)
-			},
-			[onChange]
-		)
-
-		// Listen for drag-drop inline image insertions
+		// Listen for editor changes from plugins
 		useEffect(() => {
-			const handler = (e: Event) => {
-				const attachment = (e as CustomEvent).detail as EmailAttachment
-				insertImageAtCursor(attachment)
-			}
-			window.addEventListener('compose:insert-inline-image', handler)
-			return () => window.removeEventListener('compose:insert-inline-image', handler)
-		}, [insertImageAtCursor])
+			const el = editorRef.current
+			if (!el) return
 
-		// Listen for template application — replaces the entire editor body, preserving the signature
-		useEffect(() => {
-			const handler = (e: Event) => {
-				const body = (e as CustomEvent).detail as string
-				const el = editorRef.current
+			const handler = () => {
 				if (!el) return
-
-				const sigBlockRegex = /<!-- SIGNATURE_START -->[\s\S]*?<!-- SIGNATURE_END -->/i
-				const sigMatch = el.innerHTML.match(sigBlockRegex)
-				const sigBlock = sigMatch ? sigMatch[0] : ''
-
-				el.innerHTML = body + sigBlock
 				isInternalChange.current = true
-				onChange(el.innerHTML)
-
-				// Move cursor to start so user lands at the top of the template
-				const range = document.createRange()
-				range.setStart(el, 0)
-				range.collapse(true)
-				const sel = window.getSelection()
-				sel?.removeAllRanges()
-				sel?.addRange(range)
+				const html = el.innerHTML
+				lastExternalValue.current = html
+				onChange(html)
 			}
-			window.addEventListener('compose:apply-template', handler)
-			return () => window.removeEventListener('compose:apply-template', handler)
+
+			el.addEventListener('compose:editor-change', handler)
+			return () => el.removeEventListener('compose:editor-change', handler)
 		}, [onChange])
-
-		const handleImageFile = useCallback(
-			async (file: File) => {
-				try {
-					const bytes = await fileToBytes(file)
-					const filename =
-						file.name && file.name !== 'image.png'
-							? file.name
-							: `pasted_image_${Date.now()}.${file.type.split('/')[1] || 'png'}`
-
-					const attachment = await processFileAsAttachment(
-						bytes,
-						filename,
-						file.type,
-						'inline'
-					)
-					addAttachment(attachment)
-					insertImageAtCursor(attachment)
-				} catch (err) {
-					console.error('Failed to process pasted image:', err)
-				}
-			},
-			[addAttachment, insertImageAtCursor]
-		)
-
-		const handlePaste = useCallback(
-			async (e: React.ClipboardEvent<HTMLDivElement>) => {
-				const data = e.clipboardData
-				if (!data) return
-
-				// Save the cursor position right as paste fires
-				const sel = window.getSelection()
-				if (sel && sel.rangeCount > 0) {
-					savedRangeRef.current = sel.getRangeAt(0).cloneRange()
-				}
-
-				let handled = false
-
-				// Strategy 1: clipboardData.items
-				for (const item of Array.from(data.items)) {
-					if (item.type.startsWith('image/')) {
-						const file = item.getAsFile()
-						if (file) {
-							e.preventDefault()
-							await handleImageFile(file)
-							handled = true
-							break
-						}
-					}
-				}
-
-				if (handled) return
-
-				// Strategy 2: clipboardData.files
-				for (const file of Array.from(data.files)) {
-					if (file.type.startsWith('image/')) {
-						e.preventDefault()
-						await handleImageFile(file)
-						handled = true
-						break
-					}
-				}
-
-				if (handled) return
-
-				// Strategy 3: navigator.clipboard API fallback
-				if (data.types.length === 0) {
-					try {
-						const items = await navigator.clipboard.read()
-						for (const item of items) {
-							for (const type of item.types) {
-								if (type.startsWith('image/')) {
-									const blob = await item.getType(type)
-									const ext = type.split('/')[1] || 'png'
-									const file = new File(
-										[blob],
-										`pasted_image_${Date.now()}.${ext}`,
-										{ type }
-									)
-									e.preventDefault()
-									await handleImageFile(file)
-									handled = true
-									break
-								}
-							}
-							if (handled) break
-						}
-					} catch {
-						// Clipboard API unavailable or permission denied
-					}
-				}
-			},
-			[handleImageFile]
-		)
 
 		const isEmpty = !value || value === '<br>' || value === '<p><br></p>' || value.trim() === ''
 
@@ -309,7 +126,6 @@ export const WysiwygEditor = memo(
 					suppressContentEditableWarning
 					className='wysiwyg-editable h-full min-h-50 w-full p-4 text-sm text-[var(--compose-text)] outline-none focus:outline-none'
 					onInput={handleInput}
-					onPaste={handlePaste}
 					spellCheck
 				/>
 				<style>{`
