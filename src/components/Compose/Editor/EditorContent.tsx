@@ -3,6 +3,7 @@ import WysiwygEditor from './Modes/WysiwygEditor'
 import SourceEditor from './Modes/SourceEditor'
 import DragDropPlugin from './Plugins/DragDropPlugin'
 import SignaturePlugin from './Plugins/SignaturePlugin'
+import TemplatePlugin from './Plugins/TemplatePlugin'
 import PastePlugin from './Plugins/PastePlugin'
 import { useDraftStore } from '@/stores/draftStore'
 import { AttachmentList } from '../AttachmentList'
@@ -32,6 +33,7 @@ export const EditorContent = memo(
 		return (
 			<>
 				<DragDropPlugin />
+				<TemplatePlugin />
 				<SignaturePlugin />
 				<PastePlugin />
 				<div
