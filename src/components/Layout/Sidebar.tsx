@@ -35,7 +35,17 @@ const MIN_WIDTH = 80
 const MAX_WIDTH = 320
 const DEFAULT_WIDTH = 260
 
-const ROLE_ORDER = ['inbox', 'flagged', 'sent', 'drafts', 'archive', 'junk', 'trash']
+const ROLE_ORDER = [
+	'inbox',
+	'flagged',
+	'sent',
+	'drafts',
+	'archive',
+	'junk',
+	'trash',
+	'all',
+	'important',
+]
 
 interface MailboxItemProps {
 	mailbox: Mailbox
@@ -349,13 +359,10 @@ export const Sidebar = ({
 							{/* System mailboxes */}
 							{systemMailboxes.map((mailbox) => {
 								const parts = mailbox.name.split(mailbox.separator)
-								const depth = Math.max(0, parts.length - 1)
+								const depth = 0
 								const displayParts = mailbox.display_name.split(mailbox.separator)
 								const shortName =
-									depth === 0
-										? mailbox.display_name
-										: displayParts[displayParts.length - 1] ||
-											mailbox.display_name
+									displayParts[displayParts.length - 1] || mailbox.display_name
 								const parentPrefix =
 									depth > 0
 										? mailbox.name.substring(
