@@ -49,9 +49,6 @@ export default defineConfig(
 						if (id.includes('monaco-editor') || id.includes('@monaco-editor')) {
 							return 'monaco'
 						}
-						if (id.includes('/lexical/') || id.includes('@lexical/')) {
-							return 'lexical'
-						}
 						if (id.includes('js-beautify')) {
 							return 'beautify'
 						}
