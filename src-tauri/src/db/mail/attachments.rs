@@ -18,6 +18,28 @@ pub fn get_attachments_dir() -> Result<PathBuf, DBError> {
     Ok(data_dir)
 }
 
+pub fn add_inline_attachment_from_path(source_path: &str) -> Result<crate::db::DraftAttachment, DBError> {
+    let source = Path::new(source_path);
+    if !source.exists() {
+        return Err(DBError::Io(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("Source file not found: {}", source_path),
+        )));
+    }
+
+    let filename = source
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown")
+        .to_string();
+
+    let bytes = fs::read(source).map_err(DBError::Io)?;
+    let extension = source.extension().and_then(|e| e.to_str()).unwrap_or("");
+    let content_type = infer_mime(extension);
+
+    save_attachment_data(&bytes, &filename, &content_type, true)
+}
+
 pub fn add_attachment(source_path: &str) -> Result<crate::db::DraftAttachment, DBError> {
     let source = Path::new(source_path);
     if !source.exists() {

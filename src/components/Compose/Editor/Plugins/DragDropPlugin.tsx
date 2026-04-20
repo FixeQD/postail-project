@@ -1,21 +1,17 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
-import { $getSelection, $isRangeSelection, $createParagraphNode, $getRoot } from 'lexical'
+import { useTranslation } from 'react-i18next'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useDraftStore } from '@/stores/draftStore'
-import { invoke, convertFileSrc } from '@tauri-apps/api/core'
-import { fileToBytes } from '@/lib/fileUtils'
-import { processFileAsAttachment } from '@/lib/attachmentUtils'
+import { invoke } from '@tauri-apps/api/core'
 import { useAsyncState } from '@/hooks/useAsyncState'
-import { $createImageNode } from '../Nodes/ImageNode'
 import type { EmailAttachment } from '@/types/compose'
-import { UploadCloud, Image as ImageIcon, Paperclip } from 'lucide-react'
+import { Image as ImageIcon, Paperclip } from 'lucide-react'
 
 export default function DragDropPlugin(): React.ReactNode {
-	const [editor] = useLexicalComposerContext()
-	const { addAttachment } = useDraftStore()
+	const { t } = useTranslation()
+	const addAttachment = useDraftStore((s) => s.addAttachment)
 	const [isDragging, setIsDragging] = useState(false)
 	const { isLoading: isProcessing, run: runProcessing } = useAsyncState()
-	const [dragType, setDragType] = useState<'media' | 'file'>('file')
 	const [activeZone, setActiveZone] = useState<'inline' | 'attachment' | null>(null)
 
 	const dragCounter = useRef(0)
@@ -23,177 +19,148 @@ export default function DragDropPlugin(): React.ReactNode {
 		inline: null,
 		attachment: null,
 	})
-	const handleFileProcessingRef =
-		useRef<(files: File[], uris: string[], mode: 'inline' | 'attachment') => Promise<void>>(
-			undefined
-		)
+	const isProcessingRef = useRef(false)
+	// Track current zone in a ref so the Tauri drop handler can read it without stale closure
+	const activeZoneRef = useRef<'inline' | 'attachment' | null>(null)
 
-	const checkDragType = useCallback((dataTransfer: DataTransfer) => {
-		const types = Array.from(dataTransfer.types)
-		if (types.some((t) => t.startsWith('image/'))) return 'media'
-		if (types.includes('Files') || types.includes('text/uri-list')) return 'media'
-		return 'file'
+	const insertInlineImage = useCallback((attachment: EmailAttachment) => {
+		window.dispatchEvent(new CustomEvent('compose:insert-inline-image', { detail: attachment }))
 	}, [])
+
+	const handlePaths = useCallback(
+		async (paths: string[], mode: 'inline' | 'attachment') => {
+			if (isProcessingRef.current) return
+			isProcessingRef.current = true
+
+			try {
+				await runProcessing(async () => {
+					for (const path of paths) {
+						if (mode === 'inline') {
+							const attachment = await invoke<EmailAttachment>(
+								'add_inline_attachment_path',
+								{ path }
+							)
+							addAttachment(attachment)
+							if (attachment.contentType?.startsWith('image/') || isImagePath(path)) {
+								insertInlineImage(attachment)
+							}
+						} else {
+							const attachment = await invoke<EmailAttachment>('add_attachment', { path })
+							addAttachment(attachment)
+						}
+					}
+				})
+			} catch (err) {
+				console.error('[DragDrop] Processing failure:', err)
+			} finally {
+				isProcessingRef.current = false
+			}
+		},
+		[addAttachment, insertInlineImage, runProcessing]
+	)
+
+	const handlePathsRef = useRef(handlePaths)
+	useEffect(() => {
+		handlePathsRef.current = handlePaths
+	}, [handlePaths])
 
 	useEffect(() => {
 		const handleDragEnter = (e: DragEvent) => {
 			e.preventDefault()
 			e.stopPropagation()
 			dragCounter.current++
-
-			if (e.dataTransfer && dragCounter.current === 1) {
-				const type = checkDragType(e.dataTransfer)
-				setDragType(type)
-				setIsDragging(true)
-			}
+			if (dragCounter.current === 1) setIsDragging(true)
 		}
 
 		const handleDragOver = (e: DragEvent) => {
 			e.preventDefault()
 			e.stopPropagation()
 
-			if (dragCounter.current > 0) {
-				const inlineRect = zonesRef.current.inline
-				const attachRect = zonesRef.current.attachment
+			const inlineRect = zonesRef.current.inline
+			const attachRect = zonesRef.current.attachment
+			let zone: 'inline' | 'attachment' | null = null
 
-				if (inlineRect && e.clientX >= inlineRect.left && e.clientX <= inlineRect.right) {
-					setActiveZone('inline')
-				} else if (
-					attachRect &&
-					e.clientX >= attachRect.left &&
-					e.clientX <= attachRect.right
-				) {
-					setActiveZone('attachment')
-				} else {
-					setActiveZone(null)
-				}
+			if (inlineRect && e.clientX >= inlineRect.left && e.clientX <= inlineRect.right) {
+				zone = 'inline'
+			} else if (
+				attachRect &&
+				e.clientX >= attachRect.left &&
+				e.clientX <= attachRect.right
+			) {
+				zone = 'attachment'
 			}
+
+			activeZoneRef.current = zone
+			setActiveZone(zone)
 		}
 
 		const handleDragLeave = (e: DragEvent) => {
 			e.preventDefault()
 			e.stopPropagation()
 			dragCounter.current--
-
 			if (dragCounter.current <= 0) {
+				dragCounter.current = 0
 				setIsDragging(false)
 				setActiveZone(null)
-				dragCounter.current = 0
+				activeZoneRef.current = null
 			}
-		}
-
-		const handleDrop = (e: DragEvent) => {
-			e.preventDefault()
-			e.stopPropagation()
-
-			setIsDragging(false)
-			dragCounter.current = 0
-
-			if (!e.dataTransfer) return
-
-			// Extract data SYNCHRONOUSLY
-			const files = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : []
-			const uris = e.dataTransfer.getData('text/uri-list')
-				? e.dataTransfer
-						.getData('text/uri-list')
-						.split('\n')
-						.filter((u) => u.trim())
-				: []
-
-			// Mode detection based on pointer position at drop
-			let mode: 'inline' | 'attachment' = 'attachment'
-			const inlineRect = zonesRef.current.inline
-			if (inlineRect && e.clientX >= inlineRect.left && e.clientX <= inlineRect.right) {
-				mode = 'inline'
-			}
-
-			handleFileProcessingRef.current?.(files, uris, mode)
-			setActiveZone(null)
 		}
 
 		window.addEventListener('dragenter', handleDragEnter, true)
 		window.addEventListener('dragover', handleDragOver, true)
 		window.addEventListener('dragleave', handleDragLeave, true)
-		window.addEventListener('drop', handleDrop, true)
 
 		return () => {
 			window.removeEventListener('dragenter', handleDragEnter, true)
 			window.removeEventListener('dragover', handleDragOver, true)
 			window.removeEventListener('dragleave', handleDragLeave, true)
-			window.removeEventListener('drop', handleDrop, true)
 		}
-	}, [checkDragType])
+	}, [])
 
-	const insertInlineImage = useCallback(
-		(attachment: EmailAttachment) => {
-			editor.update(() => {
-				const selection = $getSelection() || $getRoot().selectEnd()
+	useEffect(() => {
+		let unlisten: (() => void) | undefined
+		let isMounted = true
 
-				if ($isRangeSelection(selection)) {
-					const assetUrl = convertFileSrc(attachment.path!)
-					const node = $createImageNode({
-						altText: attachment.filename,
-						attachmentId: attachment.id,
-						cid: attachment.cid,
-						src: assetUrl,
-					})
-					selection.insertNodes([node])
-					selection.insertNodes([$createParagraphNode()])
+		getCurrentWindow()
+			.onDragDropEvent((event) => {
+				if (!isMounted || event.payload.type !== 'drop') return
+
+				const { paths, position } = event.payload
+				if (!paths.length) return
+
+				const dpr = window.devicePixelRatio || 1
+				const logicalX = position.x / dpr
+
+				let mode: 'inline' | 'attachment' = activeZoneRef.current ?? 'attachment'
+				const inlineRect = zonesRef.current.inline
+				if (!activeZoneRef.current && inlineRect) {
+					mode =
+						logicalX >= inlineRect.left && logicalX <= inlineRect.right
+							? 'inline'
+							: 'attachment'
+				}
+
+				setIsDragging(false)
+				setActiveZone(null)
+				activeZoneRef.current = null
+				dragCounter.current = 0
+
+				handlePathsRef.current(paths, mode)
+			})
+			.then((fn) => {
+				if (isMounted) {
+					unlisten = fn
+				} else {
+					fn()
 				}
 			})
-		},
-		[editor]
-	)
 
-	const handleFileProcessing = useCallback(
-		async (files: File[], uris: string[], mode: 'inline' | 'attachment') => {
-			await runProcessing(async () => {
-				for (const file of files) {
-					const bytes = await fileToBytes(file)
-					const attachment = await processFileAsAttachment(
-						bytes,
-						file.name,
-						file.type,
-						mode
-					)
-					addAttachment(attachment)
-					if (mode === 'inline' && file.type.startsWith('image/')) {
-						insertInlineImage(attachment)
-					}
-				}
+		return () => {
+			isMounted = false
+			unlisten?.()
+		}
+	}, [])
 
-				for (const uri of uris) {
-					const path = uri.startsWith('file://') ? decodeURIComponent(uri.slice(7)) : uri
-					if (!path) continue
-
-					if (mode === 'inline') {
-						const response = await fetch(uri)
-						const bytes = new Uint8Array(await response.arrayBuffer())
-						const contentType =
-							response.headers.get('content-type') || 'application/octet-stream'
-						const filename = path.split('/').pop() || 'attachment'
-						const attachment = await processFileAsAttachment(
-							bytes,
-							filename,
-							contentType,
-							mode
-						)
-						addAttachment(attachment)
-						if (contentType.startsWith('image/')) {
-							insertInlineImage(attachment)
-						}
-					} else {
-						const attachment = await invoke<EmailAttachment>('add_attachment', { path })
-						addAttachment(attachment)
-					}
-				}
-			}).catch((err) => console.error('[DragDrop] Processing failure:', err))
-		},
-		[addAttachment, insertInlineImage, runProcessing]
-	)
-	handleFileProcessingRef.current = handleFileProcessing
-
-	// ALWAYS return the container div, but hide/show the content
 	return (
 		<div
 			className={`pointer-events-none fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/80 p-12 backdrop-blur-sm transition-all duration-200 ${!isDragging && !isProcessing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}
@@ -201,81 +168,59 @@ export default function DragDropPlugin(): React.ReactNode {
 			{isProcessing ? (
 				<div className='pointer-events-auto flex flex-col items-center gap-4 text-white'>
 					<div className='h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500'></div>
-					<p className='text-xl font-medium'>Processing items...</p>
+					<p className='text-xl font-medium'>{t('compose.dragDrop.processing')}</p>
 				</div>
 			) : (
 				<div className='pointer-events-none flex h-96 w-full max-w-4xl gap-8'>
-					{dragType === 'media' ? (
-						<>
-							<div
-								ref={(el) => {
-									if (el) zonesRef.current.inline = el.getBoundingClientRect()
-								}}
-								className={`flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border-4 border-dashed transition-all duration-200 ${
-									activeZone === 'inline'
-										? 'scale-105 border-blue-500 bg-blue-500/20 shadow-[0_0_30px_rgba(59,130,246,0.3)]'
-										: 'border-zinc-700 bg-zinc-900/40'
-								}`}>
-								<div
-									className={`rounded-full p-4 ${activeZone === 'inline' ? 'bg-blue-500 text-white' : 'bg-zinc-800 text-zinc-400'}`}>
-									<ImageIcon size={48} />
-								</div>
-								<div className='text-center'>
-									<h3
-										className={`text-xl font-bold ${activeZone === 'inline' ? 'text-blue-200' : 'text-zinc-300'}`}>
-										Insert Inline
-									</h3>
-									<p className='mt-1 text-zinc-500'>Embed directly in email</p>
-								</div>
-							</div>
-
-							<div
-								ref={(el) => {
-									if (el) zonesRef.current.attachment = el.getBoundingClientRect()
-								}}
-								className={`flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border-4 border-dashed transition-all duration-200 ${
-									activeZone === 'attachment'
-										? 'scale-105 border-green-500 bg-green-500/20 shadow-[0_0_30px_rgba(34,197,94,0.3)]'
-										: 'border-zinc-700 bg-zinc-900/40'
-								}`}>
-								<div
-									className={`rounded-full p-4 ${activeZone === 'attachment' ? 'bg-green-500 text-white' : 'bg-zinc-800 text-zinc-400'}`}>
-									<Paperclip size={48} />
-								</div>
-								<div className='text-center'>
-									<h3
-										className={`text-xl font-bold ${activeZone === 'attachment' ? 'text-green-200' : 'text-zinc-300'}`}>
-										Add as Attachment
-									</h3>
-									<p className='mt-1 text-zinc-500'>Add to file list</p>
-								</div>
-							</div>
-						</>
-					) : (
+					<div
+						ref={(el) => {
+							if (el) zonesRef.current.inline = el.getBoundingClientRect()
+						}}
+						className={`flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border-4 border-dashed transition-all duration-200 ${
+							activeZone === 'inline'
+								? 'scale-105 border-blue-500 bg-blue-500/20 shadow-[0_0_30px_rgba(59,130,246,0.3)]'
+								: 'border-zinc-700 bg-zinc-900/40'
+						}`}>
 						<div
-							ref={(el) => {
-								if (el) zonesRef.current.attachment = el.getBoundingClientRect()
-							}}
-							className={`flex flex-1 flex-col items-center justify-center gap-6 rounded-2xl border-4 border-dashed transition-all duration-200 ${
-								activeZone === 'attachment'
-									? 'scale-105 border-blue-500 bg-blue-500/20 shadow-[0_0_30px_rgba(59,130,246,0.3)]'
-									: 'border-zinc-700 bg-zinc-900/40'
-							}`}>
-							<div
-								className={`rounded-full p-6 ${activeZone === 'attachment' ? 'bg-blue-500 text-white' : 'bg-zinc-800 text-zinc-400'}`}>
-								<UploadCloud size={64} />
-							</div>
-							<div className='text-center'>
-								<h3
-									className={`text-2xl font-bold ${activeZone === 'attachment' ? 'text-blue-200' : 'text-zinc-300'}`}>
-									Add Attachment
-								</h3>
-								<p className='mt-2 text-lg text-zinc-500'>Drop files to attach</p>
-							</div>
+							className={`rounded-full p-4 ${activeZone === 'inline' ? 'bg-blue-500 text-white' : 'bg-zinc-800 text-zinc-400'}`}>
+							<ImageIcon size={48} />
 						</div>
-					)}
+						<div className='text-center'>
+							<h3
+								className={`text-xl font-bold ${activeZone === 'inline' ? 'text-blue-200' : 'text-zinc-300'}`}>
+								{t('compose.dragDrop.insertInline.title')}
+							</h3>
+							<p className='mt-1 text-zinc-500'>{t('compose.dragDrop.insertInline.description')}</p>
+						</div>
+					</div>
+
+					<div
+						ref={(el) => {
+							if (el) zonesRef.current.attachment = el.getBoundingClientRect()
+						}}
+						className={`flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border-4 border-dashed transition-all duration-200 ${
+							activeZone === 'attachment'
+								? 'scale-105 border-green-500 bg-green-500/20 shadow-[0_0_30px_rgba(34,197,94,0.3)]'
+								: 'border-zinc-700 bg-zinc-900/40'
+						}`}>
+						<div
+							className={`rounded-full p-4 ${activeZone === 'attachment' ? 'bg-green-500 text-white' : 'bg-zinc-800 text-zinc-400'}`}>
+							<Paperclip size={48} />
+						</div>
+						<div className='text-center'>
+							<h3
+								className={`text-xl font-bold ${activeZone === 'attachment' ? 'text-green-200' : 'text-zinc-300'}`}>
+								{t('compose.dragDrop.addAttachment.title')}
+							</h3>
+							<p className='mt-1 text-zinc-500'>{t('compose.dragDrop.addAttachment.description')}</p>
+						</div>
+					</div>
 				</div>
 			)}
 		</div>
 	)
+}
+
+function isImagePath(path: string): boolean {
+	return /\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i.test(path)
 }

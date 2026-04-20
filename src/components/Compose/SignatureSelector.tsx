@@ -1,19 +1,20 @@
 import { memo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { invoke } from '@tauri-apps/api/core'
 import { PenLine, Check } from 'lucide-react'
 import { useAccountStore } from '@/stores/accountStore'
 import { useDraftStore } from '@/stores/draftStore'
-import { htmlToLexical } from './Editor/utils/conversion'
 import type { Signature } from '@/types/signatures'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 
-export const SignatureSelector = memo(function SignatureSelector() {
+interface SignatureSelectorProps {
+	htmlRef?: React.RefObject<string>
+}
+
+export const SignatureSelector = memo(function SignatureSelector({}: SignatureSelectorProps) {
 	const { t } = useTranslation()
-	const [editor] = useLexicalComposerContext()
 	const activeAccount = useAccountStore((s) => s.activeAccount)
 	const accountId = activeAccount?.id ?? ''
 	const [open, setOpen] = useState(false)
@@ -41,13 +42,8 @@ export const SignatureSelector = memo(function SignatureSelector() {
 
 	const handleSelect = (html: string | null) => {
 		replaceSignature(html)
+		window.dispatchEvent(new CustomEvent('compose:update-signature', { detail: html }))
 		setOpen(false)
-		setTimeout(() => {
-			const latestDraft = useDraftStore.getState().currentDraft
-			if (latestDraft?.body !== undefined) {
-				htmlToLexical(editor, latestDraft.body)
-			}
-		}, 50)
 	}
 
 	const hasSignature = currentSigHtml && currentSigHtml.trim().length > 0

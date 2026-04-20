@@ -1,25 +1,11 @@
-import { useEffect, useState, useCallback, useRef, memo } from 'react'
-import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
+import { useEffect, useState, useCallback, memo } from 'react'
 import { open } from '@tauri-apps/plugin-dialog'
 import { invokeWithErrorLog } from '@/lib/tauri'
 import { useTranslation } from 'react-i18next'
 import type { EmailAttachment } from '@/types/compose'
-import type { LinkPopoverProps } from '@/types/components/compose'
+import type { EditorToolbarProps } from '@/types/components/compose'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 import { CompatibilityButton } from '@/components/Compose/CompatibilityButton'
-import {
-	$getSelection,
-	$isRangeSelection,
-	FORMAT_TEXT_COMMAND,
-	$createTextNode,
-	$insertNodes,
-	type LexicalEditor,
-	type EditorState,
-	type LexicalCommand,
-} from 'lexical'
-import { $getNearestNodeOfType } from '@lexical/utils'
-import { ListNode, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND } from '@lexical/list'
-import { LinkNode, TOGGLE_LINK_COMMAND, $createLinkNode, formatUrl } from '@lexical/link'
 import {
 	Paperclip,
 	Bold,
@@ -28,17 +14,79 @@ import {
 	Strikethrough,
 	List as ListIcon,
 	ListOrdered,
-	Link as LinkIcon,
 	Code,
 	FileType,
 	MailCheck,
+	Heading1,
+	Heading2,
+	Heading3,
+	RemoveFormatting,
+	Pilcrow,
+	ChevronDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
-import { Input } from '@/components/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useDraftStore } from '@/stores/draftStore'
+import { LinkInsertPopover } from './LinkPopover'
 
-const useEditorFormats = (editor: LexicalEditor, linkPopoverOpen: boolean) => {
+const HEADING_OPTIONS = [
+	{ tag: 'p', label: 'Paragraph', icon: Pilcrow },
+	{ tag: 'h1', label: 'Heading 1', icon: Heading1 },
+	{ tag: 'h2', label: 'Heading 2', icon: Heading2 },
+	{ tag: 'h3', label: 'Heading 3', icon: Heading3 },
+] as const
+
+function HeadingDropdown({
+	activeHeading,
+	onSelect,
+}: {
+	activeHeading: '' | 'h1' | 'h2' | 'h3'
+	onSelect: (tag: 'p' | 'h1' | 'h2' | 'h3') => void
+}) {
+	const [open, setOpen] = useState(false)
+	const ActiveIcon = activeHeading
+		? (HEADING_OPTIONS.find((o) => o.tag === activeHeading)?.icon ?? Pilcrow)
+		: Pilcrow
+
+	return (
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger asChild>
+				<Button
+					variant='ghost'
+					size='sm'
+					className={`flex h-9 items-center gap-0.5 px-2 ${activeHeading ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}>
+					<ActiveIcon className='h-4 w-4' />
+					<ChevronDown className='h-3 w-3 opacity-50' />
+				</Button>
+			</PopoverTrigger>
+			<PopoverContent
+				align='start'
+				sideOffset={6}
+				className='w-40 p-1'
+				onOpenAutoFocus={(e) => e.preventDefault()}>
+				{HEADING_OPTIONS.map(({ tag, label, icon: Icon }) => (
+					<button
+						key={tag}
+						className={`flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors ${
+							(tag === 'p' && !activeHeading) || activeHeading === tag
+								? 'bg-accent text-accent-foreground'
+								: 'text-popover-foreground hover:bg-accent/50'
+						}`}
+						onMouseDown={(e) => {
+							e.preventDefault()
+							onSelect(tag)
+							setOpen(false)
+						}}>
+						<Icon className='h-4 w-4' />
+						{label}
+					</button>
+				))}
+			</PopoverContent>
+		</Popover>
+	)
+}
+
+const useEditorFormats = () => {
 	const [formats, setFormats] = useState({
 		bold: false,
 		italic: false,
@@ -46,144 +94,87 @@ const useEditorFormats = (editor: LexicalEditor, linkPopoverOpen: boolean) => {
 		strikethrough: false,
 		ordered: false,
 		unordered: false,
+		heading: '' as '' | 'h1' | 'h2' | 'h3',
 		link: false,
 	})
-	const [linkData, setLinkData] = useState({ url: '', text: '' })
 
-	useEffect(() => {
-		return editor.registerUpdateListener(({ editorState }: { editorState: EditorState }) => {
-			editorState.read(() => {
-				const selection = $getSelection()
-				if ($isRangeSelection(selection)) {
-					const anchorNode = selection.anchor.getNode()
-					const listNode = $getNearestNodeOfType(anchorNode, ListNode)
-					const linkNode = $getNearestNodeOfType(anchorNode, LinkNode)
+	const updateFormats = useCallback(() => {
+		// Only update if we are in a contenteditable context
+		const activeEl = document.activeElement
+		const isEditable = activeEl?.getAttribute('contenteditable') === 'true' || 
+						  activeEl?.closest('[contenteditable="true"]')
+		
+		if (!isEditable) return
 
-					const newFormats = {
-						bold: selection.hasFormat('bold'),
-						italic: selection.hasFormat('italic'),
-						underline: selection.hasFormat('underline'),
-						strikethrough: selection.hasFormat('strikethrough'),
-						ordered: listNode?.getListType() === 'number',
-						unordered: listNode?.getListType() === 'bullet',
-						link: !!linkNode,
-					}
-					setFormats(newFormats)
+		const isFormatActive = (command: string) => {
+			try {
+				return document.queryCommandState(command)
+			} catch {
+				return false
+			}
+		}
 
-					if (!linkPopoverOpen) {
-						setLinkData({
-							url: linkNode?.getURL() || '',
-							text: selection.getTextContent(),
-						})
-					}
-				}
-			})
+		const isLinkActive = () => {
+			const selection = window.getSelection()
+			if (!selection || !selection.anchorNode) return false
+			let node: Node | null = selection.anchorNode
+			if (node.nodeType === Node.TEXT_NODE) node = node.parentNode
+			while (node && node instanceof Element && node.getAttribute('contenteditable') !== 'true') {
+				if (node.nodeName === 'A') return true
+				node = node.parentNode
+			}
+			return false
+		}
+
+		const getActiveHeading = (): '' | 'h1' | 'h2' | 'h3' => {
+			const selection = window.getSelection()
+			if (!selection || !selection.anchorNode) return ''
+
+			let node: Node | null = selection.anchorNode
+			if (node.nodeType === Node.TEXT_NODE) node = node.parentNode
+
+			while (
+				node &&
+				node instanceof Element &&
+				node.getAttribute('contenteditable') !== 'true'
+			) {
+				const tag = node.nodeName.toLowerCase()
+				if (tag === 'h1' || tag === 'h2' || tag === 'h3') return tag
+				node = node.parentNode
+			}
+			return ''
+		}
+
+		setFormats({
+			bold: isFormatActive('bold'),
+			italic: isFormatActive('italic'),
+			underline: isFormatActive('underline'),
+			strikethrough: isFormatActive('strikeThrough'),
+			ordered: isFormatActive('insertOrderedList'),
+			unordered: isFormatActive('insertUnorderedList'),
+			heading: getActiveHeading(),
+			link: isLinkActive(),
 		})
-	}, [editor, linkPopoverOpen])
-
-	return { formats, linkData }
-}
-
-const LinkPopover = memo(({ editor, formats, linkData }: LinkPopoverProps) => {
-	const { t } = useTranslation()
-	const [open, setOpen] = useState(false)
-	const [localText, setLocalText] = useState('')
-	const [localUrl, setLocalUrl] = useState('')
-	const textInputRef = useRef<HTMLInputElement>(null)
-
-	useEffect(() => {
-		if (open) {
-			setLocalText(linkData.text)
-			setLocalUrl(linkData.url)
-			setTimeout(() => textInputRef.current?.focus(), 0)
-		}
-	}, [open, linkData])
-
-	// Listen for kbd shortcut trigger
-	useEffect(() => {
-		const handleInsertLink = () => {
-			setOpen(true)
-		}
-		window.addEventListener('compose:insert-link', handleInsertLink)
-		return () => window.removeEventListener('compose:insert-link', handleInsertLink)
 	}, [])
 
-	const applyLink = useCallback(() => {
-		const url = formatUrl(localUrl.trim())
-		if (!url) {
-			editor.dispatchCommand(TOGGLE_LINK_COMMAND, null)
-		} else {
-			editor.update(() => {
-				const selection = $getSelection()
-				if ($isRangeSelection(selection)) {
-					if (selection.getTextContent().trim().length > 0 && !localText.trim()) {
-						editor.dispatchCommand(TOGGLE_LINK_COMMAND, url)
-					} else {
-						const linkNode = $createLinkNode(url)
-						linkNode.append($createTextNode(localText.trim() || url))
-						selection.insertNodes([linkNode])
-					}
-				} else {
-					const linkNode = $createLinkNode(url)
-					linkNode.append($createTextNode(localText.trim() || url))
-					$insertNodes([linkNode])
-				}
-			})
+	useEffect(() => {
+		// Initial check
+		updateFormats()
+
+		document.addEventListener('selectionchange', updateFormats)
+		document.addEventListener('focusin', updateFormats)
+		return () => {
+			document.removeEventListener('selectionchange', updateFormats)
+			document.removeEventListener('focusin', updateFormats)
 		}
-		setOpen(false)
-		editor.focus()
-	}, [editor, localText, localUrl])
+	}, [updateFormats])
 
-	return (
-		<Popover open={open} onOpenChange={setOpen}>
-			<PopoverTrigger asChild>
-				<Button
-					variant='ghost'
-					size='icon'
-					className={`h-9 w-9 ${formats.link ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}>
-					<LinkIcon className='h-4 w-4' />
-				</Button>
-			</PopoverTrigger>
-			<PopoverContent
-				side='bottom'
-				align='start'
-				className='rounded-md border border-[var(--compose-ring)] bg-[var(--compose-suggestions-bg)] p-3 text-[var(--compose-text)] shadow-md'>
-				<div className='flex flex-col gap-2'>
-					<label className='text-xs text-[var(--compose-text-muted)]'>Text</label>
-					<Input
-						ref={textInputRef}
-						value={localText}
-						onChange={(e) => setLocalText(e.target.value)}
-						className='bg-transparent'
-					/>
-					<label className='text-xs text-[var(--compose-text-muted)]'>URL</label>
-					<Input
-						value={localUrl}
-						onChange={(e) => setLocalUrl(e.target.value)}
-						className='bg-transparent'
-						onKeyDown={(e) => e.key === 'Enter' && applyLink()}
-					/>
-					<div className='mt-2 flex justify-end gap-2'>
-						<Button onClick={applyLink}>{t('compose.applyLink')}</Button>
-						<Button
-							variant='ghost'
-							onClick={() => {
-								editor.dispatchCommand(TOGGLE_LINK_COMMAND, null)
-								setOpen(false)
-							}}>
-							Remove
-						</Button>
-					</div>
-				</div>
-			</PopoverContent>
-		</Popover>
-	)
-})
+	return { formats, updateFormats }
+}
 
-export function EditorToolbar() {
+export function EditorToolbar({ onAttach, editorRef }: EditorToolbarProps) {
 	const { t } = useTranslation()
-	const [editor] = useLexicalComposerContext()
-	const { formats, linkData } = useEditorFormats(editor, false)
+	const { formats, updateFormats } = useEditorFormats()
 	const { currentDraft, editorMode, setEditorMode, addAttachment, updateCurrentDraft } =
 		useDraftStore()
 	const requestReadReceipt = currentDraft?.requestReadReceipt ?? false
@@ -194,9 +185,13 @@ export function EditorToolbar() {
 	} | null>(null)
 	const [dialogOpen, setDialogOpen] = useState(false)
 
-	const exec = (cmd: LexicalCommand<unknown>, val?: unknown) => {
-		editor.dispatchCommand(cmd, val)
-		editor.focus()
+	const exec = (command: string, value: string | undefined = undefined) => {
+		const el = editorRef?.current
+		if (el && document.activeElement !== el) {
+			el.focus()
+		}
+		document.execCommand(command, false, value)
+		updateFormats()
 	}
 
 	const handleAttachment = useCallback(async () => {
@@ -229,12 +224,13 @@ export function EditorToolbar() {
 					break
 				} else {
 					addAttachment({ ...attachment, path })
+					if (onAttach) onAttach()
 				}
 			}
 		} catch (err) {
 			console.error('Failed to open file picker:', err)
 		}
-	}, [currentDraft, addAttachment])
+	}, [currentDraft, addAttachment, onAttach])
 
 	const confirmDuplicate = () => {
 		if (pendingAttachment) {
@@ -248,7 +244,6 @@ export function EditorToolbar() {
 		handleAttachment()
 	}, [handleAttachment])
 
-	// Listen for kbd shortcut trigger
 	useEffect(() => {
 		window.addEventListener('compose:attach-file', handleAttachFile)
 		return () => window.removeEventListener('compose:attach-file', handleAttachFile)
@@ -269,28 +264,28 @@ export function EditorToolbar() {
 						variant='ghost'
 						size='icon'
 						className={`h-9 w-9 ${formats.bold ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
-						onClick={() => exec(FORMAT_TEXT_COMMAND, 'bold')}>
+						onClick={() => exec('bold')}>
 						<Bold className='h-4 w-4' />
 					</Button>
 					<Button
 						variant='ghost'
 						size='icon'
 						className={`h-9 w-9 ${formats.italic ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
-						onClick={() => exec(FORMAT_TEXT_COMMAND, 'italic')}>
+						onClick={() => exec('italic')}>
 						<Italic className='h-4 w-4' />
 					</Button>
 					<Button
 						variant='ghost'
 						size='icon'
 						className={`h-9 w-9 ${formats.underline ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
-						onClick={() => exec(FORMAT_TEXT_COMMAND, 'underline')}>
+						onClick={() => exec('underline')}>
 						<Underline className='h-4 w-4' />
 					</Button>
 					<Button
 						variant='ghost'
 						size='icon'
 						className={`h-9 w-9 ${formats.strikethrough ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
-						onClick={() => exec(FORMAT_TEXT_COMMAND, 'strikethrough')}>
+						onClick={() => exec('strikeThrough')}>
 						<Strikethrough className='h-4 w-4' />
 					</Button>
 					<div className='mx-1 h-4 w-px bg-[var(--compose-separator)]' />
@@ -298,17 +293,44 @@ export function EditorToolbar() {
 						variant='ghost'
 						size='icon'
 						className={`h-9 w-9 ${formats.unordered ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
-						onClick={() => exec(INSERT_UNORDERED_LIST_COMMAND)}>
+						onClick={() => exec('insertUnorderedList')}>
 						<ListIcon className='h-4 w-4' />
 					</Button>
 					<Button
 						variant='ghost'
 						size='icon'
 						className={`h-9 w-9 ${formats.ordered ? 'bg-[var(--compose-active)] text-[var(--compose-text)]' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
-						onClick={() => exec(INSERT_ORDERED_LIST_COMMAND)}>
+						onClick={() => exec('insertOrderedList')}>
 						<ListOrdered className='h-4 w-4' />
 					</Button>
-					<LinkPopover editor={editor} formats={formats} linkData={linkData} />
+					<div className='mx-1 h-4 w-px bg-[var(--compose-separator)]' />
+					<HeadingDropdown
+						activeHeading={formats.heading}
+						onSelect={(tag) => {
+							if (tag === 'p') {
+								exec('formatBlock', '<p>')
+							} else {
+								// Toggle: if already active, revert to <p>
+								if (formats.heading === tag) {
+									exec('formatBlock', '<p>')
+								} else {
+									exec('formatBlock', `<${tag}>`)
+								}
+							}
+						}}
+					/>
+					<Button
+						variant='ghost'
+						size='icon'
+						title='Remove Formatting'
+						className='h-9 w-9 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'
+						onClick={() => exec('removeFormat')}>
+						<RemoveFormatting className='h-4 w-4' />
+					</Button>
+					<div className='mx-1 h-4 w-px bg-[var(--compose-separator)]' />
+					<LinkInsertPopover
+						onInsertLink={(url) => exec('createLink', url)}
+					/>
 					<div className='mx-1 h-4 w-px bg-[var(--compose-separator)]' />
 					<Button
 						variant='ghost'

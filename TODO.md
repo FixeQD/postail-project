@@ -124,16 +124,16 @@
     - [x] 15.11 - UI: Insert template into compose with edit before sending
     - [x] 15.12 - UI: Variables in templates: {{name}}, {{email}}, {{date}} with preview
 
-- [ ] 16 - Custom WYSIWYG HTML Editor (Lexical Replacement)
-    - [ ] 16.1 - UI: Create base `WysiwygEditor` component (contenteditable wrapper)
-    - [ ] 16.2 - State: Manage raw HTML state directly to avoid Lexical <-> HTML conversion bugs
-    - [ ] 16.3 - UI: Implement formatting toolbar (Bold, Italic, Underline, Strikethrough, Lists)
-    - [ ] 16.4 - UI: Implement Link and Image insertion logic (with CID generation)
-    - [ ] 16.5 - UI: Implement Source Mode toggle (switching between WYSIWYG and Monaco)
-    - [ ] 16.6 - Logic: Refactor signature insertion to operate on raw HTML directly
-    - [ ] 16.7 - Logic: Refactor template application to operate on raw HTML directly
-    - [ ] 16.8 - Refactor: Update `ComposeScreen` to use the new editor, handle auto-save draft
-    - [ ] 16.9 - Cleanup: Remove Lexical dependencies and old plugin files
+- [x] 16 - Custom WYSIWYG HTML Editor (Lexical Replacement)
+    - [x] 16.1 - UI: Create base `WysiwygEditor` component (contenteditable wrapper)
+    - [x] 16.2 - State: Manage raw HTML state directly to avoid Lexical <-> HTML conversion bugs
+    - [x] 16.3 - UI: Implement formatting toolbar (Bold, Italic, Underline, Strikethrough, Lists)
+    - [x] 16.4 - UI: Implement Link and Image insertion logic (with CID generation)
+    - [x] 16.5 - UI: Implement Source Mode toggle (switching between WYSIWYG and Monaco)
+    - [x] 16.6 - Logic: Refactor signature insertion to operate on raw HTML directly
+    - [x] 16.7 - Logic: Refactor template application to operate on raw HTML directly
+    - [x] 16.8 - Refactor: Update `ComposeScreen` to use the new editor, handle auto-save draft
+    - [x] 16.9 - Cleanup: Remove Lexical dependencies and old plugin files
 
 - [ ] 17 - Contacts
     - [ ] 17.1 - DB: Extend `contacts` table with phone, company, notes, avatar_url, birthday

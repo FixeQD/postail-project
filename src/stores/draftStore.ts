@@ -75,7 +75,7 @@ const injectDefaultSignature = async (
 		const { currentDraft } = get()
 		if (!currentDraft) return
 
-		const sigBlock = `<br><br><div class="signature">${sig.htmlContent}</div>`
+		const sigBlock = `<!-- SIGNATURE_START --><br><br><div class="signature-wrapper"><div class="signature">${sig.htmlContent}</div></div><!-- SIGNATURE_END -->`
 
 		set({
 			currentDraft: {
@@ -817,14 +817,14 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		const { currentDraft } = get()
 		if (!currentDraft) return
 
-		const signatureBlockRegex = /<br\s*\/?><br\s*\/?><div class="signature">[\s\S]*?<\/div>/gi
+		const signatureBlockRegex = /<!-- SIGNATURE_START -->[\s\S]*?<!-- SIGNATURE_END -->/gi
 		const currentBody = currentDraft.body || ''
 
 		let updatedBody: string
 		if (html === null) {
 			updatedBody = currentBody.replace(signatureBlockRegex, '')
 		} else {
-			const sigBlock = `<br><br><div class="signature">${html}</div>`
+			const sigBlock = `<!-- SIGNATURE_START --><br><br><div class="signature-wrapper"><div class="signature">${html}</div></div><!-- SIGNATURE_END -->`
 			if (signatureBlockRegex.test(currentBody)) {
 				updatedBody = currentBody.replace(signatureBlockRegex, sigBlock)
 			} else {
@@ -850,7 +850,6 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 		const processedSubject = resolveTemplateVariables(template.subject, context)
 		const processedBody = resolveTemplateVariables(template.htmlBody, context)
 
-		// Always overwrite the subject if the template has one
 		const subject = processedSubject ? processedSubject : currentDraft.subject
 
 		set({
@@ -862,5 +861,7 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 			},
 			isDirty: true,
 		})
+
+		window.dispatchEvent(new CustomEvent('compose:apply-template', { detail: processedBody }))
 	},
 }))

@@ -1,10 +1,5 @@
 import { useRef, useCallback, useMemo, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { LexicalComposer } from '@lexical/react/LexicalComposer'
-import { EditorState, LexicalEditor } from 'lexical'
-import { HeadingNode, QuoteNode } from '@lexical/rich-text'
-import { ListNode, ListItemNode } from '@lexical/list'
-import { LinkNode } from '@lexical/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from '../ui/custom/Toaster'
 import { useToastStore } from '@/stores/toastStore'
@@ -14,14 +9,13 @@ import { useDraftStore } from '@/stores/draftStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useComposeShortcuts } from '@/hooks/useComposeShortcuts'
 import { useDragging, useLinkTooltip } from './useCompose'
-import EditorContent from './Editor/EditorContent'
-import { lexicalToHtml } from './Editor/utils/conversion'
-import { ImageNode } from './Editor/Nodes/ImageNode'
+import { EditorContent } from './Editor/EditorContent'
 import { CompatibilityPanel } from './CompatibilityPanel'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 import { ComposeHeader } from './ComposeHeader'
 import { ComposeInputs } from './ComposeInputs'
 import { ComposeFooter } from './ComposeFooter'
+import { LinkEditTooltip } from './Editor/LinkPopover'
 import type { ComposeScreenProps } from '@/types/components/compose'
 
 export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenProps) {
@@ -62,7 +56,6 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	const tooltipData = useLinkTooltip(editorRef)
 
 	const htmlRef = useRef('')
-	const isHydratingRef = useRef(false)
 	const [changeCount, setChangeCount] = useState(0)
 	const [autoFixKey, setAutoFixKey] = useState(0)
 	const [showDiscardDialog, setShowDiscardDialog] = useState(false)
@@ -210,47 +203,17 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 		enabled: open,
 	})
 
-	const handleEditorChange = useCallback(
-		(editorState: EditorState, editor: LexicalEditor) => {
-			if (isHydratingRef.current) return
-			editorState.read(() => {
-				htmlRef.current = lexicalToHtml(editor)
-				setChangeCount((c) => c + 1)
-				markDirty()
-			})
-		},
-		[markDirty]
-	)
-
 	const triggerValidation = useCallback(() => {
 		setChangeCount((c) => c + 1)
 		markDirty()
 	}, [markDirty])
 
-	// Lexical initial config
-	const initialConfig = useMemo(
-		() => ({
-			namespace: 'ComposeEditor',
-			theme: {
-				text: {
-					bold: 'font-bold',
-					italic: 'italic',
-					underline: 'underline',
-					strikethrough: 'line-through',
-				},
-				list: {
-					listitem: '!ml-4',
-					nested: { listitem: '!ml-8' },
-					ol: '!list-decimal !ml-4',
-					ul: '!list-disc !ml-4',
-				},
-				link: 'underline text-cyan-400',
-			},
-			nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, LinkNode, ImageNode],
-			onError: (err: Error) => console.error(err),
-		}),
-		[]
-	)
+	// Hydrate htmlRef from draft body
+	useEffect(() => {
+		if (currentDraft?.body && htmlRef.current !== currentDraft.body) {
+			htmlRef.current = currentDraft.body
+		}
+	}, [currentDraft?.id, currentDraft?.body])
 
 	useEffect(() => {
 		if (open && !isComposing && accountId) startComposing(accountId)
@@ -300,20 +263,6 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 	const activePosition = isFlying && frozenLayout ? frozenLayout.position : position
 	const activeSize = isFlying && frozenLayout ? frozenLayout.size : size
 	const activeTarget = isFlying && frozenLayout ? frozenLayout.target : { x: 0, y: 0 }
-
-	// Validate tooltip URL schemes to avoid rendering javascript: or other unsafe protocols. Only allow http:, https:, mailto:.
-	const isSafeUrl = (u: string) => {
-		try {
-			const parsed = new URL(u)
-			return (
-				parsed.protocol === 'http:' ||
-				parsed.protocol === 'https:' ||
-				parsed.protocol === 'mailto:'
-			)
-		} catch (e) {
-			return false
-		}
-	}
 
 	return (
 		<AnimatePresence>
@@ -432,43 +381,55 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 						composeHeight={size.height}
 					/>
 
-					<LexicalComposer initialConfig={initialConfig}>
-						<EditorContent
-							editorRef={editorRef}
-							htmlRef={htmlRef}
-							isHydratingRef={isHydratingRef}
-							handleEditorChange={handleEditorChange}
-							attachments={currentDraft?.attachments || []}
-							onRemoveAttachment={removeAttachment}
-							onSourceChange={triggerValidation}
-							autoFixKey={autoFixKey}
-							isFixing={isFixing}
-							onEditorMount={handleEditorMount}
-						/>
+					<EditorContent
+						editorRef={editorRef}
+						htmlRef={htmlRef}
+						attachments={currentDraft?.attachments || []}
+						onRemoveAttachment={removeAttachment}
+						onSourceChange={triggerValidation}
+						autoFixKey={autoFixKey}
+						isFixing={isFixing}
+						onEditorMount={handleEditorMount}
+					/>
 
-						<ComposeFooter
-							onSend={handleSend}
-							onDiscard={() => setShowDiscardDialog(true)}
-							isValid={isValid}
-						/>
-					</LexicalComposer>
+					<ComposeFooter
+						onSend={handleSend}
+						onDiscard={() => setShowDiscardDialog(true)}
+						isValid={isValid}
+						htmlRef={htmlRef}
+					/>
 
-					{tooltipData.visible && tooltipData.rect && isSafeUrl(tooltipData.url) && (
-						<div
-							className='bg-popover text-popover-foreground fixed z-50 max-w-md truncate rounded-md px-3 py-1.5 text-xs'
-							style={{
-								left: `${tooltipData.rect.left + tooltipData.rect.width / 2}px`,
-								top: `${tooltipData.rect.top > 40 ? tooltipData.rect.top - 8 : tooltipData.rect.bottom + 8}px`,
-								transform:
-									tooltipData.rect.top > 40
-										? 'translate(-50%, -100%)'
-										: 'translate(-50%, 0)',
-							}}>
-							{tooltipData.url.length > 120
-								? tooltipData.url.slice(0, 116) + '…'
-								: tooltipData.url}
-						</div>
-					)}
+					<AnimatePresence>
+						{tooltipData.visible && tooltipData.rect && tooltipData.node && (
+							<LinkEditTooltip
+								visible={tooltipData.visible}
+								url={tooltipData.url}
+								rect={tooltipData.rect}
+								onEdit={(newUrl) => {
+									const sel = window.getSelection()
+									if (sel) {
+										const range = document.createRange()
+										range.selectNodeContents(tooltipData.node!)
+										sel.removeAllRanges()
+										sel.addRange(range)
+										document.execCommand('createLink', false, newUrl)
+										sel.removeAllRanges()
+									}
+								}}
+								onRemove={() => {
+									const sel = window.getSelection()
+									if (sel) {
+										const range = document.createRange()
+										range.selectNodeContents(tooltipData.node!)
+										sel.removeAllRanges()
+										sel.addRange(range)
+										document.execCommand('unlink')
+										sel.removeAllRanges()
+									}
+								}}
+							/>
+						)}
+					</AnimatePresence>
 
 					<div
 						className='absolute right-0 bottom-0 h-4 w-4 cursor-se-resize'
