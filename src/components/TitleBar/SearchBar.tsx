@@ -320,41 +320,41 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 					className='w-[var(--radix-popover-trigger-width)] p-3 text-sm'
 					align='start'
 					sideOffset={8}>
-					<div className='mb-2 font-medium text-slate-900 dark:text-white'>
+					<div className='mb-2 text-[12px] font-semibold text-[var(--text-primary)]'>
 						{t('inbox:search.operatorHint')}
 					</div>
-					<div className='grid grid-cols-2 gap-2 text-slate-500 dark:text-slate-400'>
+					<div className='grid grid-cols-2 gap-1.5 text-[11px] text-[var(--text-secondary)]'>
 						<div>
-							<kbd className='rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800'>
+							<kbd className='rounded bg-[var(--surface-active)] px-1 font-mono text-[10px] text-[var(--text-primary)]'>
 								from:
 							</kbd>{' '}
 							{t('inbox:search.operators.sender')}
 						</div>
 						<div>
-							<kbd className='rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800'>
+							<kbd className='rounded bg-[var(--surface-active)] px-1 font-mono text-[10px] text-[var(--text-primary)]'>
 								to:
 							</kbd>{' '}
 							{t('inbox:search.operators.recipient')}
 						</div>
 						<div>
-							<kbd className='rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800'>
+							<kbd className='rounded bg-[var(--surface-active)] px-1 font-mono text-[10px] text-[var(--text-primary)]'>
 								subject:
 							</kbd>{' '}
 							{t('inbox:search.operators.title')}
 						</div>
 						<div>
-							<kbd className='rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800'>
+							<kbd className='rounded bg-[var(--surface-active)] px-1 font-mono text-[10px] text-[var(--text-primary)]'>
 								has:attachment
 							</kbd>
 						</div>
 						<div>
-							<kbd className='rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800'>
+							<kbd className='rounded bg-[var(--surface-active)] px-1 font-mono text-[10px] text-[var(--text-primary)]'>
 								before:
 							</kbd>{' '}
 							{t('inbox:search.operators.date')}
 						</div>
 						<div>
-							<kbd className='rounded bg-slate-100 px-1 font-mono text-xs dark:bg-slate-800'>
+							<kbd className='rounded bg-[var(--surface-active)] px-1 font-mono text-[10px] text-[var(--text-primary)]'>
 								after:
 							</kbd>{' '}
 							{t('inbox:search.operators.date')}
@@ -394,7 +394,7 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 					<div className='relative w-full'>
 						<div
 							ref={overlayRef}
-							className='pointer-events-none absolute inset-0 flex items-center overflow-hidden pr-16 pl-9 text-sm whitespace-pre'
+							className='pointer-events-none absolute inset-0 flex items-center overflow-hidden pr-16 pl-8 text-[13px] whitespace-pre'
 							aria-hidden='true'>
 							{rawInput.split(SEARCH_SPLIT_REGEX).map((part, i) => {
 								const isOp = SEARCH_MATCH_REGEX.test(part)
@@ -432,7 +432,7 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 							}}
 							onKeyDown={handleKeyDown}
 							placeholder={t('inbox:search.placeholder')}
-							className='relative h-9 w-full rounded-xl border bg-slate-100/50 pr-16 pl-9 text-sm text-transparent placeholder-slate-500 transition-all duration-300 focus:bg-white focus:outline-none dark:bg-white/5 dark:text-transparent dark:placeholder-slate-500 dark:focus:bg-slate-800/80'
+							className='relative h-8 w-full rounded-lg border bg-[var(--surface-hover)] pr-16 pl-8 text-[13px] text-transparent transition-all duration-200 outline-none placeholder:text-[var(--text-tertiary)]'
 							style={{
 								caretColor: 'var(--text-primary)',
 								borderColor: hasActiveSearch
@@ -606,7 +606,7 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 							animate={animationsEnabled ? { opacity: 1, scale: 1 } : {}}
 							exit={animationsEnabled ? { opacity: 0, scale: 0.7 } : {}}
 							transition={{ duration: 0.15 }}
-							className='flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-transparent bg-slate-100/50 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-900 dark:bg-white/5 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white'
+							className='flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
 							title={t('inbox:search.actions.clear')}>
 							<X className='h-4 w-4' />
 						</motion.button>
