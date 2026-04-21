@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react'
-import { createPortal } from 'react-dom'
+
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bell, Mail, AlertTriangle, Info, Trash2, CheckCheck, X, BellOff } from 'lucide-react'
 import {
@@ -163,87 +163,84 @@ export function NotificationCenter() {
 				</AnimatePresence>
 			</button>
 
-			{/* Portal panel */}
+			{/* Panel */}
 			<AnimatePresence>
-				{centerOpen &&
-					panelPos &&
-					createPortal(
-						<motion.div
-							ref={panelRef}
-							initial={{ opacity: 0, scale: 0.96, y: -6 }}
-							animate={{ opacity: 1, scale: 1, y: 0 }}
-							exit={{ opacity: 0, scale: 0.96, y: -4 }}
-							transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-							className='fixed z-[300] w-80 overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-glass)] shadow-2xl backdrop-blur-2xl'
-							style={{
-								top: panelPos.top,
-								right: panelPos.right,
-								transformOrigin: 'top right',
-							}}
-							onMouseDown={(e) => e.stopPropagation()}>
-							{/* Header */}
-							<div className='flex items-center justify-between border-b border-[var(--border-faint)] px-4 py-2.5'>
-								<div className='flex items-center gap-2'>
-									<Bell className='h-3.5 w-3.5 text-[var(--text-secondary)]' />
-									<span className='text-[13px] font-semibold text-[var(--text-primary)]'>
-										{t('notifications.center.title')}
+				{centerOpen && panelPos && (
+					<motion.div
+						ref={panelRef}
+						initial={{ opacity: 0, scale: 0.96, y: -6 }}
+						animate={{ opacity: 1, scale: 1, y: 0 }}
+						exit={{ opacity: 0, scale: 0.96, y: -4 }}
+						transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+						className='fixed z-[300] w-80 overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-glass)] shadow-2xl backdrop-blur-2xl'
+						style={{
+							top: panelPos.top,
+							right: panelPos.right,
+							transformOrigin: 'top right',
+						}}
+						onMouseDown={(e) => e.stopPropagation()}>
+						{/* Header */}
+						<div className='flex items-center justify-between border-b border-[var(--border-faint)] px-4 py-2.5'>
+							<div className='flex items-center gap-2'>
+								<Bell className='h-3.5 w-3.5 text-[var(--text-secondary)]' />
+								<span className='text-[13px] font-semibold text-[var(--text-primary)]'>
+									{t('notifications.center.title')}
+								</span>
+								{unreadCount > 0 && (
+									<span
+										className='rounded-full px-1.5 py-0.5 text-[9px] font-bold text-white'
+										style={{ backgroundColor: accentColor }}>
+										{unreadCount}
 									</span>
-									{unreadCount > 0 && (
-										<span
-											className='rounded-full px-1.5 py-0.5 text-[9px] font-bold text-white'
-											style={{ backgroundColor: accentColor }}>
-											{unreadCount}
-										</span>
-									)}
-								</div>
-								<div className='flex items-center gap-0.5'>
-									{unreadCount > 0 && (
-										<button
-											type='button'
-											onClick={markAllRead}
-											className='flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
-											<CheckCheck className='h-3 w-3' />
-											{t('notifications.center.allRead')}
-										</button>
-									)}
-									{items.length > 0 && (
-										<button
-											type='button'
-											onClick={clearAll}
-											className='flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-[var(--text-secondary)] transition-colors hover:bg-red-500/10 hover:text-red-400'>
-											<Trash2 className='h-3 w-3' />
-										</button>
-									)}
-								</div>
-							</div>
-
-							{/* List */}
-							<div className='max-h-[400px] overflow-y-auto px-2 py-1.5'>
-								{items.length === 0 ? (
-									<div className='flex flex-col items-center gap-3 py-10 text-center'>
-										<div className='flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--surface-active)]'>
-											<BellOff className='h-5 w-5 text-[var(--text-tertiary)]' />
-										</div>
-										<div>
-											<p className='text-[12px] font-medium text-[var(--text-secondary)]'>
-												{t('notifications.center.empty')}
-											</p>
-											<p className='mt-0.5 text-[11px] text-[var(--text-tertiary)]'>
-												{t('notifications.center.emptyDescription')}
-											</p>
-										</div>
-									</div>
-								) : (
-									<AnimatePresence initial={false}>
-										{items.map((item: AppNotification) => (
-											<NotificationItem key={item.id} item={item} />
-										))}
-									</AnimatePresence>
 								)}
 							</div>
-						</motion.div>,
-						document.body
-					)}
+							<div className='flex items-center gap-0.5'>
+								{unreadCount > 0 && (
+									<button
+										type='button'
+										onClick={markAllRead}
+										className='flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
+										<CheckCheck className='h-3 w-3' />
+										{t('notifications.center.allRead')}
+									</button>
+								)}
+								{items.length > 0 && (
+									<button
+										type='button'
+										onClick={clearAll}
+										className='flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-[var(--text-secondary)] transition-colors hover:bg-red-500/10 hover:text-red-400'>
+										<Trash2 className='h-3 w-3' />
+									</button>
+								)}
+							</div>
+						</div>
+
+						{/* List */}
+						<div className='max-h-[400px] overflow-y-auto px-2 py-1.5'>
+							{items.length === 0 ? (
+								<div className='flex flex-col items-center gap-3 py-10 text-center'>
+									<div className='flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--surface-active)]'>
+										<BellOff className='h-5 w-5 text-[var(--text-tertiary)]' />
+									</div>
+									<div>
+										<p className='text-[12px] font-medium text-[var(--text-secondary)]'>
+											{t('notifications.center.empty')}
+										</p>
+										<p className='mt-0.5 text-[11px] text-[var(--text-tertiary)]'>
+											{t('notifications.center.emptyDescription')}
+										</p>
+									</div>
+								</div>
+							) : (
+								<AnimatePresence initial={false}>
+									{items.map((item: AppNotification) => (
+										<NotificationItem key={item.id} item={item} />
+									))}
+								</AnimatePresence>
+							)}
+						</div>
+					</motion.div>
+				)}
 			</AnimatePresence>
 		</>
 	)
