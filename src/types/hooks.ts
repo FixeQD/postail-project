@@ -12,6 +12,7 @@ export const APP_STATES = [
 	'recovery-setup',
 	'tpm-unlock-failed',
 	'reencrypt',
+	'contacts',
 ] as const
 
 export type AppState = (typeof APP_STATES)[number]

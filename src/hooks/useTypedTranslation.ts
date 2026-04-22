@@ -29,3 +29,7 @@ export const useErrorsTranslation = () => {
 export const useSettingsTranslation = () => {
 	return useTypedTranslation(['common', 'settings'])
 }
+
+export const useContactsTranslation = () => {
+	return useTypedTranslation(['common', 'contacts'])
+}

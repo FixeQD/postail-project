@@ -421,6 +421,32 @@ export interface ValidationTranslations {
 	}
 }
 
+export interface ContactsTranslations {
+	title: string
+	back: string
+	sidebar: {
+		contacts: string
+	}
+	search: {
+		placeholder: string
+	}
+	toolbar: {
+		newContact: string
+		import: string
+		export: string
+	}
+	empty: {
+		noContact: {
+			title: string
+			description: string
+		}
+		noContacts: {
+			title: string
+			description: string
+		}
+	}
+}
+
 export interface TranslationResources {
 	common: CommonTranslations
 	welcome: WelcomeTranslations
@@ -429,6 +455,7 @@ export interface TranslationResources {
 	inbox: InboxTranslations
 	validation: ValidationTranslations
 	settings: SettingsTranslations
+	contacts: ContactsTranslations
 }
 
 export type TranslationNamespace = keyof TranslationResources

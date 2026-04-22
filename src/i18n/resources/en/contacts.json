@@ -1,0 +1,25 @@
+{
+	"title": "Contacts",
+	"back": "Back",
+	"sidebar": {
+		"contacts": "Contacts"
+	},
+	"search": {
+		"placeholder": "Search contacts..."
+	},
+	"toolbar": {
+		"newContact": "New Contact",
+		"import": "Import",
+		"export": "Export"
+	},
+	"empty": {
+		"noContact": {
+			"title": "No contact selected",
+			"description": "Choose a contact from the list to view details"
+		},
+		"noContacts": {
+			"title": "No contacts yet",
+			"description": "Contacts are added automatically when you send emails"
+		}
+	}
+}

@@ -33,6 +33,9 @@ const InboxScreen = lazy(() =>
 const SettingsScreen = lazy(() =>
 	import('./components/Settings/SettingsScreen').then((m) => ({ default: m.SettingsScreen }))
 )
+const ContactsScreen = lazy(() =>
+	import('./components/Contacts/ContactsScreen').then((m) => ({ default: m.ContactsScreen }))
+)
 
 function App() {
 	const loadSettings = useSettingsStore((s) => s.loadSettings)
@@ -113,10 +116,11 @@ function App() {
 	)
 
 	useEffect(() => {
-		const preloadable = ['dashboard', 'accounts', 'settings']
+		const preloadable = ['dashboard', 'accounts', 'settings', 'contacts']
 		if (preloadable.includes(currentState)) {
 			import('./components/Inbox/InboxScreen')
 			import('./components/Settings/SettingsScreen')
+			import('./components/Contacts/ContactsScreen')
 		}
 	}, [currentState])
 
@@ -194,6 +198,12 @@ function App() {
 		}
 		window.addEventListener('app:open-settings', handleOpenSettings)
 		return () => window.removeEventListener('app:open-settings', handleOpenSettings)
+	}, [setCurrentState])
+
+	useEffect(() => {
+		const handleOpenContacts = () => setCurrentState('contacts')
+		window.addEventListener('app:open-contacts', handleOpenContacts)
+		return () => window.removeEventListener('app:open-contacts', handleOpenContacts)
 	}, [setCurrentState])
 
 	const renderCurrentScreen = () => {
@@ -305,6 +315,12 @@ function App() {
 								handleRecoveryPhraseVerified()
 							}}
 						/>
+					</Suspense>
+				)
+			case 'contacts':
+				return (
+					<Suspense fallback={null}>
+						<ContactsScreen onBack={() => setCurrentState('dashboard')} />
 					</Suspense>
 				)
 			case 'dashboard':
