@@ -122,6 +122,11 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         set_db_version(conn, 17)?;
     }
 
+    if current_version < 18 {
+        migrate_to_v18(conn)?;
+        set_db_version(conn, 18)?;
+    }
+
     Ok(())
 }
 
@@ -475,6 +480,60 @@ fn migrate_to_v17(conn: &Connection) -> Result<(), DBError> {
 
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_templates_account ON templates(account_id)",
+        [],
+    )?;
+
+    Ok(())
+}
+
+fn migrate_to_v18(conn: &Connection) -> Result<(), DBError> {
+    // Extend contacts table with new profile fields
+    let new_columns: &[(&str, &str)] = &[
+        ("phone", "TEXT"),
+        ("company", "TEXT"),
+        ("notes", "TEXT"),
+        ("avatar_url", "TEXT"),
+        ("birthday", "INTEGER"),
+    ];
+    for (col, def) in new_columns {
+        if !column_exists(conn, "contacts", col)? {
+            conn.execute(
+                &format!("ALTER TABLE contacts ADD COLUMN {} {}", col, def),
+                [],
+            )?;
+        }
+    }
+
+    // Rebuild contacts_fts to include company and notes.
+    // Drop triggers first, then the table, then recreate both.
+    conn.execute("DROP TRIGGER IF EXISTS contacts_fts_insert", [])?;
+    conn.execute("DROP TRIGGER IF EXISTS contacts_fts_update", [])?;
+    conn.execute("DROP TRIGGER IF EXISTS contacts_fts_delete", [])?;
+    conn.execute("DROP TABLE IF EXISTS contacts_fts", [])?;
+
+    conn.execute(
+        "CREATE VIRTUAL TABLE contacts_fts USING fts5(email, name, company, notes, content='contacts', content_rowid='id')",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER contacts_fts_insert AFTER INSERT ON contacts BEGIN          INSERT INTO contacts_fts(rowid, email, name, company, notes)          VALUES (NEW.id, NEW.email, NEW.name, NEW.company, NEW.notes); END",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER contacts_fts_update AFTER UPDATE ON contacts BEGIN          UPDATE contacts_fts SET email = NEW.email, name = NEW.name,          company = NEW.company, notes = NEW.notes WHERE rowid = NEW.id; END",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER contacts_fts_delete AFTER DELETE ON contacts BEGIN          DELETE FROM contacts_fts WHERE rowid = OLD.id; END",
+        [],
+    )?;
+
+    // Backfill FTS from existing contacts rows
+    conn.execute(
+        "INSERT INTO contacts_fts(rowid, email, name, company, notes)          SELECT id, email, name, company, notes FROM contacts",
         [],
     )?;
 

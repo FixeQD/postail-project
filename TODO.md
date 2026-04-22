@@ -136,7 +136,7 @@
     - [x] 16.9 - Cleanup: Remove Lexical dependencies and old plugin files
 
 - [ ] 17 - Contacts
-    - [ ] 17.1 - DB: Extend `contacts` table with phone, company, notes, avatar_url, birthday
+    - [x] 17.1 - DB: Extend `contacts` table with phone, company, notes, avatar_url, birthday
     - [ ] 17.2 - UI: Dedicated contacts screen from sidebar
     - [ ] 17.3 - UI: Contact card with message history (messages from/to)
     - [ ] 17.4 - UI: Edit contact (name, email, phone, company, note)

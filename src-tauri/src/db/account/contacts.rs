@@ -1,6 +1,6 @@
 use crate::error::DBError;
 use chrono::Utc;
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -9,6 +9,11 @@ pub struct Contact {
     pub email: String,
     pub name: Option<String>,
     pub frequency: i32,
+    pub phone: Option<String>,
+    pub company: Option<String>,
+    pub notes: Option<String>,
+    pub avatar_url: Option<String>,
+    pub birthday: Option<i64>,
 }
 
 pub fn upsert_contact(conn: &Connection, email: &str, name: Option<&str>) -> Result<(), DBError> {
@@ -84,7 +89,7 @@ pub fn search_contacts(
     }
 
     let mut stmt = conn.prepare(
-        "SELECT c.id, c.email, c.name, c.frequency
+        "SELECT c.id, c.email, c.name, c.frequency, c.phone, c.company, c.notes, c.avatar_url, c.birthday
          FROM contacts c
          JOIN contacts_fts f ON f.rowid = c.id
          WHERE contacts_fts MATCH ?
@@ -99,6 +104,11 @@ pub fn search_contacts(
             email: row.get(1)?,
             name: row.get(2)?,
             frequency: row.get(3)?,
+            phone: row.get(4)?,
+            company: row.get(5)?,
+            notes: row.get(6)?,
+            avatar_url: row.get(7)?,
+            birthday: row.get(8)?,
         })
     })?;
 

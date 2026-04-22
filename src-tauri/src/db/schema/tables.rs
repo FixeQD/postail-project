@@ -188,10 +188,21 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
             ("name", "TEXT"),
             ("last_contact_at", "INTEGER"),
             ("frequency", "INTEGER DEFAULT 1"),
+            ("phone", "TEXT"),
+            ("company", "TEXT"),
+            ("notes", "TEXT"),
+            ("avatar_url", "TEXT"),
+            ("birthday", "INTEGER"),
         ],
     )?;
 
-    create_fts_table(conn, "contacts_fts", &["email", "name"], "contacts", "id")?;
+    create_fts_table(
+        conn,
+        "contacts_fts",
+        &["email", "name", "company", "notes"],
+        "contacts",
+        "id",
+    )?;
 
     create_table_if_not_exists(
         conn,
@@ -373,7 +384,7 @@ pub fn create_fts_triggers(conn: &Connection) -> Result<(), DBError> {
         "AFTER",
         "INSERT",
         "contacts",
-        "INSERT INTO contacts_fts(rowid, email, name) VALUES (NEW.id, NEW.email, NEW.name);",
+        "INSERT INTO contacts_fts(rowid, email, name, company, notes) VALUES (NEW.id, NEW.email, NEW.name, NEW.company, NEW.notes);",
     )?;
 
     create_trigger_if_not_exists(
@@ -382,7 +393,7 @@ pub fn create_fts_triggers(conn: &Connection) -> Result<(), DBError> {
         "AFTER",
         "UPDATE",
         "contacts",
-        "UPDATE contacts_fts SET email = NEW.email, name = NEW.name WHERE rowid = NEW.id;",
+        "UPDATE contacts_fts SET email = NEW.email, name = NEW.name, company = NEW.company, notes = NEW.notes WHERE rowid = NEW.id;",
     )?;
 
     create_trigger_if_not_exists(
