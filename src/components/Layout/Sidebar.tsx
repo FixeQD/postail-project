@@ -15,6 +15,7 @@ import {
 	Plus,
 	ChevronRight,
 	BookmarkCheck,
+	Users,
 } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -502,6 +503,25 @@ export const Sidebar = ({
 									</div>
 								</>
 							)}
+
+							{/* Contacts */}
+							<div className='mt-3 mb-0.5'>
+								<button
+									type='button'
+									onClick={() => window.dispatchEvent(new CustomEvent('app:open-contacts'))}
+									title={isCollapsed ? t('contacts:sidebar.contacts') : undefined}
+									className='group relative flex w-full items-center rounded-lg transition-all duration-150 hover:bg-[var(--surface-hover)]'
+									style={{ padding: isCollapsed ? '8px 0' : '5px 8px 5px 10px', justifyContent: isCollapsed ? 'center' : undefined }}>
+									<div className='flex items-center justify-center text-[var(--text-tertiary)] transition-colors duration-150 group-hover:text-[var(--text-secondary)]'>
+										<Users className='h-[15px] w-[15px] shrink-0' />
+									</div>
+									{!isCollapsed && (
+										<span className='relative z-10 ml-2.5 truncate text-[13px] font-medium text-[var(--text-secondary)] transition-colors duration-150 group-hover:text-[var(--text-primary)]'>
+											{t('contacts:sidebar.contacts')}
+										</span>
+									)}
+								</button>
+							</div>
 
 							{/* Bottom spacer */}
 							<div className='h-4' />
