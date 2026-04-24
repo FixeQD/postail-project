@@ -226,3 +226,27 @@ pub fn update_contact(
     )?;
     Ok(())
 }
+
+pub fn create_contact(
+    conn: &Connection,
+    name: Option<&str>,
+    email: &str,
+    phone: Option<&str>,
+    company: Option<&str>,
+    notes: Option<&str>,
+    avatar_url: Option<&str>,
+    birthday: Option<i64>,
+) -> Result<i64, DBError> {
+    let now = Utc::now().timestamp();
+    conn.execute(
+        "INSERT INTO contacts (email, name, phone, company, notes, avatar_url, birthday, last_contact_at, frequency)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)",
+        params![email, name, phone, company, notes, avatar_url, birthday, now],
+    )?;
+    Ok(conn.last_insert_rowid())
+}
+
+pub fn delete_contact(conn: &Connection, id: i64) -> Result<(), DBError> {
+    conn.execute("DELETE FROM contacts WHERE id = ?", params![id])?;
+    Ok(())
+}

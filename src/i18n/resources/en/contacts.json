@@ -21,6 +21,24 @@
 		"title": "Recent Messages",
 		"empty": "No messages exchanged"
 	},
+	"fields": {
+		"name": "Name",
+		"namePlaceholder": "John Doe",
+		"email": "Email",
+		"phone": "Phone",
+		"company": "Company",
+		"birthday": "Birthday"
+	},
+	"create": {
+		"title": "Add Contact"
+	},
+	"edit": {
+		"title": "Edit Contact"
+	},
+	"delete": {
+		"title": "Delete Contact",
+		"description": "Are you sure you want to delete this contact? This action cannot be undone."
+	},
 	"empty": {
 		"noContact": {
 			"title": "No contact selected",

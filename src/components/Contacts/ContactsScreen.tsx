@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Users } from 'lucide-react'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
@@ -6,6 +6,7 @@ import { useContactsTranslation } from '@/hooks/useTypedTranslation'
 import type { Contact } from '@/types/components/compose'
 import { ContactCard } from './ContactCard'
 import { ContactList } from './ContactList'
+import { EditContactDialog } from './EditContactDialog'
 
 interface ContactsScreenProps {
 	onBack: () => void
@@ -15,21 +16,41 @@ interface ContactsScreenProps {
 
 function NoContactSelected() {
 	const { t } = useContactsTranslation()
+	const animationsEnabled = useAnimationsEnabled()
+
 	return (
-		<div className='flex h-full flex-col items-center justify-center gap-3 px-8 text-center'>
-			<div
-				className='flex h-14 w-14 items-center justify-center rounded-2xl'
-				style={{ backgroundColor: 'rgba(var(--accent-rgb), 0.08)' }}>
-				<Users className='h-6 w-6' style={{ color: 'rgba(var(--accent-rgb), 0.6)' }} />
+		<div className='relative flex h-full flex-col items-center justify-center overflow-hidden px-8 text-center'>
+			{/* Decorative background element */}
+			<div className='absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none'>
+				<Users className='h-[400px] w-[400px]' />
 			</div>
-			<div className='flex flex-col gap-1'>
-				<p className='text-[13px] font-medium text-[var(--text-primary)]'>
-					{t('contacts:empty.noContact.title')}
-				</p>
-				<p className='text-[12px] text-[var(--text-tertiary)]'>
-					{t('contacts:empty.noContact.description')}
-				</p>
-			</div>
+
+			<motion.div
+				{...(animationsEnabled
+					? {
+							initial: { opacity: 0, scale: 0.95 },
+							animate: { opacity: 1, scale: 1 },
+							transition: { duration: 0.4, ease: 'easeOut' },
+						}
+					: {})}
+				className='relative z-10 flex flex-col items-center gap-4'>
+				<div
+					className='flex h-20 w-20 items-center justify-center rounded-[28%] shadow-2xl'
+					style={{
+						background: `linear-gradient(135deg, rgba(var(--accent-rgb), 0.15) 0%, rgba(var(--accent-rgb), 0.05) 100%)`,
+						boxShadow: `0 20px 40px -10px rgba(var(--accent-rgb), 0.1)`,
+					}}>
+					<Users className='h-8 w-8' style={{ color: 'rgb(var(--accent-rgb))' }} />
+				</div>
+				<div className='flex flex-col gap-1.5'>
+					<h3 className='text-[16px] font-bold tracking-tight text-[var(--text-primary)]'>
+						{t('contacts:empty.noContact.title')}
+					</h3>
+					<p className='max-w-[240px] text-[13px] leading-relaxed text-[var(--text-tertiary)]'>
+						{t('contacts:empty.noContact.description')}
+					</p>
+				</div>
+			</motion.div>
 		</div>
 	)
 }
@@ -40,6 +61,19 @@ export const ContactsScreen = ({ onBack }: ContactsScreenProps) => {
 	const { t } = useContactsTranslation()
 	const animationsEnabled = useAnimationsEnabled()
 	const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
+	const [isCreateOpen, setIsCreateOpen] = useState(false)
+
+	useEffect(() => {
+		const handleDeleted = (e: CustomEvent<{ id: number }>) => {
+			if (selectedContact?.id === e.detail.id) {
+				setSelectedContact(null)
+			}
+		}
+		window.addEventListener('app:contact-deleted', handleDeleted as EventListener)
+		return () => {
+			window.removeEventListener('app:contact-deleted', handleDeleted as EventListener)
+		}
+	}, [selectedContact])
 
 	const handleSelectContact = useCallback((contact: Contact) => {
 		setSelectedContact(contact)
@@ -92,6 +126,7 @@ export const ContactsScreen = ({ onBack }: ContactsScreenProps) => {
 					<div className='flex flex-1 items-center gap-1.5'>
 						<button
 							type='button'
+							onClick={() => setIsCreateOpen(true)}
 							className='flex flex-1 items-center justify-center rounded-lg px-3 py-1.5 text-[12px] font-medium text-white transition-all hover:brightness-110 active:scale-[0.97]'
 							style={{
 								background: `linear-gradient(115deg, var(--accent-dark) 0%, var(--accent-color) 100%)`,
@@ -138,6 +173,12 @@ export const ContactsScreen = ({ onBack }: ContactsScreenProps) => {
 					)}
 				</motion.div>
 			</AnimatePresence>
+
+			<EditContactDialog
+				open={isCreateOpen}
+				onOpenChange={setIsCreateOpen}
+				contact={null}
+			/>
 		</div>
 	)
 }

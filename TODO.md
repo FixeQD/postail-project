@@ -139,7 +139,7 @@
     - [x] 17.1 - DB: Extend `contacts` table with phone, company, notes, avatar_url, birthday
     - [x] 17.2 - UI: Dedicated contacts screen from sidebar
     - [x] 17.3 - UI: Contact card with message history (messages from/to)
-    - [/] 17.4 - UI: Edit contact (name, email, phone, company, note)
+    - [x] 17.4 - UI: Edit contact (name, email, phone, company, note)
     - [ ] 17.5 - UI: Contact avatar — fetch from Gravatar based on email hash (optional)
     - [ ] 17.6 - UI: Import contacts from VCard (.vcf)
     - [ ] 17.7 - UI: Export contacts to VCard

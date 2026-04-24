@@ -1,8 +1,8 @@
 import { useState, useCallback, useMemo, memo } from 'react'
 import { motion } from 'framer-motion'
 import { format, formatDistanceToNow, parseISO } from 'date-fns'
-import { Pencil, Trash2, ArrowRight, ArrowLeft, Mail } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { Pencil, Trash2, ArrowRight, ArrowLeft, Phone, Building } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { useAccountStore } from '@/stores/accountStore'
 import { useMessageViewStore } from '@/stores/messageViewStore'
@@ -11,6 +11,8 @@ import type { Contact } from '@/types/components/compose'
 import type { MailHeader } from '@/types/mail'
 import { useContactsTranslation } from '@/hooks/useTypedTranslation'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
+import { EditContactDialog } from './EditContactDialog'
+import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 
 interface ContactCardProps {
 	contact: Contact
@@ -21,6 +23,10 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 	const animationsEnabled = useAnimationsEnabled()
 	const activeAccount = useAccountStore((s) => s.activeAccount)
 	const openMessage = useMessageViewStore((s) => s.openMessage)
+	const queryClient = useQueryClient()
+
+	const [isEditOpen, setIsEditOpen] = useState(false)
+	const [isDeleteOpen, setIsDeleteOpen] = useState(false)
 
 	// Notes state
 	const [notes, setNotes] = useState(contact.notes ?? '')
@@ -110,60 +116,96 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 		<div className='flex h-full flex-col overflow-hidden'>
 			{/* Header with avatar and basic info */}
 			<div
-				className='flex shrink-0 items-start gap-4 border-b p-6'
-				style={{ borderColor: 'var(--border-subtle)' }}>
+				className='relative overflow-hidden px-8 pt-10 pb-8'
+				style={{
+					background: `linear-gradient(to bottom, rgba(var(--accent-rgb), 0.03), transparent)`,
+				}}>
 				<div
-					className='flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-lg font-semibold'
+					className='absolute top-0 left-0 h-px w-full'
 					style={{
-						backgroundColor: 'rgba(var(--accent-rgb), 0.12)',
-						color: 'rgb(var(--accent-rgb))',
-					}}>
-					{initials}
-				</div>
+						background: `linear-gradient(90deg, transparent, var(--border-subtle), transparent)`,
+					}}
+				/>
 
-				<div className='min-w-0 flex-1'>
-					<h2 className='truncate text-[18px] font-semibold text-[var(--text-primary)]'>
-						{contact.name || contact.email}
-					</h2>
-					<p className='mt-0.5 truncate text-[13px] text-[var(--text-secondary)]'>
-						{contact.email}
-					</p>
-					{contact.company && (
-						<p className='mt-1 truncate text-[12px] text-[var(--text-tertiary)]'>
-							{contact.company}
-						</p>
-					)}
+				<div className='flex items-start gap-6'>
+					<motion.div
+						{...(animationsEnabled
+							? {
+									initial: { scale: 0.8, opacity: 0 },
+									animate: { scale: 1, opacity: 1 },
+									transition: { duration: 0.3, delay: 0.1 },
+								}
+							: {})}
+						className='relative'>
+						<div
+							className='flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl text-2xl font-bold shadow-xl'
+							style={{
+								background: `linear-gradient(135deg, rgba(var(--accent-rgb), 0.2) 0%, rgba(var(--accent-rgb), 0.08) 100%)`,
+								color: 'rgb(var(--accent-rgb))',
+								border: `1px solid rgba(var(--accent-rgb), 0.1)`,
+							}}>
+							{initials}
+						</div>
+						<div className='absolute -right-1 -bottom-1 h-5 w-5 rounded-full border-2 border-[var(--surface-panel)] bg-green-500 shadow-sm' />
+					</motion.div>
 
-					{/* Pills for phone and company */}
-					<div className='mt-2 flex flex-wrap gap-1.5'>
-						{contact.phone && (
-							<span
-								className='inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium'
-								style={{
-									backgroundColor: 'rgba(var(--accent-rgb), 0.08)',
-									color: 'rgb(var(--accent-rgb))',
-								}}>
-								<Mail className='h-3 w-3' />
-								{contact.phone}
-							</span>
-						)}
+					<div className='min-w-0 flex-1 pt-1'>
+						<h2 className='text-[24px] font-extrabold tracking-tight text-[var(--text-primary)]'>
+							{contact.name || contact.email}
+						</h2>
+						<div className='mt-1 flex items-center gap-3'>
+							<p className='text-[14px] font-medium text-[var(--text-secondary)]'>
+								{contact.email}
+							</p>
+							{contact.company && (
+								<>
+									<div className='h-1 w-1 rounded-full bg-[var(--text-tertiary)] opacity-30' />
+									<p className='text-[14px] font-medium text-[var(--text-tertiary)]'>
+										{contact.company}
+									</p>
+								</>
+							)}
+						</div>
+
+						{/* Pills for phone and company */}
+						<div className='mt-4 flex flex-wrap gap-2'>
+							{contact.phone && (
+								<button
+									className='inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-active)] px-2.5 py-1 text-[12px] font-semibold text-[var(--text-secondary)] transition-all hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
+									onClick={() => {
+										navigator.clipboard.writeText(contact.phone!)
+										toast.success('Copied to clipboard')
+									}}>
+									<Phone className='h-3.5 w-3.5 opacity-60' />
+									{contact.phone}
+								</button>
+							)}
+							{contact.company && (
+								<span className='inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-active)] px-2.5 py-1 text-[12px] font-semibold text-[var(--text-secondary)]'>
+									<Building className='h-3.5 w-3.5 opacity-60' />
+									{contact.company}
+								</span>
+							)}
+						</div>
 					</div>
-				</div>
 
-				{/* Edit and Delete buttons */}
-				<div className='flex items-center gap-1'>
-					<button
-						type='button'
-						className='rounded-lg p-2 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
-						title={t('common:actions.edit')}>
-						<Pencil className='h-4 w-4' />
-					</button>
-					<button
-						type='button'
-						className='rounded-lg p-2 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-red-500'
-						title={t('common:actions.delete')}>
-						<Trash2 className='h-4 w-4' />
-					</button>
+					{/* Edit and Delete buttons */}
+					<div className='flex items-center gap-1.5'>
+						<button
+							type='button'
+							onClick={() => setIsEditOpen(true)}
+							className='flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--surface-active)] text-[var(--text-tertiary)] transition-all hover:bg-[var(--surface-hover)] hover:text-[rgb(var(--accent-rgb))]'
+							title={t('common:actions.edit')}>
+							<Pencil className='h-4 w-4' />
+						</button>
+						<button
+							type='button'
+							onClick={() => setIsDeleteOpen(true)}
+							className='flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--surface-active)] text-[var(--text-tertiary)] transition-all hover:bg-red-500/10 hover:text-red-500'
+							title={t('common:actions.delete')}>
+							<Trash2 className='h-4 w-4' />
+						</button>
+					</div>
 				</div>
 			</div>
 
@@ -203,7 +245,7 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 						</div>
 					) : messages && messages.length > 0 ? (
 						<div className='flex flex-col gap-1'>
-							{messages.map((msg) => {
+							{messages.map((msg: MailHeader) => {
 								const sent = isSent(msg)
 								return (
 									<motion.div
@@ -250,6 +292,33 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 					)}
 				</div>
 			</div>
+
+			<EditContactDialog
+				open={isEditOpen}
+				onOpenChange={setIsEditOpen}
+				contact={contact}
+			/>
+
+			<ConfirmationDialog
+				open={isDeleteOpen}
+				onOpenChange={setIsDeleteOpen}
+				title={t('contacts:delete.title')}
+				description={t('contacts:delete.description')}
+				confirmLabel={t('common:actions.delete')}
+				cancelLabel={t('common:actions.cancel')}
+				confirmClassName='bg-red-500 text-white hover:bg-red-600'
+				onConfirm={async () => {
+					try {
+						await invoke('delete_contact', { id: contact.id })
+						toast.success(t('common:status.success'))
+						setIsDeleteOpen(false)
+						window.dispatchEvent(new CustomEvent('app:contact-deleted', { detail: { id: contact.id } }))
+						queryClient.invalidateQueries({ queryKey: ['contacts-list'] })
+					} catch {
+						toast.error(t('common:errors.saveFailed'))
+					}
+				}}
+			/>
 		</div>
 	)
 })

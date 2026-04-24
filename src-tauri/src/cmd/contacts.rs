@@ -59,3 +59,35 @@ pub async fn update_contact(
     )
     .map_err(|e| e.to_string())
 }
+
+#[command]
+pub async fn create_contact(
+    name: Option<String>,
+    email: String,
+    phone: Option<String>,
+    company: Option<String>,
+    notes: Option<String>,
+    avatar_url: Option<String>,
+    birthday: Option<i64>,
+) -> Result<i64, String> {
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+    crate::db::account::contacts::create_contact(
+        &conn,
+        name.as_deref(),
+        &email,
+        phone.as_deref(),
+        company.as_deref(),
+        notes.as_deref(),
+        avatar_url.as_deref(),
+        birthday,
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[command]
+pub async fn delete_contact(id: i64) -> Result<(), String> {
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+    crate::db::account::contacts::delete_contact(&conn, id).map_err(|e| e.to_string())
+}

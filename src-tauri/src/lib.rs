@@ -223,6 +223,8 @@ pub fn run() {
             cmd::contacts::search_contacts_full,
             cmd::contacts::get_contact_messages,
             cmd::contacts::update_contact,
+            cmd::contacts::create_contact,
+            cmd::contacts::delete_contact,
             cmd::attachments::add_attachment,
             cmd::attachments::add_attachment_bytes,
             cmd::attachments::add_inline_attachment,
