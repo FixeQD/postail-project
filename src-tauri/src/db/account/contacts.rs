@@ -250,3 +250,32 @@ pub fn delete_contact(conn: &Connection, id: i64) -> Result<(), DBError> {
     conn.execute("DELETE FROM contacts WHERE id = ?", params![id])?;
     Ok(())
 }
+
+pub fn upsert_contact_full(
+    conn: &Connection,
+    email: &str,
+    name: Option<&str>,
+    phone: Option<&str>,
+    company: Option<&str>,
+    notes: Option<&str>,
+    avatar_url: Option<&str>,
+    birthday: Option<i64>,
+) -> Result<bool, DBError> {
+    let exists = conn.query_row("SELECT 1 FROM contacts WHERE email = ?", params![email], |_| Ok(true)).unwrap_or(false);
+    let now = Utc::now().timestamp();
+    
+    conn.execute(
+        "INSERT INTO contacts (email, name, phone, company, notes, avatar_url, birthday, last_contact_at, frequency)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1)
+         ON CONFLICT(email) DO UPDATE SET
+            name = COALESCE(excluded.name, name),
+            phone = COALESCE(excluded.phone, phone),
+            company = COALESCE(excluded.company, company),
+            notes = COALESCE(excluded.notes, notes),
+            avatar_url = COALESCE(excluded.avatar_url, avatar_url),
+            birthday = COALESCE(excluded.birthday, birthday)",
+        params![email, name, phone, company, notes, avatar_url, birthday, now],
+    )?;
+    
+    Ok(!exists) // returns true if it was an insert, false if update
+}

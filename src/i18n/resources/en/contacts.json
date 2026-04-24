@@ -52,5 +52,9 @@
 			"title": "No contacts found",
 			"description": "Try a different search term"
 		}
+	},
+	"import": {
+		"success": "Imported {{imported}}, updated {{updated}} ({{errors}} errors)",
+		"failed": "Failed to import contacts"
 	}
 }

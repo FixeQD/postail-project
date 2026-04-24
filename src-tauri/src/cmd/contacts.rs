@@ -91,3 +91,127 @@ pub async fn delete_contact(id: i64) -> Result<(), String> {
     let conn = pool.get().map_err(|e| e.to_string())?;
     crate::db::account::contacts::delete_contact(&conn, id).map_err(|e| e.to_string())
 }
+
+#[derive(serde::Serialize)]
+pub struct ImportContactsResult {
+    pub imported: u32,
+    pub updated: u32,
+    pub errors: u32,
+}
+
+#[command]
+pub async fn import_contacts_vcf(path: String) -> Result<ImportContactsResult, String> {
+    use calcard::{Entry, Parser};
+    use calcard::vcard::{VCardProperty, VCardValue};
+    use chrono::{NaiveDate, TimeZone, Utc};
+    use std::fs;
+
+    let contents = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let mut parser = Parser::new(&contents);
+    let mut result = ImportContactsResult {
+        imported: 0,
+        updated: 0,
+        errors: 0,
+    };
+
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+
+    loop {
+        match parser.entry() {
+            Entry::VCard(vcard) => {
+                let mut name = None;
+                let mut email = None;
+                let mut phone = None;
+                let mut company = None;
+                let mut notes = None;
+                let mut birthday = None;
+
+                for entry in vcard.entries {
+                    match entry.name {
+                        VCardProperty::Fn => {
+                            if let Some(VCardValue::Text(s)) = entry.values.first() {
+                                name = Some(s.clone());
+                            }
+                        }
+                        VCardProperty::Email => {
+                            if email.is_none() {
+                                if let Some(VCardValue::Text(s)) = entry.values.first() {
+                                    email = Some(s.clone());
+                                }
+                            }
+                        }
+                        VCardProperty::Tel => {
+                            if phone.is_none() {
+                                if let Some(VCardValue::Text(s)) = entry.values.first() {
+                                    phone = Some(s.clone());
+                                }
+                            }
+                        }
+                        VCardProperty::Org => {
+                            if company.is_none() {
+                                if let Some(VCardValue::Text(s)) = entry.values.first() {
+                                    company = Some(s.split(';').next().unwrap_or(s).to_string());
+                                }
+                            }
+                        }
+                        VCardProperty::Note => {
+                            if notes.is_none() {
+                                if let Some(VCardValue::Text(s)) = entry.values.first() {
+                                    notes = Some(s.clone());
+                                }
+                            }
+                        }
+                        VCardProperty::Bday => {
+                            if birthday.is_none() {
+                                if let Some(VCardValue::PartialDateTime(pdt)) = entry.values.first() {
+                                    if let (Some(y), Some(m), Some(d)) = (pdt.year, pdt.month, pdt.day) {
+                                        if let Some(date) = NaiveDate::from_ymd_opt(y as i32, m as u32, d as u32) {
+                                            if let Some(dt) = date.and_hms_opt(0, 0, 0) {
+                                                birthday = Some(Utc.from_utc_datetime(&dt).timestamp());
+                                            }
+                                        }
+                                    }
+                                } else if let Some(VCardValue::Text(s)) = entry.values.first() {
+                                    if let Ok(date) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+                                        if let Some(dt) = date.and_hms_opt(0, 0, 0) {
+                                            birthday = Some(Utc.from_utc_datetime(&dt).timestamp());
+                                        }
+                                    } else if let Ok(date) = NaiveDate::parse_from_str(s, "%Y%m%d") {
+                                        if let Some(dt) = date.and_hms_opt(0, 0, 0) {
+                                            birthday = Some(Utc.from_utc_datetime(&dt).timestamp());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+
+                if let Some(email) = email {
+                    match crate::db::account::contacts::upsert_contact_full(
+                        &conn,
+                        &email,
+                        name.as_deref(),
+                        phone.as_deref(),
+                        company.as_deref(),
+                        notes.as_deref(),
+                        None, // avatar_url
+                        birthday,
+                    ) {
+                        Ok(true) => result.imported += 1,
+                        Ok(false) => result.updated += 1,
+                        Err(_) => result.errors += 1,
+                    }
+                } else {
+                    result.errors += 1;
+                }
+            }
+            Entry::Eof => break,
+            _ => { }
+        }
+    }
+
+    Ok(result)
+}

@@ -1,12 +1,16 @@
 import { useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Users } from 'lucide-react'
+import { ArrowLeft, Users, Loader2 } from 'lucide-react'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useContactsTranslation } from '@/hooks/useTypedTranslation'
 import type { Contact } from '@/types/components/compose'
 import { ContactCard } from './ContactCard'
 import { ContactList } from './ContactList'
 import { EditContactDialog } from './EditContactDialog'
+import { invoke } from '@tauri-apps/api/core'
+import { open } from '@tauri-apps/plugin-dialog'
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from '@/components/ui/custom/Toaster'
 
 interface ContactsScreenProps {
 	onBack: () => void
@@ -60,8 +64,11 @@ function NoContactSelected() {
 export const ContactsScreen = ({ onBack }: ContactsScreenProps) => {
 	const { t } = useContactsTranslation()
 	const animationsEnabled = useAnimationsEnabled()
+	const queryClient = useQueryClient()
+	
 	const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
 	const [isCreateOpen, setIsCreateOpen] = useState(false)
+	const [isImporting, setIsImporting] = useState(false)
 
 	useEffect(() => {
 		const handleDeleted = (e: CustomEvent<{ id: number }>) => {
@@ -78,6 +85,40 @@ export const ContactsScreen = ({ onBack }: ContactsScreenProps) => {
 	const handleSelectContact = useCallback((contact: Contact) => {
 		setSelectedContact(contact)
 	}, [])
+
+	const handleImport = async () => {
+		try {
+			const selected = await open({
+				multiple: false,
+				filters: [{ name: 'vCard', extensions: ['vcf'] }]
+			})
+
+			if (!selected) return
+
+			setIsImporting(true)
+			const result = await invoke<{ imported: number; updated: number; errors: number }>('import_contacts_vcf', {
+				path: selected
+			})
+
+			await queryClient.invalidateQueries({ queryKey: ['contacts-list'] })
+			
+			// Show summary toast
+			if (result.imported > 0 || result.updated > 0) {
+				toast.success(t('contacts:import.success', { 
+					imported: result.imported, 
+					updated: result.updated, 
+					errors: result.errors 
+				}))
+			} else if (result.errors > 0) {
+				toast.error(t('contacts:import.failed'))
+			}
+		} catch (error) {
+			console.error('Failed to import contacts:', error)
+			toast.error(t('contacts:import.failed'))
+		} finally {
+			setIsImporting(false)
+		}
+	}
 
 	return (
 		<div className='noise-overlay relative flex h-full overflow-hidden text-[var(--text-primary)]'>
@@ -136,7 +177,10 @@ export const ContactsScreen = ({ onBack }: ContactsScreenProps) => {
 						</button>
 						<button
 							type='button'
-							className='rounded-lg bg-[var(--surface-active)] px-2.5 py-1.5 text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
+							onClick={handleImport}
+							disabled={isImporting}
+							className='flex items-center justify-center gap-1.5 rounded-lg bg-[var(--surface-active)] px-2.5 py-1.5 text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] disabled:opacity-50'>
+							{isImporting ? <Loader2 className='h-3 w-3 animate-spin' /> : null}
 							{t('contacts:toolbar.import')}
 						</button>
 						<button

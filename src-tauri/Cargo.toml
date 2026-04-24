@@ -62,6 +62,7 @@ html_transpiler = { path = "../crates/html_transpiler" }
 async-imap = "0.11"
 stop-token = "0.7"
 mailparse = "0.16"
+calcard = "0.1"
 ammonia = "4"
 utf7-imap = "0.3.2"
 regex = "1"

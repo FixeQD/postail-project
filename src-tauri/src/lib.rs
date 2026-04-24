@@ -225,6 +225,7 @@ pub fn run() {
             cmd::contacts::update_contact,
             cmd::contacts::create_contact,
             cmd::contacts::delete_contact,
+            cmd::contacts::import_contacts_vcf,
             cmd::attachments::add_attachment,
             cmd::attachments::add_attachment_bytes,
             cmd::attachments::add_inline_attachment,
