@@ -12,6 +12,15 @@
 		"import": "Import",
 		"export": "Export"
 	},
+	"notes": {
+		"label": "Notes",
+		"placeholder": "Add notes...",
+		"saving": "Saving..."
+	},
+	"recentMessages": {
+		"title": "Recent Messages",
+		"empty": "No messages exchanged"
+	},
 	"empty": {
 		"noContact": {
 			"title": "No contact selected",
@@ -20,6 +29,10 @@
 		"noContacts": {
 			"title": "No contacts yet",
 			"description": "Contacts are added automatically when you send emails"
+		},
+		"noResults": {
+			"title": "No contacts found",
+			"description": "Try a different search term"
 		}
 	}
 }

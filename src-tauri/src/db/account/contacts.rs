@@ -1,7 +1,10 @@
+use crate::db::MailHeader;
+use crate::db::mail::messages::safe_timestamp_from_utc;
 use crate::error::DBError;
 use chrono::Utc;
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
+use serde_json;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Contact {
@@ -118,4 +121,108 @@ pub fn search_contacts(
     }
 
     Ok(contacts)
+}
+
+pub fn list_contacts(conn: &Connection) -> Result<Vec<Contact>, DBError> {
+    let mut stmt = conn.prepare(
+        "SELECT id, email, name, frequency, phone, company, notes, avatar_url, birthday FROM contacts ORDER BY (name IS NULL), name ASC, email ASC"
+    )?;
+    let contact_iter = stmt.query_map([], |row| {
+        Ok(Contact {
+            id: row.get(0)?,
+            email: row.get(1)?,
+            name: row.get(2)?,
+            frequency: row.get(3)?,
+            phone: row.get(4)?,
+            company: row.get(5)?,
+            notes: row.get(6)?,
+            avatar_url: row.get(7)?,
+            birthday: row.get(8)?,
+        })
+    })?;
+    let mut contacts = Vec::new();
+    for contact in contact_iter {
+        contacts.push(contact?);
+    }
+    Ok(contacts)
+}
+
+pub fn get_contact_messages(
+    conn: &Connection,
+    account_id: &str,
+    email: &str,
+    limit: u32,
+) -> Result<Vec<MailHeader>, DBError> {
+    let pattern = format!("%{}%", email);
+    let mut stmt = conn.prepare(
+        "SELECT uid, message_id, internal_date, subject, from_addr, to_json, cc_json, flags_json, snippet, has_attachments, starred, mailbox,
+         (SELECT json_group_array(tag) FROM message_tags mt WHERE mt.message_id = m.id) as tags_json
+         FROM messages m
+         WHERE account_id = ? AND (from_addr LIKE ? OR to_json LIKE ?)
+         ORDER BY internal_date DESC
+         LIMIT ?"
+    )?;
+    let mut rows = stmt.query(params![account_id, pattern, pattern, limit])?;
+    let mut headers = Vec::new();
+    while let Some(row) = rows.next()? {
+        let to_json: Option<String> = row.get(5)?;
+        let to: Vec<String> = to_json
+            .map(|s: String| serde_json::from_str(&s).unwrap_or_default())
+            .unwrap_or_default();
+        let cc_json: Option<String> = row.get(6)?;
+        let cc: Vec<String> = cc_json
+            .map(|s: String| serde_json::from_str(&s).unwrap_or_default())
+            .unwrap_or_default();
+        let flags_json: Option<String> = row.get(7)?;
+        let flags: Vec<String> = flags_json
+            .map(|s: String| serde_json::from_str(&s).unwrap_or_default())
+            .unwrap_or_default();
+        let tags_json: Option<String> = row.get(12)?;
+        let tags: Vec<String> = tags_json
+            .map(|s: String| serde_json::from_str(&s).unwrap_or_default())
+            .unwrap_or_default();
+        headers.push(MailHeader {
+            uid: row.get(0)?,
+            mailbox: row.get(11)?,
+            message_id: row.get(1)?,
+            internal_date: safe_timestamp_from_utc(row.get::<_, i64>(2)?)
+                .ok_or_else(|| rusqlite::Error::InvalidColumnIndex(2))?,
+            subject: row.get(3)?,
+            from: vec![row.get::<_, Option<String>>(4)?.unwrap_or_default()],
+            to,
+            cc,
+            flags,
+            snippet: row.get(8)?,
+            has_attachments: row.get::<_, i64>(9)? != 0,
+            starred: row.get::<_, i64>(10)? != 0,
+            tags,
+        });
+    }
+    Ok(headers)
+}
+
+pub fn update_contact(
+    conn: &Connection,
+    id: i64,
+    name: Option<&str>,
+    email: &str,
+    phone: Option<&str>,
+    company: Option<&str>,
+    notes: Option<&str>,
+    avatar_url: Option<&str>,
+    birthday: Option<i64>,
+) -> Result<(), DBError> {
+    conn.execute(
+        "UPDATE contacts SET
+            name = COALESCE(?, name),
+            email = ?,
+            phone = COALESCE(?, phone),
+            company = COALESCE(?, company),
+            notes = COALESCE(?, notes),
+            avatar_url = COALESCE(?, avatar_url),
+            birthday = COALESCE(?, birthday)
+         WHERE id = ?",
+        params![name, email, phone, company, notes, avatar_url, birthday, id],
+    )?;
+    Ok(())
 }

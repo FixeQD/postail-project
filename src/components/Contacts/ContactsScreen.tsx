@@ -1,9 +1,11 @@
 import { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Users } from 'lucide-react'
-import { useThemeStore } from '@/stores/themeStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useContactsTranslation } from '@/hooks/useTypedTranslation'
+import type { Contact } from '@/types/components/compose'
+import { ContactCard } from './ContactCard'
+import { ContactList } from './ContactList'
 
 interface ContactsScreenProps {
 	onBack: () => void
@@ -32,37 +34,15 @@ function NoContactSelected() {
 	)
 }
 
-function NoContacts() {
-	const { t } = useContactsTranslation()
-	return (
-		<div className='flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center'>
-			<div
-				className='flex h-12 w-12 items-center justify-center rounded-2xl'
-				style={{ backgroundColor: 'rgba(var(--accent-rgb), 0.06)' }}>
-				<Users className='h-5 w-5' style={{ color: 'rgba(var(--accent-rgb), 0.5)' }} />
-			</div>
-			<div className='flex flex-col gap-1'>
-				<p className='text-[13px] font-medium text-[var(--text-primary)]'>
-					{t('contacts:empty.noContacts.title')}
-				</p>
-				<p className='text-[12px] leading-relaxed text-[var(--text-tertiary)]'>
-					{t('contacts:empty.noContacts.description')}
-				</p>
-			</div>
-		</div>
-	)
-}
-
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export const ContactsScreen = ({ onBack }: ContactsScreenProps) => {
 	const { t } = useContactsTranslation()
-	const accentColor = useThemeStore((s) => s.accentColor)
 	const animationsEnabled = useAnimationsEnabled()
-	const [selectedContactId, setSelectedContactId] = useState<number | null>(null)
+	const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
 
-	const handleSelectContact = useCallback((id: number) => {
-		setSelectedContactId(id)
+	const handleSelectContact = useCallback((contact: Contact) => {
+		setSelectedContact(contact)
 	}, [])
 
 	return (
@@ -106,13 +86,10 @@ export const ContactsScreen = ({ onBack }: ContactsScreenProps) => {
 				</div>
 
 				{/* Search + toolbar */}
-				<div className='flex flex-col gap-2 px-3 py-2.5'>
-					<input
-						type='text'
-						placeholder={t('contacts:search.placeholder')}
-						className='w-full rounded-lg bg-[var(--surface-active)] px-3 py-1.5 text-[13px] text-[var(--text-primary)] ring-1 ring-transparent transition-all outline-none placeholder:text-[var(--text-tertiary)] focus:ring-[rgba(var(--accent-rgb),0.4)]'
-					/>
-					<div className='flex items-center gap-1.5'>
+				<div
+					className='flex items-center gap-1.5 border-b px-3 py-2.5'
+					style={{ borderColor: 'var(--border-subtle)' }}>
+					<div className='flex flex-1 items-center gap-1.5'>
 						<button
 							type='button'
 							className='flex flex-1 items-center justify-center rounded-lg px-3 py-1.5 text-[12px] font-medium text-white transition-all hover:brightness-110 active:scale-[0.97]'
@@ -136,15 +113,15 @@ export const ContactsScreen = ({ onBack }: ContactsScreenProps) => {
 				</div>
 
 				{/* Contact list */}
-				<div className='flex-1 overflow-y-auto px-2 pb-2'>
-					<NoContacts />
+				<div className='flex-1 overflow-hidden px-2 pb-2'>
+					<ContactList selectedContact={selectedContact} onSelect={handleSelectContact} />
 				</div>
 			</motion.div>
 
 			{/* ── Right panel ── */}
 			<AnimatePresence mode='wait'>
 				<motion.div
-					key={selectedContactId ?? 'empty'}
+					key={selectedContact?.id ?? 'empty'}
 					{...(animationsEnabled
 						? {
 								initial: { opacity: 0 },
@@ -154,13 +131,10 @@ export const ContactsScreen = ({ onBack }: ContactsScreenProps) => {
 							}
 						: {})}
 					className='flex flex-1 flex-col overflow-hidden'>
-					{selectedContactId === null ? (
+					{selectedContact === null ? (
 						<NoContactSelected />
 					) : (
-						// ContactCard from 17.3 goes here
-						<div className='flex h-full items-center justify-center text-sm text-[var(--text-tertiary)]'>
-							Contact #{selectedContactId}
-						</div>
+						<ContactCard contact={selectedContact} />
 					)}
 				</motion.div>
 			</AnimatePresence>

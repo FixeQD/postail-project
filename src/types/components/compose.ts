@@ -112,6 +112,12 @@ export interface Contact {
 	id: number
 	email: string
 	name: string | null
+	frequency?: number
+	phone?: string | null
+	company?: string | null
+	notes?: string | null
+	avatar_url?: string | null
+	birthday?: number | null
 }
 
 export interface AddressInputProps {

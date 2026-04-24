@@ -1,5 +1,5 @@
-import { useRef, useState, useEffect, useMemo, memo, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect, useMemo, memo, useCallback } from 'react'
+import { motion } from 'framer-motion'
 import {
 	Inbox,
 	Send,
@@ -62,7 +62,7 @@ interface MailboxItemProps {
 	index?: number
 }
 
-function getIcon(role: string, isActive: boolean) {
+function getIcon(role: string) {
 	const cls = 'h-[15px] w-[15px] shrink-0'
 	switch (role) {
 		case 'inbox':
@@ -162,7 +162,7 @@ const MailboxItem = memo(
 								? ''
 								: 'text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]'
 						}`}>
-						{getIcon(mailbox.role, isActive)}
+						{getIcon(mailbox.role)}
 					</div>
 				</div>
 
@@ -508,10 +508,15 @@ export const Sidebar = ({
 							<div className='mt-3 mb-0.5'>
 								<button
 									type='button'
-									onClick={() => window.dispatchEvent(new CustomEvent('app:open-contacts'))}
+									onClick={() =>
+										window.dispatchEvent(new CustomEvent('app:open-contacts'))
+									}
 									title={isCollapsed ? t('contacts:sidebar.contacts') : undefined}
 									className='group relative flex w-full items-center rounded-lg transition-all duration-150 hover:bg-[var(--surface-hover)]'
-									style={{ padding: isCollapsed ? '8px 0' : '5px 8px 5px 10px', justifyContent: isCollapsed ? 'center' : undefined }}>
+									style={{
+										padding: isCollapsed ? '8px 0' : '5px 8px 5px 10px',
+										justifyContent: isCollapsed ? 'center' : undefined,
+									}}>
 									<div className='flex items-center justify-center text-[var(--text-tertiary)] transition-colors duration-150 group-hover:text-[var(--text-secondary)]'>
 										<Users className='h-[15px] w-[15px] shrink-0' />
 									</div>
