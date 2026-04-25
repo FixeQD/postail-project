@@ -152,6 +152,48 @@ impl SmtpManager {
 
         self.send_email(account_id, &eml_content).await?;
 
+        if let Ok(Some(val)) = crate::db::account::settings::get_setting("auto-create-contacts").await {
+            if val == "false" {
+                return Ok(());
+            }
+        }
+
+        if let Ok(mail) = mailparse::parse_mail(&eml_content) {
+            if let Ok(pool) = get_db_pool().await {
+                if let Ok(conn) = pool.get() {
+                    use mailparse::MailHeaderMap;
+                    let headers = mail.get_headers();
+                    let to_addrs = headers.get_all_values("To");
+                    let cc_addrs = headers.get_all_values("Cc");
+                    
+                    for value in to_addrs.into_iter().chain(cc_addrs.into_iter()) {
+                        if let Ok(parsed_addrs) = mailparse::addrparse(&value) {
+                            for addr in parsed_addrs.iter() {
+                                match addr {
+                                    mailparse::MailAddr::Single(single) => {
+                                        let _ = crate::db::account::contacts::upsert_contact(
+                                            &conn, 
+                                            &single.addr, 
+                                            single.display_name.as_deref()
+                                        );
+                                    }
+                                    mailparse::MailAddr::Group(group) => {
+                                        for single in &group.addrs {
+                                            let _ = crate::db::account::contacts::upsert_contact(
+                                                &conn, 
+                                                &single.addr, 
+                                                single.display_name.as_deref()
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(())
     }
 

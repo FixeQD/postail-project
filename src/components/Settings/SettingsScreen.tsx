@@ -16,6 +16,7 @@ import {
 	Settings2,
 	Signature,
 	FileText,
+	Contact,
 } from 'lucide-react'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
@@ -32,6 +33,7 @@ import { TagsSettings } from './Sections/TagsSettings'
 import { FiltersSettings } from './Sections/FiltersSettings'
 import { SignaturesSettings } from './Sections/Signatures/SignaturesSettings'
 import { TemplatesSettings } from './Sections/TemplatesSettings'
+import { ContactsSettings } from './Sections/ContactsSettings'
 import { invoke } from '@tauri-apps/api/core'
 import { useAccountStore } from '@/stores/accountStore'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
@@ -139,6 +141,7 @@ export function SettingsScreen({
 			{ id: 'composing', label: t('settings:sections.composing'), icon: PenLine },
 			{ id: 'signatures', label: t('settings:sections.signatures'), icon: Signature },
 			{ id: 'templates', label: t('settings:sections.templates'), icon: FileText },
+			{ id: 'contacts', label: t('settings:sections.contacts'), icon: Contact },
 			{ id: 'shortcuts', label: t('settings:sections.shortcuts'), icon: Keyboard },
 			{ id: 'tags', label: t('settings:sections.tags'), icon: Tag },
 			{ id: 'filters', label: t('settings:sections.filters'), icon: Settings2 },
@@ -174,6 +177,8 @@ export function SettingsScreen({
 				return <SignaturesSettings />
 			case 'templates':
 				return <TemplatesSettings />
+			case 'contacts':
+				return <ContactsSettings />
 			case 'shortcuts':
 				return <KeyboardShortcutsSettings />
 			case 'tags':
