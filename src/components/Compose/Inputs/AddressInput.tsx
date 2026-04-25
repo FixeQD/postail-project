@@ -31,18 +31,13 @@ export function AddressInput({
 
 		const fetchSuggestions = async () => {
 			try {
-				const [contactResults, groupResults] = await Promise.all([
-					invoke<Contact[]>('search_contacts', {
-						query: inputValue,
-						limit: 5,
-					}),
-					invoke<any[]>('search_contact_groups', {
-						query: inputValue
-					})
-				])
+				const { contacts, groups } = await invoke<{ contacts: Contact[], groups: any[] }>('search_contacts_and_groups', {
+					query: inputValue,
+					limit: 10,
+				})
 
 				// Map groups to a common suggestion format
-				const groupSuggestions = groupResults.map(g => ({
+				const groupSuggestions = groups.map(g => ({
 					id: `group-${g.id}`,
 					email: `group:${g.id}`, // Internal marker
 					name: g.name,
@@ -52,7 +47,7 @@ export function AddressInput({
 				}))
 
 				// Filter out already added recipients (contacts only)
-				const filteredContacts = contactResults.filter((c) => !recipients.some((r) => r.email === c.email))
+				const filteredContacts = contacts.filter((c) => !recipients.some((r) => r.email === c.email))
 				
 				setSuggestions([...groupSuggestions, ...filteredContacts] as any[])
 				setSelectedIndex(0)
