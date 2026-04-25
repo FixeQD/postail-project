@@ -12,6 +12,13 @@ import {
 	X,
 	Save,
 	ArrowRight,
+	Globe,
+	Home,
+	Briefcase,
+	Calendar,
+	Hash,
+	ChevronDown,
+	ChevronUp,
 } from 'lucide-react'
 import {
 	Dialog,
@@ -41,25 +48,68 @@ export function EditContactDialog({
 
 	const [name, setName] = useState('')
 	const [email, setEmail] = useState('')
+	const [firstName, setFirstName] = useState('')
+	const [middleName, setMiddleName] = useState('')
+	const [lastName, setLastName] = useState('')
+	const [suffix, setSuffix] = useState('')
+	const [nickname, setNickname] = useState('')
 	const [phone, setPhone] = useState('')
+	const [phoneWork, setPhoneWork] = useState('')
+	const [phoneHome, setPhoneHome] = useState('')
+	const [phoneFax, setPhoneFax] = useState('')
+	const [workEmail, setWorkEmail] = useState('')
 	const [company, setCompany] = useState('')
+	const [jobTitle, setJobTitle] = useState('')
+	const [department, setDepartment] = useState('')
+	const [role, setRole] = useState('')
+	const [website, setWebsite] = useState('')
+	const [addressHome, setAddressHome] = useState('')
+	const [addressWork, setAddressWork] = useState('')
 	const [notes, setNotes] = useState('')
 	const [birthday, setBirthday] = useState('')
+	const [anniversary, setAnniversary] = useState('')
+	const [gender, setGender] = useState('')
 	const [isSaving, setIsSaving] = useState(false)
+	const [showAdvanced, setShowAdvanced] = useState(false)
 
 	useEffect(() => {
 		if (open) {
 			setName(contact?.name ?? '')
 			setEmail(contact?.email ?? '')
+			setFirstName(contact?.first_name ?? '')
+			setMiddleName(contact?.middle_name ?? '')
+			setLastName(contact?.last_name ?? '')
+			setSuffix(contact?.suffix ?? '')
+			setNickname(contact?.nickname ?? '')
 			setPhone(contact?.phone ?? '')
+			setPhoneWork(contact?.phone_work ?? '')
+			setPhoneHome(contact?.phone_home ?? '')
+			setPhoneFax(contact?.phone_fax ?? '')
+			setWorkEmail(contact?.work_email ?? '')
 			setCompany(contact?.company ?? '')
+			setJobTitle(contact?.job_title ?? '')
+			setDepartment(contact?.department ?? '')
+			setRole(contact?.role ?? '')
+			setWebsite(contact?.website ?? '')
+			setAddressHome(contact?.address_home ?? '')
+			setAddressWork(contact?.address_work ?? '')
 			setNotes(contact?.notes ?? '')
+			
 			if (contact?.birthday) {
 				const date = new Date(contact.birthday * 1000)
 				setBirthday(date.toISOString().split('T')[0])
 			} else {
 				setBirthday('')
 			}
+
+			if (contact?.anniversary) {
+				const date = new Date(contact.anniversary * 1000)
+				setAnniversary(date.toISOString().split('T')[0])
+			} else {
+				setAnniversary('')
+			}
+
+			setGender(contact?.gender ?? '')
 		}
 	}, [open, contact])
 
@@ -80,29 +130,47 @@ export function EditContactDialog({
 				}
 			}
 
+			let anniversaryTs: number | null = null
+			if (anniversary) {
+				const date = new Date(anniversary)
+				if (!isNaN(date.getTime())) {
+					anniversaryTs = Math.floor(date.getTime() / 1000)
+				}
+			}
+
 			let newContactId: number | undefined = contact?.id
 
+			const payload = {
+				email,
+				name: name || null,
+				first_name: firstName || null,
+				middle_name: middleName || null,
+				last_name: lastName || null,
+				suffix: suffix || null,
+				nickname: nickname || null,
+				phone: phone || null,
+				phone_work: phoneWork || null,
+				phone_home: phoneHome || null,
+				phone_fax: phoneFax || null,
+				work_email: workEmail || null,
+				company: company || null,
+				job_title: jobTitle || null,
+				department: department || null,
+				role: role || null,
+				website: website || null,
+				address_home: addressHome || null,
+				address_work: addressWork || null,
+				notes: notes || null,
+				avatar_url: contact?.avatar_url || null,
+				birthday: birthdayTs,
+				anniversary: anniversaryTs,
+				gender: gender || null,
+			}
+
 			if (contact) {
-				await invoke('update_contact', {
-					id: contact.id,
-					name: name || null,
-					email: email,
-					phone: phone || null,
-					company: company || null,
-					notes: notes || null,
-					avatarUrl: contact.avatar_url || null,
-					birthday: birthdayTs,
-				})
+				await invoke('update_contact', { id: contact.id, ...payload })
 			} else {
-				newContactId = await invoke<number>('create_contact', {
-					name: name || null,
-					email: email,
-					phone: phone || null,
-					company: company || null,
-					notes: notes || null,
-					avatarUrl: null,
-					birthday: birthdayTs,
-				})
+				newContactId = await invoke<number>('create_contact', payload)
 			}
 
 			queryClient.invalidateQueries({ queryKey: ['contacts-list'] })
@@ -164,7 +232,7 @@ export function EditContactDialog({
 							</div>
 
 							<form onSubmit={handleSave} className='px-6 pb-6'>
-								<div className='space-y-4'>
+								<div className='max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar space-y-4'>
 									{/* Name Field */}
 									<div className='group relative'>
 										<div className='pointer-events-none absolute top-1/2 left-3 -translate-y-1/2'>
@@ -209,36 +277,222 @@ export function EditContactDialog({
 											/>
 										</div>
 
-										{/* Birthday Field */}
+										{/* Company Field */}
 										<div className='group relative'>
 											<div className='pointer-events-none absolute top-1/2 left-3 -translate-y-1/2'>
-												<Cake className='h-4 w-4 text-[var(--text-tertiary)] transition-colors group-focus-within:text-[rgb(var(--accent-rgb))]' />
+												<Building className='h-4 w-4 text-[var(--text-tertiary)] transition-colors group-focus-within:text-[rgb(var(--accent-rgb))]' />
 											</div>
 											<input
-												type='date'
-												value={birthday}
-												onChange={(e) => setBirthday(e.target.value)}
-												className='w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] py-2.5 pr-4 pl-10 text-[13px] text-[var(--text-primary)] transition-all outline-none [color-scheme:dark] focus:border-[rgba(var(--accent-rgb),0.5)] focus:ring-4 focus:ring-[rgba(var(--accent-rgb),0.1)]'
+												type='text'
+												value={company}
+												onChange={(e) => setCompany(e.target.value)}
+												placeholder={t('contacts:fields.company')}
+												className='w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] py-2.5 pr-4 pl-10 text-[13px] text-[var(--text-primary)] transition-all outline-none placeholder:text-[var(--text-tertiary)] focus:border-[rgba(var(--accent-rgb),0.5)] focus:ring-4 focus:ring-[rgba(var(--accent-rgb),0.1)]'
 											/>
 										</div>
 									</div>
 
-									{/* Company Field */}
-									<div className='group relative'>
-										<div className='pointer-events-none absolute top-1/2 left-3 -translate-y-1/2'>
-											<Building className='h-4 w-4 text-[var(--text-tertiary)] transition-colors group-focus-within:text-[rgb(var(--accent-rgb))]' />
-										</div>
-										<input
-											type='text'
-											value={company}
-											onChange={(e) => setCompany(e.target.value)}
-											placeholder={t('contacts:fields.company')}
-											className='w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] py-2.5 pr-4 pl-10 text-[13px] text-[var(--text-primary)] transition-all outline-none placeholder:text-[var(--text-tertiary)] focus:border-[rgba(var(--accent-rgb),0.5)] focus:ring-4 focus:ring-[rgba(var(--accent-rgb),0.1)]'
-										/>
-									</div>
+									{/* Advanced Toggle */}
+									<button
+										type='button'
+										onClick={() => setShowAdvanced(!showAdvanced)}
+										className='flex w-full items-center justify-between rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] px-4 py-2 transition-colors hover:bg-[var(--surface-hover)]'>
+										<span className='text-[12px] font-semibold text-[var(--text-secondary)]'>Advanced Fields</span>
+										{showAdvanced ? <ChevronUp className='h-4 w-4' /> : <ChevronDown className='h-4 w-4' />}
+									</button>
 
-									{/* Notes Field */}
-									<div className='group relative'>
+									<AnimatePresence>
+										{showAdvanced && (
+											<motion.div
+												initial={{ height: 0, opacity: 0 }}
+												animate={{ height: 'auto', opacity: 1 }}
+												exit={{ height: 0, opacity: 0 }}
+												transition={{ duration: 0.3 }}
+												className='space-y-4 overflow-hidden pt-2'>
+												
+												{/* Name Breakdown */}
+												<div className='grid grid-cols-2 gap-3'>
+													<input
+														type='text'
+														value={firstName}
+														onChange={(e) => setFirstName(e.target.value)}
+														placeholder='First Name'
+														className='rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] px-3 py-2 text-[12px] text-[var(--text-primary)] outline-none transition-all focus:border-[rgba(var(--accent-rgb),0.5)]'
+													/>
+													<input
+														type='text'
+														value={lastName}
+														onChange={(e) => setLastName(e.target.value)}
+														placeholder='Last Name'
+														className='rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] px-3 py-2 text-[12px] text-[var(--text-primary)] outline-none transition-all focus:border-[rgba(var(--accent-rgb),0.5)]'
+													/>
+												</div>
+												<div className='grid grid-cols-3 gap-3'>
+													<input
+														type='text'
+														value={middleName}
+														onChange={(e) => setMiddleName(e.target.value)}
+														placeholder='Middle'
+														className='rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] px-3 py-2 text-[12px] text-[var(--text-primary)] outline-none transition-all focus:border-[rgba(var(--accent-rgb),0.5)]'
+													/>
+													<input
+														type='text'
+														value={suffix}
+														onChange={(e) => setSuffix(e.target.value)}
+														placeholder='Suffix'
+														className='rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] px-3 py-2 text-[12px] text-[var(--text-primary)] outline-none transition-all focus:border-[rgba(var(--accent-rgb),0.5)]'
+													/>
+													<input
+														type='text'
+														value={nickname}
+														onChange={(e) => setNickname(e.target.value)}
+														placeholder='Nickname'
+														className='rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] px-3 py-2 text-[12px] text-[var(--text-primary)] outline-none transition-all focus:border-[rgba(var(--accent-rgb),0.5)]'
+													/>
+												</div>
+
+												{/* Work Details */}
+												<div className='space-y-3 pt-2 border-t border-[var(--border-subtle)]'>
+													<div className='flex items-center gap-2 px-1'>
+														<Briefcase className='h-3.5 w-3.5 text-[var(--text-tertiary)]' />
+														<span className='text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]'>Professional</span>
+													</div>
+													<div className='grid grid-cols-2 gap-3'>
+														<input
+															type='text'
+															value={jobTitle}
+															onChange={(e) => setJobTitle(e.target.value)}
+															placeholder='Job Title'
+															className='rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] px-3 py-2 text-[12px] text-[var(--text-primary)] outline-none transition-all focus:border-[rgba(var(--accent-rgb),0.5)]'
+														/>
+														<input
+															type='text'
+															value={department}
+															onChange={(e) => setDepartment(e.target.value)}
+															placeholder='Department'
+															className='rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] px-3 py-2 text-[12px] text-[var(--text-primary)] outline-none transition-all focus:border-[rgba(var(--accent-rgb),0.5)]'
+														/>
+													</div>
+													<input
+														type='email'
+														value={workEmail}
+														onChange={(e) => setWorkEmail(e.target.value)}
+														placeholder='Work Email'
+														className='w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] px-3 py-2 text-[12px] text-[var(--text-primary)] outline-none transition-all focus:border-[rgba(var(--accent-rgb),0.5)]'
+													/>
+													<input
+														type='text'
+														value={website}
+														onChange={(e) => setWebsite(e.target.value)}
+														placeholder='Website / URL'
+														className='w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] px-3 py-2 text-[12px] text-[var(--text-primary)] outline-none transition-all focus:border-[rgba(var(--accent-rgb),0.5)]'
+													/>
+												</div>
+
+												{/* Additional Phones */}
+												<div className='space-y-3 pt-2 border-t border-[var(--border-subtle)]'>
+													<div className='flex items-center gap-2 px-1'>
+														<Phone className='h-3.5 w-3.5 text-[var(--text-tertiary)]' />
+														<span className='text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]'>Additional Phones</span>
+													</div>
+													<div className='grid grid-cols-2 gap-3'>
+														<input
+															type='tel'
+															value={phoneWork}
+															onChange={(e) => setPhoneWork(e.target.value)}
+															placeholder='Work Phone'
+															className='rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] px-3 py-2 text-[12px] text-[var(--text-primary)] outline-none transition-all focus:border-[rgba(var(--accent-rgb),0.5)]'
+														/>
+														<input
+															type='tel'
+															value={phoneHome}
+															onChange={(e) => setPhoneHome(e.target.value)}
+															placeholder='Home Phone'
+															className='rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] px-3 py-2 text-[12px] text-[var(--text-primary)] outline-none transition-all focus:border-[rgba(var(--accent-rgb),0.5)]'
+														/>
+													</div>
+													<input
+														type='tel'
+														value={phoneFax}
+														onChange={(e) => setPhoneFax(e.target.value)}
+														placeholder='Fax'
+														className='w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] px-3 py-2 text-[12px] text-[var(--text-primary)] outline-none transition-all focus:border-[rgba(var(--accent-rgb),0.5)]'
+													/>
+												</div>
+
+												{/* Addresses */}
+												<div className='space-y-3 pt-2 border-t border-[var(--border-subtle)]'>
+													<div className='flex items-center gap-2 px-1'>
+														<Home className='h-3.5 w-3.5 text-[var(--text-tertiary)]' />
+														<span className='text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]'>Addresses</span>
+													</div>
+													<textarea
+														value={addressHome}
+														onChange={(e) => setAddressHome(e.target.value)}
+														placeholder='Home Address'
+														rows={2}
+														className='w-full resize-none rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] px-3 py-2 text-[12px] text-[var(--text-primary)] outline-none transition-all focus:border-[rgba(var(--accent-rgb),0.5)]'
+													/>
+													<textarea
+														value={addressWork}
+														onChange={(e) => setAddressWork(e.target.value)}
+														placeholder='Work Address'
+														rows={2}
+														className='w-full resize-none rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] px-3 py-2 text-[12px] text-[var(--text-primary)] outline-none transition-all focus:border-[rgba(var(--accent-rgb),0.5)]'
+													/>
+												</div>
+
+												{/* Personal */}
+												<div className='space-y-3 pt-2 border-t border-[var(--border-subtle)]'>
+													<div className='flex items-center gap-2 px-1'>
+														<Calendar className='h-3.5 w-3.5 text-[var(--text-tertiary)]' />
+														<span className='text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]'>Personal</span>
+													</div>
+													<div className='grid grid-cols-2 gap-3'>
+														<div className='space-y-1'>
+															<label className='px-1 text-[10px] text-[var(--text-tertiary)]'>Birthday</label>
+															<input
+																type='date'
+																value={birthday}
+																onChange={(e) => setBirthday(e.target.value)}
+																className='w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] px-3 py-2 text-[12px] text-[var(--text-primary)] outline-none transition-all [color-scheme:dark] focus:border-[rgba(var(--accent-rgb),0.5)]'
+															/>
+														</div>
+														<div className='space-y-1'>
+															<label className='px-1 text-[10px] text-[var(--text-tertiary)]'>Anniversary</label>
+															<input
+																type='date'
+																value={anniversary}
+																onChange={(e) => setAnniversary(e.target.value)}
+																className='w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] px-3 py-2 text-[12px] text-[var(--text-primary)] outline-none transition-all [color-scheme:dark] focus:border-[rgba(var(--accent-rgb),0.5)]'
+															/>
+														</div>
+													</div>
+													<div className='space-y-1'>
+														<label className='px-1 text-[10px] text-[var(--text-tertiary)]'>Gender</label>
+														<div className='flex gap-4 px-2'>
+															{['M', 'F', 'O'].map((g) => (
+																<label key={g} className='flex items-center gap-2 cursor-pointer'>
+																	<input
+																		type='radio'
+																		name='gender'
+																		value={g}
+																		checked={gender === g}
+																		onChange={(e) => setGender(e.target.value)}
+																		className='accent-[rgb(var(--accent-rgb))]'
+																	/>
+																	<span className='text-[12px] text-[var(--text-secondary)]'>{g === 'M' ? 'Male' : g === 'F' ? 'Female' : 'Other'}</span>
+																</label>
+															))}
+														</div>
+													</div>
+												</div>
+											</motion.div>
+										)}
+									</AnimatePresence>
+
+									{/* Notes Field (outside advanced) */}
+									<div className='group relative pt-2 border-t border-[var(--border-subtle)]'>
 										<div className='pointer-events-none absolute top-4 left-3'>
 											<FileText className='h-4 w-4 text-[var(--text-tertiary)] transition-colors group-focus-within:text-[rgb(var(--accent-rgb))]' />
 										</div>
@@ -246,7 +500,7 @@ export function EditContactDialog({
 											value={notes}
 											onChange={(e) => setNotes(e.target.value)}
 											placeholder={t('notes:placeholder')}
-											rows={3}
+											rows={2}
 											className='w-full resize-none rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-active)] py-2.5 pr-4 pl-10 text-[13px] text-[var(--text-primary)] transition-all outline-none placeholder:text-[var(--text-tertiary)] focus:border-[rgba(var(--accent-rgb),0.5)] focus:ring-4 focus:ring-[rgba(var(--accent-rgb),0.1)]'
 										/>
 									</div>
