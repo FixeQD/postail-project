@@ -236,13 +236,13 @@ pub fn update_contact(
 ) -> Result<(), DBError> {
     conn.execute(
         "UPDATE contacts SET
-            name = COALESCE(?, name),
+            name = ?,
             email = ?,
-            phone = COALESCE(?, phone),
-            company = COALESCE(?, company),
-            notes = COALESCE(?, notes),
-            avatar_url = COALESCE(?, avatar_url),
-            birthday = COALESCE(?, birthday)
+            phone = ?,
+            company = ?,
+            notes = ?,
+            avatar_url = ?,
+            birthday = ?
          WHERE id = ?",
         params![name, email, phone, company, notes, avatar_url, birthday, id],
     )?;
