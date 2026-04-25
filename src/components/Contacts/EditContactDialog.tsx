@@ -7,16 +7,13 @@ import {
 	Mail,
 	Phone,
 	Building,
-	Cake,
 	FileText,
 	X,
 	Save,
 	ArrowRight,
-	Globe,
 	Home,
 	Briefcase,
 	Calendar,
-	Hash,
 	ChevronDown,
 	ChevronUp,
 } from 'lucide-react'
@@ -94,7 +91,7 @@ export function EditContactDialog({
 			setAddressHome(contact?.address_home ?? '')
 			setAddressWork(contact?.address_work ?? '')
 			setNotes(contact?.notes ?? '')
-			
+
 			if (contact?.birthday) {
 				const date = new Date(contact.birthday * 1000)
 				setBirthday(date.toISOString().split('T')[0])
@@ -200,11 +197,11 @@ export function EditContactDialog({
 						<motion.div
 							{...(animationsEnabled
 								? {
-										initial: { opacity: 0, y: 10, scale: 0.98 },
-										animate: { opacity: 1, y: 0, scale: 1 },
-										exit: { opacity: 0, y: 10, scale: 0.98 },
-										transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] },
-									}
+									initial: { opacity: 0, y: 10, scale: 0.98 },
+									animate: { opacity: 1, y: 0, scale: 1 },
+									exit: { opacity: 0, y: 10, scale: 0.98 },
+									transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] },
+								}
 								: {})}>
 							{/* Premium Header with Accent Line */}
 							<div className='relative overflow-hidden px-6 pt-6 pb-5'>
@@ -309,7 +306,7 @@ export function EditContactDialog({
 												exit={{ height: 0, opacity: 0 }}
 												transition={{ duration: 0.3 }}
 												className='space-y-4 overflow-hidden pt-2'>
-												
+
 												{/* Name Breakdown */}
 												<div className='grid grid-cols-2 gap-3'>
 													<input

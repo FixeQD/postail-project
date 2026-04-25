@@ -1,7 +1,7 @@
 import { useState, useCallback, memo } from 'react'
 import { motion } from 'framer-motion'
 import { format, formatDistanceToNow, parseISO } from 'date-fns'
-import { Pencil, Trash2, ArrowRight, ArrowLeft, Phone, Building, Download, Plus, X, Mail, Globe, Calendar, MapPin, User, Info, Briefcase } from 'lucide-react'
+import { Pencil, Trash2, ArrowRight, ArrowLeft, Phone, Download, Plus, X, Mail, MapPin, User, Info, Briefcase, Globe } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { save } from '@tauri-apps/plugin-dialog'
@@ -201,15 +201,15 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 					<motion.div
 						{...(animationsEnabled
 							? {
-									initial: { scale: 0.8, opacity: 0 },
-									animate: { scale: 1, opacity: 1 },
-									transition: { duration: 0.3, delay: 0.1 },
-								}
+								initial: { scale: 0.8, opacity: 0 },
+								animate: { scale: 1, opacity: 1 },
+								transition: { duration: 0.3, delay: 0.1 },
+							}
 							: {})}
 						className='relative'>
-						<ContactAvatar 
-							name={contact.name} 
-							email={contact.email} 
+						<ContactAvatar
+							name={contact.name}
+							email={contact.email}
 							size="xl"
 							className="rounded-2xl shadow-xl"
 						/>
@@ -462,13 +462,13 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 							</p>
 						) : (
 							contactGroups.map(group => (
-								<div 
+								<div
 									key={group.id}
 									className='inline-flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-active)] pl-2 pr-1.5 py-1 text-[12px] font-medium text-[var(--text-secondary)] group'
 								>
 									<div className='h-2 w-2 rounded-full' style={{ backgroundColor: group.color || 'rgb(var(--accent-rgb))' }} />
 									<span>{group.name}</span>
-									<button 
+									<button
 										onClick={() => handleRemoveFromGroup(group.id)}
 										className='p-0.5 hover:bg-red-500/10 hover:text-red-500 rounded-full transition-colors'
 									>
@@ -526,9 +526,9 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 											key={`${msg.uid}-${msg.mailbox}`}
 											{...(animationsEnabled
 												? {
-														initial: { opacity: 0, y: 8 },
-														animate: { opacity: 1, y: 0 },
-													}
+													initial: { opacity: 0, y: 8 },
+													animate: { opacity: 1, y: 0 },
+												}
 												: {})}
 											className='group cursor-pointer rounded-xl px-4 py-3 transition-colors hover:bg-[var(--surface-hover)]'
 											onClick={() => handleMessageClick(msg.uid, msg.mailbox)}>
