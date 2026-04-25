@@ -229,7 +229,12 @@
 
 @layer base {
 	* {
-		@apply border-border outline-ring/50;
+		@apply border-border;
+	}
+	*:focus,
+	*:focus-visible {
+		outline: none !important;
+		-webkit-tap-highlight-color: transparent;
 	}
 	html {
 		background: #020617;
@@ -237,6 +242,8 @@
 	body {
 		@apply text-foreground;
 		background: var(--app-bg, #020617);
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
 	}
 }
 

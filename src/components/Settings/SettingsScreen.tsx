@@ -63,11 +63,7 @@ const SettingsNavItem = memo(
 								},
 							}
 							: {})}
-						className='absolute inset-0 rounded-xl bg-[var(--surface-active)]'
-						style={{
-							backgroundColor: `rgba(var(--accent-rgb), 0.08)`,
-							boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.15), 0 4px 12px -4px rgba(var(--accent-rgb), 0.1)`,
-						}}
+						className='absolute inset-0 rounded-xl bg-[rgb(var(--accent-rgb))] opacity-[0.08] shadow-[inset_0_0_0_1px_rgba(var(--accent-rgb),0.15)]'
 					/>
 				)}
 
