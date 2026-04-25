@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { Search } from 'lucide-react'
 import { useThemeStore } from '@/stores/themeStore'
+import { ContactAvatar } from './ContactAvatar'
 
 import { useContactsTranslation } from '@/hooks/useTypedTranslation'
 import type { Contact } from '@/types/components/compose'
@@ -14,12 +15,6 @@ interface ContactListProps {
 	selectedGroupId: number | null
 }
 
-const generateInitials = (name: string | null, email: string) => {
-	if (!name) return email.slice(0, 2).toUpperCase()
-	const parts = name.trim().split(/\s+/)
-	if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-	return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-}
 
 export const ContactList = memo(function ContactList({
 	selectedContact,
@@ -90,16 +85,10 @@ export const ContactList = memo(function ContactList({
 	const renderItem = useCallback(
 		(_index: number, contact: Contact) => {
 			const isSelected = selectedContact?.id === contact.id
-			const initials = generateInitials(contact.name, contact.email)
 
 			const itemBase = `group flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${
 				isSelected ? 'bg-[var(--surface-active)]' : 'hover:bg-[var(--surface-hover)]'
 			}`
-
-			const avatarStyle: React.CSSProperties = {
-				backgroundColor: 'rgba(var(--accent-rgb), 0.12)',
-				color: 'rgb(var(--accent-rgb))',
-			}
 
 			const selectedIndicatorStyle: React.CSSProperties = {
 				backgroundColor: accentColor,
@@ -113,11 +102,11 @@ export const ContactList = memo(function ContactList({
 					draggable
 					onDragStart={(e) => handleDragStart(e, contact.id)}
 				>
-					<div
-						className='flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold'
-						style={avatarStyle}>
-						{initials}
-					</div>
+					<ContactAvatar 
+						name={contact.name} 
+						email={contact.email} 
+						size="md" 
+					/>
 					<div className='min-w-0 flex-1'>
 						<p className='truncate text-[13px] font-medium text-[var(--text-primary)]'>
 							{contact.name || contact.email}

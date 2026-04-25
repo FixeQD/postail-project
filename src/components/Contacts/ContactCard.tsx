@@ -16,6 +16,7 @@ import { EditContactDialog } from './EditContactDialog'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { ContactGroup } from '@/types/components/compose'
+import { ContactAvatar } from './ContactAvatar'
 
 interface ContactCardProps {
 	contact: Contact
@@ -139,13 +140,6 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 		[activeAccount, openMessage]
 	)
 
-	// Generate initials for avatar
-	const initials = useMemo(() => {
-		if (!contact.name) return contact.email.slice(0, 2).toUpperCase()
-		const parts = contact.name.trim().split(/\s+/)
-		if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-		return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-	}, [contact.name, contact.email])
 
 	// Format date
 	const formatDate = useCallback((dateStr: string) => {
@@ -197,15 +191,12 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 								}
 							: {})}
 						className='relative'>
-						<div
-							className='flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl text-2xl font-bold shadow-xl'
-							style={{
-								background: `linear-gradient(135deg, rgba(var(--accent-rgb), 0.2) 0%, rgba(var(--accent-rgb), 0.08) 100%)`,
-								color: 'rgb(var(--accent-rgb))',
-								border: `1px solid rgba(var(--accent-rgb), 0.1)`,
-							}}>
-							{initials}
-						</div>
+						<ContactAvatar 
+							name={contact.name} 
+							email={contact.email} 
+							size="xl"
+							className="rounded-2xl shadow-xl"
+						/>
 						<div className='absolute -right-1 -bottom-1 h-5 w-5 rounded-full border-2 border-[var(--surface-panel)] bg-green-500 shadow-sm' />
 					</motion.div>
 
