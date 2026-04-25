@@ -215,3 +215,83 @@ pub async fn import_contacts_vcf(path: String) -> Result<ImportContactsResult, S
 
     Ok(result)
 }
+
+#[command]
+pub async fn export_contacts_vcf(path: String) -> Result<u32, String> {
+    use calcard::vcard::{VCard, VCardEntry, VCardProperty, VCardValue};
+    use chrono::DateTime;
+    use std::fs;
+
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+
+    let contacts = crate::db::account::contacts::list_contacts(&conn).map_err(|e| e.to_string())?;
+    let mut exported = 0;
+    let mut output = String::new();
+
+    for contact in &contacts {
+        let mut entries = Vec::new();
+        
+        let name = contact.name.clone().unwrap_or_else(|| contact.email.clone());
+        entries.push(VCardEntry {
+            group: None,
+            name: VCardProperty::Fn,
+            params: vec![],
+            values: vec![VCardValue::Text(name)],
+        });
+
+        entries.push(VCardEntry {
+            group: None,
+            name: VCardProperty::Email,
+            params: vec![],
+            values: vec![VCardValue::Text(contact.email.clone())],
+        });
+
+        if let Some(phone) = &contact.phone {
+            entries.push(VCardEntry {
+                group: None,
+                name: VCardProperty::Tel,
+                params: vec![],
+                values: vec![VCardValue::Text(phone.clone())],
+            });
+        }
+
+        if let Some(company) = &contact.company {
+            entries.push(VCardEntry {
+                group: None,
+                name: VCardProperty::Org,
+                params: vec![],
+                values: vec![VCardValue::Text(company.clone())],
+            });
+        }
+
+        if let Some(notes) = &contact.notes {
+            entries.push(VCardEntry {
+                group: None,
+                name: VCardProperty::Note,
+                params: vec![],
+                values: vec![VCardValue::Text(notes.clone())],
+            });
+        }
+
+        if let Some(birthday) = contact.birthday {
+            if let Some(dt) = DateTime::from_timestamp(birthday, 0) {
+                entries.push(VCardEntry {
+                    group: None,
+                    name: VCardProperty::Bday,
+                    params: vec![],
+                    values: vec![VCardValue::Text(dt.format("%Y-%m-%d").to_string())],
+                });
+            }
+        }
+
+        let vcard = VCard { entries };
+        use std::fmt::Write;
+        write!(&mut output, "{}", vcard).map_err(|e| e.to_string())?;
+        exported += 1;
+    }
+
+    fs::write(&path, output).map_err(|e| e.to_string())?;
+
+    Ok(exported)
+}

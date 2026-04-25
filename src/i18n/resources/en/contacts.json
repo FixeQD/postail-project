@@ -56,5 +56,9 @@
 	"import": {
 		"success": "Imported {{imported}}, updated {{updated}} ({{errors}} errors)",
 		"failed": "Failed to import contacts"
+	},
+	"export": {
+		"success": "Exported {{count}} contacts to VCard",
+		"failed": "Failed to export contacts"
 	}
 }

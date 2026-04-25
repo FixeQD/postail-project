@@ -8,7 +8,7 @@ import { ContactCard } from './ContactCard'
 import { ContactList } from './ContactList'
 import { EditContactDialog } from './EditContactDialog'
 import { invoke } from '@tauri-apps/api/core'
-import { open } from '@tauri-apps/plugin-dialog'
+import { open, save } from '@tauri-apps/plugin-dialog'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/components/ui/custom/Toaster'
 
@@ -69,6 +69,7 @@ export const ContactsScreen = ({ onBack }: ContactsScreenProps) => {
 	const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
 	const [isCreateOpen, setIsCreateOpen] = useState(false)
 	const [isImporting, setIsImporting] = useState(false)
+	const [isExporting, setIsExporting] = useState(false)
 
 	useEffect(() => {
 		const handleDeleted = (e: CustomEvent<{ id: number }>) => {
@@ -117,6 +118,29 @@ export const ContactsScreen = ({ onBack }: ContactsScreenProps) => {
 			toast.error(t('contacts:import.failed'))
 		} finally {
 			setIsImporting(false)
+		}
+	}
+
+	const handleExport = async () => {
+		try {
+			const selected = await save({
+				filters: [{ name: 'vCard', extensions: ['vcf'] }],
+				defaultPath: 'contacts.vcf'
+			})
+
+			if (!selected) return
+
+			setIsExporting(true)
+			const exportedCount = await invoke<number>('export_contacts_vcf', {
+				path: selected
+			})
+
+			toast.success(t('contacts:export.success', { count: exportedCount }))
+		} catch (error) {
+			console.error('Failed to export contacts:', error)
+			toast.error(t('contacts:export.failed'))
+		} finally {
+			setIsExporting(false)
 		}
 	}
 
@@ -185,7 +209,10 @@ export const ContactsScreen = ({ onBack }: ContactsScreenProps) => {
 						</button>
 						<button
 							type='button'
-							className='rounded-lg bg-[var(--surface-active)] px-2.5 py-1.5 text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
+							onClick={handleExport}
+							disabled={isExporting}
+							className='flex items-center justify-center gap-1.5 rounded-lg bg-[var(--surface-active)] px-2.5 py-1.5 text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] disabled:opacity-50'>
+							{isExporting ? <Loader2 className='h-3 w-3 animate-spin' /> : null}
 							{t('contacts:toolbar.export')}
 						</button>
 					</div>

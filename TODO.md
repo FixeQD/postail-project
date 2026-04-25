@@ -142,7 +142,7 @@
     - [x] 17.4 - UI: Edit contact (name, email, phone, company, note)
     - [-] 17.5 - UI: Contact avatar — fetch from Gravatar based on email hash (optional)
     - [x] 17.6 - UI: Import contacts from VCard (.vcf)
-    - [ ] 17.7 - UI: Export contacts to VCard
+    - [x] 17.7 - UI: Export contacts to VCard
     - [ ] 17.8 - Rust: Auto-create/update contacts on send (collect To/Cc)
     - [ ] 17.9 - UI: Contact groups (`contact_groups` table)
     - [ ] 17.10 - UI: Send to contact group from single To field
