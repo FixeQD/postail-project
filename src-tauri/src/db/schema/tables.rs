@@ -206,6 +206,35 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
 
     create_table_if_not_exists(
         conn,
+        "contact_groups",
+        &[
+            ("id", "INTEGER PRIMARY KEY"),
+            ("name", "TEXT NOT NULL UNIQUE"),
+            ("color", "TEXT"),
+            ("created_at", "INTEGER NOT NULL"),
+        ],
+    )?;
+
+    create_table_if_not_exists(
+        conn,
+        "contact_group_members",
+        &[
+            ("group_id", "INTEGER NOT NULL"),
+            ("contact_id", "INTEGER NOT NULL"),
+            ("PRIMARY KEY(group_id, contact_id)", ""),
+            (
+                "FOREIGN KEY(group_id) REFERENCES contact_groups(id) ON DELETE CASCADE",
+                "",
+            ),
+            (
+                "FOREIGN KEY(contact_id) REFERENCES contacts(id) ON DELETE CASCADE",
+                "",
+            ),
+        ],
+    )?;
+
+    create_table_if_not_exists(
+        conn,
         "message_bodies",
         &[
             ("message_id", "INTEGER PRIMARY KEY"),

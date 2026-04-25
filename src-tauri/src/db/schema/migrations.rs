@@ -127,6 +127,11 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         set_db_version(conn, 18)?;
     }
 
+    if current_version < 19 {
+        migrate_to_v19(conn)?;
+        set_db_version(conn, 19)?;
+    }
+
     Ok(())
 }
 
@@ -540,6 +545,31 @@ fn migrate_to_v18(conn: &Connection) -> Result<(), DBError> {
     Ok(())
 }
 
+fn migrate_to_v19(conn: &Connection) -> Result<(), DBError> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS contact_groups (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            color TEXT,
+            created_at INTEGER NOT NULL
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS contact_group_members (
+            group_id INTEGER NOT NULL,
+            contact_id INTEGER NOT NULL,
+            PRIMARY KEY(group_id, contact_id),
+            FOREIGN KEY(group_id) REFERENCES contact_groups(id) ON DELETE CASCADE,
+            FOREIGN KEY(contact_id) REFERENCES contacts(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+
+    Ok(())
+}
+
 // Whitelist of allowed table names to prevent SQL injection
 const ALLOWED_TABLES: &[&str] = &[
     "messages",
@@ -561,6 +591,8 @@ const ALLOWED_TABLES: &[&str] = &[
     "filter_rules",
     "signatures",
     "templates",
+    "contact_groups",
+    "contact_group_members",
 ];
 
 fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool, DBError> {

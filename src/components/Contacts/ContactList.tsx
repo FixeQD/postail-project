@@ -11,6 +11,7 @@ import type { Contact } from '@/types/components/compose'
 interface ContactListProps {
 	selectedContact: Contact | null
 	onSelect: (contact: Contact) => void
+	selectedGroupId: number | null
 }
 
 const generateInitials = (name: string | null, email: string) => {
@@ -23,6 +24,7 @@ const generateInitials = (name: string | null, email: string) => {
 export const ContactList = memo(function ContactList({
 	selectedContact,
 	onSelect,
+	selectedGroupId,
 }: ContactListProps) {
 	const { t } = useContactsTranslation()
 	const accentColor = useThemeStore((s) => s.accentColor)
@@ -35,8 +37,13 @@ export const ContactList = memo(function ContactList({
 		isLoading,
 		error,
 	} = useQuery({
-		queryKey: ['contacts-list', searchQuery],
+		queryKey: ['contacts-list', searchQuery, selectedGroupId],
 		queryFn: async () => {
+			if (selectedGroupId) {
+				return await invoke<Contact[]>('get_contacts_in_group', {
+					groupId: selectedGroupId,
+				})
+			}
 			if (searchQuery.trim().length === 0) {
 				return await invoke<Contact[]>('list_contacts')
 			}

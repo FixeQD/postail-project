@@ -7,6 +7,7 @@ import type { Contact } from '@/types/components/compose'
 import { ContactCard } from './ContactCard'
 import { ContactList } from './ContactList'
 import { EditContactDialog } from './EditContactDialog'
+import { GroupsSidebar } from './GroupsSidebar'
 import { invoke } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { useQueryClient } from '@tanstack/react-query'
@@ -67,6 +68,7 @@ export const ContactsScreen = ({ onBack }: ContactsScreenProps) => {
 	const queryClient = useQueryClient()
 	
 	const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
+	const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null)
 	const [isCreateOpen, setIsCreateOpen] = useState(false)
 	const [isImporting, setIsImporting] = useState(false)
 	const [isExporting, setIsExporting] = useState(false)
@@ -218,9 +220,21 @@ export const ContactsScreen = ({ onBack }: ContactsScreenProps) => {
 					</div>
 				</div>
 
+				{/* Groups section */}
+				<div className='border-b overflow-y-auto max-h-[300px]' style={{ borderColor: 'var(--border-subtle)' }}>
+					<GroupsSidebar 
+						selectedGroupId={selectedGroupId} 
+						onSelectGroup={setSelectedGroupId} 
+					/>
+				</div>
+
 				{/* Contact list */}
 				<div className='flex-1 overflow-hidden px-2 pb-2'>
-					<ContactList selectedContact={selectedContact} onSelect={handleSelectContact} />
+					<ContactList
+						selectedContact={selectedContact}
+						onSelect={handleSelectContact}
+						selectedGroupId={selectedGroupId}
+					/>
 				</div>
 			</motion.div>
 

@@ -60,5 +60,23 @@
 	"export": {
 		"success": "Exported {{count}} contacts to VCard",
 		"failed": "Failed to export contacts"
+	},
+	"groups": {
+		"title": "Groups",
+		"allContacts": "All Contacts",
+		"placeholder": "New group name...",
+		"deleteConfirm": "Are you sure you want to delete this group? Contacts will not be deleted.",
+		"createSuccess": "Group created",
+		"createFailed": "Failed to create group",
+		"deleteSuccess": "Group deleted",
+		"deleteFailed": "Failed to delete group",
+		"renameSuccess": "Group renamed",
+		"renameFailed": "Failed to rename group",
+		"addSuccess": "Contact added to group",
+		"addFailed": "Failed to add to group",
+		"removeSuccess": "Contact removed from group",
+		"removeFailed": "Failed to remove from group",
+		"noGroups": "No groups created yet",
+		"none": "No groups assigned"
 	}
 }

@@ -120,6 +120,14 @@ export interface Contact {
 	birthday?: number | null
 }
 
+export interface ContactGroup {
+	id: number
+	name: string
+	color: string | null
+	created_at: number
+	member_count: number
+}
+
 export interface AddressInputProps {
 	label: string
 	recipients: import('../compose').EmailAddress[]

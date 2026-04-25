@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, memo } from 'react'
 import { motion } from 'framer-motion'
 import { format, formatDistanceToNow, parseISO } from 'date-fns'
-import { Pencil, Trash2, ArrowRight, ArrowLeft, Phone, Building, Download } from 'lucide-react'
+import { Pencil, Trash2, ArrowRight, ArrowLeft, Phone, Building, Download, Plus, X } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
 import { save } from '@tauri-apps/plugin-dialog'
@@ -14,6 +14,8 @@ import { useContactsTranslation } from '@/hooks/useTypedTranslation'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { EditContactDialog } from './EditContactDialog'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import type { ContactGroup } from '@/types/components/compose'
 
 interface ContactCardProps {
 	contact: Contact
@@ -71,6 +73,38 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 		},
 		enabled: !!activeAccount,
 	})
+
+	// Fetch contact's groups
+	const { data: contactGroups = [] } = useQuery({
+		queryKey: ['contact-groups', contact.id],
+		queryFn: () => invoke<ContactGroup[]>('get_groups_for_contact', { contactId: contact.id })
+	})
+
+	// Fetch all groups for assignment
+	const { data: allGroups = [] } = useQuery({
+		queryKey: ['contact-groups'],
+		queryFn: () => invoke<ContactGroup[]>('list_contact_groups')
+	})
+
+	const handleAddToGroup = async (groupId: number) => {
+		try {
+			await invoke('add_contact_to_group', { groupId, contactId: contact.id })
+			queryClient.invalidateQueries({ queryKey: ['contact-groups'] })
+			toast.success(t('contacts:groups.addSuccess'))
+		} catch {
+			toast.error(t('contacts:groups.addFailed'))
+		}
+	}
+
+	const handleRemoveFromGroup = async (groupId: number) => {
+		try {
+			await invoke('remove_contact_from_group', { groupId, contactId: contact.id })
+			queryClient.invalidateQueries({ queryKey: ['contact-groups'] })
+			toast.success(t('contacts:groups.removeSuccess'))
+		} catch {
+			toast.error(t('contacts:groups.removeFailed'))
+		}
+	}
 
 	// Auto-save notes on blur
 	const handleNotesBlur = useCallback(async () => {
@@ -240,6 +274,70 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 							<Trash2 className='h-4 w-4' />
 						</button>
 					</div>
+				</div>
+			</div>
+
+			{/* Groups section */}
+			<div className='border-b p-4' style={{ borderColor: 'var(--border-subtle)' }}>
+				<div className='flex items-center justify-between mb-2'>
+					<label className='text-[12px] font-medium text-[var(--text-secondary)]'>
+						{t('contacts:groups.title')}
+					</label>
+					<Popover>
+						<PopoverTrigger asChild>
+							<button className='p-1 hover:bg-[var(--surface-active)] rounded-md transition-colors text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'>
+								<Plus className='h-3.5 w-3.5' />
+							</button>
+						</PopoverTrigger>
+						<PopoverContent className='w-48 p-1' align='end'>
+							<div className='flex flex-col gap-0.5'>
+								{allGroups.length === 0 && (
+									<div className='px-2 py-1.5 text-[12px] text-[var(--text-tertiary)]'>
+										{t('contacts:groups.noGroups')}
+									</div>
+								)}
+								{allGroups.map(group => {
+									const isMember = contactGroups.some(cg => cg.id === group.id)
+									return (
+										<button
+											key={group.id}
+											onClick={() => isMember ? handleRemoveFromGroup(group.id) : handleAddToGroup(group.id)}
+											className='flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[var(--surface-hover)] text-[13px] text-left transition-colors'
+										>
+											<div className='flex-1 flex items-center gap-2 truncate'>
+												<div className='h-2 w-2 rounded-full' style={{ backgroundColor: group.color || 'rgb(var(--accent-rgb))' }} />
+												<span className='truncate'>{group.name}</span>
+											</div>
+											{isMember && <X className='h-3 w-3 text-red-500' />}
+										</button>
+									)
+								})}
+							</div>
+						</PopoverContent>
+					</Popover>
+				</div>
+				<div className='flex flex-wrap gap-1.5'>
+					{contactGroups.length === 0 ? (
+						<p className='text-[12px] text-[var(--text-tertiary)] py-1'>
+							{t('contacts:groups.none')}
+						</p>
+					) : (
+						contactGroups.map(group => (
+							<div 
+								key={group.id}
+								className='inline-flex items-center gap-1.5 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-active)] pl-1.5 pr-1 py-0.5 text-[11px] font-medium text-[var(--text-secondary)] group'
+							>
+								<div className='h-2 w-2 rounded-full' style={{ backgroundColor: group.color || 'rgb(var(--accent-rgb))' }} />
+								<span>{group.name}</span>
+								<button 
+									onClick={() => handleRemoveFromGroup(group.id)}
+									className='p-0.5 hover:bg-red-500/10 hover:text-red-500 rounded-full transition-colors'
+								>
+									<X className='h-2.5 w-2.5' />
+								</button>
+							</div>
+						))
+					)}
 				</div>
 			</div>
 
