@@ -11,12 +11,29 @@ pub struct Contact {
     pub id: i64,
     pub email: String,
     pub name: Option<String>,
+    pub first_name: Option<String>,
+    pub middle_name: Option<String>,
+    pub last_name: Option<String>,
+    pub suffix: Option<String>,
+    pub nickname: Option<String>,
     pub frequency: i32,
     pub phone: Option<String>,
+    pub phone_work: Option<String>,
+    pub phone_home: Option<String>,
+    pub phone_fax: Option<String>,
+    pub work_email: Option<String>,
     pub company: Option<String>,
+    pub job_title: Option<String>,
+    pub department: Option<String>,
+    pub role: Option<String>,
+    pub website: Option<String>,
+    pub address_home: Option<String>,
+    pub address_work: Option<String>,
     pub notes: Option<String>,
     pub avatar_url: Option<String>,
     pub birthday: Option<i64>,
+    pub anniversary: Option<i64>,
+    pub gender: Option<String>,
 }
 
 pub fn upsert_contact(conn: &Connection, email: &str, name: Option<&str>) -> Result<(), DBError> {
@@ -92,7 +109,10 @@ pub fn search_contacts(
     }
 
     let mut stmt = conn.prepare(
-        "SELECT c.id, c.email, c.name, c.frequency, c.phone, c.company, c.notes, c.avatar_url, c.birthday
+        "SELECT id, email, name, first_name, middle_name, last_name, suffix, nickname, 
+                frequency, phone, phone_work, phone_home, phone_fax, work_email,
+                company, job_title, department, role, website, address_home, address_work,
+                notes, avatar_url, birthday, anniversary, gender
          FROM contacts c
          JOIN contacts_fts f ON f.rowid = c.id
          WHERE contacts_fts MATCH ?
@@ -106,12 +126,29 @@ pub fn search_contacts(
             id: row.get(0)?,
             email: row.get(1)?,
             name: row.get(2)?,
-            frequency: row.get(3)?,
-            phone: row.get(4)?,
-            company: row.get(5)?,
-            notes: row.get(6)?,
-            avatar_url: row.get(7)?,
-            birthday: row.get(8)?,
+            first_name: row.get(3)?,
+            middle_name: row.get(4)?,
+            last_name: row.get(5)?,
+            suffix: row.get(6)?,
+            nickname: row.get(7)?,
+            frequency: row.get(8)?,
+            phone: row.get(9)?,
+            phone_work: row.get(10)?,
+            phone_home: row.get(11)?,
+            phone_fax: row.get(12)?,
+            work_email: row.get(13)?,
+            company: row.get(14)?,
+            job_title: row.get(15)?,
+            department: row.get(16)?,
+            role: row.get(17)?,
+            website: row.get(18)?,
+            address_home: row.get(19)?,
+            address_work: row.get(20)?,
+            notes: row.get(21)?,
+            avatar_url: row.get(22)?,
+            birthday: row.get(23)?,
+            anniversary: row.get(24)?,
+            gender: row.get(25)?,
         })
     })?;
 
@@ -125,7 +162,11 @@ pub fn search_contacts(
 
 pub fn get_contact_by_id(conn: &Connection, id: i64) -> Result<Option<Contact>, DBError> {
     let mut stmt = conn.prepare(
-        "SELECT id, email, name, frequency, phone, company, notes, avatar_url, birthday FROM contacts WHERE id = ?1"
+        "SELECT id, email, name, first_name, middle_name, last_name, suffix, nickname, 
+                frequency, phone, phone_work, phone_home, phone_fax, work_email,
+                company, job_title, department, role, website, address_home, address_work,
+                notes, avatar_url, birthday, anniversary, gender
+         FROM contacts WHERE id = ?1"
     )?;
     
     let mut rows = stmt.query([id])?;
@@ -134,12 +175,29 @@ pub fn get_contact_by_id(conn: &Connection, id: i64) -> Result<Option<Contact>, 
             id: row.get(0)?,
             email: row.get(1)?,
             name: row.get(2)?,
-            frequency: row.get(3)?,
-            phone: row.get(4)?,
-            company: row.get(5)?,
-            notes: row.get(6)?,
-            avatar_url: row.get(7)?,
-            birthday: row.get(8)?,
+            first_name: row.get(3)?,
+            middle_name: row.get(4)?,
+            last_name: row.get(5)?,
+            suffix: row.get(6)?,
+            nickname: row.get(7)?,
+            frequency: row.get(8)?,
+            phone: row.get(9)?,
+            phone_work: row.get(10)?,
+            phone_home: row.get(11)?,
+            phone_fax: row.get(12)?,
+            work_email: row.get(13)?,
+            company: row.get(14)?,
+            job_title: row.get(15)?,
+            department: row.get(16)?,
+            role: row.get(17)?,
+            website: row.get(18)?,
+            address_home: row.get(19)?,
+            address_work: row.get(20)?,
+            notes: row.get(21)?,
+            avatar_url: row.get(22)?,
+            birthday: row.get(23)?,
+            anniversary: row.get(24)?,
+            gender: row.get(25)?,
         }))
     } else {
         Ok(None)
@@ -147,19 +205,40 @@ pub fn get_contact_by_id(conn: &Connection, id: i64) -> Result<Option<Contact>, 
 }
 pub fn list_contacts(conn: &Connection) -> Result<Vec<Contact>, DBError> {
     let mut stmt = conn.prepare(
-        "SELECT id, email, name, frequency, phone, company, notes, avatar_url, birthday FROM contacts ORDER BY (name IS NULL), name ASC, email ASC"
+        "SELECT id, email, name, first_name, middle_name, last_name, suffix, nickname, 
+                frequency, phone, phone_work, phone_home, phone_fax, work_email,
+                company, job_title, department, role, website, address_home, address_work,
+                notes, avatar_url, birthday, anniversary, gender
+         FROM contacts ORDER BY (name IS NULL AND email IS NULL), name ASC, email ASC"
     )?;
     let contact_iter = stmt.query_map([], |row| {
         Ok(Contact {
             id: row.get(0)?,
             email: row.get(1)?,
             name: row.get(2)?,
-            frequency: row.get(3)?,
-            phone: row.get(4)?,
-            company: row.get(5)?,
-            notes: row.get(6)?,
-            avatar_url: row.get(7)?,
-            birthday: row.get(8)?,
+            first_name: row.get(3)?,
+            middle_name: row.get(4)?,
+            last_name: row.get(5)?,
+            suffix: row.get(6)?,
+            nickname: row.get(7)?,
+            frequency: row.get(8)?,
+            phone: row.get(9)?,
+            phone_work: row.get(10)?,
+            phone_home: row.get(11)?,
+            phone_fax: row.get(12)?,
+            work_email: row.get(13)?,
+            company: row.get(14)?,
+            job_title: row.get(15)?,
+            department: row.get(16)?,
+            role: row.get(17)?,
+            website: row.get(18)?,
+            address_home: row.get(19)?,
+            address_work: row.get(20)?,
+            notes: row.get(21)?,
+            avatar_url: row.get(22)?,
+            birthday: row.get(23)?,
+            anniversary: row.get(24)?,
+            gender: row.get(25)?,
         })
     })?;
     let mut contacts = Vec::new();
@@ -226,44 +305,112 @@ pub fn get_contact_messages(
 pub fn update_contact(
     conn: &Connection,
     id: i64,
-    name: Option<&str>,
     email: &str,
+    name: Option<&str>,
+    first_name: Option<&str>,
+    middle_name: Option<&str>,
+    last_name: Option<&str>,
+    suffix: Option<&str>,
+    nickname: Option<&str>,
     phone: Option<&str>,
+    phone_work: Option<&str>,
+    phone_home: Option<&str>,
+    phone_fax: Option<&str>,
+    work_email: Option<&str>,
     company: Option<&str>,
+    job_title: Option<&str>,
+    department: Option<&str>,
+    role: Option<&str>,
+    website: Option<&str>,
+    address_home: Option<&str>,
+    address_work: Option<&str>,
     notes: Option<&str>,
     avatar_url: Option<&str>,
     birthday: Option<i64>,
+    anniversary: Option<i64>,
+    gender: Option<&str>,
 ) -> Result<(), DBError> {
     conn.execute(
         "UPDATE contacts SET
-            name = ?,
             email = ?,
+            name = ?,
+            first_name = ?,
+            middle_name = ?,
+            last_name = ?,
+            suffix = ?,
+            nickname = ?,
             phone = ?,
+            phone_work = ?,
+            phone_home = ?,
+            phone_fax = ?,
+            work_email = ?,
             company = ?,
+            job_title = ?,
+            department = ?,
+            role = ?,
+            website = ?,
+            address_home = ?,
+            address_work = ?,
             notes = ?,
             avatar_url = ?,
-            birthday = ?
+            birthday = ?,
+            anniversary = ?,
+            gender = ?
          WHERE id = ?",
-        params![name, email, phone, company, notes, avatar_url, birthday, id],
+        params![
+            email, name, first_name, middle_name, last_name, suffix, nickname,
+            phone, phone_work, phone_home, phone_fax, work_email,
+            company, job_title, department, role, website,
+            address_home, address_work, notes, avatar_url,
+            birthday, anniversary, gender, id
+        ],
     )?;
     Ok(())
 }
 
 pub fn create_contact(
     conn: &Connection,
-    name: Option<&str>,
     email: &str,
+    name: Option<&str>,
+    first_name: Option<&str>,
+    middle_name: Option<&str>,
+    last_name: Option<&str>,
+    suffix: Option<&str>,
+    nickname: Option<&str>,
     phone: Option<&str>,
+    phone_work: Option<&str>,
+    phone_home: Option<&str>,
+    phone_fax: Option<&str>,
+    work_email: Option<&str>,
     company: Option<&str>,
+    job_title: Option<&str>,
+    department: Option<&str>,
+    role: Option<&str>,
+    website: Option<&str>,
+    address_home: Option<&str>,
+    address_work: Option<&str>,
     notes: Option<&str>,
     avatar_url: Option<&str>,
     birthday: Option<i64>,
+    anniversary: Option<i64>,
+    gender: Option<&str>,
 ) -> Result<i64, DBError> {
     let now = Utc::now().timestamp();
     conn.execute(
-        "INSERT INTO contacts (email, name, phone, company, notes, avatar_url, birthday, last_contact_at, frequency)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)",
-        params![email, name, phone, company, notes, avatar_url, birthday, now],
+        "INSERT INTO contacts (
+            email, name, first_name, middle_name, last_name, suffix, nickname,
+            phone, phone_work, phone_home, phone_fax, work_email,
+            company, job_title, department, role, website,
+            address_home, address_work, notes, avatar_url,
+            birthday, anniversary, gender, last_contact_at, frequency
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)",
+        params![
+            email, name, first_name, middle_name, last_name, suffix, nickname,
+            phone, phone_work, phone_home, phone_fax, work_email,
+            company, job_title, department, role, website,
+            address_home, address_work, notes, avatar_url,
+            birthday, anniversary, gender, now
+        ],
     )?;
     Ok(conn.last_insert_rowid())
 }
@@ -277,27 +424,72 @@ pub fn upsert_contact_full(
     conn: &Connection,
     email: &str,
     name: Option<&str>,
+    first_name: Option<&str>,
+    middle_name: Option<&str>,
+    last_name: Option<&str>,
+    suffix: Option<&str>,
+    nickname: Option<&str>,
     phone: Option<&str>,
+    phone_work: Option<&str>,
+    phone_home: Option<&str>,
+    phone_fax: Option<&str>,
+    work_email: Option<&str>,
     company: Option<&str>,
+    job_title: Option<&str>,
+    department: Option<&str>,
+    role: Option<&str>,
+    website: Option<&str>,
+    address_home: Option<&str>,
+    address_work: Option<&str>,
     notes: Option<&str>,
     avatar_url: Option<&str>,
     birthday: Option<i64>,
+    anniversary: Option<i64>,
+    gender: Option<&str>,
 ) -> Result<bool, DBError> {
     let exists = conn.query_row("SELECT 1 FROM contacts WHERE email = ?", params![email], |_| Ok(true)).unwrap_or(false);
     let now = Utc::now().timestamp();
     
     conn.execute(
-        "INSERT INTO contacts (email, name, phone, company, notes, avatar_url, birthday, last_contact_at, frequency)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1)
+        "INSERT INTO contacts (
+            email, name, first_name, middle_name, last_name, suffix, nickname,
+            phone, phone_work, phone_home, phone_fax, work_email,
+            company, job_title, department, role, website,
+            address_home, address_work, notes, avatar_url,
+            birthday, anniversary, gender, last_contact_at, frequency
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, 1)
          ON CONFLICT(email) DO UPDATE SET
             name = COALESCE(excluded.name, name),
+            first_name = COALESCE(excluded.first_name, first_name),
+            middle_name = COALESCE(excluded.middle_name, middle_name),
+            last_name = COALESCE(excluded.last_name, last_name),
+            suffix = COALESCE(excluded.suffix, suffix),
+            nickname = COALESCE(excluded.nickname, nickname),
             phone = COALESCE(excluded.phone, phone),
+            phone_work = COALESCE(excluded.phone_work, phone_work),
+            phone_home = COALESCE(excluded.phone_home, phone_home),
+            phone_fax = COALESCE(excluded.phone_fax, phone_fax),
+            work_email = COALESCE(excluded.work_email, work_email),
             company = COALESCE(excluded.company, company),
+            job_title = COALESCE(excluded.job_title, job_title),
+            department = COALESCE(excluded.department, department),
+            role = COALESCE(excluded.role, role),
+            website = COALESCE(excluded.website, website),
+            address_home = COALESCE(excluded.address_home, address_home),
+            address_work = COALESCE(excluded.address_work, address_work),
             notes = COALESCE(excluded.notes, notes),
             avatar_url = COALESCE(excluded.avatar_url, avatar_url),
-            birthday = COALESCE(excluded.birthday, birthday)",
-        params![email, name, phone, company, notes, avatar_url, birthday, now],
+            birthday = COALESCE(excluded.birthday, birthday),
+            anniversary = COALESCE(excluded.anniversary, anniversary),
+            gender = COALESCE(excluded.gender, gender)",
+        params![
+            email, name, first_name, middle_name, last_name, suffix, nickname,
+            phone, phone_work, phone_home, phone_fax, work_email,
+            company, job_title, department, role, website,
+            address_home, address_work, notes, avatar_url,
+            birthday, anniversary, gender, now
+        ],
     )?;
     
-    Ok(!exists) // returns true if it was an insert, false if update
+    Ok(!exists)
 }
