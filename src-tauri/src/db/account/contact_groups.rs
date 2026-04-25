@@ -151,3 +151,30 @@ pub async fn get_groups_for_contact(contact_id: i64) -> Result<Vec<ContactGroup>
     }
     Ok(groups)
 }
+pub async fn search_groups(query: &str) -> Result<Vec<ContactGroup>, DBError> {
+    let pool = get_db_pool().await?;
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare(
+        "SELECT id, name, color, created_at, 
+         (SELECT COUNT(*) FROM contact_group_members WHERE group_id = contact_groups.id) as member_count
+         FROM contact_groups 
+         WHERE name LIKE ? 
+         ORDER BY name ASC",
+    )?;
+
+    let rows = stmt.query_map(params![format!("%{}%", query)], |row| {
+        Ok(ContactGroup {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            color: row.get(2)?,
+            created_at: row.get(3)?,
+            member_count: row.get(4)?,
+        })
+    })?;
+
+    let mut groups = Vec::new();
+    for row in rows {
+        groups.push(row?);
+    }
+    Ok(groups)
+}

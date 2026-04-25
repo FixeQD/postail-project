@@ -344,13 +344,13 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 			{/* Notes section */}
 			<div className='border-b p-4' style={{ borderColor: 'var(--border-subtle)' }}>
 				<label className='mb-1.5 block text-[12px] font-medium text-[var(--text-secondary)]'>
-					{t('notes:label')}
+					{t('contacts:notes.label')}
 				</label>
 				<textarea
 					value={notes}
 					onChange={(e) => setNotes(e.target.value)}
 					onBlur={handleNotesBlur}
-					placeholder={t('notes:placeholder')}
+					placeholder={t('contacts:notes.placeholder')}
 					disabled={isSavingNotes}
 					className='w-full resize-none rounded-lg bg-[var(--surface-active)] px-3 py-2 text-[13px] text-[var(--text-primary)] ring-1 ring-transparent transition-all outline-none placeholder:text-[var(--text-tertiary)] focus:ring-[rgba(var(--accent-rgb),0.4)] disabled:opacity-60'
 					rows={3}
@@ -363,7 +363,7 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 					className='border-b px-4 py-2.5'
 					style={{ borderColor: 'var(--border-subtle)' }}>
 					<h3 className='text-[12px] font-semibold tracking-wider text-[var(--text-secondary)] uppercase'>
-						{t('recentMessages:title')}
+						{t('contacts:recentMessages.title')}
 					</h3>
 				</div>
 
@@ -419,7 +419,7 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 						</div>
 					) : (
 						<div className='flex items-center justify-center py-8 text-[13px] text-[var(--text-tertiary)]'>
-							{t('recentMessages:empty')}
+							{t('contacts:recentMessages.empty')}
 						</div>
 					)}
 				</div>
