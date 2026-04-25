@@ -36,6 +36,9 @@ const SettingsScreen = lazy(() =>
 const ContactsScreen = lazy(() =>
 	import('./components/Contacts/ContactsScreen').then((m) => ({ default: m.ContactsScreen }))
 )
+const CalendarScreen = lazy(() =>
+	import('./components/Calendar/CalendarScreen').then((m) => ({ default: m.CalendarScreen }))
+)
 
 function App() {
 	const loadSettings = useSettingsStore((s) => s.loadSettings)
@@ -121,6 +124,7 @@ function App() {
 			import('./components/Inbox/InboxScreen')
 			import('./components/Settings/SettingsScreen')
 			import('./components/Contacts/ContactsScreen')
+			import('./components/Calendar/CalendarScreen')
 		}
 	}, [currentState])
 
@@ -202,8 +206,13 @@ function App() {
 
 	useEffect(() => {
 		const handleOpenContacts = () => setCurrentState('contacts')
+		const handleOpenCalendar = () => setCurrentState('calendar')
 		window.addEventListener('app:open-contacts', handleOpenContacts)
-		return () => window.removeEventListener('app:open-contacts', handleOpenContacts)
+		window.addEventListener('app:open-calendar', handleOpenCalendar)
+		return () => {
+			window.removeEventListener('app:open-contacts', handleOpenContacts)
+			window.removeEventListener('app:open-calendar', handleOpenCalendar)
+		}
 	}, [setCurrentState])
 
 	const renderCurrentScreen = () => {
@@ -321,6 +330,12 @@ function App() {
 				return (
 					<Suspense fallback={null}>
 						<ContactsScreen onBack={() => setCurrentState('dashboard')} />
+					</Suspense>
+				)
+			case 'calendar':
+				return (
+					<Suspense fallback={null}>
+						<CalendarScreen onBack={() => setCurrentState('dashboard')} />
 					</Suspense>
 				)
 			case 'dashboard':

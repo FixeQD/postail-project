@@ -78,6 +78,7 @@ tokio-util = { version = "0.7.18", features = ["compat"] }
 native-tls = "0.2.16"
 imap-proto = "0.16.6"
 encoding_rs = "0.8.35"
+icalendar = "0.17.10"
 
 # Linux-specific deps
 [target.'cfg(target_os = "linux")'.dependencies]
@@ -89,6 +90,7 @@ webkit2gtk = { version = "2.0", features = ["v2_32"] }
 [target.'cfg(target_os = "windows")'.dependencies]
 tauri-plugin-notification = { version = "2.3.3", features = ["windows-version"] }
 dunce = "1.0.5"
+windows = { version = "0.62.2", features = ["ApplicationModel_Appointments", "Foundation", "ApplicationModel_Appointments_AppointmentsProvider"] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-autostart = "2.5.1"

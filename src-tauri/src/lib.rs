@@ -1,4 +1,5 @@
 pub mod build_info;
+pub mod calendar;
 pub mod cmd;
 pub mod db;
 pub mod email_view;
@@ -269,7 +270,9 @@ pub fn run() {
             cmd::signatures::get_default_signature,
             cmd::templates::list_templates,
             cmd::templates::save_template,
-            cmd::templates::delete_template
+            cmd::templates::delete_template,
+            cmd::calendar::list_calendar_events,
+            cmd::calendar::create_calendar_event
         ])
         .register_uri_scheme_protocol("postail", protocol::handler)
         .build(tauri::generate_context!())

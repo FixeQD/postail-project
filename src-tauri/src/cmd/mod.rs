@@ -1,5 +1,6 @@
 pub mod account;
 pub mod attachments;
+pub mod calendar;
 pub mod contacts;
 pub mod drafts;
 pub mod filters;

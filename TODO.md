@@ -243,3 +243,13 @@
     - [ ] 25.10 - UI: "Check for updates" button in AboutSettings
     - [ ] 25.11 - Docs: README with screenshots, features list, build instructions
     - [ ] 25.12 - Docs: SECURITY.md with responsible disclosure process
+
+- [x] 26 - Calendar Integration
+    - [x] 26.1 - Rust: Windows Appointment API (WinRT) integration
+    - [x] 26.2 - Rust: Linux local ICS parsing (Evolution/GNOME Calendar)
+    - [x] 26.3 - Rust: Create event command (Windows native / Linux xdg-open)
+    - [x] 26.4 - UI: Premium CalendarScreen with month view
+    - [x] 26.5 - UI: Event sidebar with details
+    - [x] 26.6 - UI: Sidebar navigation link
+    - [ ] 26.7 - UI: Add to Calendar button in ContactCard
+    - [ ] 26.8 - UI: Detect dates in emails and suggest "Add to Calendar"
