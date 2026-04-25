@@ -46,7 +46,7 @@ const SettingsNavItem = memo(
 				type='button'
 				onClick={onClick}
 				{...(animationsEnabled ? { whileTap: { scale: 0.97 } } : {})}
-				className={`relative flex w-full items-center gap-3 rounded-xl px-4 py-2.5 transition-colors duration-200 ${isActive
+				className={`relative flex w-full items-center gap-3 rounded-xl px-4 py-2.5 transition-colors duration-200 outline-none focus:outline-none focus:ring-0 ${isActive
 						? 'text-foreground'
 						: 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-hover)]'
 					}`}>

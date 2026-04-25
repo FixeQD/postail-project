@@ -232,9 +232,20 @@
 		@apply border-border;
 	}
 	*:focus,
-	*:focus-visible {
+	*:focus-visible,
+	*:focus-within,
+	button,
+	button:focus,
+	button:focus-visible,
+	[role='button']:focus,
+	[role='button']:focus-visible {
+		outline: 0 !important;
 		outline: none !important;
-		-webkit-tap-highlight-color: transparent;
+		outline-color: transparent !important;
+		outline-style: none !important;
+		box-shadow: none !important;
+		-webkit-tap-highlight-color: transparent !important;
+		-webkit-focus-ring-color: transparent !important;
 	}
 	html {
 		background: #020617;
