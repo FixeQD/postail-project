@@ -8,6 +8,7 @@ import {
 	DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import type { ConfirmationDialogProps } from '@/types/components/ui'
 
 export function ConfirmationDialog({
@@ -120,10 +121,11 @@ export function ConfirmationDialog({
 											className='w-full'>
 											<Button
 												onClick={onConfirm}
-												className={
+												className={cn(
+													'w-full',
 													confirmClassName ||
-													'w-full border-0 font-medium text-white shadow-lg'
-												}
+														'border-0 font-medium text-white shadow-lg'
+												)}
 												style={
 													confirmClassName
 														? undefined

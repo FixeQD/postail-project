@@ -27,7 +27,29 @@
 		"email": "Email",
 		"phone": "Phone",
 		"company": "Company",
-		"birthday": "Birthday"
+		"birthday": "Birthday",
+		"anniversary": "Anniversary",
+		"gender": "Gender",
+		"genderMale": "Male",
+		"genderFemale": "Female",
+		"genderOther": "Other",
+		"jobTitle": "Job Title",
+		"department": "Department",
+		"role": "Role",
+		"phoneWork": "Work Phone",
+		"phoneHome": "Home Phone",
+		"emailWork": "Work Email",
+		"addressHome": "Home Address",
+		"addressWork": "Work Address"
+	},
+	"sections": {
+		"professional": "Professional",
+		"personal": "Personal",
+		"addresses": "Addresses"
+	},
+	"labels": {
+		"home": "Home",
+		"work": "Work"
 	},
 	"create": {
 		"title": "Add Contact"

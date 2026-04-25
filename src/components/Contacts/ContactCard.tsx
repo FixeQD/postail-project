@@ -310,42 +310,42 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 					<div className='border-b p-6 space-y-4' style={{ borderColor: 'var(--border-subtle)' }}>
 						<div className='flex items-center gap-2'>
 							<Briefcase className='h-4 w-4 text-[rgb(var(--accent-rgb))]' />
-							<span className='text-[12px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]'>Professional</span>
+							<span className='text-[12px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]'>{t('contacts:sections.professional')}</span>
 						</div>
 						<div className='grid grid-cols-2 gap-y-4 gap-x-6'>
 							{contact.company && (
 								<div>
-									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>Company</p>
+									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>{t('contacts:fields.company')}</p>
 									<p className='text-[13px] font-semibold text-[var(--text-primary)]'>{contact.company}</p>
 								</div>
 							)}
 							{contact.job_title && (
 								<div>
-									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>Job Title</p>
+									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>{t('contacts:fields.jobTitle')}</p>
 									<p className='text-[13px] font-semibold text-[var(--text-primary)]'>{contact.job_title}</p>
 								</div>
 							)}
 							{contact.department && (
 								<div>
-									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>Department</p>
+									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>{t('contacts:fields.department')}</p>
 									<p className='text-[13px] text-[var(--text-secondary)]'>{contact.department}</p>
 								</div>
 							)}
 							{contact.role && (
 								<div>
-									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>Role</p>
+									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>{t('contacts:fields.role')}</p>
 									<p className='text-[13px] text-[var(--text-secondary)]'>{contact.role}</p>
 								</div>
 							)}
 							{contact.phone_work && (
 								<div>
-									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>Work Phone</p>
+									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>{t('contacts:fields.phoneWork')}</p>
 									<p className='text-[13px] text-[var(--text-secondary)]'>{contact.phone_work}</p>
 								</div>
 							)}
 							{contact.work_email && (
 								<div>
-									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>Work Email</p>
+									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>{t('contacts:fields.emailWork')}</p>
 									<p className='text-[13px] text-[var(--text-secondary)]'>{contact.work_email}</p>
 								</div>
 							)}
@@ -358,32 +358,32 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 					<div className='border-b p-6 space-y-4' style={{ borderColor: 'var(--border-subtle)' }}>
 						<div className='flex items-center gap-2'>
 							<User className='h-4 w-4 text-[rgb(var(--accent-rgb))]' />
-							<span className='text-[12px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]'>Personal</span>
+							<span className='text-[12px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]'>{t('contacts:sections.personal')}</span>
 						</div>
 						<div className='grid grid-cols-2 gap-y-4 gap-x-6'>
 							{contact.birthday && (
 								<div>
-									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>Birthday</p>
+									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>{t('contacts:fields.birthday')}</p>
 									<p className='text-[13px] text-[var(--text-secondary)]'>{format(new Date(contact.birthday * 1000), 'MMMM d, yyyy')}</p>
 								</div>
 							)}
 							{contact.anniversary && (
 								<div>
-									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>Anniversary</p>
+									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>{t('contacts:fields.anniversary')}</p>
 									<p className='text-[13px] text-[var(--text-secondary)]'>{format(new Date(contact.anniversary * 1000), 'MMMM d, yyyy')}</p>
 								</div>
 							)}
 							{contact.gender && (
 								<div>
-									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>Gender</p>
+									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>{t('contacts:fields.gender')}</p>
 									<p className='text-[13px] text-[var(--text-secondary)]'>
-										{contact.gender === 'M' ? 'Male' : contact.gender === 'F' ? 'Female' : 'Other'}
+										{contact.gender === 'M' ? t('contacts:fields.genderMale') : contact.gender === 'F' ? t('contacts:fields.genderFemale') : t('contacts:fields.genderOther')}
 									</p>
 								</div>
 							)}
 							{contact.phone_home && (
 								<div>
-									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>Home Phone</p>
+									<p className='text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>{t('contacts:fields.phoneHome')}</p>
 									<p className='text-[13px] text-[var(--text-secondary)]'>{contact.phone_home}</p>
 								</div>
 							)}
@@ -396,18 +396,18 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 					<div className='border-b p-6 space-y-4' style={{ borderColor: 'var(--border-subtle)' }}>
 						<div className='flex items-center gap-2'>
 							<MapPin className='h-4 w-4 text-[rgb(var(--accent-rgb))]' />
-							<span className='text-[12px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]'>Addresses</span>
+							<span className='text-[12px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]'>{t('contacts:sections.addresses')}</span>
 						</div>
 						<div className='grid grid-cols-1 gap-4'>
 							{contact.address_home && (
 								<div className='rounded-xl bg-[var(--surface-active)] p-3'>
-									<p className='mb-1 text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>Home</p>
+									<p className='mb-1 text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>{t('contacts:labels.home')}</p>
 									<p className='text-[13px] whitespace-pre-wrap text-[var(--text-secondary)]'>{contact.address_home}</p>
 								</div>
 							)}
 							{contact.address_work && (
 								<div className='rounded-xl bg-[var(--surface-active)] p-3'>
-									<p className='mb-1 text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>Work</p>
+									<p className='mb-1 text-[11px] font-medium text-[var(--text-tertiary)] uppercase'>{t('contacts:labels.work')}</p>
 									<p className='text-[13px] whitespace-pre-wrap text-[var(--text-secondary)]'>{contact.address_work}</p>
 								</div>
 							)}
@@ -581,7 +581,7 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 				description={t('contacts:delete.description')}
 				confirmLabel={t('common:actions.delete')}
 				cancelLabel={t('common:actions.cancel')}
-				confirmClassName='bg-red-500 text-white hover:bg-red-600'
+				confirmClassName='w-full bg-red-500 text-white hover:bg-red-600'
 				onConfirm={async () => {
 					try {
 						await invoke('delete_contact', { id: contact.id })

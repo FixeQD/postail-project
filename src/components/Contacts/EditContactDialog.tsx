@@ -450,7 +450,7 @@ export function EditContactDialog({
 													</div>
 													<div className='grid grid-cols-2 gap-3'>
 														<div className='space-y-1'>
-															<label className='px-1 text-[10px] text-[var(--text-tertiary)]'>Birthday</label>
+															<label className='px-1 text-[10px] text-[var(--text-tertiary)]'>{t('contacts:fields.birthday')}</label>
 															<input
 																type='date'
 																value={birthday}
@@ -459,7 +459,7 @@ export function EditContactDialog({
 															/>
 														</div>
 														<div className='space-y-1'>
-															<label className='px-1 text-[10px] text-[var(--text-tertiary)]'>Anniversary</label>
+															<label className='px-1 text-[10px] text-[var(--text-tertiary)]'>{t('contacts:fields.anniversary')}</label>
 															<input
 																type='date'
 																value={anniversary}
@@ -469,7 +469,7 @@ export function EditContactDialog({
 														</div>
 													</div>
 													<div className='space-y-1'>
-														<label className='px-1 text-[10px] text-[var(--text-tertiary)]'>Gender</label>
+														<label className='px-1 text-[10px] text-[var(--text-tertiary)]'>{t('contacts:fields.gender')}</label>
 														<div className='flex gap-4 px-2'>
 															{['M', 'F', 'O'].map((g) => (
 																<label key={g} className='flex items-center gap-2 cursor-pointer'>
@@ -481,7 +481,9 @@ export function EditContactDialog({
 																		onChange={(e) => setGender(e.target.value)}
 																		className='accent-[rgb(var(--accent-rgb))]'
 																	/>
-																	<span className='text-[12px] text-[var(--text-secondary)]'>{g === 'M' ? 'Male' : g === 'F' ? 'Female' : 'Other'}</span>
+																	<span className='text-[12px] text-[var(--text-secondary)]'>
+																		{g === 'M' ? t('contacts:fields.genderMale') : g === 'F' ? t('contacts:fields.genderFemale') : t('contacts:fields.genderOther')}
+																	</span>
 																</label>
 															))}
 														</div>
@@ -527,7 +529,7 @@ export function EditContactDialog({
 										) : (
 											<Save className='h-4 w-4' />
 										)}
-										<span>{contact ? t('common:actions.save') : 'Create Contact'}</span>
+										<span>{contact ? t('common:actions.save') : t('common:actions.create')}</span>
 										<ArrowRight className='h-3.5 w-3.5 opacity-50 transition-transform group-hover:translate-x-0.5' />
 									</button>
 								</div>

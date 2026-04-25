@@ -15,7 +15,10 @@
 		"retry": "Retry",
 		"close": "Close",
 		"send": "Send",
-		"select": "Select"
+		"select": "Select",
+		"delete": "Delete",
+		"edit": "Edit",
+		"create": "Create"
 	},
 	"status": {
 		"loading": "Loading...",
