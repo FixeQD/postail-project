@@ -359,3 +359,9 @@ pub async fn get_groups_for_contact(contact_id: i64) -> Result<Vec<ContactGroup>
         .await
         .map_err(|e| e.to_string())
 }
+#[command]
+pub async fn search_contact_groups(query: String) -> Result<Vec<ContactGroup>, String> {
+    crate::db::account::contact_groups::search_groups(&query)
+        .await
+        .map_err(|e| e.to_string())
+}

@@ -235,6 +235,7 @@ pub fn run() {
             cmd::contacts::remove_contact_from_group,
             cmd::contacts::get_contacts_in_group,
             cmd::contacts::get_groups_for_contact,
+            cmd::contacts::search_contact_groups,
             cmd::attachments::add_attachment,
             cmd::attachments::add_attachment_bytes,
             cmd::attachments::add_inline_attachment,

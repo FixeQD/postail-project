@@ -1,5 +1,5 @@
 import React, { useState, useRef, KeyboardEvent, useEffect } from 'react'
-import { X, User } from 'lucide-react'
+import { X, User, Users } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { invoke } from '@tauri-apps/api/core'
 import { cn } from '@/lib/utils'
@@ -24,27 +24,44 @@ export function AddressInput({
 	const inputRef = useRef<HTMLInputElement>(null)
 
 	useEffect(() => {
-		if (inputValue.length < 2) {
+		if (inputValue.length < 1) {
 			setSuggestions([])
 			return
 		}
 
 		const fetchSuggestions = async () => {
 			try {
-				const results = await invoke<Contact[]>('search_contacts', {
-					query: inputValue,
-					limit: 5,
-				})
-				// Filter out already added recipients
-				const filtered = results.filter((c) => !recipients.some((r) => r.email === c.email))
-				setSuggestions(filtered)
+				const [contactResults, groupResults] = await Promise.all([
+					invoke<Contact[]>('search_contacts', {
+						query: inputValue,
+						limit: 5,
+					}),
+					invoke<any[]>('search_contact_groups', {
+						query: inputValue
+					})
+				])
+
+				// Map groups to a common suggestion format
+				const groupSuggestions = groupResults.map(g => ({
+					id: `group-${g.id}`,
+					email: `group:${g.id}`, // Internal marker
+					name: g.name,
+					isGroup: true,
+					memberCount: g.member_count,
+					color: g.color
+				}))
+
+				// Filter out already added recipients (contacts only)
+				const filteredContacts = contactResults.filter((c) => !recipients.some((r) => r.email === c.email))
+				
+				setSuggestions([...groupSuggestions, ...filteredContacts] as any[])
 				setSelectedIndex(0)
 			} catch (err) {
 				console.error('Failed to fetch suggestions:', err)
 			}
 		}
 
-		const timer = setTimeout(fetchSuggestions, 150)
+		const timer = setTimeout(fetchSuggestions, 100)
 		return () => clearTimeout(timer)
 	}, [inputValue, recipients])
 
@@ -83,8 +100,24 @@ export function AddressInput({
 		}
 	}
 
-	const handleAddRecipientWithContact = (contact: Contact) => {
-		onAdd({ email: contact.email, name: contact.name || undefined })
+	const handleAddRecipientWithContact = async (suggestion: any) => {
+		if (suggestion.isGroup) {
+			try {
+				const groupId = parseInt(suggestion.email.split(':')[1])
+				const members = await invoke<Contact[]>('get_contacts_in_group', { groupId })
+				
+				// Add each member if not already present
+				members.forEach(member => {
+					if (!recipients.some(r => r.email === member.email)) {
+						onAdd({ email: member.email, name: member.name || undefined })
+					}
+				})
+			} catch (err) {
+				console.error('Failed to expand group:', err)
+			}
+		} else {
+			onAdd({ email: suggestion.email, name: suggestion.name || undefined })
+		}
 		setInputValue('')
 		setSuggestions([])
 	}
@@ -172,9 +205,9 @@ export function AddressInput({
 							}
 						: {})}
 					className='absolute top-full left-0 z-[60] mt-1 w-full overflow-hidden rounded-lg border border-[var(--compose-ring)] bg-[var(--compose-suggestions-bg)] shadow-xl'>
-					{suggestions.map((contact, index) => (
+					{suggestions.map((suggestion: any, index) => (
 						<div
-							key={contact.id}
+							key={suggestion.id}
 							className={cn(
 								'flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors',
 								index === selectedIndex
@@ -183,17 +216,26 @@ export function AddressInput({
 							)}
 							onMouseDown={(e) => {
 								e.preventDefault()
-								handleAddRecipientWithContact(contact)
+								handleAddRecipientWithContact(suggestion)
 							}}>
-							<div className='flex h-8 w-8 items-center justify-center rounded-full bg-[var(--compose-chip-bg)] text-[var(--compose-text-muted)]'>
-								<User className='h-4 w-4' />
+							<div className={cn(
+								'flex h-8 w-8 items-center justify-center rounded-full text-white font-bold text-[10px]',
+								suggestion.isGroup ? 'bg-indigo-500' : 'bg-[var(--compose-chip-bg)] text-[var(--compose-text-muted)]'
+							)}
+							style={suggestion.isGroup && suggestion.color ? { backgroundColor: suggestion.color } : undefined}
+							>
+								{suggestion.isGroup ? (
+									<Users className='h-4 w-4' />
+								) : (
+									<User className='h-4 w-4' />
+								)}
 							</div>
 							<div className='flex flex-col'>
 								<span className='text-sm font-medium text-[var(--compose-text)]'>
-									{contact.name || contact.email.split('@')[0]}
+									{suggestion.name || suggestion.email.split('@')[0]}
 								</span>
 								<span className='text-xs text-[var(--compose-text-muted)]'>
-									{contact.email}
+									{suggestion.isGroup ? `${suggestion.memberCount} members` : suggestion.email}
 								</span>
 							</div>
 						</div>

@@ -145,7 +145,7 @@
     - [x] 17.7 - UI: Export contacts to VCard
     - [x] 17.8 - Rust: Auto-create/update contacts on send (collect To/Cc)
     - [x] 17.9 - UI: Contact groups (`contact_groups` table)
-    - [ ] 17.10 - UI: Send to contact group from single To field
+    - [x] 17.10 — UI: Send to contact group from single To field
 
 - [ ] 18 - Advanced Compose
     - [ ] 18.1 - UI: Reply-to field in compose (toggle under From)
