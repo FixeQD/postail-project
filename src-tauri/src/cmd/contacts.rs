@@ -1,6 +1,7 @@
 use crate::db::{Contact, MailHeader, account::contact_groups::ContactGroup};
 use crate::globals::get_db_pool;
 use tauri::command;
+use serde::Serialize;
 
 #[command]
 pub async fn list_contacts() -> Result<Vec<Contact>, String> {
@@ -364,4 +365,29 @@ pub async fn search_contact_groups(query: String) -> Result<Vec<ContactGroup>, S
     crate::db::account::contact_groups::search_groups(&query)
         .await
         .map_err(|e| e.to_string())
+}
+
+#[derive(Serialize)]
+pub struct ContactSearchResults {
+    pub contacts: Vec<Contact>,
+    pub groups: Vec<ContactGroup>,
+}
+
+#[command]
+pub async fn search_contacts_and_groups(
+    query: String,
+    limit: Option<u32>,
+) -> Result<ContactSearchResults, String> {
+    let limit = limit.unwrap_or(50);
+    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
+    let conn = pool.get().map_err(|e| e.to_string())?;
+
+    let contacts = crate::db::account::contacts::search_contacts(&conn, &query, limit)
+        .map_err(|e| e.to_string())?;
+    
+    let groups = crate::db::account::contact_groups::search_groups(&query)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(ContactSearchResults { contacts, groups })
 }
