@@ -95,7 +95,10 @@ pub async fn get_contacts_in_group(group_id: i64) -> Result<Vec<Contact>, DBErro
     let pool = get_db_pool().await?;
     let conn = pool.get()?;
     let mut stmt = conn.prepare(
-        "SELECT id, email, name, frequency, phone, company, notes, avatar_url, birthday 
+        "SELECT id, email, name, first_name, middle_name, last_name, suffix, nickname, 
+                phone, phone_work, phone_home, phone_fax, work_email, company, 
+                job_title, department, role, website, address_home, address_work, 
+                notes, avatar_url, birthday, anniversary, gender, frequency
          FROM contacts 
          INNER JOIN contact_group_members ON contacts.id = contact_group_members.contact_id 
          WHERE contact_group_members.group_id = ? 
@@ -107,12 +110,29 @@ pub async fn get_contacts_in_group(group_id: i64) -> Result<Vec<Contact>, DBErro
             id: row.get(0)?,
             email: row.get(1)?,
             name: row.get(2)?,
-            frequency: row.get(3)?,
-            phone: row.get(4)?,
-            company: row.get(5)?,
-            notes: row.get(6)?,
-            avatar_url: row.get(7)?,
-            birthday: row.get(8)?,
+            first_name: row.get(3)?,
+            middle_name: row.get(4)?,
+            last_name: row.get(5)?,
+            suffix: row.get(6)?,
+            nickname: row.get(7)?,
+            phone: row.get(8)?,
+            phone_work: row.get(9)?,
+            phone_home: row.get(10)?,
+            phone_fax: row.get(11)?,
+            work_email: row.get(12)?,
+            company: row.get(13)?,
+            job_title: row.get(14)?,
+            department: row.get(15)?,
+            role: row.get(16)?,
+            website: row.get(17)?,
+            address_home: row.get(18)?,
+            address_work: row.get(19)?,
+            notes: row.get(20)?,
+            avatar_url: row.get(21)?,
+            birthday: row.get(22)?,
+            anniversary: row.get(23)?,
+            gender: row.get(24)?,
+            frequency: row.get(25)?,
         })
     })?;
 
