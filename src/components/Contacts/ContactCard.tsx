@@ -1,9 +1,10 @@
 import { useState, useCallback, useMemo, memo } from 'react'
 import { motion } from 'framer-motion'
 import { format, formatDistanceToNow, parseISO } from 'date-fns'
-import { Pencil, Trash2, ArrowRight, ArrowLeft, Phone, Building } from 'lucide-react'
+import { Pencil, Trash2, ArrowRight, ArrowLeft, Phone, Building, Download } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { invoke } from '@tauri-apps/api/core'
+import { save } from '@tauri-apps/plugin-dialog'
 import { useAccountStore } from '@/stores/accountStore'
 import { useMessageViewStore } from '@/stores/messageViewStore'
 import { toast } from '@/components/ui/custom/Toaster'
@@ -27,10 +28,35 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 
 	const [isEditOpen, setIsEditOpen] = useState(false)
 	const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+	const [isExporting, setIsExporting] = useState(false)
 
 	// Notes state
 	const [notes, setNotes] = useState(contact.notes ?? '')
 	const [isSavingNotes, setIsSavingNotes] = useState(false)
+
+	const handleExport = async () => {
+		try {
+			const selected = await save({
+				filters: [{ name: 'vCard', extensions: ['vcf'] }],
+				defaultPath: `${contact.name || contact.email.split('@')[0]}.vcf`
+			})
+
+			if (!selected) return
+
+			setIsExporting(true)
+			await invoke('export_contacts_vcf', {
+				path: selected,
+				id: contact.id
+			})
+
+			toast.success(t('contacts:export.success', { count: 1 }))
+		} catch (error) {
+			console.error('Failed to export contact:', error)
+			toast.error(t('contacts:export.failed'))
+		} finally {
+			setIsExporting(false)
+		}
+	}
 
 	// Fetch contact's recent messages
 	const { data: messages, isLoading: messagesLoading } = useQuery({
@@ -191,6 +217,14 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 
 					{/* Edit and Delete buttons */}
 					<div className='flex items-center gap-1.5'>
+						<button
+							type='button'
+							onClick={handleExport}
+							disabled={isExporting}
+							className='flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--surface-active)] text-[var(--text-tertiary)] transition-all hover:bg-[var(--surface-hover)] hover:text-[rgb(var(--accent-rgb))] disabled:opacity-50'
+							title={t('contacts:toolbar.export')}>
+							<Download className='h-4 w-4' />
+						</button>
 						<button
 							type='button'
 							onClick={() => setIsEditOpen(true)}

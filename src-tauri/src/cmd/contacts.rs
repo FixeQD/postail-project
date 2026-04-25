@@ -217,7 +217,7 @@ pub async fn import_contacts_vcf(path: String) -> Result<ImportContactsResult, S
 }
 
 #[command]
-pub async fn export_contacts_vcf(path: String) -> Result<u32, String> {
+pub async fn export_contacts_vcf(path: String, id: Option<i64>) -> Result<u32, String> {
     use calcard::vcard::{VCard, VCardEntry, VCardProperty, VCardValue};
     use chrono::DateTime;
     use std::fs;
@@ -225,7 +225,15 @@ pub async fn export_contacts_vcf(path: String) -> Result<u32, String> {
     let pool = get_db_pool().await.map_err(|e| e.to_string())?;
     let conn = pool.get().map_err(|e| e.to_string())?;
 
-    let contacts = crate::db::account::contacts::list_contacts(&conn).map_err(|e| e.to_string())?;
+    let contacts = if let Some(contact_id) = id {
+        match crate::db::account::contacts::get_contact_by_id(&conn, contact_id).map_err(|e| e.to_string())? {
+            Some(contact) => vec![contact],
+            None => return Err("Contact not found".to_string()),
+        }
+    } else {
+        crate::db::account::contacts::list_contacts(&conn).map_err(|e| e.to_string())?
+    };
+    
     let mut exported = 0;
     let mut output = String::new();
 

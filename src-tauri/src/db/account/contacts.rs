@@ -123,6 +123,28 @@ pub fn search_contacts(
     Ok(contacts)
 }
 
+pub fn get_contact_by_id(conn: &Connection, id: i64) -> Result<Option<Contact>, DBError> {
+    let mut stmt = conn.prepare(
+        "SELECT id, email, name, frequency, phone, company, notes, avatar_url, birthday FROM contacts WHERE id = ?1"
+    )?;
+    
+    let mut rows = stmt.query([id])?;
+    if let Some(row) = rows.next()? {
+        Ok(Some(Contact {
+            id: row.get(0)?,
+            email: row.get(1)?,
+            name: row.get(2)?,
+            frequency: row.get(3)?,
+            phone: row.get(4)?,
+            company: row.get(5)?,
+            notes: row.get(6)?,
+            avatar_url: row.get(7)?,
+            birthday: row.get(8)?,
+        }))
+    } else {
+        Ok(None)
+    }
+}
 pub fn list_contacts(conn: &Connection) -> Result<Vec<Contact>, DBError> {
     let mut stmt = conn.prepare(
         "SELECT id, email, name, frequency, phone, company, notes, avatar_url, birthday FROM contacts ORDER BY (name IS NULL), name ASC, email ASC"
