@@ -33,6 +33,7 @@ export function GroupsSidebar({ selectedGroupId, onSelectGroup }: GroupsSidebarP
     const [newGroupColor, setNewGroupColor] = useState<string>('#3b82f6')
     const [editingGroupId, setEditingGroupId] = useState<number | null>(null)
     const [editName, setEditName] = useState('')
+    const [dragOverGroupId, setDragOverGroupId] = useState<number | null>(null)
 
     const { data: groups = [] } = useQuery({
         queryKey: ['contact-groups'],
@@ -80,6 +81,35 @@ export function GroupsSidebar({ selectedGroupId, onSelectGroup }: GroupsSidebarP
     const handleRename = (id: number) => {
         if (!editName.trim()) return
         renameMutation.mutate({ id, name: editName.trim() })
+    }
+
+    const handleDragOver = (e: React.DragEvent, groupId: number) => {
+        if (e.dataTransfer.types.includes('application/postail-contact-id')) {
+            e.preventDefault()
+            setDragOverGroupId(groupId)
+            e.dataTransfer.dropEffect = 'link'
+        }
+    }
+
+    const handleDragLeave = () => {
+        setDragOverGroupId(null)
+    }
+
+    const handleDrop = async (e: React.DragEvent, groupId: number) => {
+        e.preventDefault()
+        setDragOverGroupId(null)
+        
+        const contactIdStr = e.dataTransfer.getData('application/postail-contact-id')
+        if (contactIdStr) {
+            const contactId = parseInt(contactIdStr)
+            try {
+                await invoke('add_contact_to_group', { groupId, contactId })
+                queryClient.invalidateQueries({ queryKey: ['contact-groups'] })
+                toast.success(t('contacts:groups.addSuccess'))
+            } catch {
+                toast.error(t('contacts:groups.addFailed'))
+            }
+        }
     }
 
     return (
@@ -141,9 +171,16 @@ export function GroupsSidebar({ selectedGroupId, onSelectGroup }: GroupsSidebarP
                                 ) : (
                                     <div 
                                         className={`flex items-center gap-3 px-4 py-2 text-[13px] cursor-pointer transition-colors ${
-                                            selectedGroupId === group.id ? 'bg-[var(--surface-active)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
+                                            selectedGroupId === group.id 
+                                                ? 'bg-[var(--surface-active)] text-[var(--text-primary)]' 
+                                                : dragOverGroupId === group.id
+                                                ? 'bg-[rgba(var(--accent-rgb),0.1)] text-[rgb(var(--accent-rgb))] shadow-[inset_0_0_0_1px_rgba(var(--accent-rgb),0.2)]'
+                                                : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
                                         }`}
                                         onClick={() => onSelectGroup(group.id)}
+                                        onDragOver={(e) => handleDragOver(e, group.id)}
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={(e) => handleDrop(e, group.id)}
                                     >
                                         <div 
                                             className='h-2 w-2 rounded-full' 

@@ -74,6 +74,19 @@ export const ContactList = memo(function ContactList({
 		[onSelect]
 	)
 
+	const handleDragStart = (e: React.DragEvent, contactId: number) => {
+		e.dataTransfer.setData('application/postail-contact-id', contactId.toString())
+		e.dataTransfer.effectAllowed = 'link'
+		
+		// Create a small drag image or just rely on default
+		const target = e.currentTarget as HTMLElement
+		target.style.opacity = '0.5'
+		
+		setTimeout(() => {
+			target.style.opacity = '1'
+		}, 0)
+	}
+
 	const renderItem = useCallback(
 		(_index: number, contact: Contact) => {
 			const isSelected = selectedContact?.id === contact.id
@@ -94,7 +107,12 @@ export const ContactList = memo(function ContactList({
 			}
 
 			return (
-				<div className={itemBase} onClick={() => handleContactClick(contact)}>
+				<div 
+					className={itemBase} 
+					onClick={() => handleContactClick(contact)}
+					draggable
+					onDragStart={(e) => handleDragStart(e, contact.id)}
+				>
 					<div
 						className='flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold'
 						style={avatarStyle}>
