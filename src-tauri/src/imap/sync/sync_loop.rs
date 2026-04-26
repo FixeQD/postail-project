@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use tokio::sync::Mutex;
-use tokio::time::{Duration, timeout};
+use tokio::time::Duration;
 
 use tracing;
 
@@ -19,25 +19,53 @@ use crate::imap::sync_status::{
 const RFC_IDLE_TIMEOUT_SECS: u64 = 29 * 60;
 const POLL_INTERVAL_SECS: u64 = 60;
 
+// ── Stop / interrupt maps ─────────────────────────────────────────────────────
+
 static STOP_FLAGS: LazyLock<Mutex<HashMap<String, Arc<AtomicBool>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// Interrupt handles for active IDLE waits (dropping StopSource cancels the IDLE).
 static IDLE_INTERRUPTS: LazyLock<Mutex<HashMap<String, stop_token::StopSource>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-// Per-account mailbox watch
+/// Notify handles for active poll-loop sleeps.
+static POLL_INTERRUPTS: LazyLock<Mutex<HashMap<String, Arc<tokio::sync::Notify>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 static WATCH_STOP_FLAGS: LazyLock<Mutex<HashMap<String, Arc<AtomicBool>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
+// ── Internal helpers ──────────────────────────────────────────────────────────
+
+/// Interrupt any active IDLE wait for `account_id`.
+async fn interrupt_idle(account_id: &str) {
+    let mut interrupts = IDLE_INTERRUPTS.lock().await;
+    if let Some(interrupt) = interrupts.remove(account_id) {
+        tracing::info!(target: "postail", "[IMAP] Interrupting IDLE for {}", account_id);
+        drop(interrupt);
+    }
+}
+
+/// Wake any active poll-loop sleep for `account_id`.
+async fn interrupt_poll(account_id: &str) {
+    let interrupts = POLL_INTERRUPTS.lock().await;
+    if let Some(notify) = interrupts.get(account_id) {
+        notify.notify_one();
+    }
+}
+
+// ── ImapManager impl ──────────────────────────────────────────────────────────
+
 impl crate::imap::ImapManager {
     pub async fn start_sync(&self, account_id: &str) -> Result<(), AppError> {
-        // Guard: don't spawn a second task if one is already running for this account
         {
             let flags = STOP_FLAGS.lock().await;
             if let Some(flag) = flags.get(account_id) {
-                if !flag.load(Ordering::SeqCst) {
-                    // Flag exists and is NOT set to stop — sync is already running
-                    tracing::info!(target: "postail", "[IMAP] start_sync called but already running for {}, ignoring", account_id);
+                if !flag.load(Ordering::Acquire) {
+                    tracing::info!(target: "postail",
+                        "[IMAP] start_sync called but already running for {}, ignoring",
+                        account_id
+                    );
                     return Ok(());
                 }
             }
@@ -55,9 +83,7 @@ impl crate::imap::ImapManager {
 
         start_sync_status_tracking(account_id, &account_email).await;
 
-        // Use SYNC_STATUS_MANAGER's stop flag so stop_sync() can actually halt the IDLE loop
         let stop_flag = SYNC_STATUS_MANAGER.get_stop_flag(account_id).await;
-        // Reset the flag in case it was previously set
         stop_flag.store(false, Ordering::SeqCst);
         {
             let mut flags = STOP_FLAGS.lock().await;
@@ -73,10 +99,9 @@ impl crate::imap::ImapManager {
                 tracing::error!(target: "postail", "[IMAP] start_sync_async failed: {}", e);
                 mark_sync_error(&account_id_str, &e.to_string()).await;
             }
-            tracing::info!(target: "postail", "[IMAP] Sync done");
+            tracing::info!(target: "postail", "[IMAP] Sync done for {}", account_id_str);
         });
 
-        tracing::info!(target: "postail", "[IMAP] start_sync completed");
         Ok(())
     }
 
@@ -85,21 +110,20 @@ impl crate::imap::ImapManager {
             let flags = STOP_FLAGS.lock().await;
             flags.keys().cloned().collect()
         };
-
         for account_id in accounts {
             if let Err(e) = self.stop_sync(&account_id).await {
-                tracing::error!(target: "postail", "[IMAP] Failed to stop sync for {}: {}", account_id, e);
+                tracing::error!(target: "postail",
+                    "[IMAP] Failed to stop sync for {}: {}",
+                    account_id, e
+                );
             }
         }
         Ok(())
     }
 
     pub async fn force_idle_wakeup(&self, account_id: &str) {
-        let mut interrupts = IDLE_INTERRUPTS.lock().await;
-        if let Some(interrupt) = interrupts.remove(account_id) {
-            tracing::info!(target: "postail", "[IMAP] Forcing IDLE wakeup for {}", account_id);
-            drop(interrupt);
-        }
+        interrupt_idle(account_id).await;
+        interrupt_poll(account_id).await;
     }
 
     pub async fn stop_sync(&self, account_id: &str) -> Result<(), AppError> {
@@ -110,32 +134,22 @@ impl crate::imap::ImapManager {
                 .cloned()
                 .unwrap_or_else(|| Arc::new(AtomicBool::new(false)))
         };
-
         stop_flag.store(true, Ordering::SeqCst);
 
-        // Interrupt any active IDLE
-        {
-            let mut interrupts = IDLE_INTERRUPTS.lock().await;
-            if let Some(interrupt) = interrupts.remove(account_id) {
-                tracing::info!(target: "postail", "[IMAP] Interrupting IDLE for {}", account_id);
-                drop(interrupt);
-            }
-        }
+        interrupt_idle(account_id).await;
+        interrupt_poll(account_id).await;
 
         tracing::info!(target: "postail", "[IMAP] Stop requested for {}", account_id);
         Ok(())
     }
 
-    /// Start IDLE/poll watch for a single mailbox
     pub async fn start_watch_mailbox(
         &self,
         account_id: &str,
         mailbox_name: &str,
     ) -> Result<(), AppError> {
-        // Stop previous watch for this account if running
         self.stop_watch_mailbox(account_id).await;
 
-        // Register account for status tracking so frontend gets events
         let account_email = {
             let pool = get_db_pool()
                 .await
@@ -161,45 +175,43 @@ impl crate::imap::ImapManager {
         let mailbox_owned = mailbox_name.to_string();
 
         tokio::spawn(async move {
-            tracing::info!(target: "postail", "[IMAP] Watch started for {}@{}", mailbox_owned, account_id_owned);
+            tracing::info!(target: "postail",
+                "[IMAP] Watch started for {}@{}",
+                mailbox_owned, account_id_owned
+            );
             match manager
                 .idle_mailbox(&account_id_owned, &mailbox_owned, &stop_flag)
                 .await
             {
-                Ok(()) => {
-                    tracing::info!(target: "postail", "[IMAP] Watch ended cleanly for {}@{}", mailbox_owned, account_id_owned);
-                }
-                Err(e) => {
-                    tracing::error!(target: "postail", "[IMAP] Watch error for {}@{}: {}", mailbox_owned, account_id_owned, e);
-                }
+                Ok(()) => tracing::info!(target: "postail",
+                    "[IMAP] Watch ended cleanly for {}@{}",
+                    mailbox_owned, account_id_owned
+                ),
+                Err(e) => tracing::error!(target: "postail",
+                    "[IMAP] Watch error for {}@{}: {}",
+                    mailbox_owned, account_id_owned, e
+                ),
             }
         });
 
-        tracing::info!(target: "postail", "[IMAP] Watch spawned for {}@{}", mailbox_name, account_id);
+        tracing::info!(target: "postail",
+            "[IMAP] Watch spawned for {}@{}",
+            mailbox_name, account_id
+        );
         Ok(())
     }
 
-    /// Stop the active mailbox watch for an account.
     pub async fn stop_watch_mailbox(&self, account_id: &str) {
-        // Signal stop
-        let flag = {
+        if let Some(f) = {
             let flags = WATCH_STOP_FLAGS.lock().await;
             flags.get(account_id).cloned()
-        };
-        if let Some(f) = flag {
+        } {
             f.store(true, Ordering::SeqCst);
         }
 
-        // Interrupt IDLE so the thread wakes up
-        {
-            let mut interrupts = IDLE_INTERRUPTS.lock().await;
-            if let Some(interrupt) = interrupts.remove(account_id) {
-                tracing::info!(target: "postail", "[IMAP] Interrupting watch IDLE for {}", account_id);
-                drop(interrupt);
-            }
-        }
+        interrupt_idle(account_id).await;
+        interrupt_poll(account_id).await;
 
-        // Cleanup flag
         {
             let mut flags = WATCH_STOP_FLAGS.lock().await;
             flags.remove(account_id);
@@ -209,11 +221,12 @@ impl crate::imap::ImapManager {
     }
 
     async fn start_sync_async(&self, account_id: &str) -> Result<(), AppError> {
-        // Fetch mailbox list so the folder tree is populated
         if let Err(e) = self.fetch_mailboxes(account_id).await {
-            tracing::error!(target: "postail", "[IMAP] Failed to fetch mailbox list for {}: {}", account_id, e);
+            tracing::error!(target: "postail",
+                "[IMAP] Failed to fetch mailbox list for {}: {}",
+                account_id, e
+            );
         }
-
         mark_sync_complete(account_id).await;
         Ok(())
     }
@@ -236,7 +249,6 @@ impl crate::imap::ImapManager {
         let mut last_uid = self.get_last_synced_uid(account_id, mailbox_name).await?;
 
         if highest_uid > last_uid {
-            // Startup catch-up before IDLE: silent, no notification emitted
             let _ = self
                 .fetch_missing_messages(
                     account_id,
@@ -249,25 +261,29 @@ impl crate::imap::ImapManager {
             mark_sync_complete(account_id).await;
         }
 
-        tracing::info!(target: "postail", "[IMAP] Starting IDLE for {}@{}", mailbox_name, account_id);
+        tracing::info!(target: "postail",
+            "[IMAP] Starting IDLE for {}@{}",
+            mailbox_name, account_id
+        );
 
         let mut idle = session.idle();
         if idle.init().await.is_err() {
             let session = idle.done().await?;
             tracing::warn!(target: "postail",
-                "[IMAP] IDLE init failed for {}@{}, switching to polling",
+                "[IMAP] IDLE init failed for {}@{}, falling back to polling",
                 mailbox_name, account_id
             );
-            self.poll_loop(session, account_id, mailbox_name, &mut last_uid, stop_flag)
-                .await
-        } else {
-            tracing::info!(target: "postail",
-                "[IMAP] Entering IDLE mode for {}@{}",
-                mailbox_name, account_id
-            );
-            self.idle_loop(idle, account_id, mailbox_name, &mut last_uid, stop_flag)
-                .await
+            return self
+                .poll_loop(session, account_id, mailbox_name, &mut last_uid, stop_flag)
+                .await;
         }
+
+        tracing::info!(target: "postail",
+            "[IMAP] Entering IDLE mode for {}@{}",
+            mailbox_name, account_id
+        );
+        self.idle_loop(idle, account_id, mailbox_name, &mut last_uid, stop_flag)
+            .await
     }
 
     async fn idle_loop(
@@ -281,7 +297,8 @@ impl crate::imap::ImapManager {
         stop_flag: &Arc<AtomicBool>,
     ) -> Result<(), AppError> {
         loop {
-            if stop_flag.load(Ordering::SeqCst) {
+            // ── Stop check at top of every loop iteration ─────────────────
+            if stop_flag.load(Ordering::Acquire) {
                 mark_sync_complete(account_id).await;
                 let mut session = idle.done().await.map_err(|e| ImapError::IdleWaitError {
                     mailbox: mailbox_name.to_string(),
@@ -291,17 +308,91 @@ impl crate::imap::ImapManager {
                 return Ok(());
             }
 
-            let (wait_future, interrupt) = idle.wait();
-            {
-                let mut interrupts = IDLE_INTERRUPTS.lock().await;
-                interrupts.insert(account_id.to_string(), interrupt);
+            // ── Arm IDLE wait ─────────────────────────────────────────────
+            // wait_future borrows idle, so idle.done() (which moves idle) must happen after wait_future is dropped at the end of this block
+            let (wait_result, stop_early) = {
+                let (wait_future, interrupt) = idle.wait();
+                tokio::pin!(wait_future);
+                {
+                    let mut interrupts = IDLE_INTERRUPTS.lock().await;
+                    interrupts.insert(account_id.to_string(), interrupt);
+                }
+                if stop_flag.load(Ordering::Acquire) {
+                    interrupt_idle(account_id).await;
+                    (None, true)
+                } else {
+                    // Wait for either timeout or IDLE notification.
+                    let result = tokio::select! {
+                        _ = tokio::time::sleep(Duration::from_secs(RFC_IDLE_TIMEOUT_SECS)) => {
+                            None // Timeout
+                        }
+                        result = &mut wait_future => {
+                            Some(result)
+                        }
+                    };
+                    (result, false)
+                }
+            };
+
+            if stop_early {
+                mark_sync_complete(account_id).await;
+                let mut session = idle.done().await.map_err(|e| ImapError::IdleWaitError {
+                    mailbox: mailbox_name.to_string(),
+                    error: e.to_string(),
+                })?;
+                let _ = session.logout().await;
+                return Ok(());
             }
-            match timeout(Duration::from_secs(RFC_IDLE_TIMEOUT_SECS), wait_future).await {
-                Ok(Ok(_)) => {
+
+            match wait_result {
+                None => {
+                    // Timeout: send DONE and re-enter IDLE.
                     let mut session = idle.done().await.map_err(|e| ImapError::IdleWaitError {
                         mailbox: mailbox_name.to_string(),
                         error: e.to_string(),
                     })?;
+
+                    // Stop check before re-entering IDLE.
+                    if stop_flag.load(Ordering::Acquire) {
+                        mark_sync_complete(account_id).await;
+                        let _ = session.logout().await;
+                        return Ok(());
+                    }
+
+                    tracing::info!(target: "postail",
+                        "[IMAP] IDLE RFC timeout for {}@{}, re-entering IDLE",
+                        mailbox_name, account_id
+                    );
+                    idle = session.idle();
+                    if idle.init().await.is_err() {
+                        let session =
+                            idle.done()
+                                .await
+                                .map_err(|_e| ImapError::IdleReinitFailed {
+                                    mailbox: mailbox_name.to_string(),
+                                })?;
+                        tracing::warn!(target: "postail",
+                            "[IMAP] IDLE reinit failed for {}@{}, switching to polling",
+                            mailbox_name, account_id
+                        );
+                        return self
+                            .poll_loop(session, account_id, mailbox_name, last_uid, stop_flag)
+                            .await;
+                    }
+                }
+                Some(Ok(_notification)) => {
+                    // Server pushed a notification (new mail, flag change, expunge, etc.)
+                    let mut session = idle.done().await.map_err(|e| ImapError::IdleWaitError {
+                        mailbox: mailbox_name.to_string(),
+                        error: e.to_string(),
+                    })?;
+
+                    if stop_flag.load(Ordering::Acquire) {
+                        mark_sync_complete(account_id).await;
+                        let _ = session.logout().await;
+                        return Ok(());
+                    }
+
                     let mailbox = session.select(mailbox_name).await.map_err(
                         |e: async_imap::error::Error| ImapError::MailboxSyncError {
                             mailbox: mailbox_name.to_string(),
@@ -310,6 +401,7 @@ impl crate::imap::ImapManager {
                     )?;
                     let new_highest_uid =
                         mailbox.uid_next.map(|u| u.saturating_sub(1)).unwrap_or(0);
+
                     if new_highest_uid > *last_uid {
                         let (actual_new_count, subject, sender) = self
                             .fetch_missing_messages(
@@ -348,14 +440,15 @@ impl crate::imap::ImapManager {
                             );
                         }
                     }
+
                     idle = session.idle();
                     if idle.init().await.is_err() {
-                        session = idle
-                            .done()
-                            .await
-                            .map_err(|_e| ImapError::IdleReinitFailed {
-                                mailbox: mailbox_name.to_string(),
-                            })?;
+                        let session =
+                            idle.done()
+                                .await
+                                .map_err(|_e| ImapError::IdleReinitFailed {
+                                    mailbox: mailbox_name.to_string(),
+                                })?;
                         tracing::warn!(target: "postail",
                             "[IMAP] IDLE reinit failed for {}@{}, switching to polling",
                             mailbox_name, account_id
@@ -365,7 +458,8 @@ impl crate::imap::ImapManager {
                             .await;
                     }
                 }
-                Ok(Err(e)) => {
+                Some(Err(e)) => {
+                    // IDLE stream error - fall back to polling.
                     let session = idle.done().await.map_err(|e| ImapError::IdleWaitError {
                         mailbox: mailbox_name.to_string(),
                         error: e.to_string(),
@@ -377,32 +471,6 @@ impl crate::imap::ImapManager {
                     return self
                         .poll_loop(session, account_id, mailbox_name, last_uid, stop_flag)
                         .await;
-                }
-                Err(_) => {
-                    let mut session = idle.done().await.map_err(|e| ImapError::IdleWaitError {
-                        mailbox: mailbox_name.to_string(),
-                        error: e.to_string(),
-                    })?;
-                    tracing::info!(target: "postail",
-                        "[IMAP] IDLE timeout for {}@{}, re-entering IDLE",
-                        mailbox_name, account_id
-                    );
-                    idle = session.idle();
-                    if idle.init().await.is_err() {
-                        session = idle
-                            .done()
-                            .await
-                            .map_err(|_e| ImapError::IdleReinitFailed {
-                                mailbox: mailbox_name.to_string(),
-                            })?;
-                        tracing::warn!(target: "postail",
-                            "[IMAP] IDLE reinit failed for {}@{}, switching to polling",
-                            mailbox_name, account_id
-                        );
-                        return self
-                            .poll_loop(session, account_id, mailbox_name, last_uid, stop_flag)
-                            .await;
-                    }
                 }
             }
         }
@@ -417,19 +485,46 @@ impl crate::imap::ImapManager {
         stop_flag: &Arc<AtomicBool>,
     ) -> Result<(), AppError> {
         loop {
-            if stop_flag.load(Ordering::SeqCst) {
+            if stop_flag.load(Ordering::Acquire) {
                 mark_sync_complete(account_id).await;
                 let _ = session.logout().await;
                 return Ok(());
             }
 
-            tokio::time::sleep(Duration::from_secs(POLL_INTERVAL_SECS)).await;
+            // ── Interruptible sleep ───────────────────────────────────────
+            // Register a Notify so stop_sync()/stop_watch_mailbox() can wake us immediately
+            let notify = Arc::new(tokio::sync::Notify::new());
+            {
+                let mut interrupts = POLL_INTERRUPTS.lock().await;
+                interrupts.insert(account_id.to_string(), notify.clone());
+            }
+            tokio::select! {
+                _ = tokio::time::sleep(Duration::from_secs(POLL_INTERVAL_SECS)) => {}
+                _ = notify.notified() => {
+                    tracing::debug!(target: "postail",
+                        "[IMAP] Poll sleep interrupted for {}@{}",
+                        mailbox_name, account_id
+                    );
+                }
+            }
+            {
+                let mut interrupts = POLL_INTERRUPTS.lock().await;
+                interrupts.remove(account_id);
+            }
 
+            if stop_flag.load(Ordering::Acquire) {
+                mark_sync_complete(account_id).await;
+                let _ = session.logout().await;
+                return Ok(());
+            }
+
+            // ── Poll ──────────────────────────────────────────────────────
             match session.noop().await {
                 Ok(_) => {
                     let mailbox = session.select(mailbox_name).await?;
                     let new_highest_uid =
                         mailbox.uid_next.map(|u| u.saturating_sub(1)).unwrap_or(0);
+
                     if new_highest_uid > *last_uid {
                         let (actual_new_count, subject, sender) = self
                             .fetch_missing_messages(
@@ -465,11 +560,28 @@ impl crate::imap::ImapManager {
                 }
                 Err(e) => {
                     tracing::warn!(target: "postail",
-                        "[IMAP] NOOP error for {}@{}: {}, reconnecting...",
+                        "[IMAP] NOOP failed for {}@{}: {}, reconnecting...",
                         mailbox_name, account_id, e
                     );
-                    session = self.connect_imap(account_id).await?;
-                    let _ = session.select(mailbox_name).await?;
+                    match self.connect_imap(account_id).await {
+                        Ok(new_session) => {
+                            session = new_session;
+                            if let Err(select_err) = session.select(mailbox_name).await {
+                                tracing::error!(target: "postail",
+                                    "[IMAP] SELECT after reconnect failed for {}@{}: {}",
+                                    mailbox_name, account_id, select_err
+                                );
+                                return Err(AppError::from(select_err));
+                            }
+                        }
+                        Err(reconnect_err) => {
+                            tracing::error!(target: "postail",
+                                "[IMAP] Reconnect failed for {}@{}: {}",
+                                mailbox_name, account_id, reconnect_err
+                            );
+                            return Err(AppError::Imap(reconnect_err));
+                        }
+                    }
                 }
             }
         }
@@ -550,14 +662,10 @@ impl crate::imap::ImapManager {
             .await
             .map_err(|e| AppError::from(e.to_string()))?;
         let conn = pool.get().map_err(|e| AppError::from(e.to_string()))?;
-        let mut stmt = conn
-            .prepare("UPDATE mailboxes SET last_synced_uid = ? WHERE account_id = ? AND name = ?")
-            .map_err(|e| AppError::from(e.to_string()))?;
-        stmt.execute([
-            end_uid.to_string(),
-            account_id.to_string(),
-            mailbox_name.to_string(),
-        ])
+        conn.execute(
+            "UPDATE mailboxes SET last_synced_uid = ? WHERE account_id = ? AND name = ?",
+            rusqlite::params![end_uid, account_id, mailbox_name],
+        )
         .map_err(|e| AppError::from(e.to_string()))?;
 
         Ok((actual_new_count, newest_subject, newest_sender))
