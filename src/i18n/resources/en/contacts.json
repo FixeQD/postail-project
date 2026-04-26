@@ -1,0 +1,104 @@
+{
+	"title": "Contacts",
+	"back": "Back",
+	"sidebar": {
+		"contacts": "Contacts"
+	},
+	"search": {
+		"placeholder": "Search contacts..."
+	},
+	"toolbar": {
+		"newContact": "New Contact",
+		"import": "Import",
+		"export": "Export"
+	},
+	"notes": {
+		"label": "Notes",
+		"placeholder": "Add notes...",
+		"saving": "Saving..."
+	},
+	"recentMessages": {
+		"title": "Recent Messages",
+		"empty": "No messages exchanged"
+	},
+	"fields": {
+		"name": "Name",
+		"namePlaceholder": "John Doe",
+		"email": "Email",
+		"phone": "Phone",
+		"company": "Company",
+		"birthday": "Birthday",
+		"anniversary": "Anniversary",
+		"gender": "Gender",
+		"genderMale": "Male",
+		"genderFemale": "Female",
+		"genderOther": "Other",
+		"jobTitle": "Job Title",
+		"department": "Department",
+		"role": "Role",
+		"phoneWork": "Work Phone",
+		"phoneHome": "Home Phone",
+		"emailWork": "Work Email",
+		"addressHome": "Home Address",
+		"addressWork": "Work Address"
+	},
+	"sections": {
+		"professional": "Professional",
+		"personal": "Personal",
+		"addresses": "Addresses"
+	},
+	"labels": {
+		"home": "Home",
+		"work": "Work"
+	},
+	"create": {
+		"title": "Add Contact"
+	},
+	"edit": {
+		"title": "Edit Contact"
+	},
+	"delete": {
+		"title": "Delete Contact",
+		"description": "Are you sure you want to delete this contact? This action cannot be undone."
+	},
+	"empty": {
+		"noContact": {
+			"title": "No contact selected",
+			"description": "Choose a contact from the list to view details"
+		},
+		"noContacts": {
+			"title": "No contacts yet",
+			"description": "Contacts are added automatically when you send emails"
+		},
+		"noResults": {
+			"title": "No contacts found",
+			"description": "Try a different search term"
+		}
+	},
+	"import": {
+		"success": "Imported {{imported}}, updated {{updated}} ({{errors}} errors)",
+		"failed": "Failed to import contacts"
+	},
+	"export": {
+		"success": "Exported {{count}} contacts to VCard",
+		"failed": "Failed to export contacts"
+	},
+	"groups": {
+		"title": "Groups",
+		"allContacts": "All Contacts",
+		"placeholder": "New group name...",
+		"deleteConfirm": "Are you sure you want to delete this group? Contacts will not be deleted.",
+		"createSuccess": "Group created",
+		"createFailed": "Failed to create group",
+		"deleteSuccess": "Group deleted",
+		"deleteFailed": "Failed to delete group",
+		"renameSuccess": "Group renamed",
+		"renameFailed": "Failed to rename group",
+		"addSuccess": "Contact added to group",
+		"addFailed": "Failed to add to group",
+		"removeSuccess": "Contact removed from group",
+		"removeFailed": "Failed to remove from group",
+		"noGroups": "No groups created yet",
+		"none": "No groups assigned"
+	}
+}

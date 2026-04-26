@@ -1,4 +1,5 @@
 pub mod build_info;
+pub mod calendar;
 pub mod cmd;
 pub mod db;
 pub mod email_view;
@@ -219,6 +220,24 @@ pub fn run() {
             cmd::drafts::list_drafts,
             cmd::drafts::delete_draft,
             cmd::maintenance::search_contacts,
+            cmd::contacts::list_contacts,
+            cmd::contacts::search_contacts_full,
+            cmd::contacts::get_contact_messages,
+            cmd::contacts::update_contact,
+            cmd::contacts::create_contact,
+            cmd::contacts::delete_contact,
+            cmd::contacts::import_contacts_vcf,
+            cmd::contacts::export_contacts_vcf,
+            cmd::contacts::create_contact_group,
+            cmd::contacts::delete_contact_group,
+            cmd::contacts::rename_contact_group,
+            cmd::contacts::list_contact_groups,
+            cmd::contacts::add_contact_to_group,
+            cmd::contacts::remove_contact_from_group,
+            cmd::contacts::get_contacts_in_group,
+            cmd::contacts::get_groups_for_contact,
+            cmd::contacts::search_contact_groups,
+            cmd::contacts::search_contacts_and_groups,
             cmd::attachments::add_attachment,
             cmd::attachments::add_attachment_bytes,
             cmd::attachments::add_inline_attachment,
@@ -251,7 +270,9 @@ pub fn run() {
             cmd::signatures::get_default_signature,
             cmd::templates::list_templates,
             cmd::templates::save_template,
-            cmd::templates::delete_template
+            cmd::templates::delete_template,
+            cmd::calendar::list_calendar_events,
+            cmd::calendar::create_calendar_event
         ])
         .register_uri_scheme_protocol("postail", protocol::handler)
         .build(tauri::generate_context!())

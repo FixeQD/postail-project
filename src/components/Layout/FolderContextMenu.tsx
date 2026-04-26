@@ -4,13 +4,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FolderPlus, Pencil, Trash2, MoreHorizontal, EyeOff, Eye } from 'lucide-react'
-import {
-	Dialog,
-	DialogContent,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 import { toast } from '@/stores/toastStore'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'

@@ -186,12 +186,69 @@ pub fn create_tables(conn: &Connection) -> Result<(), DBError> {
             ("id", "INTEGER PRIMARY KEY"),
             ("email", "TEXT NOT NULL UNIQUE"),
             ("name", "TEXT"),
+            ("first_name", "TEXT"),
+            ("middle_name", "TEXT"),
+            ("last_name", "TEXT"),
+            ("suffix", "TEXT"),
+            ("nickname", "TEXT"),
             ("last_contact_at", "INTEGER"),
             ("frequency", "INTEGER DEFAULT 1"),
+            ("phone", "TEXT"),
+            ("phone_work", "TEXT"),
+            ("phone_home", "TEXT"),
+            ("phone_fax", "TEXT"),
+            ("work_email", "TEXT"),
+            ("company", "TEXT"),
+            ("job_title", "TEXT"),
+            ("department", "TEXT"),
+            ("role", "TEXT"),
+            ("website", "TEXT"),
+            ("address_home", "TEXT"),
+            ("address_work", "TEXT"),
+            ("notes", "TEXT"),
+            ("avatar_url", "TEXT"),
+            ("birthday", "INTEGER"),
+            ("anniversary", "INTEGER"),
+            ("gender", "TEXT"),
         ],
     )?;
 
-    create_fts_table(conn, "contacts_fts", &["email", "name"], "contacts", "id")?;
+    create_fts_table(
+        conn,
+        "contacts_fts",
+        &["email", "name", "company", "notes", "job_title", "nickname"],
+        "contacts",
+        "id",
+    )?;
+
+    create_table_if_not_exists(
+        conn,
+        "contact_groups",
+        &[
+            ("id", "INTEGER PRIMARY KEY"),
+            ("name", "TEXT NOT NULL UNIQUE"),
+            ("color", "TEXT"),
+            ("created_at", "INTEGER NOT NULL"),
+        ],
+    )?;
+
+    create_table_if_not_exists(
+        conn,
+        "contact_group_members",
+        &[
+            ("group_id", "INTEGER NOT NULL"),
+            ("contact_id", "INTEGER NOT NULL"),
+            ("PRIMARY KEY(group_id, contact_id)", ""),
+            (
+                "FOREIGN KEY(group_id) REFERENCES contact_groups(id) ON DELETE CASCADE",
+                "",
+            ),
+            (
+                "FOREIGN KEY(contact_id) REFERENCES contacts(id) ON DELETE CASCADE",
+                "",
+            ),
+        ],
+    )?;
 
     create_table_if_not_exists(
         conn,
@@ -373,18 +430,18 @@ pub fn create_fts_triggers(conn: &Connection) -> Result<(), DBError> {
         "AFTER",
         "INSERT",
         "contacts",
-        "INSERT INTO contacts_fts(rowid, email, name) VALUES (NEW.id, NEW.email, NEW.name);",
+        "INSERT INTO contacts_fts(rowid, email, name, company, notes, job_title, nickname) VALUES (NEW.id, NEW.email, NEW.name, NEW.company, NEW.notes, NEW.job_title, NEW.nickname);",
     )?;
-
+ 
     create_trigger_if_not_exists(
         conn,
         "contacts_fts_update",
         "AFTER",
         "UPDATE",
         "contacts",
-        "UPDATE contacts_fts SET email = NEW.email, name = NEW.name WHERE rowid = NEW.id;",
+        "UPDATE contacts_fts SET email = NEW.email, name = NEW.name, company = NEW.company, notes = NEW.notes, job_title = NEW.job_title, nickname = NEW.nickname WHERE rowid = NEW.id;",
     )?;
-
+ 
     create_trigger_if_not_exists(
         conn,
         "contacts_fts_delete",

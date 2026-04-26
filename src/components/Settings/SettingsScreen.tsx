@@ -16,6 +16,7 @@ import {
 	Settings2,
 	Signature,
 	FileText,
+	Contact,
 } from 'lucide-react'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
@@ -32,6 +33,7 @@ import { TagsSettings } from './Sections/TagsSettings'
 import { FiltersSettings } from './Sections/FiltersSettings'
 import { SignaturesSettings } from './Sections/Signatures/SignaturesSettings'
 import { TemplatesSettings } from './Sections/TemplatesSettings'
+import { ContactsSettings } from './Sections/ContactsSettings'
 import { invoke } from '@tauri-apps/api/core'
 import { useAccountStore } from '@/stores/accountStore'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
@@ -44,29 +46,24 @@ const SettingsNavItem = memo(
 				type='button'
 				onClick={onClick}
 				{...(animationsEnabled ? { whileTap: { scale: 0.97 } } : {})}
-				className={`relative flex w-full items-center gap-3 rounded-xl px-4 py-2.5 transition-colors duration-200 ${
-					isActive
+				className={`relative flex w-full items-center gap-3 rounded-xl px-4 py-2.5 transition-colors duration-200 outline-none focus:outline-none focus:ring-0 ${isActive
 						? 'text-foreground'
 						: 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-hover)]'
-				}`}>
+					}`}>
 				{/* Active background pill */}
 				{isActive && (
 					<motion.div
 						{...(animationsEnabled
 							? {
-									layoutId: 'settings-active-bg',
-									transition: {
-										type: 'spring',
-										stiffness: 350,
-										damping: 30,
-									},
-								}
+								layoutId: 'settings-active-bg',
+								transition: {
+									type: 'spring',
+									stiffness: 350,
+									damping: 30,
+								},
+							}
 							: {})}
-						className='absolute inset-0 rounded-xl bg-[var(--surface-active)]'
-						style={{
-							backgroundColor: `rgba(var(--accent-rgb), 0.08)`,
-							boxShadow: `inset 0 0 0 1px rgba(var(--accent-rgb), 0.15), 0 4px 12px -4px rgba(var(--accent-rgb), 0.1)`,
-						}}
+						className='absolute inset-0 rounded-xl bg-[rgb(var(--accent-rgb))] opacity-[0.08] shadow-[inset_0_0_0_1px_rgba(var(--accent-rgb),0.15)]'
 					/>
 				)}
 
@@ -75,15 +72,15 @@ const SettingsNavItem = memo(
 					<motion.div
 						{...(animationsEnabled
 							? {
-									initial: { scaleY: 0, opacity: 0 },
-									animate: { scaleY: 1, opacity: 1 },
-									exit: { scaleY: 0, opacity: 0 },
-									transition: {
-										type: 'spring',
-										stiffness: 400,
-										damping: 25,
-									},
-								}
+								initial: { scaleY: 0, opacity: 0 },
+								animate: { scaleY: 1, opacity: 1 },
+								exit: { scaleY: 0, opacity: 0 },
+								transition: {
+									type: 'spring',
+									stiffness: 400,
+									damping: 25,
+								},
+							}
 							: {})}
 						className='absolute top-1/2 left-0 h-5 w-[3px] origin-center -translate-y-1/2 rounded-r-full'
 						style={{ backgroundColor: accentColor }}
@@ -139,6 +136,7 @@ export function SettingsScreen({
 			{ id: 'composing', label: t('settings:sections.composing'), icon: PenLine },
 			{ id: 'signatures', label: t('settings:sections.signatures'), icon: Signature },
 			{ id: 'templates', label: t('settings:sections.templates'), icon: FileText },
+			{ id: 'contacts', label: t('settings:sections.contacts'), icon: Contact },
 			{ id: 'shortcuts', label: t('settings:sections.shortcuts'), icon: Keyboard },
 			{ id: 'tags', label: t('settings:sections.tags'), icon: Tag },
 			{ id: 'filters', label: t('settings:sections.filters'), icon: Settings2 },
@@ -174,6 +172,8 @@ export function SettingsScreen({
 				return <SignaturesSettings />
 			case 'templates':
 				return <TemplatesSettings />
+			case 'contacts':
+				return <ContactsSettings />
 			case 'shortcuts':
 				return <KeyboardShortcutsSettings />
 			case 'tags':
@@ -207,12 +207,12 @@ export function SettingsScreen({
 				<motion.div
 					{...(animationsEnabled
 						? {
-								initial: { opacity: 0, x: -12 },
-								animate: { opacity: 1, x: 0 },
-								transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
-							}
+							initial: { opacity: 0, x: -12 },
+							animate: { opacity: 1, x: 0 },
+							transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
+						}
 						: {})}
-					className='relative flex w-64 flex-col border-r bg-[var(--surface-panel)] p-4 backdrop-blur-xl'
+					className='relative flex w-64 flex-col border-r bg-surface-panel p-4'
 					style={{ borderColor: 'var(--border-subtle)' }}>
 					{/* Right edge gradient */}
 					<div className='pointer-events-none absolute top-0 right-0 bottom-0 w-px bg-gradient-to-b from-transparent via-black/[0.06] to-transparent dark:via-white/[0.06]' />

@@ -163,15 +163,15 @@
 	--surface-glass: rgba(2, 6, 23, 0.7);
 	--surface-glass-subtle: rgba(2, 6, 23, 0.5);
 	--surface-glass-solid: rgba(2, 6, 23, 0.96);
-	--surface-panel: rgba(255, 255, 255, 0.03);
-	--surface-hover: rgba(255, 255, 255, 0.04);
-	--surface-active: rgba(255, 255, 255, 0.08);
-	--border-subtle: rgba(255, 255, 255, 0.06);
-	--border-faint: rgba(255, 255, 255, 0.04);
+	--surface-panel: #0a0e1e;
+	--surface-hover: #111628;
+	--surface-active: #1a1f32;
+	--border-subtle: #1e2436;
+	--border-faint: #141a2c;
 	--scrollbar-thumb: rgba(148, 163, 184, 0.15);
 	--scrollbar-thumb-hover: rgba(148, 163, 184, 0.3);
-	--skeleton-from: rgba(148, 163, 184, 0.06);
-	--skeleton-to: rgba(148, 163, 184, 0.12);
+	--skeleton-from: #141a2c;
+	--skeleton-to: #1e2436;
 	--text-primary: #e2e8f0;
 	--text-secondary: #94a3b8;
 	--text-tertiary: #475569;
@@ -179,20 +179,20 @@
 	/* Compose-specific tokens (dark overrides) */
 	--compose-bg: #0d1117;
 	--compose-header-bg: #161b22;
-	--compose-footer-bg: rgba(13, 17, 23, 0.8);
+	--compose-footer-bg: #0d1117;
 	--compose-text: #e2e8f0;
 	--compose-text-muted: #94a3b8;
 	--compose-placeholder: #475569;
-	--compose-input-border: rgba(255, 255, 255, 0.07);
-	--compose-ring: rgba(255, 255, 255, 0.08);
-	--compose-ring-faint: rgba(255, 255, 255, 0.04);
-	--compose-hover: rgba(255, 255, 255, 0.05);
-	--compose-active: rgba(255, 255, 255, 0.09);
-	--compose-chip-bg: rgba(255, 255, 255, 0.08);
-	--compose-chip-border: rgba(255, 255, 255, 0.12);
+	--compose-input-border: #1e2436;
+	--compose-ring: #262c40;
+	--compose-ring-faint: #141a2c;
+	--compose-hover: #161b2c;
+	--compose-active: #1e2436;
+	--compose-chip-bg: #1e2436;
+	--compose-chip-border: #262c40;
 	--compose-suggestions-bg: #1c2128;
-	--compose-context-bg: rgba(255, 255, 255, 0.04);
-	--compose-separator: rgba(255, 255, 255, 0.07);
+	--compose-context-bg: #141a2c;
+	--compose-separator: #1e2436;
 	--compose-focus-line: #64748b;
 	--background: oklch(0.145 0 0);
 	--foreground: oklch(0.985 0 0);
@@ -229,7 +229,23 @@
 
 @layer base {
 	* {
-		@apply border-border outline-ring/50;
+		@apply border-border;
+	}
+	*:focus,
+	*:focus-visible,
+	*:focus-within,
+	button,
+	button:focus,
+	button:focus-visible,
+	[role='button']:focus,
+	[role='button']:focus-visible {
+		outline: 0 !important;
+		outline: none !important;
+		outline-color: transparent !important;
+		outline-style: none !important;
+		box-shadow: none !important;
+		-webkit-tap-highlight-color: transparent !important;
+		-webkit-focus-ring-color: transparent !important;
 	}
 	html {
 		background: #020617;
@@ -237,6 +253,8 @@
 	body {
 		@apply text-foreground;
 		background: var(--app-bg, #020617);
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
 	}
 }
 
@@ -456,24 +474,20 @@
 }
 
 /* ─── Glass morphism utility ─── */
+/* Disable backdrop-filter on Linux as it often causes rendering artifacts in WebKitGTK */
+:root .glass,
+:root .glass-subtle,
+:root [class*='backdrop-blur'] {
+	backdrop-filter: none !important;
+	-webkit-backdrop-filter: none !important;
+}
+
 .glass {
 	background: var(--surface-glass-solid);
 }
 
 .glass-subtle {
 	background: var(--surface-glass-solid);
-}
-
-:root:not([data-renderer='gtk']) .glass {
-	background: var(--surface-glass);
-	backdrop-filter: blur(16px) saturate(1.4);
-	-webkit-backdrop-filter: blur(16px) saturate(1.4);
-}
-
-:root:not([data-renderer='gtk']) .glass-subtle {
-	background: var(--surface-glass-subtle);
-	backdrop-filter: blur(8px) saturate(1.2);
-	-webkit-backdrop-filter: blur(8px) saturate(1.2);
 }
 
 /* ─── Semantic surface utilities ─── */
@@ -677,9 +691,9 @@ button,
 a,
 input,
 [role='button'] {
-	transition-property: color, background-color, border-color, box-shadow, opacity;
-	transition-duration: 0.15s;
-	transition-timing-function: ease;
+	transition-property: color, background-color, border-color, opacity;
+	transition-duration: 0.1s;
+	transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ─── Badge pulse for notifications ─── */

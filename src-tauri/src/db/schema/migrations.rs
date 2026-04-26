@@ -122,6 +122,21 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
         set_db_version(conn, 17)?;
     }
 
+    if current_version < 18 {
+        migrate_to_v18(conn)?;
+        set_db_version(conn, 18)?;
+    }
+
+    if current_version < 19 {
+        migrate_to_v19(conn)?;
+        set_db_version(conn, 19)?;
+    }
+
+    if current_version < 20 {
+        migrate_to_v20(conn)?;
+        set_db_version(conn, 20)?;
+    }
+
     Ok(())
 }
 
@@ -481,6 +496,158 @@ fn migrate_to_v17(conn: &Connection) -> Result<(), DBError> {
     Ok(())
 }
 
+fn migrate_to_v18(conn: &Connection) -> Result<(), DBError> {
+    // Extend contacts table with new profile fields
+    let new_columns: &[(&str, &str)] = &[
+        ("phone", "TEXT"),
+        ("company", "TEXT"),
+        ("notes", "TEXT"),
+        ("avatar_url", "TEXT"),
+        ("birthday", "INTEGER"),
+    ];
+    for (col, def) in new_columns {
+        if !column_exists(conn, "contacts", col)? {
+            conn.execute(
+                &format!("ALTER TABLE contacts ADD COLUMN {} {}", col, def),
+                [],
+            )?;
+        }
+    }
+
+    // Rebuild contacts_fts to include company and notes.
+    // Drop triggers first, then the table, then recreate both.
+    conn.execute("DROP TRIGGER IF EXISTS contacts_fts_insert", [])?;
+    conn.execute("DROP TRIGGER IF EXISTS contacts_fts_update", [])?;
+    conn.execute("DROP TRIGGER IF EXISTS contacts_fts_delete", [])?;
+    conn.execute("DROP TABLE IF EXISTS contacts_fts", [])?;
+
+    conn.execute(
+        "CREATE VIRTUAL TABLE contacts_fts USING fts5(email, name, company, notes, content='contacts', content_rowid='id')",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER contacts_fts_insert AFTER INSERT ON contacts BEGIN          INSERT INTO contacts_fts(rowid, email, name, company, notes)          VALUES (NEW.id, NEW.email, NEW.name, NEW.company, NEW.notes); END",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER contacts_fts_update AFTER UPDATE ON contacts BEGIN          UPDATE contacts_fts SET email = NEW.email, name = NEW.name,          company = NEW.company, notes = NEW.notes WHERE rowid = NEW.id; END",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER contacts_fts_delete AFTER DELETE ON contacts BEGIN          DELETE FROM contacts_fts WHERE rowid = OLD.id; END",
+        [],
+    )?;
+
+    // Backfill FTS from existing contacts rows
+    conn.execute(
+        "INSERT INTO contacts_fts(rowid, email, name, company, notes)          SELECT id, email, name, company, notes FROM contacts",
+        [],
+    )?;
+
+    Ok(())
+}
+
+fn migrate_to_v19(conn: &Connection) -> Result<(), DBError> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS contact_groups (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            color TEXT,
+            created_at INTEGER NOT NULL
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS contact_group_members (
+            group_id INTEGER NOT NULL,
+            contact_id INTEGER NOT NULL,
+            PRIMARY KEY(group_id, contact_id),
+            FOREIGN KEY(group_id) REFERENCES contact_groups(id) ON DELETE CASCADE,
+            FOREIGN KEY(contact_id) REFERENCES contacts(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+
+    Ok(())
+}
+
+fn migrate_to_v20(conn: &Connection) -> Result<(), DBError> {
+    let new_columns: &[(&str, &str)] = &[
+        ("first_name", "TEXT"),
+        ("middle_name", "TEXT"),
+        ("last_name", "TEXT"),
+        ("suffix", "TEXT"),
+        ("nickname", "TEXT"),
+        ("job_title", "TEXT"),
+        ("department", "TEXT"),
+        ("role", "TEXT"),
+        ("phone_work", "TEXT"),
+        ("phone_home", "TEXT"),
+        ("phone_fax", "TEXT"),
+        ("work_email", "TEXT"),
+        ("website", "TEXT"),
+        ("address_home", "TEXT"),
+        ("address_work", "TEXT"),
+        ("anniversary", "INTEGER"),
+        ("gender", "TEXT"),
+    ];
+
+    for (col, def) in new_columns {
+        if !column_exists(conn, "contacts", col)? {
+            conn.execute(
+                &format!("ALTER TABLE contacts ADD COLUMN {} {}", col, def),
+                [],
+            )?;
+        }
+    }
+
+    // Update contacts_fts to include more searchable fields
+    conn.execute("DROP TRIGGER IF EXISTS contacts_fts_insert", [])?;
+    conn.execute("DROP TRIGGER IF EXISTS contacts_fts_update", [])?;
+    conn.execute("DROP TRIGGER IF EXISTS contacts_fts_delete", [])?;
+    conn.execute("DROP TABLE IF EXISTS contacts_fts", [])?;
+
+    conn.execute(
+        "CREATE VIRTUAL TABLE contacts_fts USING fts5(email, name, company, notes, job_title, nickname, content='contacts', content_rowid='id')",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER contacts_fts_insert AFTER INSERT ON contacts BEGIN
+            INSERT INTO contacts_fts(rowid, email, name, company, notes, job_title, nickname)
+            VALUES (NEW.id, NEW.email, NEW.name, NEW.company, NEW.notes, NEW.job_title, NEW.nickname);
+        END",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER contacts_fts_update AFTER UPDATE ON contacts BEGIN
+            UPDATE contacts_fts SET email = NEW.email, name = NEW.name, company = NEW.company, notes = NEW.notes,
+            job_title = NEW.job_title, nickname = NEW.nickname WHERE rowid = NEW.id;
+        END",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TRIGGER contacts_fts_delete AFTER DELETE ON contacts BEGIN
+            DELETE FROM contacts_fts WHERE rowid = OLD.id;
+        END",
+        [],
+    )?;
+
+    conn.execute(
+        "INSERT INTO contacts_fts(rowid, email, name, company, notes, job_title, nickname)
+         SELECT id, email, name, company, notes, job_title, nickname FROM contacts",
+        [],
+    )?;
+
+    Ok(())
+}
+
 // Whitelist of allowed table names to prevent SQL injection
 const ALLOWED_TABLES: &[&str] = &[
     "messages",
@@ -502,6 +669,8 @@ const ALLOWED_TABLES: &[&str] = &[
     "filter_rules",
     "signatures",
     "templates",
+    "contact_groups",
+    "contact_group_members",
 ];
 
 fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool, DBError> {

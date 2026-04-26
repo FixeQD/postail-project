@@ -112,6 +112,37 @@ export interface Contact {
 	id: number
 	email: string
 	name: string | null
+	frequency?: number
+	phone?: string | null
+	company?: string | null
+	notes?: string | null
+	avatar_url?: string | null
+	birthday?: number | null
+	first_name?: string | null
+	middle_name?: string | null
+	last_name?: string | null
+	suffix?: string | null
+	nickname?: string | null
+	phone_work?: string | null
+	phone_home?: string | null
+	phone_fax?: string | null
+	work_email?: string | null
+	job_title?: string | null
+	department?: string | null
+	role?: string | null
+	website?: string | null
+	address_home?: string | null
+	address_work?: string | null
+	anniversary?: number | null
+	gender?: string | null
+}
+
+export interface ContactGroup {
+	id: number
+	name: string
+	color: string | null
+	created_at: number
+	member_count: number
 }
 
 export interface AddressInputProps {

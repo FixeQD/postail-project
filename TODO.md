@@ -136,16 +136,16 @@
     - [x] 16.9 - Cleanup: Remove Lexical dependencies and old plugin files
 
 - [ ] 17 - Contacts
-    - [ ] 17.1 - DB: Extend `contacts` table with phone, company, notes, avatar_url, birthday
-    - [ ] 17.2 - UI: Dedicated contacts screen from sidebar
-    - [ ] 17.3 - UI: Contact card with message history (messages from/to)
-    - [ ] 17.4 - UI: Edit contact (name, email, phone, company, note)
-    - [ ] 17.5 - UI: Contact avatar — fetch from Gravatar based on email hash (optional)
-    - [ ] 17.6 - UI: Import contacts from VCard (.vcf)
-    - [ ] 17.7 - UI: Export contacts to VCard
-    - [ ] 17.8 - Rust: Auto-create/update contacts on send (collect To/Cc)
-    - [ ] 17.9 - UI: Contact groups (`contact_groups` table)
-    - [ ] 17.10 - UI: Send to contact group from single To field
+    - [x] 17.1 - DB: Extend `contacts` table with phone, company, notes, avatar_url, birthday
+    - [x] 17.2 - UI: Dedicated contacts screen from sidebar
+    - [x] 17.3 - UI: Contact card with message history (messages from/to)
+    - [x] 17.4 - UI: Edit contact (name, email, phone, company, note)
+    - [-] 17.5 - UI: Contact avatar — fetch from Gravatar based on email hash (optional)
+    - [x] 17.6 - UI: Import contacts from VCard (.vcf)
+    - [x] 17.7 - UI: Export contacts to VCard
+    - [x] 17.8 - Rust: Auto-create/update contacts on send (collect To/Cc)
+    - [x] 17.9 - UI: Contact groups (`contact_groups` table)
+    - [x] 17.10 — UI: Send to contact group from single To field
 
 - [ ] 18 - Advanced Compose
     - [ ] 18.1 - UI: Reply-to field in compose (toggle under From)
@@ -243,3 +243,13 @@
     - [ ] 25.10 - UI: "Check for updates" button in AboutSettings
     - [ ] 25.11 - Docs: README with screenshots, features list, build instructions
     - [ ] 25.12 - Docs: SECURITY.md with responsible disclosure process
+
+- [x] 26 - Calendar Integration
+    - [x] 26.1 - Rust: Windows Appointment API (WinRT) integration
+    - [x] 26.2 - Rust: Linux local ICS parsing (Evolution/GNOME Calendar)
+    - [x] 26.3 - Rust: Create event command (Windows native / Linux xdg-open)
+    - [x] 26.4 - UI: Premium CalendarScreen with month view
+    - [x] 26.5 - UI: Event sidebar with details
+    - [x] 26.6 - UI: Sidebar navigation link
+    - [ ] 26.7 - UI: Add to Calendar button in ContactCard
+    - [ ] 26.8 - UI: Detect dates in emails and suggest "Add to Calendar"

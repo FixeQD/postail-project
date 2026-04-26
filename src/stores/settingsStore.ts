@@ -33,6 +33,8 @@ interface AppSettings {
 	'spell-check': boolean
 	'default-reply-position': 'top' | 'bottom'
 	'warn-large-attachment-mb': number // 0=disabled, 10, 25, 50
+	// Contacts
+	'auto-create-contacts': boolean
 }
 
 interface SettingsState {
@@ -65,6 +67,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 	'spell-check': true,
 	'default-reply-position': 'top',
 	'warn-large-attachment-mb': 25,
+	'auto-create-contacts': true,
 }
 
 function parseBool(val: string): boolean {
@@ -132,6 +135,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 			}
 			if ('warn-large-attachment-mb' in raw)
 				s['warn-large-attachment-mb'] = parseNum(raw['warn-large-attachment-mb'])
+			if ('auto-create-contacts' in raw)
+				s['auto-create-contacts'] = parseBool(raw['auto-create-contacts'])
 
 			set({ settings: s })
 		} catch (error) {

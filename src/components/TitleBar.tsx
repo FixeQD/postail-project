@@ -69,7 +69,7 @@ function NavBtn({
 
 function IconBtn({
 	onClick,
-	active,
+
 	title,
 	children,
 }: {

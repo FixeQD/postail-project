@@ -16,7 +16,8 @@
 		"filters": "Filters",
 		"about": "About",
 		"shortcuts": "Shortcuts",
-		"templates": "Templates"
+		"templates": "Templates",
+		"contacts": "Contacts"
 	},
 	"tags": {
 		"title": "Tags",
@@ -545,6 +546,17 @@
 			"apply": "Apply Template",
 			"replaceSubject": "Replace subject?",
 			"replaceSubjectDesc": "Do you want to replace the current subject with the template subject?"
+		}
+	},
+	"contacts": {
+		"title": "Contacts",
+		"subtitle": "Configure contact behavior and preferences.",
+		"general": {
+			"title": "General",
+			"autoCreate": {
+				"label": "Auto-create contacts on send",
+				"description": "Automatically save recipients to your contacts when sending an email."
+			}
 		}
 	},
 	"mailboxRoles": {

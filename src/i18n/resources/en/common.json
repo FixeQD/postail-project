@@ -15,7 +15,10 @@
 		"retry": "Retry",
 		"close": "Close",
 		"send": "Send",
-		"select": "Select"
+		"select": "Select",
+		"delete": "Delete",
+		"edit": "Edit",
+		"create": "Create"
 	},
 	"status": {
 		"loading": "Loading...",
@@ -115,5 +118,9 @@
 			"empty": "No notifications",
 			"emptyDescription": "You're all caught up"
 		}
+	},
+	"errors": {
+		"saveFailed": "Failed to save changes",
+		"loadFailed": "Failed to load data"
 	}
 }
