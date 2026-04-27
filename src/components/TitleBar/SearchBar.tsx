@@ -394,7 +394,7 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 					<div className='relative w-full'>
 						<div
 							ref={overlayRef}
-							className='pointer-events-none absolute inset-0 flex items-center overflow-hidden pr-16 pl-8 text-[13px] whitespace-pre'
+							className='pointer-events-none absolute inset-0 z-[1] flex items-center overflow-hidden pr-16 pl-8 text-[13px] whitespace-pre'
 							aria-hidden='true'>
 							{rawInput.split(SEARCH_SPLIT_REGEX).map((part, i) => {
 								const isOp = SEARCH_MATCH_REGEX.test(part)
@@ -432,7 +432,7 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 							}}
 							onKeyDown={handleKeyDown}
 							placeholder={t('inbox:search.placeholder')}
-							className='relative h-8 w-full rounded-lg border bg-[var(--surface-hover)] pr-16 pl-8 text-[13px] text-transparent transition-all duration-200 outline-none placeholder:text-[var(--text-tertiary)]'
+							className='relative z-[2] h-8 w-full rounded-lg border bg-[var(--surface-hover)] pr-16 pl-8 text-[13px] text-transparent transition-all duration-200 outline-none placeholder:text-[var(--text-tertiary)]'
 							style={{
 								caretColor: 'var(--text-primary)',
 								borderColor: hasActiveSearch
