@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useOutboxStore, setupOutboxListeners } from '@/stores/outboxStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
+import { useToastStore } from '@/stores/toastStore'
 import type { OutboxItem } from '@/stores/outboxStore'
 import type { OutboxPanelProps } from '@/types/components/shared'
 
@@ -53,6 +54,7 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 	const accentColor = useThemeStore((s) => s.accentColor)
 	const animationsEnabled = useAnimationsEnabled()
 	const { items, isLoading, loadOutbox, retryMessage, cancelMessage } = useOutboxStore()
+	const addToast = useToastStore((s) => s.addToast)
 	const [retryingId, setRetryingId] = useState<string | null>(null)
 	const [cancellingId, setCancellingId] = useState<string | null>(null)
 
@@ -71,7 +73,6 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 			if (!cancelled) {
 				cleanupFn = cleanup
 			} else {
-				// If component unmounted before setup completed, cleanup immediately
 				cleanup()
 			}
 		}
@@ -86,19 +87,25 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 	const handleRetry = useCallback(
 		async (outboxId: string) => {
 			setRetryingId(outboxId)
-			await retryMessage(outboxId)
+			const result = await retryMessage(outboxId)
 			setRetryingId(null)
+			if (!result.ok) {
+				addToast(`Retry failed: ${result.error}`, 'error')
+			}
 		},
-		[retryMessage]
+		[retryMessage, addToast]
 	)
 
 	const handleCancel = useCallback(
 		async (outboxId: string) => {
 			setCancellingId(outboxId)
-			await cancelMessage(outboxId)
+			const result = await cancelMessage(outboxId)
 			setCancellingId(null)
+			if (!result.ok) {
+				addToast(`Cancel failed: ${result.error}`, 'error')
+			}
 		},
-		[cancelMessage]
+		[cancelMessage, addToast]
 	)
 
 	const activeItems = items.filter((item) => item.status !== 'SENT')
@@ -120,7 +127,6 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 						: {})}
 					className='fixed inset-0 z-50 flex items-center justify-center p-4'
 					onClick={onClose}>
-					{/* Backdrop */}
 					<motion.div
 						{...(animationsEnabled
 							? {
@@ -132,7 +138,6 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 						className='absolute inset-0 bg-black/60 backdrop-blur-sm'
 					/>
 
-					{/* Panel */}
 					<motion.div
 						{...(animationsEnabled
 							? {
@@ -235,7 +240,6 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 									</motion.div>
 								) : (
 									<div className='stagger-children'>
-										{/* Active Messages */}
 										{activeItems.length > 0 && (
 											<div className='space-y-2'>
 												<h3 className='ml-1 text-xs font-semibold tracking-wider text-slate-500 uppercase'>
@@ -266,7 +270,6 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 											</div>
 										)}
 
-										{/* Recently Sent */}
 										{sentItems.length > 0 && (
 											<div className='space-y-2 border-t border-[var(--border-faint)] pt-4'>
 												<h3 className='ml-1 text-xs font-semibold tracking-wider text-slate-500 uppercase'>
@@ -352,10 +355,19 @@ function OutboxItemCard({
 				</Badge>
 			</div>
 
-			{item.status === 'RETRY' && item.attempts > 0 && (
-				<p className='text-xs' style={{ color: `rgba(var(--accent-rgb), 0.8)` }}>
-					Attempt {item.attempts}/5
-				</p>
+			{/* Retry attempt counter + countdown */}
+			{item.status === 'RETRY' && (
+				<div className='flex items-center justify-between'>
+					<p className='text-xs' style={{ color: `rgba(var(--accent-rgb), 0.8)` }}>
+						Attempt {item.attempts}/5
+					</p>
+					{item.nextRetry != null && (
+						<RetryCountdown
+							nextRetryTimestamp={item.nextRetry}
+							accentColor={accentColor}
+						/>
+					)}
+				</div>
 			)}
 
 			{item.lastError && item.status === 'FAILED' && (
@@ -384,7 +396,7 @@ function OutboxItemCard({
 						) : (
 							<RotateCcw className='mr-1 h-3 w-3' />
 						)}
-						{!isRetrying && 'Retry'}
+						{!isRetrying && 'Retry now'}
 					</Button>
 					<Button
 						variant='outline'
@@ -403,4 +415,51 @@ function OutboxItemCard({
 			)}
 		</div>
 	)
+}
+
+/** Live countdown showing how long until the next automatic retry. */
+function RetryCountdown({
+	nextRetryTimestamp,
+	// accentColor,
+}: {
+	nextRetryTimestamp: number
+	accentColor: string
+}) {
+	const [secondsLeft, setSecondsLeft] = useState(() =>
+		Math.max(0, nextRetryTimestamp - Math.floor(Date.now() / 1000))
+	)
+
+	useEffect(() => {
+		if (secondsLeft <= 0) return
+		const id = setInterval(() => {
+			setSecondsLeft(() => {
+				const next = Math.max(0, nextRetryTimestamp - Math.floor(Date.now() / 1000))
+				if (next <= 0) clearInterval(id)
+				return next
+			})
+		}, 1000)
+		return () => clearInterval(id)
+	}, [nextRetryTimestamp, secondsLeft])
+
+	const label = formatCountdown(secondsLeft)
+
+	return (
+		<p className='text-xs tabular-nums' style={{ color: `rgba(var(--accent-rgb), 0.6)` }}>
+			{secondsLeft > 0 ? `Retrying in ${label}` : 'Retrying…'}
+		</p>
+	)
+}
+
+function formatCountdown(seconds: number): string {
+	if (seconds >= 3600) {
+		const h = Math.floor(seconds / 3600)
+		const m = Math.floor((seconds % 3600) / 60)
+		return m > 0 ? `${h}h ${m}m` : `${h}h`
+	}
+	if (seconds >= 60) {
+		const m = Math.floor(seconds / 60)
+		const s = seconds % 60
+		return s > 0 ? `${m}m ${s}s` : `${m}m`
+	}
+	return `${seconds}s`
 }
