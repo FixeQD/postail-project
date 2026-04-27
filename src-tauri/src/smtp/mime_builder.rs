@@ -1,4 +1,4 @@
-use lettre::message::{header, Attachment, Body, Message, MultiPart, SinglePart};
+use lettre::message::{Attachment, Body, Message, MultiPart, SinglePart, header};
 use std::fs;
 
 #[derive(Debug)]
@@ -22,16 +22,22 @@ pub fn build_multipart_email(
     attachments: &[crate::db::DraftAttachment],
     disposition_notification_to: Option<&str>,
 ) -> Result<Vec<u8>, EmailBuildError> {
-    tracing::info!(target: "postail", "[MimeBuilder] Building email - from={}, to_count={}, cc_count={}, bcc_count={}, subject='{}' read_receipt={}",
-		from, to.len(), cc.len(), bcc.len(), subject, disposition_notification_to.is_some());
+    tracing::info!(
+        target: "postail",
+        "[MimeBuilder] Building email - from={}, to={}, cc={}, bcc={}, subject='{}', read_receipt={}",
+        from, to.len(), cc.len(), bcc.len(), subject, disposition_notification_to.is_some()
+    );
 
     let (inline_attachments, regular_attachments): (
         Vec<&crate::db::DraftAttachment>,
         Vec<&crate::db::DraftAttachment>,
     ) = attachments.iter().partition(|att| att.inline);
 
-    tracing::debug!(target: "postail", "[MimeBuilder] Attachments - inline: {}, regular: {}",
-		inline_attachments.len(), regular_attachments.len());
+    tracing::debug!(
+        target: "postail",
+        "[MimeBuilder] Attachments - inline: {}, regular: {}",
+        inline_attachments.len(), regular_attachments.len()
+    );
 
     let mut message_builder = Message::builder()
         .from(
@@ -40,19 +46,17 @@ pub fn build_multipart_email(
         )
         .subject(subject);
 
-    for recipient in to {
+    for recipient in &to {
         message_builder = message_builder.to(recipient
             .parse()
             .map_err(|e| EmailBuildError(format!("Invalid to address '{}': {}", recipient, e)))?);
     }
-
-    for recipient in cc {
+    for recipient in &cc {
         message_builder = message_builder.cc(recipient
             .parse()
             .map_err(|e| EmailBuildError(format!("Invalid cc address '{}': {}", recipient, e)))?);
     }
-
-    for recipient in bcc {
+    for recipient in &bcc {
         message_builder =
             message_builder.bcc(recipient.parse().map_err(|e| {
                 EmailBuildError(format!("Invalid bcc address '{}': {}", recipient, e))
@@ -76,7 +80,7 @@ pub fn build_multipart_email(
                 .body(html_body.to_string()),
         );
 
-        for attachment in inline_attachments {
+        for attachment in &inline_attachments {
             let cid = attachment.cid.as_ref().ok_or_else(|| {
                 EmailBuildError(format!(
                     "Missing CID for inline attachment {}",
@@ -91,16 +95,15 @@ pub fn build_multipart_email(
                 ))
             })?;
 
-            let body = Body::new(file_data);
-
             let content_type = attachment
                 .content_type
                 .parse()
                 .map_err(|e| EmailBuildError(format!("Invalid content type: {}", e)))?;
 
-            let inline_attachment = Attachment::new_inline(cid.clone()).body(body, content_type);
+            let inline_part =
+                Attachment::new_inline(cid.clone()).body(Body::new(file_data), content_type);
 
-            multipart_related = multipart_related.singlepart(inline_attachment);
+            multipart_related = multipart_related.singlepart(inline_part);
         }
 
         multipart_mixed = multipart_mixed.multipart(multipart_related);
@@ -112,7 +115,7 @@ pub fn build_multipart_email(
         );
     }
 
-    for attachment in regular_attachments {
+    for attachment in &regular_attachments {
         let file_data = fs::read(&attachment.path).map_err(|e| {
             EmailBuildError(format!(
                 "Failed to read attachment {}: {}",
@@ -120,16 +123,15 @@ pub fn build_multipart_email(
             ))
         })?;
 
-        let body = Body::new(file_data);
-
         let content_type = attachment
             .content_type
             .parse()
             .map_err(|e| EmailBuildError(format!("Invalid content type: {}", e)))?;
 
-        let file_attachment = Attachment::new(attachment.filename.clone()).body(body, content_type);
+        let file_part =
+            Attachment::new(attachment.filename.clone()).body(Body::new(file_data), content_type);
 
-        multipart_mixed = multipart_mixed.singlepart(file_attachment);
+        multipart_mixed = multipart_mixed.singlepart(file_part);
     }
 
     let message = message_builder
@@ -137,42 +139,68 @@ pub fn build_multipart_email(
         .map_err(|e| EmailBuildError(format!("Failed to build message: {}", e)))?;
 
     let email_bytes = message.formatted();
-    tracing::info!(target: "postail", "[MimeBuilder] Email built successfully, size={} bytes", email_bytes.len());
+    tracing::info!(
+        target: "postail",
+        "[MimeBuilder] Email built successfully, size={} bytes",
+        email_bytes.len()
+    );
     Ok(email_bytes)
 }
 
+/// Rewrites `asset://…<attachment_id>…` URLs in the HTML body to `cid:<cid>` references.
 pub fn replace_asset_urls_with_cids(
     html: &str,
     attachments: &[crate::db::DraftAttachment],
 ) -> String {
-    let mut result = html.to_string();
-
-    let cid_map: std::collections::HashMap<&str, &str> = attachments
+    // Build a lookup: attachment_id → "cid:<cid>"
+    let cid_map: std::collections::HashMap<&str, String> = attachments
         .iter()
-        .filter(|att| att.inline && att.cid.is_some())
-        .map(|att| (att.id.as_str(), att.cid.as_deref().unwrap()))
+        .filter_map(|att| {
+            if att.inline {
+                att.cid
+                    .as_deref()
+                    .map(|cid| (att.id.as_str(), format!("cid:{}", cid)))
+            } else {
+                None
+            }
+        })
         .collect();
 
-    for (attachment_id, cid) in &cid_map {
-        let mut start = 0;
-        while let Some(pos) = result[start..].find("asset://") {
-            let absolute_pos = start + pos;
-            let end_pos = result[absolute_pos..]
-                .find('"')
-                .map(|p| absolute_pos + p)
-                .unwrap_or(result.len());
-
-            let url = &result[absolute_pos..end_pos];
-
-            if url.contains(attachment_id) {
-                let cid_ref = format!("cid:{}", cid);
-                result.replace_range(absolute_pos..end_pos, &cid_ref);
-                continue;
-            }
-
-            start = end_pos;
-        }
+    if cid_map.is_empty() {
+        return html.to_string();
     }
 
+    const ASSET_PREFIX: &str = "asset://";
+    let mut result = String::with_capacity(html.len());
+    let mut rest = html;
+
+    while let Some(start) = rest.find(ASSET_PREFIX) {
+        // Copy everything before this asset:// URL verbatim.
+        result.push_str(&rest[..start]);
+        rest = &rest[start..];
+
+        // Find the closing delimiter (usually `"` or `'`).
+        let url_end = rest[ASSET_PREFIX.len()..]
+            .find(|c| c == '"' || c == '\'')
+            .map(|p| ASSET_PREFIX.len() + p)
+            .unwrap_or(rest.len());
+
+        let url = &rest[..url_end];
+
+        // Check if this URL belongs to any of our inline attachments.
+        let replacement = cid_map
+            .iter()
+            .find_map(|(id, cid_ref)| url.contains(*id).then_some(cid_ref.as_str()));
+
+        match replacement {
+            Some(cid_ref) => result.push_str(cid_ref),
+            None => result.push_str(url),
+        }
+
+        rest = &rest[url_end..];
+    }
+
+    // Append whatever's left after the last asset:// URL.
+    result.push_str(rest);
     result
 }
