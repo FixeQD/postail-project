@@ -1,4 +1,4 @@
-use postail_project_lib::smtp::mdn::build_mdn;
+use postail_project_lib::smtp::mdn::{build_mdn, encode_subject};
 
 fn parse_headers(eml: &str) -> std::collections::HashMap<String, String> {
     let mut map = std::collections::HashMap::new();
@@ -52,10 +52,12 @@ fn headers_are_present() {
         headers.get("to").map(String::as_str),
         Some("sender@example.com")
     );
-    assert!(headers
-        .get("subject")
-        .map(|s| s.contains("Hello World"))
-        .unwrap_or(false));
+    assert!(
+        headers
+            .get("subject")
+            .map(|s| s.contains("Hello World"))
+            .unwrap_or(false)
+    );
     assert!(headers.get("message-id").is_some());
     assert!(headers.get("date").is_some());
     assert_eq!(headers.get("mime-version").map(String::as_str), Some("1.0"));
@@ -102,7 +104,7 @@ fn mdn_part_contains_required_fields() {
     assert!(eml.contains("message/disposition-notification"));
     assert!(eml.contains("Reporting-UA: Postail Mail Client"));
     assert!(eml.contains("Final-Recipient: rfc822; me@example.com"));
-    assert!(eml.contains("Disposition: manual-action/MDN-sent-manually; displayed"));
+    assert!(eml.contains("Disposition: automatic-action/MDN-sent-automatically; displayed"));
     assert!(eml.contains("Original-Message-ID: <orig@example.com>"));
 }
 
@@ -181,14 +183,18 @@ fn subject_is_prefixed_with_read() {
     .unwrap();
 
     let headers = parse_headers(&eml);
-    assert!(headers
-        .get("subject")
-        .map(|s| s.starts_with("Read:"))
-        .unwrap_or(false));
-    assert!(headers
-        .get("subject")
-        .map(|s| s.contains("Quarterly Report"))
-        .unwrap_or(false));
+    assert!(
+        headers
+            .get("subject")
+            .map(|s| s.starts_with("Read:"))
+            .unwrap_or(false)
+    );
+    assert!(
+        headers
+            .get("subject")
+            .map(|s| s.contains("Quarterly Report"))
+            .unwrap_or(false)
+    );
 }
 
 #[test]
@@ -260,4 +266,30 @@ fn parts_count_is_two() {
         "expected preamble + 2 parts, got: {:?}",
         parts.len()
     );
+}
+
+#[test]
+fn ascii_subject_unchanged() {
+    assert_eq!(encode_subject("Hello world"), "Hello world");
+}
+
+#[test]
+fn non_ascii_subject_encoded() {
+    let result = encode_subject("Cześć świecie");
+    assert!(result.starts_with("=?utf-8?B?"));
+    assert!(result.ends_with("?="));
+}
+
+#[test]
+fn mdn_contains_auto_submitted() {
+    let mdn = build_mdn("me@example.com", "you@example.com", "Test", None);
+    let mdn_str = String::from_utf8(mdn).unwrap();
+    assert!(mdn_str.contains("Auto-Submitted: auto-replied"));
+}
+
+#[test]
+fn mdn_disposition_is_automatic() {
+    let mdn = build_mdn("me@example.com", "you@example.com", "Test", None);
+    let mdn_str = String::from_utf8(mdn).unwrap();
+    assert!(mdn_str.contains("automatic-action/MDN-sent-automatically"));
 }
