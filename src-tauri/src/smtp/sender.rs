@@ -6,13 +6,17 @@ use async_smtp::extension::ClientId;
 use async_smtp::{EmailAddress, Envelope, SmtpClient, SmtpTransport};
 use mailparse::MailHeaderMap;
 use std::io;
+use std::time::Duration;
 use tokio::io::BufStream;
 use tokio::net::TcpStream;
-use tokio_native_tls::native_tls::TlsConnector as NativeTlsConnector;
 use tokio_native_tls::TlsConnector;
+use tokio_native_tls::native_tls::TlsConnector as NativeTlsConnector;
 
 use crate::globals::get_db_pool;
 use crate::smtp::EncryptionType;
+
+/// TCP connect + TLS handshake timeout.
+const CONNECT_TIMEOUT_SECS: u64 = 30;
 
 struct SmtpSendConfig<'a> {
     host: &'a str,
@@ -46,17 +50,15 @@ impl super::SmtpManager {
         Ok(creds_json)
     }
 
-    pub(crate) fn process_outgoing_eml(&self, raw_eml: &[u8]) -> Result<Vec<u8>, String> {
-        Ok(raw_eml.to_vec())
-    }
-
     pub async fn send_email(&self, account_id: &str, eml_content: &[u8]) -> Result<(), String> {
-        // Extract account data in a separate scope to ensure lock is dropped before await
         let (host, port, tls_enabled, auth_type, account_email) = {
             let pool = get_db_pool().await.map_err(|e| e.to_string())?;
             let conn = pool.get().map_err(|e| e.to_string())?;
             let mut stmt = conn
-                .prepare("SELECT smtp_host, smtp_port, smtp_tls, auth_type, email FROM accounts WHERE id = ?")
+                .prepare(
+                    "SELECT smtp_host, smtp_port, smtp_tls, auth_type, email \
+                     FROM accounts WHERE id = ?",
+                )
                 .map_err(|e| e.to_string())?;
             let result: (String, u16, bool, String, String) = stmt
                 .query_row([account_id], |row| {
@@ -77,7 +79,6 @@ impl super::SmtpManager {
         } else if port == 465 {
             EncryptionType::Tls
         } else {
-            // Port 587 or others use STARTTLS
             EncryptionType::StartTls
         };
 
@@ -85,7 +86,6 @@ impl super::SmtpManager {
         let mut creds: serde_json::Value =
             serde_json::from_str(&creds_json).map_err(|e| e.to_string())?;
 
-        // Refresh OAuth token if needed before sending
         if auth_type == "oauth2" {
             tracing::info!(target: "postail", "[SMTP] OAuth2 detected, refreshing token if needed");
             if let Err(e) = self.refresh_oauth_smtp(account_id, &mut creds).await {
@@ -94,8 +94,7 @@ impl super::SmtpManager {
             }
         }
 
-        let processed_eml = self.process_outgoing_eml(eml_content)?;
-        let mail = mailparse::parse_mail(&processed_eml)
+        let mail = mailparse::parse_mail(eml_content)
             .map_err(|e| format!("Failed to parse email: {}", e))?;
 
         let from_str = mail
@@ -104,25 +103,25 @@ impl super::SmtpManager {
             .map(|h| h.get_value())
             .ok_or("Missing From header")?;
 
-        let to_str = mail
-            .headers
-            .get_first_header("To")
-            .map(|h| h.get_value())
-            .ok_or("Missing To header")?;
+        let all_recipients = collect_envelope_recipients(&mail);
+        if all_recipients.is_empty() {
+            return Err("No valid recipients found in To/Cc/Bcc headers".to_string());
+        }
 
-        tracing::info!(target: "postail", "[SMTP] Connecting to {}:{}", host, port);
+        tracing::info!(
+            target: "postail",
+            "[SMTP] Connecting to {}:{} | From: {} | Recipients: {}",
+            host, port, from_str, all_recipients.len()
+        );
         tracing::info!(target: "postail", "[SMTP] Encryption: {:?}", encryption);
-        tracing::info!(target: "postail", "[SMTP] From: {}, To: {}", from_str, to_str);
 
-        let from_addr = EmailAddress::new(from_str.clone())
-            .map_err(|e| format!("Invalid from address: {}", e))?;
-        let to_addr =
-            EmailAddress::new(to_str.clone()).map_err(|e| format!("Invalid to address: {}", e))?;
-        let envelope = Envelope::new(Some(from_addr), vec![to_addr])
+        let from_addr =
+            EmailAddress::new(from_str).map_err(|e| format!("Invalid from address: {}", e))?;
+
+        let envelope = Envelope::new(Some(from_addr), all_recipients)
             .map_err(|e| format!("Failed to create envelope: {}", e))?;
 
-        let email = async_smtp::SendableEmail::new(envelope, processed_eml);
-
+        let email = async_smtp::SendableEmail::new(envelope, eml_content.to_vec());
         let client = SmtpClient::new().hello_name(ClientId::new("postail".to_string()));
 
         let config = SmtpSendConfig {
@@ -145,7 +144,11 @@ impl super::SmtpManager {
                 self.send_with_starttls(config).await
             }
             EncryptionType::Plain => {
-                tracing::warn!(target: "postail", "[SMTP] Using plain connection on port {} (insecure!)", port);
+                tracing::warn!(
+                    target: "postail",
+                    "[SMTP] Using plain connection on port {} (insecure!)",
+                    port
+                );
                 self.send_plain(config).await
             }
         }
@@ -160,10 +163,7 @@ impl super::SmtpManager {
     }
 
     async fn send_with_tls(&self, config: SmtpSendConfig<'_>) -> Result<(), Error> {
-        // Connect with TLS on port 465
-        let tcp_stream = TcpStream::connect((config.host, config.port))
-            .await
-            .map_err(|e| Error::Io(io::Error::other(format!("TCP connection failed: {}", e))))?;
+        let tcp_stream = timed_connect(config.host, config.port).await?;
 
         let native_tls = NativeTlsConnector::builder()
             .build()
@@ -176,7 +176,6 @@ impl super::SmtpManager {
             .map_err(|e| Error::Io(io::Error::other(format!("TLS handshake failed: {}", e))))?;
 
         let stream = BufStream::new(tls_stream);
-
         let mut transport = SmtpTransport::new(config.client, stream).await?;
 
         self.authenticate(
@@ -188,30 +187,21 @@ impl super::SmtpManager {
         .await?;
 
         let send_result = transport.send(config.email).await;
-
         let _ = transport.quit().await;
 
-        match send_result {
-            Ok(_) => {
-                tracing::info!(target: "postail", "[SMTP] Successfully sent email via {}:{} (TLS)", config.host, config.port);
-                Ok(())
-            }
-            Err(e) => {
-                tracing::error!(target: "postail", "[SMTP] Failed to send email via {}:{} (TLS): {}", config.host, config.port, e);
-                Err(e)
-            }
-        }
+        send_result.map(|_| {
+            tracing::info!(
+                target: "postail",
+                "[SMTP] Successfully sent via {}:{} (TLS)",
+                config.host, config.port
+            );
+        })
     }
 
     async fn send_with_starttls(&self, config: SmtpSendConfig<'_>) -> Result<(), Error> {
-        let tcp_stream = TcpStream::connect((config.host, config.port))
-            .await
-            .map_err(|e| Error::Io(io::Error::other(format!("TCP connection failed: {}", e))))?;
-
+        let tcp_stream = timed_connect(config.host, config.port).await?;
         let stream = BufStream::new(tcp_stream);
-
         let transport = SmtpTransport::new(config.client, stream).await?;
-
         let plain_stream = transport.starttls().await?;
 
         let native_tls = NativeTlsConnector::builder()
@@ -225,7 +215,6 @@ impl super::SmtpManager {
             .map_err(|e| Error::Io(io::Error::other(format!("TLS handshake failed: {}", e))))?;
 
         let stream = BufStream::new(tls_stream);
-
         let client = SmtpClient::new()
             .hello_name(ClientId::new("postail".to_string()))
             .without_greeting();
@@ -245,28 +234,20 @@ impl super::SmtpManager {
         .await?;
 
         let send_result = transport.send(config.email).await;
-
         let _ = transport.quit().await;
 
-        match send_result {
-            Ok(_) => {
-                tracing::info!(target: "postail", "[SMTP] Successfully sent email via {}:{} (STARTTLS)", config.host, config.port);
-                Ok(())
-            }
-            Err(e) => {
-                tracing::error!(target: "postail", "[SMTP] Failed to send email via {}:{} (STARTTLS): {}", config.host, config.port, e);
-                Err(e)
-            }
-        }
+        send_result.map(|_| {
+            tracing::info!(
+                target: "postail",
+                "[SMTP] Successfully sent via {}:{} (STARTTLS)",
+                config.host, config.port
+            );
+        })
     }
 
     async fn send_plain(&self, config: SmtpSendConfig<'_>) -> Result<(), Error> {
-        let tcp_stream = TcpStream::connect((config.host, config.port))
-            .await
-            .map_err(|e| Error::Io(io::Error::other(format!("TCP connection failed: {}", e))))?;
-
+        let tcp_stream = timed_connect(config.host, config.port).await?;
         let stream = BufStream::new(tcp_stream);
-
         let mut transport = SmtpTransport::new(config.client, stream).await?;
 
         self.authenticate(
@@ -278,10 +259,13 @@ impl super::SmtpManager {
         .await?;
 
         transport.send(config.email).await?;
-
         let _ = transport.quit().await;
 
-        tracing::info!(target: "postail", "[SMTP] Successfully sent email via {}:{} (plain)", config.host, config.port);
+        tracing::info!(
+            target: "postail",
+            "[SMTP] Successfully sent via {}:{} (plain)",
+            config.host, config.port
+        );
         Ok(())
     }
 
@@ -324,4 +308,61 @@ impl super::SmtpManager {
         tracing::info!(target: "postail", "[SMTP] Authentication successful");
         Ok(())
     }
+}
+
+/// Parses all To, Cc, and Bcc headers and returns a deduplicated list of valid SMTP envelope recipients.
+fn collect_envelope_recipients(mail: &mailparse::ParsedMail) -> Vec<EmailAddress> {
+    let mut recipients: Vec<EmailAddress> = Vec::new();
+
+    for header_name in &["To", "Cc", "Bcc"] {
+        for header in mail.headers.get_all_headers(header_name) {
+            let Ok(addrs) = mailparse::addrparse(&header.get_value()) else {
+                continue;
+            };
+            for addr in addrs.iter() {
+                match addr {
+                    mailparse::MailAddr::Single(s) => {
+                        if let Ok(ea) = EmailAddress::new(s.addr.clone()) {
+                            if !recipients
+                                .iter()
+                                .any(|r| r.as_ref() as &str == ea.as_ref() as &str)
+                            {
+                                recipients.push(ea);
+                            }
+                        }
+                    }
+                    mailparse::MailAddr::Group(g) => {
+                        for s in &g.addrs {
+                            if let Ok(ea) = EmailAddress::new(s.addr.clone()) {
+                                if !recipients
+                                    .iter()
+                                    .any(|r| r.as_ref() as &str == ea.as_ref() as &str)
+                                {
+                                    recipients.push(ea);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    recipients
+}
+
+/// Opens a TCP connection with a hard timeout so a non-responsive SMTP server can't block the worker task indefinitely.
+async fn timed_connect(host: &str, port: u16) -> Result<TcpStream, Error> {
+    tokio::time::timeout(
+        Duration::from_secs(CONNECT_TIMEOUT_SECS),
+        TcpStream::connect((host, port)),
+    )
+    .await
+    .map_err(|_| {
+        Error::Io(io::Error::other(format!(
+            "TCP connection to {}:{} timed out after {}s",
+            host, port, CONNECT_TIMEOUT_SECS
+        )))
+    })?
+    .map_err(|e| Error::Io(io::Error::other(format!("TCP connection failed: {}", e))))
 }
