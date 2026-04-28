@@ -1,4 +1,4 @@
-use crate::globals::{get_db_pool, DB_CONN, SECURITY, SMTP_MANAGER};
+use crate::globals::{get_db_pool, DB_CONN, SECURITY, SMTP_MANAGER, CRYPTO_ACTOR};
 use crate::security::manager::PassphraseSecurityBuilder;
 use crate::security::recovery::RecoveryStore;
 use crate::security::storage::keyring::KeyringStore;
@@ -194,6 +194,19 @@ pub async fn initialize_security_and_database(
     {
         let mut security_guard = SECURITY.lock().await;
         *security_guard = security;
+    }
+
+    // Initialize crypto actor for non-blocking crypto operations
+    {
+        let crypto = {
+            let guard = SECURITY.lock().await;
+            let sm: &SecurityManager = &*guard;
+            sm.crypto()
+                .map_err(|e| format!("Failed to create crypto: {}", e))?
+        };
+        let handle = crate::security::actor::CryptoHandle::new(crypto);
+        let mut actor_guard = CRYPTO_ACTOR.write().await;
+        *actor_guard = Some(handle);
     }
 
     // create recovery store if phrase was provided (argon2 setup only)

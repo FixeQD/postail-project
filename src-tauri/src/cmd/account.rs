@@ -7,7 +7,7 @@ use crate::db::{
     AccountInput, AccountMeta, Credentials, ImapConfig, ManualServerConfig, OAuthCredentials,
     PasswordCredentials, SmtpConfig,
 };
-use crate::globals::{get_db_pool, IMAP_MANAGER, SECURITY};
+use crate::globals::{IMAP_MANAGER, get_db_pool};
 use crate::oauth;
 use crate::utils::oauth_server;
 use async_imap::Client as ImapClient;
@@ -19,7 +19,7 @@ use futures::TryStreamExt;
 use native_tls::TlsConnector as NativeTlsConnector;
 use serde::Serialize;
 use std::time::Duration;
-use tauri::{command, AppHandle};
+use tauri::{AppHandle, command};
 use tokio::io::BufStream;
 use tokio::net::TcpStream;
 use tokio_native_tls::TlsConnector;
@@ -30,14 +30,11 @@ const CONNECTION_TIMEOUT_SECS: Duration = Duration::from_secs(10);
 
 #[command]
 pub async fn add_account(input: AccountInput) -> Result<AccountMeta, String> {
+    let crypto = crate::globals::get_crypto().await?;
     let account = {
-        let (pool, security) = {
-            let pool = get_db_pool().await.map_err(|e| e.to_string())?;
-            let security = SECURITY.lock().await;
-            (pool, security)
-        };
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
         let conn = pool.get().map_err(|e| e.to_string())?;
-        db_add_account(&conn, input, &security).map_err(|e| e.to_string())?
+        db_add_account(&conn, input, &crypto).map_err(|e| e.to_string())?
     };
 
     // Only sync folder list
@@ -284,14 +281,11 @@ pub async fn add_custom_account(config: ManualServerConfig) -> Result<AccountMet
         },
     };
 
+    let crypto = crate::globals::get_crypto().await?;
     let account = {
-        let (pool, security) = {
-            let pool = get_db_pool().await.map_err(|e| e.to_string())?;
-            let security = SECURITY.lock().await;
-            (pool, security)
-        };
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
         let conn = pool.get().map_err(|e| e.to_string())?;
-        db_add_account(&conn, account_input, &security).map_err(|e| e.to_string())?
+        db_add_account(&conn, account_input, &crypto).map_err(|e| e.to_string())?
     };
 
     if let Err(e) = {
@@ -356,14 +350,14 @@ pub async fn update_custom_account(
         },
     };
 
-    let (pool, security) = {
+    let crypto = crate::globals::get_crypto().await?;
+    let (pool,) = {
         let pool = get_db_pool().await.map_err(|e| e.to_string())?;
-        let security = SECURITY.lock().await;
-        (pool, security)
+        (pool,)
     };
     let conn = pool.get().map_err(|e| e.to_string())?;
 
-    db_update_account_config(&conn, &id, account_input, &security).map_err(|e| e.to_string())?;
+    db_update_account_config(&conn, &id, account_input, &crypto).map_err(|e| e.to_string())?;
 
     // Return the updated meta
     let accounts = db_list_accounts(&conn).map_err(|e| e.to_string())?;
@@ -484,14 +478,11 @@ pub async fn complete_oauth_flow(
         },
     };
 
+    let crypto = crate::globals::get_crypto().await?;
     let account = {
-        let (pool, security) = {
-            let pool = get_db_pool().await.map_err(|e| e.to_string())?;
-            let security = SECURITY.lock().await;
-            (pool, security)
-        };
+        let pool = get_db_pool().await.map_err(|e| e.to_string())?;
         let conn = pool.get().map_err(|e| e.to_string())?;
-        db_add_account(&conn, account_input, &security).map_err(|e| e.to_string())?
+        db_add_account(&conn, account_input, &crypto).map_err(|e| e.to_string())?
     };
 
     // Only sync folder list
@@ -544,10 +535,10 @@ pub async fn complete_reauth_flow(
     }
 
     // Update account with new credentials
-    let (pool, security) = {
+    let crypto = crate::globals::get_crypto().await?;
+    let (pool,) = {
         let pool = get_db_pool().await.map_err(|e| e.to_string())?;
-        let security = SECURITY.lock().await;
-        (pool, security)
+        (pool,)
     };
     let conn = pool.get().map_err(|e| e.to_string())?;
 
@@ -585,7 +576,7 @@ pub async fn complete_reauth_flow(
         },
     };
 
-    db_update_account_config(&conn, &account_id, account_input, &security)
+    db_update_account_config(&conn, &account_id, account_input, &crypto)
         .map_err(|e| e.to_string())?;
 
     // Return the updated meta

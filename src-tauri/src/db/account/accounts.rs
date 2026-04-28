@@ -1,16 +1,16 @@
 use std::fs;
 
 use chrono::{DateTime, Utc};
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use uuid::Uuid;
 
+use crate::db::AccountInput;
+use crate::db::AccountMeta;
 use crate::db::messages::safe_timestamp_from_utc;
 use crate::db::save_creds_blob;
 use crate::db::sql_helpers::{delete_where, insert_or_replace_into};
-use crate::db::AccountInput;
-use crate::db::AccountMeta;
 use crate::error::DBError;
-use crate::security::SecurityManager;
+use crate::security::Crypto;
 
 fn timestamp_from_utc_or_default(seconds: i64) -> DateTime<Utc> {
     safe_timestamp_from_utc(seconds).unwrap_or_else(Utc::now)
@@ -19,13 +19,13 @@ fn timestamp_from_utc_or_default(seconds: i64) -> DateTime<Utc> {
 pub fn add_account(
     conn: &Connection,
     input: AccountInput,
-    security: &SecurityManager,
+    crypto: &Crypto,
 ) -> Result<AccountMeta, DBError> {
     let id = Uuid::new_v4().to_string();
     let email = input.email.clone();
     let provider_type = input.provider_type.clone();
     let creds_json = serde_json::to_string(&input.credentials).map_err(DBError::Json)?;
-    let encrypted = security
+    let encrypted = crypto
         .encrypt(creds_json.as_bytes())
         .map_err(DBError::Security)?;
     let creds_path = save_creds_blob(&id, &encrypted)?;
@@ -141,28 +141,28 @@ pub fn update_account_config(
     conn: &Connection,
     id: &str,
     input: AccountInput,
-    security: &SecurityManager,
+    crypto: &Crypto,
 ) -> Result<(), DBError> {
     let creds_json = serde_json::to_string(&input.credentials).map_err(DBError::Json)?;
-    let encrypted = security
+    let encrypted = crypto
         .encrypt(creds_json.as_bytes())
         .map_err(DBError::Security)?;
     let creds_path = save_creds_blob(id, &encrypted)?;
 
     conn.execute(
-        "UPDATE accounts SET 
-            name = ?, 
-            email = ?, 
-            provider_type = ?, 
-            auth_type = ?, 
-            imap_host = ?, 
-            imap_port = ?, 
-            imap_tls = ?, 
-            smtp_host = ?, 
-            smtp_port = ?, 
-            smtp_tls = ?, 
-            creds_blob_path = ?, 
-            encryption_mode = ? 
+        "UPDATE accounts SET
+            name = ?,
+            email = ?,
+            provider_type = ?,
+            auth_type = ?,
+            imap_host = ?,
+            imap_port = ?,
+            imap_tls = ?,
+            smtp_host = ?,
+            smtp_port = ?,
+            smtp_tls = ?,
+            creds_blob_path = ?,
+            encryption_mode = ?
          WHERE id = ?",
         params![
             &input.name,

@@ -166,7 +166,7 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
 
 pub fn export_backup(
     conn: &Connection,
-    security: &SecurityManager,
+    secutity: &SecurityManager,
     passphrase: Option<String>,
 ) -> Result<PathBuf, DBError> {
     use zip::{ZipWriter, write::FileOptions};
@@ -203,7 +203,7 @@ pub fn export_backup(
         let resolved = crate::db::resolve_creds_path(&creds_path);
         let encrypted_creds = fs::read(&resolved).map_err(DBError::Io)?;
         let backup_encrypted = if let Some(ref pass) = passphrase {
-            security
+            secutity
                 .encrypt_with_passphrase(&encrypted_creds, pass)
                 .map_err(DBError::Security)?
         } else {

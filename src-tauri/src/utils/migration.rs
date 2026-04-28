@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 #[cfg(all(target_os = "linux", feature = "tpm"))]
 fn notify_tpm_helper_new_path(new_path: &str) {
-    use crate::security::tpm::protocol::{receive_message, send_message, TpmRequest, TpmResponse};
+    use crate::security::tpm::protocol::{TpmRequest, TpmResponse, receive_message, send_message};
     use std::os::unix::net::UnixStream;
 
     let uid = unsafe { nix::libc::getuid() };

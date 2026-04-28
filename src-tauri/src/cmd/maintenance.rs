@@ -157,8 +157,8 @@ pub async fn dev_reset_data(
 pub async fn export_backup(passphrase: Option<String>) -> Result<String, String> {
     let pool = get_db_pool().await.map_err(|e| e.to_string())?;
     let conn = pool.get().map_err(|e| e.to_string())?;
-    let security = SECURITY.lock().await;
-    crate::db::export_backup(&conn, &security, passphrase)
+    let crypto = crate::globals::get_crypto().await?;
+    crate::db::export_backup(&conn, &crypto, passphrase)
         .map(|p| p.to_string_lossy().to_string())
         .map_err(|e| e.to_string())
 }
@@ -167,9 +167,9 @@ pub async fn export_backup(passphrase: Option<String>) -> Result<String, String>
 pub async fn import_backup(backup_path: String, passphrase: Option<String>) -> Result<(), String> {
     let pool = get_db_pool().await.map_err(|e| e.to_string())?;
     let conn = pool.get().map_err(|e| e.to_string())?;
-    let security = SECURITY.lock().await;
+    let crypto = crate::globals::get_crypto().await?;
     let path = std::path::PathBuf::from(backup_path);
-    crate::db::import_backup(&conn, &security, &path, passphrase).map_err(|e| e.to_string())
+    crate::db::import_backup(&conn, &crypto, &path, passphrase).map_err(|e| e.to_string())
 }
 
 #[command]
