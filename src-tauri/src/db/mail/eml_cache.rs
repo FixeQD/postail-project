@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::error::DBError;
-use crate::security::SecurityManager;
+use crate::security::crypto::Crypto;
 
 pub fn get_eml_cache_dir() -> PathBuf {
     crate::utils::config::get_data_dir().join("eml_cache")
@@ -51,7 +51,7 @@ pub fn has_cached_body_file(account_id: &str, mailbox: &str, uid: u32) -> bool {
 // ── EML ────────────────────────────────────────────────────────────────────
 
 pub fn save_eml(
-    security: &SecurityManager,
+    crypto: &Crypto,
     account_id: &str,
     mailbox: &str,
     uid: u32,
@@ -74,7 +74,7 @@ pub fn save_eml(
 }
 
 pub fn load_eml(
-    security: &SecurityManager,
+    crypto: &Crypto,
     account_id: &str,
     mailbox: &str,
     uid: u32,
@@ -108,7 +108,7 @@ pub struct CachedBody {
 }
 
 pub fn save_body(
-    security: &SecurityManager,
+    crypto: &Crypto,
     account_id: &str,
     mailbox: &str,
     uid: u32,
@@ -134,7 +134,7 @@ pub fn save_body(
 }
 
 pub fn load_body(
-    security: &SecurityManager,
+    crypto: &Crypto,
     account_id: &str,
     mailbox: &str,
     uid: u32,
@@ -167,7 +167,7 @@ pub fn delete_body(account_id: &str, mailbox: &str, uid: u32) -> Result<(), DBEr
 
 /// Encrypts and saves inline image bytes. Returns the path for storing in DB.
 pub fn save_inline_image(
-    security: &SecurityManager,
+    crypto: &Crypto,
     account_id: &str,
     mailbox: &str,
     uid: u32,
@@ -186,7 +186,7 @@ pub fn save_inline_image(
 
 /// Decrypts and returns inline image bytes, or None if not cached.
 pub fn load_inline_image(
-    security: &SecurityManager,
+    crypto: &Crypto,
     account_id: &str,
     mailbox: &str,
     uid: u32,
@@ -234,14 +234,14 @@ fn ensure_parent(path: &Path) -> Result<(), DBError> {
     Ok(())
 }
 
-fn encrypt(security: &SecurityManager, data: &[u8]) -> Result<Vec<u8>, DBError> {
-    security
+fn encrypt(crypto: &Crypto, data: &[u8]) -> Result<Vec<u8>, DBError> {
+    crypto
         .encrypt(data)
         .map_err(|e| DBError::Cache(format!("Encryption failed: {}", e)))
 }
 
-fn decrypt(security: &SecurityManager, data: &[u8]) -> Result<Vec<u8>, DBError> {
-    security
+fn decrypt(crypto: &Crypto, data: &[u8]) -> Result<Vec<u8>, DBError> {
+    crypto
         .decrypt(data)
         .map_err(|e| DBError::Cache(format!("Decryption failed: {}", e)))
 }
