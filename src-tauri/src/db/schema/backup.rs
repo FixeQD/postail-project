@@ -1,7 +1,7 @@
 use crate::db::compose::outbox::cleanup_old_sent_messages;
 use crate::db::mail::message_bodies;
 use crate::error::DBError;
-use crate::security::SecurityManager;
+use crate::security::crypto::{self, Crypto};
 use rusqlite::{Connection, Result as SqlResult, params};
 use std::env;
 use std::fs;
@@ -166,7 +166,7 @@ pub fn run_migrations(conn: &Connection) -> Result<(), DBError> {
 
 pub fn export_backup(
     conn: &Connection,
-    secutity: &SecurityManager,
+    _crypto: &Crypto,
     passphrase: Option<String>,
 ) -> Result<PathBuf, DBError> {
     use zip::{ZipWriter, write::FileOptions};
@@ -203,8 +203,7 @@ pub fn export_backup(
         let resolved = crate::db::resolve_creds_path(&creds_path);
         let encrypted_creds = fs::read(&resolved).map_err(DBError::Io)?;
         let backup_encrypted = if let Some(ref pass) = passphrase {
-            secutity
-                .encrypt_with_passphrase(&encrypted_creds, pass)
+            encrypt_with_passphrase(&encrypted_creds, pass)
                 .map_err(DBError::Security)?
         } else {
             encrypted_creds
@@ -257,7 +256,7 @@ pub fn export_backup(
 
 pub fn import_backup(
     conn: &Connection,
-    security: &SecurityManager,
+    crypto: &Crypto,
     backup_path: &PathBuf,
     passphrase: Option<String>,
 ) -> Result<(), DBError> {
@@ -354,15 +353,14 @@ pub fn import_backup(
             if path.is_file() && path.extension().is_some_and(|e| e == "enc") {
                 let backup_encrypted = fs::read(&path).map_err(DBError::Io)?;
                 let decrypted = if let Some(ref pass) = passphrase {
-                    security
-                        .decrypt_with_passphrase(&backup_encrypted, pass)
+                    decrypt_with_passphrase(&backup_encrypted, pass)
                         .map_err(DBError::Security)?
                 } else {
-                    security
+                    crypto
                         .decrypt(&backup_encrypted)
                         .map_err(DBError::Security)?
                 };
-                let reencrypted = security.encrypt(&decrypted).map_err(DBError::Security)?;
+                let reencrypted = crypto.encrypt(&decrypted).map_err(DBError::Security)?;
                 let dest_path = creds_dir.join(
                     path.file_name()
                         .ok_or_else(|| DBError::Sqlite(rusqlite::Error::InvalidQuery))?,
@@ -378,6 +376,18 @@ pub fn import_backup(
 
     let _ = fs::remove_dir_all(temp_dir);
     Ok(())
+}
+
+/// Decrypt data that was encrypted with a passphrase.
+/// Delegates to the shared helper in `security::crypto::helpers`.
+fn decrypt_with_passphrase(ciphertext: &[u8], passphrase: &str) -> crate::error::Result<Vec<u8>> {
+    crypto::helpers::decrypt_with_passphrase(ciphertext, passphrase)
+}
+
+/// Encrypt data with a passphrase.
+/// Delegates to the shared helper in `security::crypto::helpers`.
+fn encrypt_with_passphrase(plaintext: &[u8], passphrase: &str) -> crate::error::Result<Vec<u8>> {
+    crypto::helpers::encrypt_with_passphrase(plaintext, passphrase)
 }
 
 pub fn run_maintenance(conn: &Connection) -> Result<(), DBError> {

@@ -1,5 +1,5 @@
 use crate::db::Contact;
-use crate::globals::{SECURITY, get_db_pool};
+use crate::globals::get_db_pool;
 use tauri::command;
 
 fn make_snippet(plain: &str, html: &str) -> String {
