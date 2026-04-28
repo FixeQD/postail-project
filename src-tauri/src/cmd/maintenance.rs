@@ -1,5 +1,5 @@
 use crate::db::Contact;
-use crate::globals::{get_db_pool, SECURITY};
+use crate::globals::{SECURITY, get_db_pool};
 use tauri::command;
 
 fn make_snippet(plain: &str, html: &str) -> String {
@@ -216,11 +216,11 @@ pub async fn backfill_snippets(account_id: String, mailbox: String) -> Result<u3
         return Ok(0);
     }
 
-    let security = SECURITY.lock().await;
+    let crypto = crate::globals::get_crypto().await?;
     let mut updated = 0u32;
 
     for (table_id, uid) in rows {
-        let body = match crate::db::eml_cache::load_body(&security, &account_id, &mailbox, uid) {
+        let body = match crate::db::eml_cache::load_body(&crypto, &account_id, &mailbox, uid) {
             Ok(Some(b)) => b,
             _ => continue,
         };

@@ -48,3 +48,14 @@ pub async fn get_db_pool() -> Result<DbPool, crate::error::DBError> {
         .clone()
         .ok_or_else(|| crate::error::DBError::Pool("DB pool not initialized".to_string()))
 }
+
+pub async fn get_crypto() -> Result<crate::security::crypto::Crypto, String> {
+    let guard = CRYPTO_ACTOR.read().await;
+    let handle = guard
+        .as_ref()
+        .ok_or_else(|| "Crypto actor not initialized".to_string())?;
+    handle
+        .get_crypto()
+        .await
+        .map_err(|e| format!("Failed to get crypto: {}", e))
+}

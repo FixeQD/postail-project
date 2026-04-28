@@ -4,7 +4,7 @@ use crate::db;
 use crate::db::eml_cache::{self, CachedBody};
 use crate::db::messages::sync_message_attachments_flag;
 use crate::globals::get_db_pool;
-use crate::security::SecurityManager;
+use crate::security::Crypto;
 
 impl crate::imap::ImapManager {
     /// Returns the full message from DB header + file-based body cache.
@@ -28,8 +28,8 @@ impl crate::imap::ImapManager {
     ) -> Result<Option<crate::db::MessageFull>, String> {
         // ── Step 1: load or fetch raw EML ──────────────────────────────────
         let raw_eml = {
-            let security = self.security.lock().await;
-            eml_cache::load_eml(&security, account_id, mailbox, uid).map_err(|e| e.to_string())?
+            let crypto = crate::globals::get_crypto().await?;
+            eml_cache::load_eml(&crypto, account_id, mailbox, uid).map_err(|e| e.to_string())?
         };
 
         let raw_eml = match raw_eml {
@@ -48,8 +48,8 @@ impl crate::imap::ImapManager {
                 let bytes = self.fetch_raw_eml_bytes(account_id, mailbox, uid).await?;
 
                 // Encrypt and save to disk
-                let security = self.security.lock().await;
-                eml_cache::save_eml(&security, account_id, mailbox, uid, &bytes)
+                let crypto = crate::globals::get_crypto().await?;
+                eml_cache::save_eml(&crypto, account_id, mailbox, uid, &bytes)
                     .map_err(|e| e.to_string())?;
                 bytes
             }
@@ -59,7 +59,7 @@ impl crate::imap::ImapManager {
         let (html, plain, parse_error) = db::parse_mail_with_fallback(&raw_eml);
 
         let read_receipt_to = {
-            use mailparse::{parse_mail, MailHeaderMap};
+            use mailparse::{MailHeaderMap, parse_mail};
             parse_mail(&raw_eml).ok().and_then(|m| {
                 m.headers
                     .get_first_value("Disposition-Notification-To")
@@ -85,23 +85,22 @@ impl crate::imap::ImapManager {
 
         // ── Step 4: save body to encrypted file ─────────────────────────────
         {
-            let security = self.security.lock().await;
+            let crypto = crate::globals::get_crypto().await?;
             let cached_body = CachedBody {
                 body_html: body_html.clone(),
                 body_plain: body_plain.clone(),
                 read_receipt_to: read_receipt_to.clone(),
             };
-            eml_cache::save_body(&security, account_id, mailbox, uid, &cached_body)
+            eml_cache::save_body(&crypto, account_id, mailbox, uid, &cached_body)
                 .map_err(|e| e.to_string())?;
         }
 
         // ── Step 4b: backfill snippet + extract inline images ────────────────
         {
-            let security = self.security.lock().await;
+            let crypto = crate::globals::get_crypto().await?;
             let pool = get_db_pool().await.map_err(|e| e.to_string())?;
             let conn = pool.get().map_err(|e| e.to_string())?;
-            if let Ok(Some(table_id)) = db::get_message_table_id(&*conn, account_id, mailbox, uid)
-            {
+            if let Ok(Some(table_id)) = db::get_message_table_id(&*conn, account_id, mailbox, uid) {
                 // Write snippet derived from body so MessageList can show it
                 let snippet = make_snippet(&body_plain, &body_html);
                 let _ = conn.execute(
@@ -110,7 +109,7 @@ impl crate::imap::ImapManager {
                 );
 
                 save_attachments_from_eml(
-                    &*conn, &security, account_id, mailbox, uid, table_id, &raw_eml,
+                    &*conn, &crypto, account_id, mailbox, uid, table_id, &raw_eml,
                 );
             }
         }
@@ -189,7 +188,7 @@ fn make_snippet(plain: &str, html: &str) -> String {
 
 fn save_attachments_from_eml(
     conn: &rusqlite::Connection,
-    security: &SecurityManager,
+    crypto: &Crypto,
     account_id: &str,
     mailbox: &str,
     uid: u32,
@@ -197,7 +196,7 @@ fn save_attachments_from_eml(
     raw_eml: &[u8],
 ) {
     use mailparse::MailHeaderMap;
-    use mailparse::{parse_mail, ParsedMail};
+    use mailparse::{ParsedMail, parse_mail};
 
     let Ok(mail) = parse_mail(raw_eml) else {
         return;
@@ -205,7 +204,7 @@ fn save_attachments_from_eml(
 
     fn walk_parts(
         conn: &rusqlite::Connection,
-        security: &SecurityManager,
+        crypto: &Crypto,
         account_id: &str,
         mailbox: &str,
         uid: u32,
@@ -218,7 +217,7 @@ fn save_attachments_from_eml(
             for sub in &part.subparts {
                 walk_parts(
                     conn,
-                    security,
+                    crypto,
                     account_id,
                     mailbox,
                     uid,
@@ -281,7 +280,7 @@ fn save_attachments_from_eml(
         // For inline images with a CID, extract binary and cache to disk.
         let cached_path: Option<String> = if is_inline && cid.is_some() {
             part.get_body_raw().ok().and_then(|raw| {
-                eml_cache::save_inline_image(security, account_id, mailbox, uid, &part_id, &raw)
+                eml_cache::save_inline_image(crypto, account_id, mailbox, uid, &part_id, &raw)
                     .ok()
                     .map(|p| p.to_string_lossy().into_owned())
             })
@@ -309,7 +308,7 @@ fn save_attachments_from_eml(
     let mut counter = 0u32;
     walk_parts(
         conn,
-        security,
+        crypto,
         account_id,
         mailbox,
         uid,

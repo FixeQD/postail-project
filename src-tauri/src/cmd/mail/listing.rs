@@ -26,15 +26,12 @@ pub async fn fetch_raw_eml_text(
 ) -> Result<String, String> {
     let uid_u32: u32 = uid.try_into().map_err(|_| "UID too large".to_string())?;
 
-    let security = crate::globals::SECURITY.lock().await;
-
     // Try disk cache first
-    if let Ok(Some(raw)) = crate::db::eml_cache::load_eml(&security, &account_id, &mailbox, uid_u32)
+    let crypto = crate::globals::get_crypto().await?;
+    if let Ok(Some(raw)) = crate::db::eml_cache::load_eml(&crypto, &account_id, &mailbox, uid_u32)
     {
         return String::from_utf8(raw).map_err(|_| "EML contains non-UTF-8 bytes".to_string());
     }
-
-    drop(security);
 
     // Not cached yet - fetch from IMAP and cache it
     let imap = IMAP_MANAGER.lock().await.clone();
@@ -42,8 +39,8 @@ pub async fn fetch_raw_eml_text(
         .fetch_raw_eml_bytes(&account_id, &mailbox, uid_u32)
         .await?;
 
-    let security = crate::globals::SECURITY.lock().await;
-    let _ = crate::db::eml_cache::save_eml(&security, &account_id, &mailbox, uid_u32, &raw);
+    let crypto = crate::globals::get_crypto().await?;
+    let _ = crate::db::eml_cache::save_eml(&crypto, &account_id, &mailbox, uid_u32, &raw);
 
     String::from_utf8(raw).map_err(|_| "EML contains non-UTF-8 bytes".to_string())
 }
@@ -241,8 +238,8 @@ pub async fn fetch_message_full(
 
             if let Some(ref mut m) = msg {
                 // Inject body from encrypted file — zero DB reads for body content
-                let security = crate::globals::SECURITY.lock().await;
-                match crate::db::eml_cache::load_body(&security, &account_id, &mailbox, uid_u32) {
+                let crypto = crate::globals::get_crypto().await?;
+                match crate::db::eml_cache::load_body(&crypto, &account_id, &mailbox, uid_u32) {
                     Ok(Some(mut body)) => {
                         tracing::info!(
                             target: "postail",
@@ -253,7 +250,7 @@ pub async fn fetch_message_full(
                         // Old cache files predate read_receipt_to - try to backfill from raw EML.
                         if body.read_receipt_to.is_none() {
                             if let Ok(Some(raw_eml)) = crate::db::eml_cache::load_eml(
-                                &security,
+                                &crypto,
                                 &account_id,
                                 &mailbox,
                                 uid_u32,
@@ -271,7 +268,7 @@ pub async fn fetch_message_full(
                                         body.read_receipt_to = receipt;
                                         // Persist the backfilled value so we don't re-parse next time.
                                         let _ = crate::db::eml_cache::save_body(
-                                            &security,
+                                            &crypto,
                                             &account_id,
                                             &mailbox,
                                             uid_u32,
@@ -405,7 +402,7 @@ pub async fn fetch_thread(
     };
 
     // Now load full messages
-    let security = crate::globals::SECURITY.lock().await;
+    let crypto = crate::globals::get_crypto().await?;
     let mut thread_messages = vec![];
 
     for thread_uid in thread_uids {
@@ -418,7 +415,7 @@ pub async fn fetch_thread(
 
         if let Some(mut msg) = msg {
             // Load body from cache
-            match crate::db::eml_cache::load_body(&security, &account_id, &mailbox, thread_uid) {
+            match crate::db::eml_cache::load_body(&crypto, &account_id, &mailbox, thread_uid) {
                 Ok(Some(body)) => {
                     msg.body_html_safe = body.body_html;
                     msg.body_plain = body.body_plain;
