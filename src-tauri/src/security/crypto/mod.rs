@@ -12,6 +12,7 @@ pub mod helpers;
 
 pub const NONCE_LENGTH: usize = 12;
 
+#[derive(Clone)]
 pub struct Crypto {
     cipher: Aes256Gcm,
 }
