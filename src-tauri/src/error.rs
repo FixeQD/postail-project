@@ -23,6 +23,9 @@ pub enum SecurityError {
     #[error("master key already exists")]
     MasterKeyAlreadyExists,
 
+    #[error("crypto actor is not running")]
+    ActorDead,
+
     #[error("invalid passphrase")]
     InvalidPassphrase,
 

@@ -1,11 +1,12 @@
 use crate::db::DbPool;
 use crate::imap::ImapManager;
-use crate::security::SecurityManager;
+use crate::security::{CryptoHandle, SecurityManager};
 use crate::smtp::SmtpManager;
 use std::sync::Arc;
 use std::sync::LazyLock;
 use std::sync::atomic::AtomicBool;
 use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
 pub static MINIMIZE_TO_TRAY: AtomicBool = AtomicBool::new(false);
 
@@ -17,6 +18,9 @@ pub static SECURITY: LazyLock<Arc<Mutex<SecurityManager>>> = LazyLock::new(|| {
         SecurityManager::new().expect("Failed to initialize security"),
     ))
 });
+
+pub static CRYPTO_ACTOR: LazyLock<Arc<RwLock<Option<CryptoHandle>>>> =
+    LazyLock::new(|| Arc::new(RwLock::new(None)));
 pub static IMAP_MANAGER: LazyLock<Arc<Mutex<ImapManager>>> = LazyLock::new(|| {
     Arc::new(Mutex::new(ImapManager::new(
         Arc::clone(&DB_CONN),

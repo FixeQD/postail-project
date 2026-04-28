@@ -19,6 +19,10 @@ pub use manager::{PassphraseSecurityBuilder, SecurityManager};
 pub mod master_key;
 pub use master_key::{MasterKey, MASTER_KEY_LENGTH};
 
+// Actor
+pub mod actor;
+pub use actor::CryptoHandle;
+
 // Recovery
 pub mod recovery;
 
