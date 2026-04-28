@@ -68,9 +68,11 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 						targetAccount = fetchedAccounts[0]
 					}
 
-					const lastAccountMailbox = await invoke<string | null>('get_setting', {
-						key: `postail.last_mailbox.${targetAccount.id}`,
-					})
+					const [lastAccountMailbox] = await Promise.all([
+						invoke<string | null>('get_setting', {
+							key: `postail.last_mailbox.${targetAccount.id}`,
+						}),
+					])
 					const initialMailbox = lastAccountMailbox || 'INBOX'
 
 					set({
@@ -84,12 +86,17 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 				}
 			}
 
-			try {
-				const { loadBaseline } = useNotificationStore.getState()
-				await loadBaseline()
-			} catch (e) {
-				console.warn('[AccountStore] Failed to load notification baseline:', e)
-			}
+			// Run loadBaseline in parallel with the restore logic
+			const { loadBaseline } = useNotificationStore.getState()
+
+			// Restore logic is fire-and-forget, loadBaseline is awaited
+			;(async () => {
+				try {
+					await loadBaseline()
+				} catch (e) {
+					console.warn('[AccountStore] Failed to load notification baseline:', e)
+				}
+			})()
 
 			// Auto-start sync for every account so IDLE begins immediately
 			for (const account of fetchedAccounts) {
@@ -116,7 +123,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 			set({
 				accounts: updatedAccounts,
 				activeAccount:
-					activeAccount?.id === id ? updatedAccounts[0] || null : activeAccount,
+					activeAccount?.id === id ? (updatedAccounts[0] ?? null) : activeAccount,
 			})
 		} catch (error) {
 			console.error('Failed to remove account:', error)

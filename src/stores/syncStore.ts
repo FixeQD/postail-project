@@ -86,38 +86,40 @@ export const useSyncStore = create<SyncState>((set, get) => ({
 	loadInitialStatuses: async (accounts: { id: string; email: string }[]) => {
 		set({ isLoading: true })
 		try {
-			for (const account of accounts) {
-				try {
-					const status = await invoke<{
+			const results = await Promise.all(
+				accounts.map(account =>
+					invoke<{
 						Idle?: null
 						Syncing?: null
 						Error?: string
 					}>('get_sync_status', { accountId: account.id })
+						.then(status => ({ account, status, error: undefined as string | undefined }))
+						.catch(error => ({ account, status: undefined as any, error: String(error) }))
+				)
+			)
 
-					let normalizedStatus: 'idle' | 'syncing' | 'error' = 'idle'
-					let errorMessage: string | undefined
+			for (const { account, status, error } of results) {
+				let normalizedStatus: 'idle' | 'syncing' | 'error' = 'idle'
+				let errorMessage: string | undefined
 
-					if (status.Error !== undefined) {
-						normalizedStatus = 'error'
-						errorMessage = status.Error
-					} else if (status.Syncing !== undefined) {
-						normalizedStatus = 'syncing'
-					}
+				if (error || (status && status.Error !== undefined)) {
+					normalizedStatus = 'error'
+					errorMessage = error || (status && status.Error)
+				} else if (status && status.Syncing !== undefined) {
+					normalizedStatus = 'syncing'
+				}
 
-					const existing = get().statuses.get(account.id)
-					if (!existing) {
-						get().setStatus(account.id, {
-							accountId: account.id,
-							accountEmail: account.email,
-							status: normalizedStatus,
-							error: errorMessage,
-							mailbox: undefined,
-							progress: undefined,
-							lastSync: undefined,
-						})
-					}
-				} catch (e) {
-					console.error(`Failed to load sync status for ${account.id}:`, e)
+				const existing = get().statuses.get(account.id)
+				if (!existing) {
+					get().setStatus(account.id, {
+						accountId: account.id,
+						accountEmail: account.email,
+						status: normalizedStatus,
+						error: errorMessage,
+						mailbox: undefined,
+						progress: undefined,
+						lastSync: undefined,
+					})
 				}
 			}
 		} finally {
