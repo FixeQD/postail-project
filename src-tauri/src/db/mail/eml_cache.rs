@@ -60,7 +60,7 @@ pub fn save_eml(
     let path = eml_cache_path(account_id, mailbox, uid);
     ensure_parent(&path)?;
 
-    let encrypted = encrypt(security, raw_eml)?;
+    let encrypted = encrypt(crypto, raw_eml)?;
     fs::write(&path, encrypted)
         .map_err(|e| DBError::EmlCache(format!("Failed to write EML file: {}", e)))?;
 
@@ -85,7 +85,7 @@ pub fn load_eml(
     }
     let encrypted = fs::read(&path)
         .map_err(|e| DBError::EmlCache(format!("Failed to read EML file: {}", e)))?;
-    Ok(Some(decrypt(security, &encrypted)?))
+    Ok(Some(decrypt(crypto, &encrypted)?))
 }
 
 pub fn delete_eml(account_id: &str, mailbox: &str, uid: u32) -> Result<(), DBError> {
@@ -120,7 +120,7 @@ pub fn save_body(
     let json = serde_json::to_vec(body)
         .map_err(|e| DBError::BodyCache(format!("Body serialization failed: {}", e)))?;
 
-    let encrypted = encrypt(security, &json)?;
+    let encrypted = encrypt(crypto, &json)?;
     fs::write(&path, encrypted)
         .map_err(|e| DBError::BodyCache(format!("Failed to write body file: {}", e)))?;
 
@@ -146,7 +146,7 @@ pub fn load_body(
 
     let encrypted = fs::read(&path)
         .map_err(|e| DBError::BodyCache(format!("Failed to read body file: {}", e)))?;
-    let json = decrypt(security, &encrypted)?;
+    let json = decrypt(crypto, &encrypted)?;
 
     let body: CachedBody = serde_json::from_slice(&json)
         .map_err(|e| DBError::BodyCache(format!("Body deserialization failed: {}", e)))?;
@@ -177,7 +177,7 @@ pub fn save_inline_image(
     let path = inline_image_path(account_id, mailbox, uid, part_id);
     ensure_parent(&path)?;
 
-    let encrypted = encrypt(security, data)?;
+    let encrypted = encrypt(crypto, data)?;
     fs::write(&path, encrypted)
         .map_err(|e| DBError::Cache(format!("Failed to write inline image: {}", e)))?;
 
@@ -198,7 +198,7 @@ pub fn load_inline_image(
     }
     let encrypted = fs::read(&path)
         .map_err(|e| DBError::Cache(format!("Failed to read inline image: {}", e)))?;
-    Ok(Some(decrypt(security, &encrypted)?))
+    Ok(Some(decrypt(crypto, &encrypted)?))
 }
 
 // ── Cleanup ────────────────────────────────────────────────────────────────
