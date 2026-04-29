@@ -1,125 +1,23 @@
+pub mod options;
+pub mod lock;
+pub mod recovery;
+
+pub use options::*;
+pub use lock::*;
+pub use recovery::*;
+
 use crate::globals::{get_db_pool, DB_CONN, SECURITY, SMTP_MANAGER, CRYPTO_ACTOR};
 use crate::security::manager::PassphraseSecurityBuilder;
 use crate::security::recovery::RecoveryStore;
 use crate::security::storage::keyring::KeyringStore;
-use crate::security::storage::{SecretStore, StorageTier};
+use crate::security::storage::StorageTier;
 use crate::security::tpm::store::get_tpm_store;
 use crate::security::{DbEncryption, SecurityManager};
 use crate::utils::config::{load_config, save_config, AppConfig};
 use serde::Serialize;
 use std::sync::Arc;
-use std::time::Duration;
 use tauri::command;
 use tokio::task::spawn_blocking;
-use tokio::time::timeout;
-
-#[cfg(all(target_os = "linux", feature = "tpm"))]
-#[derive(Serialize, Debug, Clone, Copy)]
-#[serde(rename_all = "camelCase")]
-pub enum TpmErrorType {
-    Cancelled,
-    AccessDenied,
-    HelperFailed,
-    StartFailed,
-    SocketTimeout,
-    Other,
-}
-
-#[cfg(all(target_os = "linux", feature = "tpm"))]
-#[derive(Serialize, Debug, Clone)]
-pub struct TpmInitError {
-    pub error_type: TpmErrorType,
-    pub message: String,
-}
-
-#[cfg(all(target_os = "linux", feature = "tpm"))]
-impl std::fmt::Display for TpmInitError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}: {}", self.error_type, self.message)
-    }
-}
-
-#[cfg(all(target_os = "linux", feature = "tpm"))]
-impl From<TpmInitError> for String {
-    fn from(err: TpmInitError) -> Self {
-        serde_json::to_string(&err).unwrap_or(err.message)
-    }
-}
-
-#[derive(Serialize)]
-pub struct SecurityOptions {
-    #[cfg(all(target_os = "linux", feature = "tpm"))]
-    pub tpm_available: bool,
-    #[cfg(all(target_os = "linux", feature = "tpm"))]
-    pub tpm_requires_elevation: bool,
-    pub keyring_available: bool,
-    pub argon2_available: bool,
-}
-
-#[command]
-pub async fn check_security_options() -> Result<SecurityOptions, String> {
-    #[cfg(all(target_os = "linux", feature = "tpm"))]
-    let (tpm_available, tpm_requires_elevation) = timeout(
-        Duration::from_secs(3),
-        spawn_blocking(|| {
-            use crate::security::TpmInitializer;
-            let initializer = TpmInitializer::new();
-            let availability = initializer.check_availability();
-            match availability {
-                crate::security::TpmAvailability::Available => (true, false),
-                crate::security::TpmAvailability::RequiresElevation => (true, true),
-                crate::security::TpmAvailability::NotAvailable => (false, false),
-            }
-        }),
-    )
-    .await
-    .unwrap_or(Ok((false, false)))
-    .unwrap_or((false, false));
-
-    let keyring_available = KeyringStore::new()
-        .map(|k| k.is_available())
-        .unwrap_or(false);
-
-    Ok(SecurityOptions {
-        #[cfg(all(target_os = "linux", feature = "tpm"))]
-        tpm_available,
-        #[cfg(all(target_os = "linux", feature = "tpm"))]
-        tpm_requires_elevation,
-        keyring_available,
-        argon2_available: true,
-    })
-}
-
-#[cfg(all(target_os = "linux", feature = "tpm"))]
-#[derive(Serialize)]
-pub enum TpmStatus {
-    Available,
-    RequiresElevation,
-    NotAvailable,
-}
-
-#[cfg(all(target_os = "linux", feature = "tpm"))]
-#[command]
-pub async fn check_tpm_availability() -> Result<TpmStatus, String> {
-    use crate::security::TpmAvailability;
-
-    let result = timeout(
-        Duration::from_secs(3),
-        spawn_blocking(|| {
-            let initializer = crate::security::TpmInitializer::new();
-            initializer.check_availability()
-        }),
-    )
-    .await
-    .unwrap_or(Ok(TpmAvailability::NotAvailable))
-    .unwrap_or(TpmAvailability::NotAvailable);
-
-    match result {
-        TpmAvailability::Available => Ok(TpmStatus::Available),
-        TpmAvailability::RequiresElevation => Ok(TpmStatus::RequiresElevation),
-        TpmAvailability::NotAvailable => Ok(TpmStatus::NotAvailable),
-    }
-}
 
 #[derive(Serialize)]
 pub struct InitStatus {
@@ -141,14 +39,6 @@ pub fn get_app_initialization_status() -> InitStatus {
     let method = load_config().map(|c| c.security_method);
 
     InitStatus { status, method }
-}
-
-#[cfg(all(target_os = "linux", feature = "tpm"))]
-fn get_executable_path() -> std::io::Result<std::path::PathBuf> {
-    if let Ok(appimage) = std::env::var("APPIMAGE") {
-        return Ok(std::path::PathBuf::from(appimage));
-    }
-    std::env::current_exe()
 }
 
 pub async fn initialize_security_and_database(
@@ -280,19 +170,18 @@ pub async fn initialize_security_and_database(
     Ok(())
 }
 
-/// Initialize TPM with elevated privileges if needed (Linux only)
 #[cfg(all(target_os = "linux", feature = "tpm"))]
-async fn initialize_tpm_elevated() -> Result<(), TpmInitError> {
+async fn initialize_tpm_elevated() -> Result<(), options::TpmInitError> {
+    use std::time::Duration;
+    use tokio::process::Command;
     use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
     use std::os::unix::io::{AsRawFd, RawFd};
-    use std::time::Duration;
     use tokio::io::unix::AsyncFd;
-    use tokio::process::Command;
 
     // Check if we're already running as helper mode to avoid infinite loops
     if std::env::var("POSTAIL_TPM_HELPER").is_ok() {
-        return Err(TpmInitError {
-            error_type: TpmErrorType::Other,
+        return Err(options::TpmInitError {
+            error_type: options::TpmErrorType::Other,
             message: "Already in helper mode".to_string(),
         });
     }
@@ -315,23 +204,24 @@ async fn initialize_tpm_elevated() -> Result<(), TpmInitError> {
     }
 
     let security_dir = crate::utils::config::get_data_dir().join("security");
-    std::fs::create_dir_all(&security_dir).map_err(|e| TpmInitError {
-        error_type: TpmErrorType::Other,
+    std::fs::create_dir_all(&security_dir).map_err(|e| options::TpmInitError {
+        error_type: options::TpmErrorType::Other,
         message: format!("Failed to create security directory: {}", e),
     })?;
 
-    let exe_path = get_executable_path()
-        .map_err(|e| TpmInitError {
-            error_type: TpmErrorType::Other,
+    let exe_path = if let Ok(appimage) = std::env::var("APPIMAGE") {
+        std::path::PathBuf::from(appimage)
+    } else {
+        std::env::current_exe().map_err(|e| options::TpmInitError {
+            error_type: options::TpmErrorType::Other,
             message: format!("Failed to get executable path: {}", e),
         })?
-        .to_string_lossy()
-        .to_string();
+    }.to_string_lossy().to_string();
 
     tracing::info!(target: "postail", "Requesting TPM elevation via pkexec (persistent helper)...");
 
-    let socket_dir = socket_path.parent().ok_or_else(|| TpmInitError {
-        error_type: TpmErrorType::Other,
+    let socket_dir = socket_path.parent().ok_or_else(|| options::TpmInitError {
+        error_type: options::TpmErrorType::Other,
         message: "Invalid socket path".to_string(),
     })?;
 
@@ -345,8 +235,8 @@ async fn initialize_tpm_elevated() -> Result<(), TpmInitError> {
     }
 
     let inotify = Inotify::init(InitFlags::IN_NONBLOCK | InitFlags::IN_CLOEXEC).map_err(
-        |e: nix::Error| TpmInitError {
-            error_type: TpmErrorType::Other,
+        |e: nix::Error| options::TpmInitError {
+            error_type: options::TpmErrorType::Other,
             message: format!("inotify init failed: {}", e),
         },
     )?;
@@ -355,17 +245,17 @@ async fn initialize_tpm_elevated() -> Result<(), TpmInitError> {
             socket_dir,
             AddWatchFlags::IN_CREATE | AddWatchFlags::IN_MOVED_TO,
         )
-        .map_err(|e: nix::Error| TpmInitError {
-            error_type: TpmErrorType::Other,
+        .map_err(|e: nix::Error| options::TpmInitError {
+            error_type: options::TpmErrorType::Other,
             message: format!("inotify add_watch failed: {}", e),
         })?;
     let async_inotify =
-        AsyncFd::new(InotifyWrapper(inotify)).map_err(|e: std::io::Error| TpmInitError {
-            error_type: TpmErrorType::Other,
+        AsyncFd::new(InotifyWrapper(inotify)).map_err(|e: std::io::Error| options::TpmInitError {
+            error_type: options::TpmErrorType::Other,
             message: format!("AsyncFd wrapper failed: {}", e),
         })?;
 
-    let (tx, mut rx) = tokio::sync::oneshot::channel::<TpmInitError>();
+    let (tx, mut rx) = tokio::sync::oneshot::channel::<options::TpmInitError>();
 
     tokio::spawn(async move {
         let data_dir = crate::utils::config::get_data_dir()
@@ -394,17 +284,17 @@ async fn initialize_tpm_elevated() -> Result<(), TpmInitError> {
                 let (error_type, err_msg) = if code == Some(126) || code == Some(127) {
                     // pkexec returns 126 or 127 when auth is cancelled or failed
                     (
-                        TpmErrorType::Cancelled,
+                        options::TpmErrorType::Cancelled,
                         "TPM elevation was cancelled by user".to_string(),
                     )
                 } else {
                     (
-                        TpmErrorType::HelperFailed,
+                        options::TpmErrorType::HelperFailed,
                         format!("Persistent TPM helper failed with status: {}", s),
                     )
                 };
                 tracing::error!(target: "postail", "{}", err_msg);
-                let _ = tx.send(TpmInitError {
+                let _ = tx.send(options::TpmInitError {
                     error_type,
                     message: err_msg,
                 });
@@ -412,8 +302,8 @@ async fn initialize_tpm_elevated() -> Result<(), TpmInitError> {
             Err(e) => {
                 let err_msg = format!("Failed to start persistent TPM helper: {}", e);
                 tracing::error!(target: "postail", "{}", err_msg);
-                let _ = tx.send(TpmInitError {
-                    error_type: TpmErrorType::StartFailed,
+                let _ = tx.send(options::TpmInitError {
+                    error_type: options::TpmErrorType::StartFailed,
                     message: err_msg,
                 });
             }
@@ -426,21 +316,21 @@ async fn initialize_tpm_elevated() -> Result<(), TpmInitError> {
     tracing::info!(target: "postail", "Waiting for TPM helper socket to appear...");
 
     // Check if socket already appeared between add_watch and the await
-    let wait_res: Result<(), TpmInitError> = async {
+    let wait_res: Result<(), options::TpmInitError> = async {
         if socket_path.exists() {
-            return Ok::<(), TpmInitError>(());
+            return Ok::<(), options::TpmInitError>(());
         }
 
         while !socket_path.exists() {
             tokio::select! {
                 res = async_inotify.readable() => {
-                    let mut guard = res.map_err(|e: std::io::Error| TpmInitError {
-                        error_type: TpmErrorType::Other,
+                    let mut guard = res.map_err(|e: std::io::Error| options::TpmInitError {
+                        error_type: options::TpmErrorType::Other,
                         message: e.to_string()
                     })?;
                     let mut events = guard.get_inner().0.read_events()
-                        .map_err(|e: nix::Error| TpmInitError {
-                            error_type: TpmErrorType::Other,
+                        .map_err(|e: nix::Error| options::TpmInitError {
+                            error_type: options::TpmErrorType::Other,
                             message: e.to_string()
                         })?;
                     let mut found = false;
@@ -456,14 +346,14 @@ async fn initialize_tpm_elevated() -> Result<(), TpmInitError> {
                     guard.clear_ready();
                 }
                 err = &mut rx => {
-                    return Err(err.unwrap_or_else(|_| TpmInitError {
-                        error_type: TpmErrorType::HelperFailed,
+                    return Err(err.unwrap_or_else(|_| options::TpmInitError {
+                        error_type: options::TpmErrorType::HelperFailed,
                         message: "TPM helper failed to start".to_string()
                     }));
                 }
             }
         }
-        Ok::<(), TpmInitError>(())
+        Ok::<(), options::TpmInitError>(())
     }
     .await;
 
@@ -480,8 +370,8 @@ async fn initialize_tpm_elevated() -> Result<(), TpmInitError> {
     }
 
     if retries == 0 {
-        return Err(TpmInitError {
-            error_type: TpmErrorType::SocketTimeout,
+        return Err(options::TpmInitError {
+            error_type: options::TpmErrorType::SocketTimeout,
             message: "TPM helper socket appeared but is not responding".to_string(),
         });
     }
@@ -678,141 +568,6 @@ pub async fn reset_security_setup() -> Result<(), String> {
 
     tracing::info!(target: "postail", "[Security] Setup rolled back - clean slate for re-setup");
     Ok(())
-}
-
-#[command]
-pub fn generate_recovery_phrase() -> String {
-    let phrase = crate::security::recovery::generate_phrase();
-    crate::security::recovery::store_pending_phrase(phrase.clone());
-    phrase
-}
-
-#[command]
-pub async fn unlock_with_recovery_phrase(phrase: String) -> Result<(), String> {
-    let storage_path = crate::utils::config::get_data_dir().join("security");
-    let recovery_store = crate::security::recovery::RecoveryStore::new(storage_path.clone());
-
-    if !recovery_store.exists() {
-        return Err("No recovery store found".to_string());
-    }
-
-    // decrypt master key from recovery phrase
-    let master_key = recovery_store.unlock(&phrase).map_err(|e| e.to_string())?;
-
-    let holder = crate::security::recovery::RecoveryKeyHolder::with_key(master_key);
-    let security = SecurityManager::with_store(Arc::new(holder), StorageTier::Passphrase);
-
-    {
-        let mut security_guard = SECURITY.lock().await;
-        *security_guard = security;
-        security_guard.unlock().map_err(|e| e.to_string())?;
-    }
-
-    let encryption = {
-        let security = SECURITY.lock().await;
-        let master_key_raw = security.get_master_key_raw();
-        DbEncryption::derive_from_master_key(&master_key_raw).map_err(|e| e.to_string())?
-    };
-    let hex_key = encryption.hex_key();
-
-    let data_dir = crate::utils::config::get_data_dir();
-    let db_path = data_dir.join("postail.db");
-
-    let db = if db_path.exists() {
-        crate::db::connect_db_with_key(&hex_key).map_err(|e| e.to_string())?
-    } else {
-        return Err("No database found to unlock".to_string());
-    };
-
-    {
-        let mut db_guard = DB_CONN.lock().await;
-        *db_guard = Some(db);
-    }
-
-    let pool = get_db_pool().await.map_err(|e| e.to_string())?;
-    crate::maintenance::start_maintenance_scheduler(pool);
-    SMTP_MANAGER.lock().await.start_outbox_worker();
-    crate::security::load_lock_settings().await;
-
-    tracing::info!(target: "postail", "Unlocked via recovery phrase");
-    Ok(())
-}
-
-#[command]
-pub fn verify_recovery_words(indices: Vec<usize>, words: Vec<String>) -> Result<bool, String> {
-    crate::security::recovery::verify_pending_phrase(&indices, &words).map_err(|e| e.to_string())
-}
-
-use crate::security::lock::{
-    get_timeout_minutes, is_locked, is_using_encryption_password, record_activity, set_pin,
-    set_timeout, unlock, use_encryption_password,
-};
-
-#[command]
-pub fn record_lock_activity() {
-    record_activity();
-}
-
-#[command]
-pub fn is_app_locked() -> bool {
-    is_locked()
-}
-
-#[command]
-pub async fn unlock_app(password: String) -> Result<(), String> {
-    if crate::security::lock::is_using_encryption_password() {
-        // Re-derive the master key from the provided passphrase and compare against the one currently held in memory
-        let storage_path = crate::utils::config::get_data_dir().join("security");
-        let store =
-            crate::security::storage::argon2::Argon2Store::new(storage_path, password.clone());
-
-        use crate::security::storage::SecretStore;
-        let retrieved = store
-            .retrieve()
-            .map_err(|_| "Invalid password".to_string())?;
-
-        let security = SECURITY.lock().await;
-        let current_key = security.get_master_key_raw();
-        if retrieved.as_bytes() != current_key.as_slice() {
-            return Err("Invalid password".to_string());
-        }
-        drop(security);
-
-        crate::security::lock::force_unlock();
-        Ok(())
-    } else {
-        unlock(&password)
-    }
-}
-
-#[command]
-pub async fn set_auto_lock_timeout(minutes: u32) {
-    set_timeout(minutes).await;
-}
-
-#[command]
-pub fn get_auto_lock_timeout() -> u32 {
-    get_timeout_minutes()
-}
-
-#[command]
-pub async fn set_auto_lock_pin(pin: String) -> Result<(), String> {
-    set_pin(&pin).await
-}
-
-#[command]
-pub async fn use_encryption_password_for_lock() {
-    use_encryption_password().await;
-}
-
-#[command]
-pub fn is_lock_using_encryption_password() -> bool {
-    is_using_encryption_password()
-}
-
-#[command]
-pub fn is_lock_configured() -> bool {
-    crate::security::is_lock_configured()
 }
 
 #[command]
