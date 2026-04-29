@@ -116,7 +116,7 @@ impl super::SmtpManager {
 
     /// Cancels a queued/failed message: deletes the EML file and the DB row, then emits a `outbox:message:cancelled` event so the UI can remove it.
     pub async fn cancel_sending(&self, outbox_id: &str) -> Result<(), String> {
-        let (eml_path, account_id) = {
+        let (_eml_path, account_id) = {
             let pool = get_db_pool().await.map_err(|e| e.to_string())?;
             let conn = pool.get().map_err(|e| e.to_string())?;
 
