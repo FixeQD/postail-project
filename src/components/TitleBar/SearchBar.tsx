@@ -5,22 +5,11 @@ import {
 	Search,
 	SlidersHorizontal,
 	X,
-	Calendar,
-	Paperclip,
-	User,
-	AtSign,
-	Type,
-	AlignLeft,
-	FolderOpen,
 	Loader2,
-	ChevronDown,
-	Clock,
 	Bookmark,
-	Trash2,
 	Check,
 } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { create } from 'zustand'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useThemeStore } from '@/stores/themeStore'
@@ -30,40 +19,24 @@ import {
 	parseSearchOperators,
 	serializeSearchQuery,
 	SEARCH_OPERATORS,
+	SEARCH_SPLIT_REGEX,
+	SEARCH_MATCH_REGEX,
 } from '@/lib/searchQueryParser'
 import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover'
 import { useSearchHistory } from '@/hooks/useSearchHistory'
 import type { AdvancedSearchQuery, SavedSearch } from '@/types/search'
-
-import { SEARCH_SPLIT_REGEX, SEARCH_MATCH_REGEX } from '@/lib/searchQueryParser'
+import { useSearchBarStore } from '@/stores/searchStore'
+import { SearchDropdown } from './SearchDropdown'
+import { SearchPanel } from './SearchPanel'
 
 interface SearchBarProps {
 	onSearch: (query: AdvancedSearchQuery | null) => void
 	isSearching?: boolean
 }
 
-interface SearchBarState {
-	rawInput: string
-	setRawInput: (val: string) => void
-	query: AdvancedSearchQuery
-	setQuery: (
-		val: AdvancedSearchQuery | ((prev: AdvancedSearchQuery) => AdvancedSearchQuery)
-	) => void
-	hasActiveSearch: boolean
-	setHasActiveSearch: (val: boolean) => void
-}
-
-export const useSearchBarStore = create<SearchBarState>((set) => ({
-	rawInput: '',
-	setRawInput: (val) => set({ rawInput: val }),
-	query: {},
-	setQuery: (val) =>
-		set((state) => ({ query: typeof val === 'function' ? val(state.query) : val })),
-	hasActiveSearch: false,
-	setHasActiveSearch: (val) => set({ hasActiveSearch: val }),
-}))
-
 const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1]
+
+export { useSearchBarStore }
 
 export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 	const { t } = useTypedTranslation()
@@ -175,10 +148,7 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 
 	const handleSubmit = useCallback(() => {
 		const parsed = parseSearchOperators(rawInput)
-		const finalQuery: AdvancedSearchQuery = {
-			...query,
-			...parsed,
-		}
+		const finalQuery: AdvancedSearchQuery = { ...query, ...parsed }
 
 		const isEmpty =
 			!finalQuery.from &&
@@ -450,112 +420,21 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 					</div>
 
 					{/* History + Saved Searches dropdown */}
-					<AnimatePresence>
-						{historyOpen && !rawInput.trim() && hasDropdownItems && (
-							<motion.div
-								key='history'
-								initial={
-									animationsEnabled ? { opacity: 0, y: -6, scale: 0.98 } : {}
-								}
-								animate={animationsEnabled ? { opacity: 1, y: 0, scale: 1 } : {}}
-								exit={animationsEnabled ? { opacity: 0, y: -6, scale: 0.98 } : {}}
-								transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-								className='glass absolute top-[calc(100%+4px)] right-0 left-0 z-50 overflow-hidden rounded-xl border border-[var(--border-subtle)] py-1 shadow-xl backdrop-blur-xl'
-								style={{
-									boxShadow: `0 8px 32px rgba(0,0,0,0.2), 0 0 0 1px var(--border-subtle)`,
-								}}>
-								{/* Recent searches */}
-								{searchHistory.length > 0 && (
-									<>
-										<div className='flex items-center justify-between px-3 py-1.5'>
-											<span className='text-[10px] font-semibold tracking-wider text-[var(--text-tertiary)] uppercase'>
-												{t('inbox:search.history.title')}
-											</span>
-											<button
-												type='button'
-												onClick={clearHistory}
-												className='text-[10px] text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-secondary)]'>
-												{t('inbox:search.history.clearAll')}
-											</button>
-										</div>
-										{searchHistory.map((q) => (
-											<div
-												key={q}
-												className='group flex items-center gap-2 px-2'>
-												<button
-													type='button'
-													onMouseDown={(e) => {
-														e.preventDefault()
-														setRawInput(q)
-														setHistoryOpen(false)
-														setTimeout(
-															() => inputRef.current?.focus(),
-															0
-														)
-													}}
-													className='flex flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
-													<Clock className='h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]' />
-													<span className='truncate'>{q}</span>
-												</button>
-												<button
-													type='button'
-													onMouseDown={(e) => {
-														e.preventDefault()
-														removeFromHistory(q)
-													}}
-													className='hidden h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--text-tertiary)] transition-colors group-hover:flex hover:text-[var(--text-primary)]'>
-													<X className='h-3 w-3' />
-												</button>
-											</div>
-										))}
-									</>
-								)}
-
-								{/* Separator between history and saved searches */}
-								{searchHistory.length > 0 && savedSearches.length > 0 && (
-									<div className='mx-3 my-1 border-t border-[var(--border-subtle)]' />
-								)}
-
-								{/* Saved searches */}
-								{savedSearches.length > 0 && (
-									<>
-										<div className='px-3 py-1.5'>
-											<span className='text-[10px] font-semibold tracking-wider text-[var(--text-tertiary)] uppercase'>
-												{t('inbox:search.savedSearches.title')}
-											</span>
-										</div>
-										{savedSearches.map((saved) => (
-											<div
-												key={saved.id}
-												className='group flex items-center gap-2 px-2'>
-												<button
-													type='button'
-													onMouseDown={(e) => {
-														e.preventDefault()
-														handleActivateSavedSearch(saved)
-													}}
-													className='flex flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
-													<Bookmark
-														className='h-3.5 w-3.5 shrink-0'
-														style={{ color: accentColor }}
-													/>
-													<span className='truncate'>{saved.name}</span>
-												</button>
-												<button
-													type='button'
-													onMouseDown={(e) =>
-														handleDeleteSavedSearch(e, saved)
-													}
-													className='hidden h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--text-tertiary)] transition-colors group-hover:flex hover:text-red-400'>
-													<Trash2 className='h-3 w-3' />
-												</button>
-											</div>
-										))}
-									</>
-								)}
-							</motion.div>
-						)}
-					</AnimatePresence>
+					<SearchDropdown
+						open={historyOpen && !rawInput.trim() && hasDropdownItems}
+						searchHistory={searchHistory}
+						savedSearches={savedSearches}
+						accentColor={accentColor}
+						animationsEnabled={animationsEnabled}
+						inputRef={inputRef}
+						setRawInput={setRawInput}
+						setHistoryOpen={setHistoryOpen}
+						clearHistory={clearHistory}
+						removeFromHistory={removeFromHistory}
+						onActivateSaved={handleActivateSavedSearch}
+						onDeleteSaved={handleDeleteSavedSearch}
+						t={t}
+					/>
 
 					{/* Save + Advanced toggle inside input */}
 					<div className='absolute inset-y-0 right-0 flex items-center gap-0.5 pr-1.5'>
@@ -673,246 +552,16 @@ export function SearchBar({ onSearch, isSearching }: SearchBarProps) {
 			</div>
 
 			{/* Advanced panel */}
-			<AnimatePresence>
-				{panelOpen && (
-					<motion.div
-						key='advanced-panel'
-						initial={
-							animationsEnabled
-								? { opacity: 0, y: -8, scale: 0.97, filter: 'blur(4px)' }
-								: {}
-						}
-						animate={
-							animationsEnabled
-								? { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }
-								: {}
-						}
-						exit={
-							animationsEnabled
-								? { opacity: 0, y: -8, scale: 0.97, filter: 'blur(4px)' }
-								: {}
-						}
-						transition={{ duration: 0.22, ease: EASE_OUT_EXPO }}
-						className='glass absolute top-[calc(100%+6px)] right-0 left-0 z-50 rounded-2xl border border-[var(--border-subtle)] p-4 shadow-2xl backdrop-blur-xl'
-						style={{
-							boxShadow: `0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px var(--border-subtle)`,
-							backgroundImage: `linear-gradient(to bottom, ${accentColor}0A, ${accentColor}1A)`,
-						}}
-						onMouseDown={(e) => e.stopPropagation()}>
-						{/* Accent top bar */}
-						<div
-							className='absolute inset-x-0 top-0 h-[2px] rounded-t-2xl'
-							style={{
-								background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)`,
-							}}
-						/>
-
-						<div className='grid grid-cols-2 gap-3'>
-							<PanelField
-								icon={<User className='h-3.5 w-3.5' />}
-								label={t('inbox:search.fields.from')}
-								value={query.from ?? ''}
-								onChange={(v) => updateField('from', v || undefined)}
-								placeholder='sender@example.com'
-								accentColor={accentColor}
-							/>
-							<PanelField
-								icon={<AtSign className='h-3.5 w-3.5' />}
-								label={t('inbox:search.fields.to')}
-								value={query.to ?? ''}
-								onChange={(v) => updateField('to', v || undefined)}
-								placeholder='recipient@example.com'
-								accentColor={accentColor}
-							/>
-							<PanelField
-								icon={<Type className='h-3.5 w-3.5' />}
-								label={t('inbox:search.fields.subject')}
-								value={query.subject ?? ''}
-								onChange={(v) => updateField('subject', v || undefined)}
-								placeholder={t('inbox:search.fields.subject')}
-								accentColor={accentColor}
-								className='col-span-2'
-							/>
-							<PanelField
-								icon={<AlignLeft className='h-3.5 w-3.5' />}
-								label={t('inbox:search.fields.body')}
-								value={query.body ?? ''}
-								onChange={(v) => updateField('body', v || undefined)}
-								placeholder={t('inbox:search.fields.body')}
-								accentColor={accentColor}
-								className='col-span-2'
-							/>
-							<PanelField
-								icon={<Calendar className='h-3.5 w-3.5' />}
-								label={t('inbox:search.fields.dateFrom')}
-								value={query.dateFrom ?? ''}
-								onChange={(v) => updateField('dateFrom', v || undefined)}
-								type='date'
-								accentColor={accentColor}
-							/>
-							<PanelField
-								icon={<Calendar className='h-3.5 w-3.5' />}
-								label={t('inbox:search.fields.dateTo')}
-								value={query.dateTo ?? ''}
-								onChange={(v) => updateField('dateTo', v || undefined)}
-								type='date'
-								accentColor={accentColor}
-							/>
-
-							{/* Folder select */}
-							<div className='flex flex-col gap-1'>
-								<label className='flex items-center gap-1.5 text-[11px] font-medium text-[var(--text-secondary)]'>
-									<FolderOpen className='h-3.5 w-3.5' />
-									{t('inbox:search.fields.folder')}
-								</label>
-								<div className='relative flex items-center'>
-									<select
-										value={query.folder ?? ''}
-										onChange={(e) =>
-											updateField('folder', e.target.value || undefined)
-										}
-										onFocus={(e) => {
-											e.currentTarget.style.borderColor = accentColor
-											e.currentTarget.style.boxShadow = `0 0 0 1px ${accentColor}`
-										}}
-										onBlur={(e) => {
-											e.currentTarget.style.borderColor =
-												'var(--border-subtle)'
-											e.currentTarget.style.boxShadow = 'none'
-										}}
-										className='h-8 w-full appearance-none rounded-lg border bg-[var(--surface-secondary)] px-3 pr-8 text-xs text-[var(--text-primary)] transition-all focus:outline-none'
-										style={{
-											borderColor: 'var(--border-subtle)',
-											backgroundColor: 'var(--surface-secondary)',
-											color: 'var(--text-primary)',
-										}}>
-										<option value=''>
-											{t('inbox:search.fields.allFolders')}
-										</option>
-										{mailboxes?.map((mb) => (
-											<option key={mb.name} value={mb.name}>
-												{mb.display_name || mb.name}
-											</option>
-										))}
-									</select>
-									<ChevronDown className='pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-[var(--text-tertiary)]' />
-								</div>
-							</div>
-
-							{/* Has attachment */}
-							<div className='flex flex-col gap-1'>
-								<label className='flex items-center gap-1.5 text-[11px] font-medium text-[var(--text-secondary)]'>
-									<Paperclip className='h-3.5 w-3.5' />
-									{t('inbox:search.fields.hasAttachment')}
-								</label>
-								<button
-									type='button'
-									onClick={() =>
-										updateField(
-											'hasAttachment',
-											query.hasAttachment ? undefined : true
-										)
-									}
-									className='flex h-8 items-center gap-2 rounded-lg border px-3 text-xs transition-all'
-									style={{
-										borderColor: query.hasAttachment
-											? accentColor
-											: 'var(--border-subtle)',
-										backgroundColor: query.hasAttachment
-											? `${accentColor}18`
-											: 'var(--surface-secondary)',
-										color: query.hasAttachment
-											? accentColor
-											: 'var(--text-secondary)',
-									}}>
-									<div
-										className='flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 transition-all'
-										style={{
-											borderColor: query.hasAttachment
-												? accentColor
-												: 'var(--border-strong)',
-										}}>
-										{query.hasAttachment && (
-											<div
-												className='h-2 w-2 rounded-full'
-												style={{ backgroundColor: accentColor }}
-											/>
-										)}
-									</div>
-									{t('inbox:search.fields.hasAttachment')}
-								</button>
-							</div>
-						</div>
-
-						{/* Panel footer */}
-						<div className='mt-3 flex items-center justify-between border-t border-[var(--border-subtle)] pt-3'>
-							<button
-								type='button'
-								onClick={handleClear}
-								className='text-xs text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-secondary)]'>
-								{t('inbox:search.actions.clear')}
-							</button>
-
-							<div className='flex items-center gap-2'>
-								<motion.button
-									type='button'
-									onClick={handleSubmit}
-									{...motionProps}
-									className='flex h-8 items-center gap-2 rounded-xl px-4 text-xs font-semibold text-white transition-all'
-									style={{ backgroundColor: accentColor }}>
-									<Search className='h-3.5 w-3.5' />
-									{t('inbox:search.actions.search')}
-								</motion.button>
-							</div>
-						</div>
-					</motion.div>
-				)}
-			</AnimatePresence>
-		</div>
-	)
-}
-
-interface PanelFieldProps {
-	icon: React.ReactNode
-	label: string
-	value: string
-	onChange: (v: string) => void
-	placeholder?: string
-	type?: string
-	accentColor: string
-	className?: string
-}
-
-function PanelField({
-	icon,
-	label,
-	value,
-	onChange,
-	placeholder,
-	type = 'text',
-	accentColor,
-	className,
-}: PanelFieldProps) {
-	const [focused, setFocused] = useState(false)
-
-	return (
-		<div className={`flex flex-col gap-1 ${className ?? ''}`}>
-			<label className='flex items-center gap-1.5 text-[11px] font-medium text-[var(--text-secondary)]'>
-				{icon}
-				{label}
-			</label>
-			<input
-				type={type}
-				value={value}
-				onChange={(e) => onChange(e.target.value)}
-				onFocus={() => setFocused(true)}
-				onBlur={() => setFocused(false)}
-				placeholder={placeholder}
-				className='h-8 rounded-lg border bg-[var(--surface-secondary)] px-3 text-xs text-[var(--text-primary)] placeholder-[var(--text-tertiary)] transition-all focus:outline-none'
-				style={{
-					borderColor: focused ? accentColor : 'var(--border-subtle)',
-					boxShadow: focused ? `0 0 0 1px ${accentColor}` : 'none',
-				}}
+			<SearchPanel
+				open={panelOpen}
+				query={query}
+				accentColor={accentColor}
+				animationsEnabled={animationsEnabled}
+				mailboxes={mailboxes}
+				updateField={updateField}
+				onClear={handleClear}
+				onSubmit={handleSubmit}
+				t={t}
 			/>
 		</div>
 	)

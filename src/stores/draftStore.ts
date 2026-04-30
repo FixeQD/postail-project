@@ -1,8 +1,5 @@
 import { create } from 'zustand'
 import { invoke } from '@tauri-apps/api/core'
-import { parseAddress, parseAddresses } from '@/lib/parseAddress'
-import i18n from '@/i18n'
-import { useAccountStore } from '@/stores/accountStore'
 import type {
 	ComposeDraft,
 	EmailAddress,
@@ -10,83 +7,22 @@ import type {
 	DraftState,
 	SanitizeIssue,
 } from '@/types/compose'
+
 import type { DraftFromRust } from '@/types/stores'
-import type { Signature } from '@/types/signatures'
 import type { Template } from '@/types/templates'
 import { resolveTemplateVariables, getTemplateContextFromDraft } from '@/lib/templates'
+import {
+	prepareReplyBase,
+	prepareForwardBase,
+	buildReplyAllRecipients,
+	buildReplyQuoteHtml,
+	buildForwardQuoteHtml,
+	buildForwardToString,
+	injectDefaultSignature,
+	toUnixSeconds,
+} from '@/lib/draftUtils'
 
 let validationTimer: ReturnType<typeof setTimeout> | null = null
-
-const prepareReplyBase = (originalMessage: {
-	header: { from: string[]; subject?: string; internal_date: string }
-	body_html_safe?: string
-	body_plain?: string
-}) => {
-	const fromRaw = originalMessage.header.from[0] || ''
-	const fromParsed = parseAddress(fromRaw)
-	const originalSubject = originalMessage.header.subject || ''
-	const subject = originalSubject.toLowerCase().startsWith('re:')
-		? originalSubject
-		: `Re: ${originalSubject}`
-
-	const date = new Date(originalMessage.header.internal_date)
-	const dateStr = date.toLocaleString(i18n.t('app.languageCode'), {
-		month: 'short',
-		day: 'numeric',
-		year: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit',
-	})
-
-	const hasHtml = !!originalMessage.body_html_safe?.trim()
-	const rawBody = hasHtml
-		? originalMessage.body_html_safe!.trim()
-		: originalMessage.body_plain?.trim() || ''
-
-	const quotedBody = hasHtml
-		? rawBody
-		: rawBody
-				.replace(/&/g, '&amp;')
-				.replace(/</g, '&lt;')
-				.replace(/>/g, '&gt;')
-				.replace(/\n/g, '<br>')
-
-	return {
-		fromParsed,
-		originalSubject,
-		subject,
-		dateStr,
-		quotedBody,
-	}
-}
-
-/**
- * Fetches the default signature for an account and appends it to the current draft body
- */
-const injectDefaultSignature = async (
-	accountId: string,
-	get: () => DraftState,
-	set: (partial: Partial<DraftState>) => void
-): Promise<void> => {
-	try {
-		const sig = await invoke<Signature | null>('get_default_signature', { accountId })
-		if (!sig) return
-
-		const { currentDraft } = get()
-		if (!currentDraft) return
-
-		const sigBlock = `<!-- SIGNATURE_START --><br><br><div class="signature-wrapper"><div class="signature">${sig.htmlContent}</div></div><!-- SIGNATURE_END -->`
-
-		set({
-			currentDraft: {
-				...currentDraft,
-				body: currentDraft.body ? currentDraft.body + sigBlock : sigBlock,
-			},
-		})
-	} catch (e) {
-		console.error('[draftStore] Failed to fetch default signature:', e)
-	}
-}
 
 export const useDraftStore = create<DraftState>((set, get) => ({
 	// Initial state
@@ -275,32 +211,9 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 	},
 
 	startReplyAll: (accountId, originalMessage) => {
-		const userEmail = useAccountStore.getState().activeAccount?.email
 		const { fromParsed, originalSubject, subject, dateStr, quotedBody } =
 			prepareReplyBase(originalMessage)
-
-		// To: always contains the sender
-		const toRecipients: EmailAddress[] = fromParsed.email
-			? [{ email: fromParsed.email, name: fromParsed.name }]
-			: []
-
-		// To & CC from original message
-		const originalTo = parseAddresses(originalMessage.header.to)
-		const originalCc = parseAddresses(originalMessage.header.cc)
-
-		const ccRecipients: EmailAddress[] = []
-
-		// Add original 'to' recipients to 'cc' of reply
-		originalTo.forEach((recp) => {
-			if (recp.email === fromParsed.email || recp.email === userEmail) return
-			if (!ccRecipients.some((r) => r.email === recp.email)) ccRecipients.push(recp)
-		})
-
-		// Add original 'cc' recipients
-		originalCc.forEach((recp) => {
-			if (recp.email === fromParsed.email || recp.email === userEmail) return
-			if (!ccRecipients.some((r) => r.email === recp.email)) ccRecipients.push(recp)
-		})
+		const { toRecipients, ccRecipients } = buildReplyAllRecipients(originalMessage, fromParsed)
 
 		const replyDraft: ComposeDraft = {
 			id: crypto.randomUUID(),
@@ -333,39 +246,9 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 	},
 
 	startForward: (accountId, originalMessage) => {
-		const fromRaw = originalMessage.header.from[0] || ''
-		const fromParsed = parseAddress(fromRaw)
-		const originalSubject = originalMessage.header.subject || ''
-		const subject = originalSubject.toLowerCase().startsWith('fwd:')
-			? originalSubject
-			: `Fwd: ${originalSubject}`
-
-		const date = new Date(originalMessage.header.internal_date)
-		const dateStr = date.toLocaleString(i18n.t('app.languageCode'), {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit',
-		})
-
-		const toRecipients = parseAddresses(originalMessage.header.to)
-		const toStr = toRecipients
-			.map((r) => (r.name ? `${r.name} <${r.email}>` : r.email))
-			.join(', ')
-
-		const hasHtml = !!originalMessage.body_html_safe?.trim()
-		const rawBody = hasHtml
-			? originalMessage.body_html_safe!.trim()
-			: originalMessage.body_plain?.trim() || ''
-
-		const quotedBody = hasHtml
-			? rawBody
-			: rawBody
-					.replace(/&/g, '&amp;')
-					.replace(/</g, '&lt;')
-					.replace(/>/g, '&gt;')
-					.replace(/\n/g, '<br>')
+		const { fromParsed, originalSubject, subject, dateStr, quotedBody } =
+			prepareForwardBase(originalMessage)
+		const toStr = buildForwardToString(originalMessage)
 
 		const forwardDraft: ComposeDraft = {
 			id: crypto.randomUUID(),
@@ -467,14 +350,8 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 				cc: currentDraft.cc?.map((r) => r.email) || [],
 				bcc: currentDraft.bcc?.map((r) => r.email) || [],
 				attachments: currentDraft.attachments || [],
-				createdAt: (() => {
-					const v = Math.floor(Date.parse(currentDraft.createdAt) / 1000)
-					return Number.isFinite(v) ? v : Math.floor(Date.now() / 1000)
-				})(),
-				updatedAt: (() => {
-					const v = Math.floor(Date.parse(currentDraft.updatedAt) / 1000)
-					return Number.isFinite(v) ? v : Math.floor(Date.now() / 1000)
-				})(),
+				createdAt: toUnixSeconds(currentDraft.createdAt),
+				updatedAt: toUnixSeconds(currentDraft.updatedAt),
 			}
 
 			await invoke('save_draft', { draft: draftForRust })
@@ -618,44 +495,13 @@ export const useDraftStore = create<DraftState>((set, get) => ({
 			let finalBody = html || currentDraft.body
 			if (currentDraft.replyContext) {
 				const { date, fromName, fromEmail, body: quotedBody } = currentDraft.replyContext
-				const quoteHtml = `
-<br>
-<div class="gmail_quote gmail_quote_container">
-	<div dir="ltr" class="gmail_attr">${date} ${fromName} &lt;<a href="mailto:${fromEmail}">${fromEmail}</a>&gt; napisał(a):<br></div>
-	<details style="margin-top: 4px;">
-		<summary style="cursor:pointer; color:#888; font-size:12px; margin:4px 0; border:1px solid #eee; padding:2px 8px; display:inline-block; border-radius:4px; list-style:none;">...</summary>
-		<blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
-			${quotedBody}
-		</blockquote>
-	</details>
-</div>`
-				finalBody += quoteHtml
+				finalBody += buildReplyQuoteHtml(date, fromName, fromEmail, quotedBody)
 			}
 
 			if (currentDraft.forwardContext) {
-				const {
-					subject,
-					fromName,
-					fromEmail,
-					date,
-					to,
-					body: quotedBody,
-				} = currentDraft.forwardContext
-				const forwardHtml = `
-<br>
-<div class="gmail_quote gmail_quote_container">
-	<div dir="ltr" class="gmail_attr" style="color:#555; font-size:12px; margin-bottom:4px;">
-		---------- Forwarded message ---------<br>
-		<b>From:</b> ${fromName} &lt;<a href="mailto:${fromEmail}">${fromEmail}</a>&gt;<br>
-		<b>Date:</b> ${date}<br>
-		<b>Subject:</b> ${subject}<br>
-		<b>To:</b> ${to}
-	</div>
-	<blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
-		${quotedBody}
-	</blockquote>
-</div>`
-				finalBody += forwardHtml
+				const { subject, fromName, fromEmail, date, to, body: quotedBody } =
+					currentDraft.forwardContext
+				finalBody += buildForwardQuoteHtml(subject, fromName, fromEmail, date, to, quotedBody)
 			}
 
 			await get().saveDraft(finalBody)
