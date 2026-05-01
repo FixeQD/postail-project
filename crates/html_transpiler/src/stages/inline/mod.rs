@@ -11,7 +11,8 @@ mod regexes;
 // Re-exports
 pub use animation::{strip_animation_from_inline_styles, is_initial_value, patch_rule_body};
 pub use clamp::{resolve_clamp_values, resolve_single_value, extract_leading_number};
-pub use inliner::{inline_css_styles_dom, inline_css_styles, find_matching_brace};
+pub use inliner::{inline_css_styles_dom, inline_css_styles};
+pub use crate::utils::find_matching_brace;
 pub use keyframes::{
     parse_keyframe_final_states, extract_final_frame, remove_keyframes,
     apply_final_states_to_css_rules, patch_css_rules,

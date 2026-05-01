@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 use crate::css::parser::parse_css_declarations;
-use crate::stages::pseudo::find_matching_brace;
+use crate::utils::brace_match::find_matching_brace;
 use crate::types::PseudoRule;
 
 pub static PSEUDO_RE: LazyLock<Regex> =

@@ -15,6 +15,7 @@ pub mod dom;
 pub mod pipeline;
 pub mod stages;
 pub mod types;
+pub mod utils;
 
 // Re-export main public API
 pub use pipeline::{auto_fix_email_html, sanitize_email_html, sanitize_email_html_with_details};

@@ -7,6 +7,7 @@ use crate::stages::inline::{
     apply_final_states_to_css_rules, parse_keyframe_final_states, remove_keyframes,
     resolve_clamp_values, strip_animation_from_inline_styles,
 };
+use crate::utils::brace_match::find_matching_brace;
 
 pub fn inline_css_styles_dom(document: &NodeRef) {
     let html = document.to_string();
@@ -43,23 +44,4 @@ pub fn inline_css_styles(html: &str) -> String {
     let document = kuchikiki::parse_html().one(html).document_node;
     inline_css_styles_dom(&document);
     document.to_string()
-}
-
-/// Brace matching utility (also used by pseudo module).
-pub fn find_matching_brace(s: &str, start: usize) -> Option<usize> {
-    let mut count = 1;
-    let mut j = start;
-    while j < s.len() && count > 0 {
-        match s.as_bytes()[j] {
-            b'{' => count += 1,
-            b'}' => count -= 1,
-            _ => {}
-        }
-        j += 1;
-    }
-    if count == 0 {
-        Some(j)
-    } else {
-        None
-    }
 }

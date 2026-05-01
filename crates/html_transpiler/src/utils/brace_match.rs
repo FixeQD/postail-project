@@ -1,9 +1,8 @@
-//! Brace matching utility for CSS parsing.
+//! Shared brace matching utility for CSS parsing.
 
 pub fn find_matching_brace(css: &str, start: usize) -> Option<usize> {
     let mut count = 1;
     let mut j = start;
-
     let mut in_string = false;
     let mut string_quote = '\0';
     let mut escaped = false;
