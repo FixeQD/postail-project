@@ -1,123 +1,12 @@
-//! Sanitizer configuration: allowed tags/attributes, dangerous CSS properties,
-//! and ammonia builder construction.
+//! Sanitizer configuration and builder functions.
 
 use std::borrow::Cow;
-use std::cell::RefCell;
-use std::collections::HashSet;
-use std::sync::LazyLock;
 
 use ammonia::Builder;
 use maplit::{hashmap, hashset};
 
-use crate::css::fonts::ensure_web_safe_font_fallback;
 use crate::css::parser::parse_css_declarations;
 use crate::types::{IssueSeverity, SanitizeIssue, StyleSanitizeResult};
-
-pub static TAG_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
-    regex::Regex::new(r"<([a-zA-Z][a-zA-Z0-9]*)[^>]*>").expect("invalid TAG_REGEX")
-});
-
-/// CSS properties that are unsafe or unsupported in email clients (O(1) lookup).
-static DANGEROUS_CSS_SET: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
-    hashset![
-        "position",
-        "z-index",
-        "animation",
-        "animation-name",
-        "animation-duration",
-        "animation-timing-function",
-        "animation-delay",
-        "animation-iteration-count",
-        "animation-direction",
-        "animation-fill-mode",
-        "animation-play-state",
-        "transition",
-        "transition-property",
-        "transition-duration",
-        "transition-timing-function",
-        "transition-delay",
-        "transform",
-        "transform-origin",
-        "transform-style",
-        "perspective",
-        "perspective-origin",
-        "filter",
-        "backdrop-filter",
-        "clip-path",
-        "mask",
-        "mask-image",
-        "mix-blend-mode",
-        "isolation",
-        "will-change",
-        "contain",
-        "content-visibility",
-        "expression",
-        "behavior",
-        "-moz-binding"
-    ]
-});
-
-/// Slice version for callers that need to iterate.
-pub const DANGEROUS_CSS_PROPS: &[&str] = &[
-    "position",
-    "z-index",
-    "animation",
-    "animation-name",
-    "animation-duration",
-    "animation-timing-function",
-    "animation-delay",
-    "animation-iteration-count",
-    "animation-direction",
-    "animation-fill-mode",
-    "animation-play-state",
-    "transition",
-    "transition-property",
-    "transition-duration",
-    "transition-timing-function",
-    "transition-delay",
-    "transform",
-    "transform-origin",
-    "transform-style",
-    "perspective",
-    "perspective-origin",
-    "filter",
-    "backdrop-filter",
-    "clip-path",
-    "mask",
-    "mask-image",
-    "mix-blend-mode",
-    "isolation",
-    "will-change",
-    "contain",
-    "content-visibility",
-    "expression",
-    "behavior",
-    "-moz-binding",
-];
-
-/// Fonts guaranteed to render correctly across all major email clients.
-pub const WEB_SAFE_FONTS: &[&str] = &[
-    "Arial",
-    "Helvetica",
-    "Times New Roman",
-    "Times",
-    "Courier New",
-    "Courier",
-    "Verdana",
-    "Georgia",
-    "Palatino",
-    "Garamond",
-    "Comic Sans MS",
-    "Trebuchet MS",
-    "Arial Black",
-    "Impact",
-    "serif",
-    "sans-serif",
-    "monospace",
-    "cursive",
-    "fantasy",
-    "system-ui",
-];
 
 /// HTML tags that survive ammonia sanitization.
 pub const ALLOWED_TAGS: &[&str] = &[
@@ -173,12 +62,7 @@ pub const ALLOWED_TAGS: &[&str] = &[
     "ul",
 ];
 
-thread_local! {
-    /// Accumulates sanitization issues during a single pipeline run.
-    pub static COLLECTED_ISSUES: RefCell<Vec<SanitizeIssue>> = const { RefCell::new(Vec::new()) };
-}
-
-fn build_tag_attributes(
+pub(crate) fn build_tag_attributes(
 ) -> std::collections::HashMap<&'static str, std::collections::HashSet<&'static str>> {
     hashmap! [
         "a"        => hashset!["href", "title", "target", "style"],
@@ -203,7 +87,7 @@ fn build_tag_attributes(
 }
 
 /// Build a shared ammonia sanitizer base. `track` enables issue recording.
-fn build_sanitizer<'a>(track: bool) -> Builder<'a> {
+pub(crate) fn build_sanitizer<'a>(track: bool) -> Builder<'a> {
     let mut builder = Builder::default();
     builder.tags(ALLOWED_TAGS.iter().cloned().collect());
     builder.tag_attributes(build_tag_attributes());
@@ -252,7 +136,7 @@ fn sanitize_style_attribute_with_tracking(style: &str) -> StyleSanitizeResult {
     sanitize_style_inner(style, true)
 }
 
-fn sanitize_style_inner(style: &str, track: bool) -> StyleSanitizeResult {
+pub(crate) fn sanitize_style_inner(style: &str, track: bool) -> StyleSanitizeResult {
     let mut result = StyleSanitizeResult::default();
     let mut cleaned: Vec<String> = Vec::new();
 
@@ -261,7 +145,7 @@ fn sanitize_style_inner(style: &str, track: bool) -> StyleSanitizeResult {
             result.removed_properties.push(prop.clone());
             if track {
                 let (reason, severity) = get_issue_details(&prop);
-                COLLECTED_ISSUES.with(|issues| {
+                crate::config::COLLECTED_ISSUES.with(|issues| {
                     issues.borrow_mut().push(SanitizeIssue {
                         property: prop,
                         reason,
@@ -274,7 +158,7 @@ fn sanitize_style_inner(style: &str, track: bool) -> StyleSanitizeResult {
         }
 
         if prop == "font-family" {
-            let sanitized = ensure_web_safe_font_fallback(&value);
+            let sanitized = crate::config::fonts::ensure_web_safe_font_fallback(&value);
             if sanitized != value {
                 result.added_font_fallback = true;
             }
@@ -289,9 +173,9 @@ fn sanitize_style_inner(style: &str, track: bool) -> StyleSanitizeResult {
 }
 
 /// Returns `true` if `prop` (or its vendor-prefixed form) is dangerous.
-fn is_dangerous_property(prop: &str) -> bool {
+pub(crate) fn is_dangerous_property(prop: &str) -> bool {
     let lower = prop.to_lowercase();
-    if DANGEROUS_CSS_SET.contains(lower.as_str()) {
+    if crate::config::properties::DANGEROUS_CSS_SET.contains(lower.as_str()) {
         return true;
     }
     if lower.contains("expression") || lower.contains("behavior") {
@@ -307,7 +191,7 @@ fn is_dangerous_property(prop: &str) -> bool {
     false
 }
 
-fn get_issue_details(prop: &str) -> (String, IssueSeverity) {
+pub(crate) fn get_issue_details(prop: &str) -> (String, IssueSeverity) {
     match prop {
         "position" => (
             "position not supported — converted to table layout".into(),

@@ -1,0 +1,107 @@
+//! Dangerous CSS properties and web-safe fonts.
+
+use std::sync::LazyLock;
+
+use maplit::hashset;
+
+/// CSS properties that are unsafe or unsupported in email clients (O(1) lookup).
+pub static DANGEROUS_CSS_SET: LazyLock<std::collections::HashSet<&'static str>> = LazyLock::new(|| {
+    hashset![
+        "position",
+        "z-index",
+        "animation",
+        "animation-name",
+        "animation-duration",
+        "animation-timing-function",
+        "animation-delay",
+        "animation-iteration-count",
+        "animation-direction",
+        "animation-fill-mode",
+        "animation-play-state",
+        "transition",
+        "transition-property",
+        "transition-duration",
+        "transition-timing-function",
+        "transition-delay",
+        "transform",
+        "transform-origin",
+        "transform-style",
+        "perspective",
+        "perspective-origin",
+        "filter",
+        "backdrop-filter",
+        "clip-path",
+        "mask",
+        "mask-image",
+        "mix-blend-mode",
+        "isolation",
+        "will-change",
+        "contain",
+        "content-visibility",
+        "expression",
+        "behavior",
+        "-moz-binding"
+    ]
+});
+
+/// Slice version for callers that need to iterate.
+pub const DANGEROUS_CSS_PROPS: &[&str] = &[
+    "position",
+    "z-index",
+    "animation",
+    "animation-name",
+    "animation-duration",
+    "animation-timing-function",
+    "animation-delay",
+    "animation-iteration-count",
+    "animation-direction",
+    "animation-fill-mode",
+    "animation-play-state",
+    "transition",
+    "transition-property",
+    "transition-duration",
+    "transition-timing-function",
+    "transition-delay",
+    "transform",
+    "transform-origin",
+    "transform-style",
+    "perspective",
+    "perspective-origin",
+    "filter",
+    "backdrop-filter",
+    "clip-path",
+    "mask",
+    "mask-image",
+    "mix-blend-mode",
+    "isolation",
+    "will-change",
+    "contain",
+    "content-visibility",
+    "expression",
+    "behavior",
+    "-moz-binding",
+];
+
+/// Fonts guaranteed to render correctly across all major email clients.
+pub const WEB_SAFE_FONTS: &[&str] = &[
+    "Arial",
+    "Helvetica",
+    "Times New Roman",
+    "Times",
+    "Courier New",
+    "Courier",
+    "Verdana",
+    "Georgia",
+    "Palatino",
+    "Garamond",
+    "Comic Sans MS",
+    "Trebuchet MS",
+    "Arial Black",
+    "Impact",
+    "serif",
+    "sans-serif",
+    "monospace",
+    "cursive",
+    "fantasy",
+    "system-ui",
+];
