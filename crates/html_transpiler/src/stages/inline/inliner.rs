@@ -7,7 +7,6 @@ use crate::stages::inline::{
     apply_final_states_to_css_rules, parse_keyframe_final_states, remove_keyframes,
     resolve_clamp_values, strip_animation_from_inline_styles,
 };
-use crate::utils::brace_match::find_matching_brace;
 
 pub fn inline_css_styles_dom(document: &NodeRef) {
     let html = document.to_string();
