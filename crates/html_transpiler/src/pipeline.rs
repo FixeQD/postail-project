@@ -3,7 +3,19 @@
 //! Orchestrates all stages: preprocessing → CSS processing → sanitization → postprocessing
 
 use crate::config::COLLECTED_ISSUES;
-use crate::stages::*;
+use crate::config::sanitizer::{create_email_sanitizer, create_sanitizer_with_tracking};
+use crate::dom::{
+    cleanup_html_whitespace, detect_unsupported_tags, extract_body_content,
+    mark_positioned_elements_dom, serialize_clean, strip_content_tags_dom,
+    strip_dead_elements_dom, DiffTracker,
+};
+use crate::stages::preprocessing::{
+    extract_body_styles_dom, replace_body_with_div_dom, resolve_css_variables_dom,
+};
+use crate::stages::pseudo::expand_pseudo_elements_dom;
+use crate::stages::inline::inline_css_styles_dom;
+use crate::stages::table::convert_to_table_layout_dom;
+use crate::stages::scaling::scale_elements_for_email_dom;
 use crate::types::*;
 use kuchikiki::parse_html;
 use kuchikiki::traits::TendrilSink;
