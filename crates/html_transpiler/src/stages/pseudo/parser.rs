@@ -1,187 +1,40 @@
-//! Stage 2: Pseudo-element expansion
+//! Pseudo-element rule parsing and merging.
 
-use crate::css::parser::parse_css_declarations;
-use crate::types::PseudoRule;
-use kuchikiki::traits::*;
-use kuchikiki::NodeRef;
-use markup5ever::{namespace_url, ns, QualName};
-use regex::Regex;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
-static PSEUDO_RE: LazyLock<Regex> =
+use regex::Regex;
+
+use crate::css::parser::parse_css_declarations;
+use crate::stages::pseudo::find_matching_brace;
+use crate::types::PseudoRule;
+
+pub static PSEUDO_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^\s*\.([\w-]+)::(before|after)\s*$").unwrap());
 
+/// Positioning props that don't work in email - strip from pseudo spans
+pub const PSEUDO_STRIP_PROPS: &[&str] = &[
+    "position",
+    "top",
+    "left",
+    "right",
+    "bottom",
+    "inset",
+    "z-index",
+    "transform",
+    "transform-origin",
+];
+
 /// HTML-escape content for safe interpolation
-fn html_escape(text: &str) -> String {
+pub fn html_escape(text: &str) -> String {
     text.replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
 }
 
-fn find_matching_brace(css: &str, start: usize) -> Option<usize> {
-    let mut count = 1;
-    let mut j = start;
-    let mut in_string = false;
-    let mut string_quote = '\0';
-    let mut escaped = false;
-    let mut in_comment = false;
-
-    while j < css.len() && count > 0 {
-        let ch = css.as_bytes()[j] as char;
-
-        if escaped {
-            escaped = false;
-            j += 1;
-            continue;
-        }
-
-        if ch == '\\' {
-            escaped = true;
-            j += 1;
-            continue;
-        }
-
-        if in_comment {
-            if ch == '*' && j + 1 < css.len() && css.as_bytes()[j + 1] as char == '/' {
-                in_comment = false;
-                j += 2;
-                continue;
-            }
-            j += 1;
-            continue;
-        }
-
-        if in_string {
-            if ch == string_quote {
-                in_string = false;
-            }
-            j += 1;
-            continue;
-        }
-
-        if ch == '"' || ch == '\'' {
-            in_string = true;
-            string_quote = ch;
-            j += 1;
-            continue;
-        }
-
-        if ch == '/' && j + 1 < css.len() && css.as_bytes()[j + 1] as char == '*' {
-            in_comment = true;
-            j += 2;
-            continue;
-        }
-
-        match ch {
-            '{' => count += 1,
-            '}' => count -= 1,
-            _ => {}
-        }
-        j += 1;
-    }
-
-    if count == 0 {
-        Some(j)
-    } else {
-        None
-    }
-}
-
-pub fn expand_pseudo_elements_dom(document: &NodeRef) {
-    let mut all_rules = Vec::new();
-    let mut style_nodes = Vec::new();
-
-    // First pass: collect all style nodes and their rules
-    for node in document.descendants() {
-        if let Some(element) = node.as_element() {
-            if element.name.local.to_string().to_lowercase() == "style" {
-                style_nodes.push(node.clone());
-            }
-        }
-    }
-
-    for style_node in &style_nodes {
-        let css_body = style_node.text_contents();
-        let (rules, cleaned_css) = parse_pseudo_rules(&css_body);
-
-        let mut new_css_rules = String::new();
-        for rule in &rules {
-            if !rule.style.is_empty() {
-                new_css_rules.push_str(&format!(
-                    "\n.{} {{ {} }}\n",
-                    rule.class_for_style, rule.style
-                ));
-            }
-        }
-
-        for child in style_node.children() {
-            child.detach();
-        }
-        style_node.append(NodeRef::new_text(format!(
-            "{}{}",
-            cleaned_css, new_css_rules
-        )));
-
-        all_rules.extend(rules);
-    }
-
-    if all_rules.is_empty() {
-        return;
-    }
-
-    // Merge duplicate pseudo rules for the same class+pseudo kind.
-    let all_rules = merge_pseudo_rules(all_rules);
-
-    for rule in &all_rules {
-        let span_class = rule.class_for_style.clone();
-        let span_content = if rule.content.is_empty() {
-            String::new()
-        } else {
-            html_escape(&rule.content)
-        };
-
-        let span = NodeRef::new_element(
-            QualName::new(None, ns!(html), "span".into()),
-            vec![(
-                kuchikiki::ExpandedName::new(ns!(), "class"),
-                kuchikiki::Attribute {
-                    prefix: None,
-                    value: span_class.to_string(),
-                },
-            )],
-        );
-        if !span_content.is_empty() {
-            span.append(NodeRef::new_text(span_content));
-        }
-
-        for node in document.descendants() {
-            if let Some(element) = node.as_element() {
-                let attrs = element.attributes.borrow();
-                if let Some(class_attr) = attrs.get("class") {
-                    if class_attr.split_whitespace().any(|t| t == rule.class) {
-                        drop(attrs);
-                        if rule.is_before {
-                            node.prepend(span.clone());
-                        } else {
-                            node.append(span.clone());
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-pub fn expand_pseudo_elements(html: &str) -> String {
-    let document = kuchikiki::parse_html().one(html).document_node;
-    expand_pseudo_elements_dom(&document);
-    document.to_string()
-}
-
-fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
-    // ── Step 1: brace-counting parser to handle nested blocks and at-rules ─────────────────
+pub fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
+    // ── Step 1: brace-counting parser to handle nested blocks and at-rules ──
     let mut expanded_css = String::new();
     let mut i = 0;
 
@@ -253,12 +106,11 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
         }
     }
 
-    // ── Step 2: merge CSS bodies for same class+pseudo, THEN extract rules ─
+    // ── Step 2: merge CSS bodies for same class+pseudo, THEN extract rules ──
     let pseudo_re = &*PSEUDO_RE;
 
     // Group by (class, pseudo_kind) and merge CSS bodies
-    let mut grouped: std::collections::HashMap<(String, bool), Vec<String>> =
-        std::collections::HashMap::new();
+    let mut grouped: HashMap<(String, bool), Vec<String>> = HashMap::new();
 
     for (selector, body, _, _) in &pseudo_selectors {
         if let Some(caps) = pseudo_re.captures(selector) {
@@ -272,19 +124,6 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
     }
 
     let mut rules = Vec::new();
-
-    // Positioning props that don't work in email - strip from pseudo spans
-    const PSEUDO_STRIP_PROPS: &[&str] = &[
-        "position",
-        "top",
-        "left",
-        "right",
-        "bottom",
-        "inset",
-        "z-index",
-        "transform",
-        "transform-origin",
-    ];
 
     for ((class, is_before), bodies) in &grouped {
         // Merge all CSS declarations for this class+pseudo, later overrides earlier
@@ -372,7 +211,7 @@ fn parse_pseudo_rules(css: &str) -> (Vec<PseudoRule>, String) {
 }
 
 /// Merge pseudo rules that target the same class + pseudo kind (before/after)
-fn merge_pseudo_rules(rules: Vec<PseudoRule>) -> Vec<PseudoRule> {
+pub fn merge_pseudo_rules(rules: Vec<PseudoRule>) -> Vec<PseudoRule> {
     let mut merged: Vec<PseudoRule> = Vec::new();
 
     for rule in rules {
