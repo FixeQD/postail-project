@@ -1,5 +1,6 @@
+use crate::db::mail::eml_cache;
 use crate::db::{MessageFull, ThreadMessage, ThreadView};
-use crate::globals::get_db_pool;
+use crate::globals::{get_crypto, get_db_pool};
 use rusqlite::OptionalExtension;
 use tauri::command;
 
@@ -17,15 +18,25 @@ pub async fn fetch_message_full(
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Message not found in database".to_string())?;
 
-    // Load body content from disk
-    if let Ok(Some(message_table_id)) =
-        crate::db::mail::messages::get_message_table_id(&conn, &account_id, &mailbox, uid)
-    {
-        if let Ok((html, plain)) =
-            crate::db::mail::message_bodies::load_message_body(&conn, message_table_id)
-        {
-            message.body_html_safe = html.unwrap_or_default();
-            message.body_plain = plain;
+    // Body lives in encrypted file cache — fetch from IMAP and cache if missing
+    let crypto = get_crypto().await?;
+    match eml_cache::load_body(&crypto, &account_id, &mailbox, uid) {
+        Ok(Some(cached)) => {
+            message.body_html_safe = cached.body_html;
+            message.body_plain = cached.body_plain;
+            message.read_receipt_to = cached.read_receipt_to;
+        }
+        _ => {
+            // Cache miss — pull from IMAP, parse, and populate cache
+            let imap = crate::globals::IMAP_MANAGER.lock().await;
+            if let Ok(Some(full)) = imap
+                .fetch_and_cache_message(&account_id, &mailbox, uid)
+                .await
+            {
+                message.body_html_safe = full.body_html_safe;
+                message.body_plain = full.body_plain;
+                message.read_receipt_to = full.read_receipt_to;
+            }
         }
     }
 
@@ -73,20 +84,15 @@ pub async fn fetch_thread(
     let thread_uids =
         fetch_thread_uids(&conn, &account_id, &mailbox, uid).map_err(|e| e.to_string())?;
 
+    let crypto = get_crypto().await?;
     let mut messages: Vec<ThreadMessage> = Vec::new();
     for t_uid in thread_uids {
         if let Ok(Some(mut msg)) =
             crate::db::mail::messages::fetch_message_full(&conn, &account_id, &mailbox, t_uid)
         {
-            if let Ok(Some(message_table_id)) =
-                crate::db::mail::messages::get_message_table_id(&conn, &account_id, &mailbox, t_uid)
-            {
-                if let Ok((html, plain)) =
-                    crate::db::mail::message_bodies::load_message_body(&conn, message_table_id)
-                {
-                    msg.body_html_safe = html.unwrap_or_default();
-                    msg.body_plain = plain;
-                }
+            if let Ok(Some(cached)) = eml_cache::load_body(&crypto, &account_id, &mailbox, t_uid) {
+                msg.body_html_safe = cached.body_html;
+                msg.body_plain = cached.body_plain;
             }
             messages.push(ThreadMessage {
                 header: msg.header,
