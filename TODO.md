@@ -255,7 +255,7 @@
     - [ ] 26.8 - UI: Detect dates in emails and suggest "Add to Calendar"
 
 - [ ] 27 - Isolated Webview with Watchdog
-    - [ ] 27.1 - Rust: Replace iframe with native Tauri Child Webview for email rendering
+    - [x] 27.1 - Rust: Replace iframe with native Tauri Child Webview for email rendering
     - [ ] 27.2 - UI: Create placeholder div in MessageViewBody for Child Webview positioning
     - [ ] 27.3 - Rust: Position Child Webview as overlay aligned to the React placeholder bounds
     - [ ] 27.4 - Rust: Serve email HTML to Child Webview via existing `postail://` protocol handler
