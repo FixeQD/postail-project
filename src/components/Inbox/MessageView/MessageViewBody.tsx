@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useThemeStore } from '@/stores/themeStore'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
@@ -19,10 +20,9 @@ export const MessageViewBody = ({
 	const { t } = useTypedTranslation(['security', 'common'])
 	const accentColor = useThemeStore((s) => s.accentColor)
 
-	const iframeRef = useRef<HTMLIFrameElement>(null)
-	const isReadyRef = useRef(false)
-
-	const [iframeSrcDoc, setIframeSrcDoc] = useState<string | null>(null)
+	const containerRef = useRef<HTMLDivElement>(null)
+	// Tracks whether a rAF is already scheduled to avoid stacking frames
+	const rafPendingRef = useRef(false)
 
 	const [pendingUrl, setPendingUrl] = useState<string | null>(null)
 	const [warningOpen, setWarningOpen] = useState(false)
@@ -31,7 +31,6 @@ export const MessageViewBody = ({
 
 	const inlineImagesHash = JSON.stringify(inline_images)
 
-	// Memoize mapped images to prevent unnecessary re-renders
 	const mappedImages = useMemo(() => {
 		return inline_images
 			.filter((img) => img.cid && img.cached_path)
@@ -43,11 +42,10 @@ export const MessageViewBody = ({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [inlineImagesHash])
 
-	// 1. Process HTML Content
+	// 1. Push HTML content to the Rust protocol handler
 	useEffect(() => {
 		if (effectiveMode !== 'html') return
 
-		isReadyRef.current = false
 		onLoadingChange?.(true)
 
 		const hasDarkMode =
@@ -59,7 +57,6 @@ export const MessageViewBody = ({
 		const iframeTextColor = hasDarkMode ? 'inherit' : '#1a1a1a'
 		const colorScheme = hasDarkMode ? 'dark light' : 'light'
 
-		// Minimalist HTML wrapper relying on ResizeObserver
 		const htmlTemplate = `<!DOCTYPE html>
 <html>
 <head>
@@ -87,36 +84,11 @@ export const MessageViewBody = ({
 <body>
   <div id="email-wrapper">${htmlContent}</div>
   <script>
-    const post = (msg) => window.parent.postMessage(msg, '*');
-
-    // Efficient resize observer
-    let lastH = 0;
-    let resizeTimer;
-    const checkHeight = () => {
-      const wrapper = document.getElementById('email-wrapper');
-      const h = wrapper ? wrapper.scrollHeight : document.body.scrollHeight;
-      if (Math.abs(h - lastH) > 2) {
-        lastH = h;
-        post({ type: 'resize', height: h });
-      }
-    };
-
-    const ro = new ResizeObserver(() => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(checkHeight, 50);
-    });
-    const wrapper = document.getElementById('email-wrapper');
-    if (wrapper) ro.observe(wrapper);
-    else ro.observe(document.body);
-    window.addEventListener('load', checkHeight);
-    if (document.readyState === 'complete') checkHeight();
-
-    // Link interception
     document.addEventListener('click', (e) => {
       const a = e.target.closest('a');
       if (a && a.href) {
         e.preventDefault();
-        post({ type: 'link', url: a.href });
+        window.parent.postMessage({ type: 'link', url: a.href }, '*');
       }
     });
   </script>
@@ -130,36 +102,59 @@ export const MessageViewBody = ({
 		})
 			.then((res) => {
 				if (res.hasExternalResources) onExternalDetected?.()
-				setIframeSrcDoc(res.processedHtml)
 			})
 			.catch(console.error)
 			.finally(() => onLoadingChange?.(false))
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [htmlContent, effectiveMode, accentColor, allowExternalResources, mappedImages])
 
-	// 2. Handle Iframe Messages
+	// 2. Spawn / destroy the child webview for HTML mode
 	useEffect(() => {
-		const handler = (e: MessageEvent) => {
-			if (e.source !== iframeRef.current?.contentWindow) return
+		if (effectiveMode !== 'html') return
 
-			if (e.data?.type === 'resize' && typeof e.data.height === 'number') {
-				// Bypass React state for height to prevent laggy re-renders
-				if (iframeRef.current) {
-					iframeRef.current.style.height = `${e.data.height}px`
-				}
-			}
+		const win = getCurrentWindow()
+		invoke('create_email_webview', { window: win }).catch(console.error)
 
-			if (e.data?.type === 'link' && e.data.url) {
-				setPendingUrl(e.data.url)
-				setWarningOpen(true)
-			}
+		return () => {
+			invoke('destroy_email_webview').catch(console.error)
+		}
+	}, [effectiveMode])
+
+	// 3. ResizeObserver — sync native webview bounds to the placeholder div
+	useEffect(() => {
+		if (effectiveMode !== 'html') return
+		const el = containerRef.current
+		if (!el) return
+
+		const syncBounds = () => {
+			rafPendingRef.current = false
+			const rect = el.getBoundingClientRect()
+			const dpr = window.devicePixelRatio ?? 1
+
+			// Tauri 2 set_position / set_size expect logical coords,
+			// so we divide out the pixel ratio.
+			invoke('update_email_webview_bounds', {
+				x: rect.x / dpr,
+				y: rect.y / dpr,
+				width: rect.width / dpr,
+				height: rect.height / dpr,
+			}).catch(console.error)
 		}
 
-		window.addEventListener('message', handler)
-		return () => window.removeEventListener('message', handler)
-	}, [])
+		const ro = new ResizeObserver(() => {
+			if (rafPendingRef.current) return
+			rafPendingRef.current = true
+			requestAnimationFrame(syncBounds)
+		})
 
-	// 3. Render Plain Text
+		ro.observe(el)
+		// Initial sync as soon as the webview is mounted
+		requestAnimationFrame(syncBounds)
+
+		return () => ro.disconnect()
+	}, [effectiveMode])
+
+	// Render Plain Text
 	if (effectiveMode === 'plain') {
 		return (
 			<div className='px-5 py-5'>
@@ -170,26 +165,14 @@ export const MessageViewBody = ({
 		)
 	}
 
-	// 4. Render HTML
+	// Render HTML — blank placeholder div that the native child webview overlays
 	return (
 		<>
-			<div className='overflow-x-auto px-5 py-5'>
-				<div className='bg-white'>
-					{iframeSrcDoc && (
-						<iframe
-							ref={iframeRef}
-							title='Message Content'
-							srcDoc={iframeSrcDoc}
-							sandbox='allow-scripts'
-							className='block w-full border-none opacity-0 transition-opacity duration-500 ease-in-out'
-							style={{ minHeight: '200px' }}
-							onLoad={(e) => {
-								;(e.target as HTMLIFrameElement).style.opacity = '1'
-							}}
-						/>
-					)}
-				</div>
-			</div>
+			<div
+				ref={containerRef}
+				id='email-webview-container'
+				className='min-h-[400px] w-full flex-1'
+			/>
 
 			<ConfirmationDialog
 				open={warningOpen}
