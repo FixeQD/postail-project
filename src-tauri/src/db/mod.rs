@@ -274,6 +274,19 @@ pub struct MessageFull {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct ThreadMessage {
+    pub header: crate::db::MailHeader,
+    pub body_html_safe: String,
+    pub body_plain: String,
+    pub is_current: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ThreadView {
+    pub messages: Vec<ThreadMessage>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OutboxItem {
     pub id: String,

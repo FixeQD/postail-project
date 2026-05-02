@@ -1,7 +1,7 @@
-use tauri::command;
+use crate::db::{MessageFull, ThreadMessage, ThreadView};
 use crate::globals::get_db_pool;
-use crate::db::MessageFull;
 use rusqlite::OptionalExtension;
+use tauri::command;
 
 #[command]
 pub async fn fetch_message_full(
@@ -12,9 +12,10 @@ pub async fn fetch_message_full(
     let pool = get_db_pool().await.map_err(|e| e.to_string())?;
     let conn = pool.get().map_err(|e| e.to_string())?;
 
-    let mut message = crate::db::mail::messages::fetch_message_full(&conn, &account_id, &mailbox, uid)
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "Message not found in database".to_string())?;
+    let mut message =
+        crate::db::mail::messages::fetch_message_full(&conn, &account_id, &mailbox, uid)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Message not found in database".to_string())?;
 
     // Load body content from disk
     if let Ok(Some(message_table_id)) =
@@ -31,15 +32,20 @@ pub async fn fetch_message_full(
     Ok(message)
 }
 
-fn fetch_thread_uids(conn: &rusqlite::Connection, account_id: &str, mailbox: &str, uid: u32)
-    -> Result<Vec<u32>, crate::error::DBError>
-{
+fn fetch_thread_uids(
+    conn: &rusqlite::Connection,
+    account_id: &str,
+    mailbox: &str,
+    uid: u32,
+) -> Result<Vec<u32>, crate::error::DBError> {
     // Look up the message_id for this uid to find the thread
-    let message_id: Option<String> = conn.query_row(
-        "SELECT message_id FROM messages WHERE account_id = ? AND mailbox = ? AND uid = ?",
-        rusqlite::params![account_id, mailbox, uid],
-        |row| row.get(0),
-    ).optional()?;
+    let message_id: Option<String> = conn
+        .query_row(
+            "SELECT message_id FROM messages WHERE account_id = ? AND mailbox = ? AND uid = ?",
+            rusqlite::params![account_id, mailbox, uid],
+            |row| row.get(0),
+        )
+        .optional()?;
 
     let Some(message_id) = message_id else {
         return Ok(vec![]);
@@ -48,10 +54,9 @@ fn fetch_thread_uids(conn: &rusqlite::Connection, account_id: &str, mailbox: &st
     let mut stmt = conn.prepare(
         "SELECT uid FROM messages WHERE account_id = ? AND mailbox = ? AND message_id = ? ORDER BY uid ASC"
     )?;
-    let uids_iter = stmt.query_map(
-        rusqlite::params![account_id, mailbox, message_id],
-        |row| row.get(0),
-    )?;
+    let uids_iter = stmt.query_map(rusqlite::params![account_id, mailbox, message_id], |row| {
+        row.get(0)
+    })?;
     let uids: Result<Vec<u32>, _> = uids_iter.collect();
     Ok(uids?)
 }
@@ -61,14 +66,14 @@ pub async fn fetch_thread(
     account_id: String,
     mailbox: String,
     uid: u32,
-) -> Result<Vec<MessageFull>, String> {
+) -> Result<ThreadView, String> {
     let pool = get_db_pool().await.map_err(|e| e.to_string())?;
     let conn = pool.get().map_err(|e| e.to_string())?;
 
-    let thread_uids = fetch_thread_uids(&conn, &account_id, &mailbox, uid)
-        .map_err(|e| e.to_string())?;
+    let thread_uids =
+        fetch_thread_uids(&conn, &account_id, &mailbox, uid).map_err(|e| e.to_string())?;
 
-    let mut messages = Vec::new();
+    let mut messages: Vec<ThreadMessage> = Vec::new();
     for t_uid in thread_uids {
         if let Ok(Some(mut msg)) =
             crate::db::mail::messages::fetch_message_full(&conn, &account_id, &mailbox, t_uid)
@@ -83,11 +88,16 @@ pub async fn fetch_thread(
                     msg.body_plain = plain;
                 }
             }
-            messages.push(msg);
+            messages.push(ThreadMessage {
+                header: msg.header,
+                body_html_safe: msg.body_html_safe,
+                body_plain: msg.body_plain,
+                is_current: t_uid == uid,
+            });
         }
     }
 
-    Ok(messages)
+    Ok(ThreadView { messages })
 }
 
 #[command]

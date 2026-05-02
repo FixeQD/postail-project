@@ -399,7 +399,11 @@ export const MessageView = ({
 			/>
 
 			<div ref={scrollContainerRef} className='message-view-body flex-1 overflow-y-auto'>
-				{threadViewEnabled && thread && thread.messages.length > 1 && !threadLoading ? (
+				{threadViewEnabled &&
+				thread &&
+				Array.isArray(thread.messages) &&
+				thread.messages.length > 1 &&
+				!threadLoading ? (
 					<ThreadView
 						thread={thread}
 						currentUid={uid}
