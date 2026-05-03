@@ -42,6 +42,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(email_view::EmailViewState::default())
+        .manage(cmd::webview::EmbeddedEmailState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init())

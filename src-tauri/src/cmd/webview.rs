@@ -1,67 +1,147 @@
-use tauri::{
-    AppHandle, LogicalPosition, LogicalSize, Manager, WebviewBuilder, WebviewUrl, Window, command,
-};
-use tracing::{info, warn};
+use std::sync::{Arc, Mutex};
+use tauri::{AppHandle, Manager, command};
+use tracing::info;
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Default)]
+pub struct EmbeddedEmailState {
+    pub bounds:   Arc<Mutex<(i32, i32, i32, i32)>>,
+    pub overlay:  Arc<Mutex<Option<SendWidget<gtk::Overlay>>>>,
+    pub email_wv: Arc<Mutex<Option<SendWidget<webkit2gtk::WebView>>>>,
+}
+
+pub struct SendWidget<T>(pub T);
+unsafe impl<T> Send for SendWidget<T> {}
+unsafe impl<T> Sync for SendWidget<T> {}
+
+// ---------------------------------------------------------------------------
+// Commands
+// ---------------------------------------------------------------------------
 
 #[command]
-pub async fn create_email_webview(app: AppHandle, window: Window) -> Result<(), String> {
-    if let Some(existing) = app.get_webview("email-webview") {
-        info!("Email webview already exists, closing it first.");
-        let _ = existing.close();
-        // Small yield so the close propagates before we recreate
-        tokio::time::sleep(std::time::Duration::from_millis(16)).await;
+pub fn create_email_webview(
+    app: AppHandle,
+    state: tauri::State<'_, EmbeddedEmailState>,
+) -> Result<(), String> {
+    // Already set up — just reload & show
+    if state.email_wv.lock().unwrap().is_some() {
+        let state_clone = state.inner().clone();
+        gtk::glib::MainContext::default().invoke(move || {
+            let wv = state_clone.email_wv.lock().unwrap();
+            let ov = state_clone.overlay.lock().unwrap();
+            if let (Some(wv), Some(ov)) = (wv.as_ref(), ov.as_ref()) {
+                use webkit2gtk::WebViewExt;
+                use gtk::prelude::WidgetExt;
+                wv.0.load_uri("postail://localhost/message/current");
+                wv.0.show();
+                ov.0.queue_resize();
+            }
+        });
+        return Ok(());
     }
 
-    info!("Creating new child webview for email content");
+    let bounds_arc  = state.bounds.clone();
+    let overlay_arc = state.overlay.clone();
+    let wv_arc      = state.email_wv.clone();
 
-    let url = "postail://localhost/message/current"
-        .parse()
-        .map_err(|e| format!("Failed to parse webview URL: {}", e))?;
+    let main_window = app
+        .get_webview_window("main")
+        .ok_or("main window not found")?;
 
-    let builder = WebviewBuilder::new("email-webview", WebviewUrl::External(url));
+    main_window
+        .with_webview(move |main_wv| {
+            use gtk::prelude::*;
+            use webkit2gtk::glib::Cast;
+            use webkit2gtk::WebViewExt;
 
-    window
-        .add_child(
-            builder,
-            LogicalPosition::new(0.0, 0.0),
-            LogicalSize::new(100.0, 100.0),
-        )
-        .map_err(|e| {
-            warn!("Failed to build child webview: {}", e);
-            format!("Failed to build child webview: {}", e)
-        })?;
+            let main_gtk_wv: &webkit2gtk::WebView = &main_wv.inner();
+            let widget = main_gtk_wv.upcast_ref::<gtk::Widget>();
+
+            let toplevel = widget
+                .toplevel()
+                .and_then(|t| t.downcast::<gtk::Window>().ok())
+                .expect("GtkWindow toplevel not found");
+
+            let original_child = toplevel.child().expect("window has no child widget");
+            toplevel.remove(&original_child);
+
+            let overlay = gtk::Overlay::new();
+            overlay.add(&original_child);
+            toplevel.add(&overlay);
+
+            // Share WebContext so postail:// protocol handler is available
+            let ctx = main_gtk_wv
+                .web_context()
+                .expect("no WebContext on main webview");
+
+            let email_wv = webkit2gtk::WebView::with_context(&ctx);
+
+            if let Some(settings) = WebViewExt::settings(&email_wv) {
+                use webkit2gtk::SettingsExt;
+                settings.set_javascript_can_open_windows_automatically(false);
+                settings.set_allow_modal_dialogs(false);
+            }
+
+            overlay.add_overlay(&email_wv);
+            overlay.set_overlay_pass_through(&email_wv, false);
+
+            let bounds_for_signal = bounds_arc.clone();
+            overlay.connect_get_child_position(move |_ov, _widget| {
+                let (x, y, w, h) = *bounds_for_signal.lock().unwrap();
+                Some(gdk::Rectangle::new(x, y, w.max(1), h.max(1)))
+            });
+
+            overlay.show_all();
+            email_wv.hide();
+
+            email_wv.load_uri("postail://localhost/message/current");
+
+            *overlay_arc.lock().unwrap() = Some(SendWidget(overlay));
+            *wv_arc.lock().unwrap()      = Some(SendWidget(email_wv));
+
+            info!("embedded email WebView created inside GtkOverlay");
+        })
+        .map_err(|e| format!("with_webview failed: {e}"))?;
 
     Ok(())
 }
 
 #[command]
 pub fn update_email_webview_bounds(
-    app: AppHandle,
+    state: tauri::State<'_, EmbeddedEmailState>,
     x: f64,
     y: f64,
     width: f64,
     height: f64,
 ) -> Result<(), String> {
-    let Some(webview) = app.get_webview("email-webview") else {
-        // Bounds arrived before the webview was ready — silently ignore.
-        return Ok(());
-    };
+    *state.bounds.lock().unwrap() = (x as i32, y as i32, width as i32, height as i32);
 
-    webview
-        .set_position(LogicalPosition::new(x, y))
-        .map_err(|e| format!("set_position failed: {e}"))?;
+    let state_clone = state.inner().clone();
 
-    webview
-        .set_size(LogicalSize::new(width, height))
-        .map_err(|e| format!("set_size failed: {e}"))?;
+    gtk::glib::MainContext::default().invoke(move || {
+        let wv = state_clone.email_wv.lock().unwrap();
+        let ov = state_clone.overlay.lock().unwrap();
+        if let (Some(wv), Some(ov)) = (wv.as_ref(), ov.as_ref()) {
+            use gtk::prelude::WidgetExt;
+            wv.0.show();
+            ov.0.queue_resize();
+        }
+    });
 
     Ok(())
 }
 
 #[command]
-pub fn destroy_email_webview(app: AppHandle) {
-    if let Some(webview) = app.get_webview("email-webview") {
-        info!("Destroying email webview");
-        let _ = webview.close();
-    }
+pub fn destroy_email_webview(state: tauri::State<'_, EmbeddedEmailState>) {
+    let state_clone = state.inner().clone();
+    gtk::glib::MainContext::default().invoke(move || {
+        if let Some(wv) = state_clone.email_wv.lock().unwrap().as_ref() {
+            use gtk::prelude::WidgetExt;
+            wv.0.hide();
+            info!("embedded email WebView hidden");
+        }
+    });
 }

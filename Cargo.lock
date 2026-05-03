@@ -3964,6 +3964,8 @@ dependencies = [
  "dunce",
  "encoding_rs",
  "futures",
+ "gdk",
+ "gtk",
  "hex",
  "hkdf",
  "html_transpiler",
