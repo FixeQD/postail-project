@@ -259,7 +259,7 @@
     - [x] 27.2 - UI: Create placeholder div in MessageViewBody for Child Webview positioning
     - [x] 27.3 - Rust: Position Child Webview as overlay aligned to the React placeholder bounds
     - [x] 27.4 - Rust: Serve email HTML to Child Webview via existing `postail://` protocol handler
-    - [ ] 27.5 - ACL: Create `email-webview` capability with zero permissions (deny all IPC)
+    - [x] 27.5 - ACL: Create `email-webview` capability with zero permissions (deny all IPC)
     - [ ] 27.6 - ACL: Whitelist only `email_heartbeat` command for the email webview window
     - [ ] 27.7 - Rust: `email_heartbeat` command — accept token, rate-limit, update last-seen timestamp
     - [ ] 27.8 - Rust: Inject heartbeat initialization script into Child Webview on creation

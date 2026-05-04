@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "email-webview",
+  "description": "Capability for the email-webview",
+  "windows": [
+    "email-webview"
+  ],
+  "permissions": []
+}
