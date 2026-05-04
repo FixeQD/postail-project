@@ -260,7 +260,7 @@
     - [x] 27.3 - Rust: Position Child Webview as overlay aligned to the React placeholder bounds
     - [x] 27.4 - Rust: Serve email HTML to Child Webview via existing `postail://` protocol handler
     - [x] 27.5 - ACL: Create `email-webview` capability with zero permissions (deny all IPC)
-    - [ ] 27.6 - ACL: Whitelist only `email_heartbeat` command for the email webview window
+    - [x] 27.6 - ACL: Whitelist only `email_heartbeat` command for the email webview window
     - [x] 27.7 - Rust: `email_heartbeat` command — accept token, rate-limit, update last-seen timestamp
     - [ ] 27.8 - Rust: Inject heartbeat initialization script into Child Webview on creation
     - [ ] 27.9 - JS: Heartbeat loop in injected script — invoke `email_heartbeat` every 100ms

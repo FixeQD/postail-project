@@ -22,6 +22,7 @@
 		"notification:allow-is-permission-granted",
 		"autostart:allow-enable",
 		"autostart:allow-disable",
-		"autostart:allow-is-enabled"
+		"autostart:allow-is-enabled",
+		"allow-main-commands"
 	]
 }

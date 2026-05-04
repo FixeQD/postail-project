@@ -1,9 +1,13 @@
+use crate::security::storage::{SecretStore, keyring::KeyringStore};
+use serde::Serialize;
 use std::time::Duration;
 use tauri::command;
 use tokio::task::spawn_blocking;
 use tokio::time::timeout;
-use serde::Serialize;
-use crate::security::storage::{keyring::KeyringStore, SecretStore};
+
+// ---------------------------------------------------------------------------
+// TPM error types (Linux + tpm feature only)
+// ---------------------------------------------------------------------------
 
 #[cfg(all(target_os = "linux", feature = "tpm"))]
 #[derive(Serialize, Debug, Clone, Copy)]
@@ -38,6 +42,50 @@ impl From<TpmInitError> for String {
     }
 }
 
+// ---------------------------------------------------------------------------
+// TpmStatus — the serializable result exposed to the frontend
+// ---------------------------------------------------------------------------
+
+#[cfg(all(target_os = "linux", feature = "tpm"))]
+#[derive(Serialize, Clone, Copy)]
+pub enum TpmStatus {
+    Available,
+    RequiresElevation,
+    NotAvailable,
+}
+
+#[cfg(all(target_os = "linux", feature = "tpm"))]
+impl From<crate::security::TpmAvailability> for TpmStatus {
+    fn from(availability: crate::security::TpmAvailability) -> Self {
+        match availability {
+            crate::security::TpmAvailability::Available => TpmStatus::Available,
+            crate::security::TpmAvailability::RequiresElevation => TpmStatus::RequiresElevation,
+            crate::security::TpmAvailability::NotAvailable => TpmStatus::NotAvailable,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Shared helper — runs TpmInitializer on a blocking thread with a 3 s cap.
+// Falls back to NotAvailable on timeout or join error.
+// ---------------------------------------------------------------------------
+
+#[cfg(all(target_os = "linux", feature = "tpm"))]
+async fn tpm_check() -> TpmStatus {
+    timeout(
+        Duration::from_secs(3),
+        spawn_blocking(|| crate::security::TpmInitializer::new().check_availability()),
+    )
+    .await
+    .unwrap_or(Ok(crate::security::TpmAvailability::NotAvailable))
+    .unwrap_or(crate::security::TpmAvailability::NotAvailable)
+    .into()
+}
+
+// ---------------------------------------------------------------------------
+// Commands
+// ---------------------------------------------------------------------------
+
 #[derive(Serialize)]
 pub struct SecurityOptions {
     #[cfg(all(target_os = "linux", feature = "tpm"))]
@@ -51,22 +99,11 @@ pub struct SecurityOptions {
 #[command]
 pub async fn check_security_options() -> Result<SecurityOptions, String> {
     #[cfg(all(target_os = "linux", feature = "tpm"))]
-    let (tpm_available, tpm_requires_elevation) = timeout(
-        Duration::from_secs(3),
-        spawn_blocking(|| {
-            use crate::security::TpmInitializer;
-            let initializer = TpmInitializer::new();
-            let availability = initializer.check_availability();
-            match availability {
-                crate::security::TpmAvailability::Available => (true, false),
-                crate::security::TpmAvailability::RequiresElevation => (true, true),
-                crate::security::TpmAvailability::NotAvailable => (false, false),
-            }
-        }),
-    )
-    .await
-    .unwrap_or(Ok((false, false)))
-    .unwrap_or((false, false));
+    let (tpm_available, tpm_requires_elevation) = match tpm_check().await {
+        TpmStatus::Available => (true, false),
+        TpmStatus::RequiresElevation => (true, true),
+        TpmStatus::NotAvailable => (false, false),
+    };
 
     let keyring_available = KeyringStore::new()
         .map(|k| k.is_available())
@@ -83,32 +120,7 @@ pub async fn check_security_options() -> Result<SecurityOptions, String> {
 }
 
 #[cfg(all(target_os = "linux", feature = "tpm"))]
-#[derive(Serialize)]
-pub enum TpmStatus {
-    Available,
-    RequiresElevation,
-    NotAvailable,
-}
-
-#[cfg(all(target_os = "linux", feature = "tpm"))]
 #[command]
 pub async fn check_tpm_availability() -> Result<TpmStatus, String> {
-    use crate::security::TpmAvailability;
-
-    let result = timeout(
-        Duration::from_secs(3),
-        spawn_blocking(|| {
-            let initializer = crate::security::TpmInitializer::new();
-            initializer.check_availability()
-        }),
-    )
-    .await
-    .unwrap_or(Ok(TpmAvailability::NotAvailable))
-    .unwrap_or(TpmAvailability::NotAvailable);
-
-    match result {
-        TpmAvailability::Available => Ok(TpmStatus::Available),
-        TpmAvailability::RequiresElevation => Ok(TpmStatus::RequiresElevation),
-        TpmAvailability::NotAvailable => Ok(TpmStatus::NotAvailable),
-    }
+    Ok(tpm_check().await)
 }
