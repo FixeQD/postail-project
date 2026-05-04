@@ -1,9 +1,11 @@
+use crate::cmd::watchdog::WatchdogState;
 use crate::email_view::EmailViewState;
 use serde_json;
 use std::borrow::Cow;
+use std::time::Instant;
 use tauri::{
-    http::{Request, Response},
     Emitter, Manager, Runtime, UriSchemeContext,
+    http::{Request, Response},
 };
 
 pub fn handler<R: Runtime>(
@@ -46,14 +48,55 @@ pub fn handler<R: Runtime>(
 }
 
 fn serve_email<R: Runtime>(context: &UriSchemeContext<R>) -> Response<Cow<'static, [u8]>> {
-    let state = context.app_handle().state::<EmailViewState>();
+    let app = context.app_handle();
 
-    let html = state
+    let html = app
+        .state::<EmailViewState>()
         .html
         .lock()
         .ok()
         .and_then(|g| g.clone())
         .unwrap_or_default();
+
+    // A new token is minted on every serve so stale heartbeats from a previous email load are automatically invalidated
+    let token = uuid::Uuid::new_v4().to_string();
+
+    {
+        let watchdog = app.state::<WatchdogState>();
+        let mut data = watchdog.0.lock().unwrap();
+        data.token = token.clone();
+        data.last_heartbeat = Instant::now();
+        data.created_at = Instant::now();
+        data.is_frozen = false;
+    }
+
+    // Inject the heartbeat loop as the very first script in the document
+    let script = format!(
+        r#"<script>
+(function(){{
+  var token = {token_json};
+  setInterval(function(){{
+    if (window.__TAURI__ && window.__TAURI__.core) {{
+      window.__TAURI__.core.invoke('email_heartbeat', {{ token: token }})
+        .then(function(next) {{ token = next; }})
+        .catch(function(){{}});
+    }}
+  }}, 100);
+}})();
+</script>"#,
+        token_json = serde_json::to_string(&token).unwrap_or_default(),
+    );
+
+    // Inject before </head> when present; fall back to prepending to the document so it always executes even on bare / malformed HTML
+    let html = if let Some(pos) = html.to_lowercase().find("</head>") {
+        let mut out = String::with_capacity(html.len() + script.len());
+        out.push_str(&html[..pos]);
+        out.push_str(&script);
+        out.push_str(&html[pos..]);
+        out
+    } else {
+        script + &html
+    };
 
     let csp = "default-src 'none'; \
                script-src 'unsafe-inline'; \

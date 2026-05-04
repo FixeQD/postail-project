@@ -262,7 +262,7 @@
     - [x] 27.5 - ACL: Create `email-webview` capability with zero permissions (deny all IPC)
     - [x] 27.6 - ACL: Whitelist only `email_heartbeat` command for the email webview window
     - [x] 27.7 - Rust: `email_heartbeat` command — accept token, rate-limit, update last-seen timestamp
-    - [ ] 27.8 - Rust: Inject heartbeat initialization script into Child Webview on creation
+    - [x] 27.8 - Rust: Inject heartbeat initialization script into Child Webview on creation
     - [ ] 27.9 - JS: Heartbeat loop in injected script — invoke `email_heartbeat` every 100ms
     - [ ] 27.10 - Rust: Watchdog task — spawn tokio task monitoring heartbeat timestamps per webview
     - [ ] 27.11 - Rust: Extract Child Webview renderer PID after creation (platform-specific)

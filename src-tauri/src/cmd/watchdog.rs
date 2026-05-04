@@ -7,14 +7,13 @@ use std::time::{Duration, Instant};
 
 /// Shared watchdog data - lives for the entire session of one email webview.
 pub struct WatchdogData {
-    /// Timestamp of the last accepted heartbeat
+    /// Timestamp of the last accepted heartbeat.
     pub last_heartbeat: Instant,
 
     /// OS-level PID of the email renderer process
     pub pid: Option<u32>,
 
-    /// Session token generated when the webview is spawned
-    /// An empty string means the watchdog is not yet armed
+    /// Rolling nonce: the token the *next* heartbeat call must present
     pub token: String,
 
     /// Set to `true` after the process is suspended, cleared on resume
@@ -47,30 +46,35 @@ pub struct WatchdogState(pub Arc<Mutex<WatchdogData>>);
 /// Anything faster than this is treated as a flood and dropped silently.
 const RATE_LIMIT: Duration = Duration::from_millis(50);
 
+/// Called by the injected script every ~100 ms.
 #[tauri::command]
 pub async fn email_heartbeat(
     state: tauri::State<'_, WatchdogState>,
     token: String,
-) -> Result<(), ()> {
+) -> Result<String, ()> {
     let mut data = state.0.lock().unwrap();
 
-    // Watchdog not yet armed - webview hasn't been fully set up yet.
+    // Not yet armed.
     if data.token.is_empty() {
-        return Ok(());
+        return Err(());
     }
 
-    // Token mismatch - either a stale webview or someone being clever.
+    // Wrong token - stale call or rogue script.
     if data.token != token {
-        return Ok(());
+        return Err(());
     }
 
-    // Rate-limit
+    // Rate-limit: drop floods silently without rotating the token so the legitimate caller can retry on the next tick.
     let now = Instant::now();
     if now.duration_since(data.last_heartbeat) < RATE_LIMIT {
-        return Ok(());
+        return Err(());
     }
 
     data.last_heartbeat = now;
 
-    Ok(())
+    // Rotate - mint a new nonce and hand it back to the caller.
+    let next = uuid::Uuid::new_v4().to_string();
+    data.token = next.clone();
+
+    Ok(next)
 }
