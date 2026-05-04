@@ -43,6 +43,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(email_view::EmailViewState::default())
         .manage(cmd::webview::EmbeddedEmailState::default())
+        .manage(cmd::watchdog::WatchdogState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init())
@@ -201,6 +202,7 @@ pub fn run() {
             cmd::webview::create_email_webview,
             cmd::webview::update_email_webview_bounds,
             cmd::webview::destroy_email_webview,
+            cmd::watchdog::email_heartbeat,
             cmd::settings::get_autostart_enabled,
             cmd::settings::set_autostart_enabled,
             cmd::maintenance::dev_reset_data,
