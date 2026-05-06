@@ -42,8 +42,6 @@ pub struct WatchdogState(pub Arc<Mutex<WatchdogData>>);
 // Heartbeat command
 // ---------------------------------------------------------------------------
 
-/// Minimum interval between two accepted heartbeats.
-/// Anything faster than this is treated as a flood and dropped silently.
 const RATE_LIMIT: Duration = Duration::from_millis(50);
 
 /// Called by the injected script every ~100 ms.
@@ -54,17 +52,15 @@ pub async fn email_heartbeat(
 ) -> Result<String, ()> {
     let mut data = state.0.lock().unwrap();
 
-    // Not yet armed.
     if data.token.is_empty() {
         return Err(());
     }
 
-    // Wrong token - stale call or rogue script.
     if data.token != token {
         return Err(());
     }
 
-    // Rate-limit: drop floods silently without rotating the token so the legitimate caller can retry on the next tick.
+    // Rate-limit: drop floods without rotating so the caller can retry on the next tick.
     let now = Instant::now();
     if now.duration_since(data.last_heartbeat) < RATE_LIMIT {
         return Err(());
@@ -72,9 +68,61 @@ pub async fn email_heartbeat(
 
     data.last_heartbeat = now;
 
-    // Rotate - mint a new nonce and hand it back to the caller.
     let next = uuid::Uuid::new_v4().to_string();
     data.token = next.clone();
 
     Ok(next)
+}
+
+// ---------------------------------------------------------------------------
+// Watchdog loop
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, serde::Serialize)]
+pub struct FreezeStats {
+    pub silent_for_ms: u64,
+    pub pid: Option<u32>,
+}
+
+/// Ticks every 200 ms. Freezes the webview if heartbeat goes silent too long.
+pub async fn run_watchdog_loop(app: tauri::AppHandle, state: WatchdogState) {
+    loop {
+        tokio::time::sleep(Duration::from_millis(200)).await;
+
+        let mut data = state.0.lock().unwrap();
+
+        if data.token.is_empty() || data.is_frozen {
+            continue;
+        }
+
+        let now = Instant::now();
+
+        // 3 s grace period for the first 5 s, then tighten to 500 ms (27.12).
+        let threshold = if now.duration_since(data.created_at) < Duration::from_secs(5) {
+            Duration::from_millis(3000)
+        } else {
+            Duration::from_millis(500)
+        };
+
+        let silent_for = now.duration_since(data.last_heartbeat);
+        if silent_for < threshold {
+            continue;
+        }
+
+        data.is_frozen = true;
+        let stats = FreezeStats {
+            silent_for_ms: silent_for.as_millis() as u64,
+            pid: data.pid,
+        };
+
+        drop(data);
+
+        // 27.13 — SIGSTOP / SuspendThread on `stats.pid` goes here.
+        tracing::warn!(pid = ?stats.pid, silent_ms = stats.silent_for_ms, "email webview frozen");
+
+        // 27.16 — notify the frontend.
+        if let Err(e) = app.emit("email_webview_frozen", &stats) {
+            tracing::error!("failed to emit email_webview_frozen: {e}");
+        }
+    }
 }

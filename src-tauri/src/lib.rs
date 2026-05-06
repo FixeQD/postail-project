@@ -108,6 +108,13 @@ pub fn run() {
                 crate::security::start_lock_timer(timer_handle).await;
             });
 
+            // Watchdog — monitors email webview heartbeat (27.10)
+            let watchdog_handle = handle.clone();
+            let watchdog_state = app.state::<cmd::watchdog::WatchdogState>().inner().clone();
+            tauri::async_runtime::spawn(async move {
+                cmd::watchdog::run_watchdog_loop(watchdog_handle, watchdog_state).await;
+            });
+
             // Initialize IMAP connection pool
             tauri::async_runtime::spawn(async move {
                 init_pool().await;
