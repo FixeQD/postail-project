@@ -118,8 +118,14 @@ pub async fn run_watchdog_loop(app: tauri::AppHandle, state: WatchdogState) {
 
         drop(data);
 
-        // 27.13 — SIGSTOP / SuspendThread on `stats.pid` goes here.
-        tracing::warn!(pid = ?stats.pid, silent_ms = stats.silent_for_ms, "email webview frozen");
+        if let Some(pid) = stats.pid {
+            let nix_pid = nix::unistd::Pid::from_raw(pid as i32);
+            if let Err(e) = nix::sys::signal::kill(nix_pid, nix::sys::signal::Signal::SIGSTOP) {
+                tracing::error!(pid, err = %e, "SIGSTOP failed");
+            } else {
+                tracing::warn!(pid, silent_ms = stats.silent_for_ms, "email webview frozen");
+            }
+        }
 
         // 27.16 — notify the frontend.
         if let Err(e) = app.emit("email_webview_frozen", &stats) {

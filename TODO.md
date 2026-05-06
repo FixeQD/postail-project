@@ -267,7 +267,7 @@
     - [x] 27.10 - Rust: Watchdog task — spawn tokio task monitoring heartbeat timestamps per webview
     - [x] 27.11 - Rust: Extract Child Webview renderer PID after creation (platform-specific)
     - [x] 27.12 - Rust: Adaptive timeout — dynamically adjust watchdog threshold to avoid false positives
-    - [ ] 27.13 - Rust: Freeze process — SIGSTOP (Linux) / SuspendThread (Windows) on timeout
+    - [x] 27.13 - Rust: Freeze process — SIGSTOP (Linux) / SuspendThread (Windows) on timeout
     - [ ] 27.14 - Rust: Resume process — SIGCONT (Linux) / ResumeThread (Windows) on user request
     - [ ] 27.15 - Rust: Optional per-process resource limits (memory/CPU) via /proc (Linux) / Job Objects (Windows)
     - [ ] 27.16 - Rust: Emit `email_webview_frozen` event to frontend on freeze

@@ -98,6 +98,7 @@ nix = { version = "0.29", features = [
     "socket",
     "fs",
     "inotify",
+    "signal"
 ] }
 tauri-plugin-notification = { version = "2.3.3" }
 webkit2gtk = { version = "2.0", features = ["v2_32"] }
