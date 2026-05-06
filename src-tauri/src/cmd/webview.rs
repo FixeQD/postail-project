@@ -20,6 +20,49 @@ pub struct EmbeddedEmailState {
     pub email_wv: Arc<Mutex<Option<SendWidget<webkit2gtk::WebView>>>>,
 }
 
+#[cfg(target_os = "linux")]
+fn find_new_renderer_pid(pids_before: &std::collections::HashSet<sysinfo::Pid>) -> Option<u32> {
+    info!("LoadEvent::Started triggered, diffing processes...");
+    let mut sys = sysinfo::System::new_all();
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+
+    let my_pid = sysinfo::Pid::from_u32(std::process::id());
+
+    for (pid, process) in sys.processes() {
+        if !pids_before.contains(pid) {
+            let mut current = *pid;
+            let mut is_child = false;
+            while let Some(proc) = sys.process(current) {
+                if let Some(parent) = proc.parent() {
+                    if parent == my_pid {
+                        is_child = true;
+                        break;
+                    }
+                    current = parent;
+                } else {
+                    break;
+                }
+            }
+
+            let name = format!("{:?}", process.name()).to_lowercase();
+            let pid_u32 = pid.as_u32();
+            info!(pid = pid_u32, name = ?name, is_child, "new process detected in diff");
+
+            if is_child
+                && (name.contains("webkit")
+                    || name.contains("webprocess")
+                    || name.contains("bwrap"))
+            {
+                info!(pid = pid_u32, name = ?name, "matched target process!");
+                return Some(pid_u32);
+            }
+        }
+    }
+
+    info!("failed to find matching process in diff");
+    None
+}
+
 // ---------------------------------------------------------------------------
 // Commands
 // ---------------------------------------------------------------------------
@@ -145,6 +188,12 @@ mod linux {
                 let ctx = main_gtk_wv
                     .web_context()
                     .expect("no WebContext on main webview");
+
+                let mut sys = sysinfo::System::new_all();
+                sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+                let pids_before: std::collections::HashSet<_> =
+                    sys.processes().keys().copied().collect();
+
                 let email_wv = webkit2gtk::WebView::with_context(&ctx);
 
                 if let Some(settings) = WebViewExt::settings(&email_wv) {
@@ -163,13 +212,11 @@ mod linux {
                 });
 
                 let watchdog_for_signal = watchdog_arc.clone();
-                email_wv.connect_load_changed(move |wv, event| {
+                email_wv.connect_load_changed(move |_wv, event| {
                     if event == webkit2gtk::LoadEvent::Started {
-                        use webkit2gtk::glib::ObjectExt;
-                        let pid: u32 = wv.property("web-process-identifier");
-                        if pid != 0 {
+                        if let Some(pid) = find_new_renderer_pid(&pids_before) {
                             watchdog_for_signal.0.lock().unwrap().pid = Some(pid);
-                            info!(pid, "email renderer PID captured");
+                            info!(pid, "email renderer PID captured via sysinfo diff");
                         }
                     }
                 });
