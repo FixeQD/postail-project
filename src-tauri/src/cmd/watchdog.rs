@@ -83,6 +83,7 @@ pub async fn email_heartbeat(
 pub struct FreezeStats {
     pub silent_for_ms: u64,
     pub pid: Option<u32>,
+    pub memory_bytes: u64,
 }
 
 /// Ticks every 200 ms. Freezes the webview if heartbeat goes silent too long.
@@ -114,6 +115,7 @@ pub async fn run_watchdog_loop(app: tauri::AppHandle, state: WatchdogState) {
         let stats = FreezeStats {
             silent_for_ms: silent_for.as_millis() as u64,
             pid: data.pid,
+            memory_bytes: data.pid.map(read_renderer_memory).unwrap_or(0),
         };
 
         drop(data);
@@ -177,4 +179,64 @@ fn suspend_process_windows(pid: u32) -> Result<(), String> {
         let _ = CloseHandle(snapshot);
     }
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Memory stats
+// ---------------------------------------------------------------------------
+
+/// Returns the RSS of the given process in bytes
+/// Returns 0 on any failure so callers can treat it as optional
+fn read_renderer_memory(pid: u32) -> u64 {
+    #[cfg(target_os = "linux")]
+    {
+        // /proc/{pid}/statm: size  rss  shared  text  lib  data  dt
+        let path = format!("/proc/{pid}/statm");
+        let Ok(content) = std::fs::read_to_string(&path) else {
+            return 0;
+        };
+        let rss_pages: u64 = content
+            .split_whitespace()
+            .nth(1)
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
+        rss_pages * 4096
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::Foundation::CloseHandle;
+        use windows::Win32::System::ProcessStatus::{
+            GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS,
+        };
+        use windows::Win32::System::Threading::{
+            OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ,
+        };
+
+        unsafe {
+            let Ok(handle) = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pid)
+            else {
+                return 0;
+            };
+
+            let mut pmc = PROCESS_MEMORY_COUNTERS::default();
+            let ok = GetProcessMemoryInfo(
+                handle,
+                &mut pmc,
+                std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32,
+            );
+            let _ = CloseHandle(handle);
+
+            if ok.is_ok() {
+                pmc.WorkingSetSize as u64
+            } else {
+                0
+            }
+        }
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    {
+        0
+    }
 }
