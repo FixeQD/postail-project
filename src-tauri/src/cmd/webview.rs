@@ -259,8 +259,10 @@ mod linux {
         gtk::glib::MainContext::default().invoke(move || {
             if let Some(wv) = state.email_wv.lock().unwrap().as_ref() {
                 use gtk::prelude::WidgetExt;
+                use webkit2gtk::WebViewExt;
                 wv.0.hide();
-                info!("embedded email WebView hidden");
+                wv.0.terminate_web_process();
+                info!("embedded email WebView hidden and renderer process terminated");
             }
         });
     }
