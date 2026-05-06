@@ -119,11 +119,23 @@ pub async fn run_watchdog_loop(app: tauri::AppHandle, state: WatchdogState) {
         drop(data);
 
         if let Some(pid) = stats.pid {
-            let nix_pid = nix::unistd::Pid::from_raw(pid as i32);
-            if let Err(e) = nix::sys::signal::kill(nix_pid, nix::sys::signal::Signal::SIGSTOP) {
-                tracing::error!(pid, err = %e, "SIGSTOP failed");
-            } else {
-                tracing::warn!(pid, silent_ms = stats.silent_for_ms, "email webview frozen");
+            #[cfg(target_os = "linux")]
+            {
+                let nix_pid = nix::unistd::Pid::from_raw(pid as i32);
+                if let Err(e) = nix::sys::signal::kill(nix_pid, nix::sys::signal::Signal::SIGSTOP) {
+                    tracing::error!(pid, err = %e, "SIGSTOP failed");
+                } else {
+                    tracing::warn!(pid, silent_ms = stats.silent_for_ms, "email webview frozen");
+                }
+            }
+            #[cfg(target_os = "windows")]
+            {
+                match suspend_process_windows(pid) {
+                    Ok(()) => {
+                        tracing::warn!(pid, silent_ms = stats.silent_for_ms, "email webview frozen")
+                    }
+                    Err(e) => tracing::error!(pid, err = %e, "SuspendThread failed"),
+                }
             }
         }
 
@@ -132,4 +144,37 @@ pub async fn run_watchdog_loop(app: tauri::AppHandle, state: WatchdogState) {
             tracing::error!("failed to emit email_webview_frozen: {e}");
         }
     }
+}
+#[cfg(target_os = "windows")]
+fn suspend_process_windows(pid: u32) -> Result<(), String> {
+    use windows::Win32::Foundation::{CloseHandle, FALSE};
+    use windows::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, TH32CS_SNAPTHREAD, THREADENTRY32, Thread32First, Thread32Next,
+    };
+    use windows::Win32::System::Threading::{OpenThread, SuspendThread, THREAD_SUSPEND_RESUME};
+
+    unsafe {
+        let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0).map_err(|e| e.to_string())?;
+        let mut entry = THREADENTRY32 {
+            dwSize: std::mem::size_of::<THREADENTRY32>() as u32,
+            ..Default::default()
+        };
+
+        if Thread32First(snapshot, &mut entry).is_ok() {
+            loop {
+                if entry.th32OwnerProcessID == pid {
+                    if let Ok(thread) = OpenThread(THREAD_SUSPEND_RESUME, FALSE, entry.th32ThreadID)
+                    {
+                        SuspendThread(thread);
+                        let _ = CloseHandle(thread);
+                    }
+                }
+                if Thread32Next(snapshot, &mut entry).is_err() {
+                    break;
+                }
+            }
+        }
+        let _ = CloseHandle(snapshot);
+    }
+    Ok(())
 }
