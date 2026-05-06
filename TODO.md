@@ -264,8 +264,8 @@
     - [x] 27.7 - Rust: `email_heartbeat` command — accept token, rate-limit, update last-seen timestamp
     - [x] 27.8 - Rust: Inject heartbeat initialization script into Child Webview on creation
     - [x] 27.9 - JS: Heartbeat loop in injected script — invoke `email_heartbeat` every 100ms
-    - [ ] 27.10 - Rust: Watchdog task — spawn tokio task monitoring heartbeat timestamps per webview
-    - [ ] 27.11 - Rust: Extract Child Webview renderer PID after creation (platform-specific)
+    - [x] 27.10 - Rust: Watchdog task — spawn tokio task monitoring heartbeat timestamps per webview
+    - [x] 27.11 - Rust: Extract Child Webview renderer PID after creation (platform-specific)
     - [ ] 27.12 - Rust: Adaptive timeout — dynamically adjust watchdog threshold to avoid false positives
     - [ ] 27.13 - Rust: Freeze process — SIGSTOP (Linux) / SuspendThread (Windows) on timeout
     - [ ] 27.14 - Rust: Resume process — SIGCONT (Linux) / ResumeThread (Windows) on user request

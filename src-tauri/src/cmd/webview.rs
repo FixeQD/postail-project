@@ -8,8 +8,8 @@ use tracing::info;
 
 #[derive(Clone, Default)]
 pub struct EmbeddedEmailState {
-    pub bounds:   Arc<Mutex<(i32, i32, i32, i32)>>,
-    pub overlay:  Arc<Mutex<Option<SendWidget<gtk::Overlay>>>>,
+    pub bounds: Arc<Mutex<(i32, i32, i32, i32)>>,
+    pub overlay: Arc<Mutex<Option<SendWidget<gtk::Overlay>>>>,
     pub email_wv: Arc<Mutex<Option<SendWidget<webkit2gtk::WebView>>>>,
 }
 
@@ -25,6 +25,7 @@ unsafe impl<T> Sync for SendWidget<T> {}
 pub fn create_email_webview(
     app: AppHandle,
     state: tauri::State<'_, EmbeddedEmailState>,
+    watchdog: tauri::State<'_, crate::cmd::watchdog::WatchdogState>,
 ) -> Result<(), String> {
     // Already set up — just reload & show
     if state.email_wv.lock().unwrap().is_some() {
@@ -33,8 +34,8 @@ pub fn create_email_webview(
             let wv = state_clone.email_wv.lock().unwrap();
             let ov = state_clone.overlay.lock().unwrap();
             if let (Some(wv), Some(ov)) = (wv.as_ref(), ov.as_ref()) {
-                use webkit2gtk::WebViewExt;
                 use gtk::prelude::WidgetExt;
+                use webkit2gtk::WebViewExt;
                 wv.0.load_uri("postail://localhost/message/current");
                 wv.0.show();
                 ov.0.queue_resize();
@@ -43,9 +44,10 @@ pub fn create_email_webview(
         return Ok(());
     }
 
-    let bounds_arc  = state.bounds.clone();
+    let bounds_arc = state.bounds.clone();
     let overlay_arc = state.overlay.clone();
-    let wv_arc      = state.email_wv.clone();
+    let wv_arc = state.email_wv.clone();
+    let watchdog_arc = watchdog.inner().clone();
 
     let main_window = app
         .get_webview_window("main")
@@ -54,8 +56,8 @@ pub fn create_email_webview(
     main_window
         .with_webview(move |main_wv| {
             use gtk::prelude::*;
-            use webkit2gtk::glib::Cast;
             use webkit2gtk::WebViewExt;
+            use webkit2gtk::glib::Cast;
 
             let main_gtk_wv: &webkit2gtk::WebView = &main_wv.inner();
             let widget = main_gtk_wv.upcast_ref::<gtk::Widget>();
@@ -94,13 +96,25 @@ pub fn create_email_webview(
                 Some(gdk::Rectangle::new(x, y, w.max(1), h.max(1)))
             });
 
+            let watchdog_for_signal = watchdog_arc.clone();
+            email_wv.connect_load_changed(move |wv, event| {
+                if event == webkit2gtk::LoadEvent::Started {
+                    use webkit2gtk::glib::ObjectExt;
+                    let pid: u32 = wv.property("web-process-identifier");
+                    if pid != 0 {
+                        watchdog_for_signal.0.lock().unwrap().pid = Some(pid);
+                        info!(pid, "email renderer PID captured");
+                    }
+                }
+            });
+
             overlay.show_all();
             email_wv.hide();
 
             email_wv.load_uri("postail://localhost/message/current");
 
             *overlay_arc.lock().unwrap() = Some(SendWidget(overlay));
-            *wv_arc.lock().unwrap()      = Some(SendWidget(email_wv));
+            *wv_arc.lock().unwrap() = Some(SendWidget(email_wv));
 
             info!("embedded email WebView created inside GtkOverlay");
         })
