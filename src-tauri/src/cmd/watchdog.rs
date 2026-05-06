@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use tauri::Emitter;
 
 // ---------------------------------------------------------------------------
 // State
