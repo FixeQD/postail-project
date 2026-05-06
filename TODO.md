@@ -275,5 +275,5 @@
     - [ ] 27.18 - UI: Listen for `email_webview_frozen` in MessageView and show EmailFreezeNotice
     - [ ] 27.19 - Rust: Emit `email_webview_resumed` event after successful resume
     - [ ] 27.20 - UI: Handle resume event — hide notice, reset watchdog state display
-    - [ ] 27.21 - Rust: Cleanup — destroy Child Webview and kill process on message navigation
+    - [x] 27.21 - Rust: Cleanup — destroy Child Webview and kill process on message navigation
     - [ ] 27.22 - Integration: End-to-end test with heavy HTML email triggering freeze/resume cycle
