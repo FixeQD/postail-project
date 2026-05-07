@@ -271,7 +271,7 @@
     - [x] 27.14 - Rust: Resume process — SIGCONT (Linux) / ResumeThread (Windows) on user request
     - [x] 27.15 - Rust: Optional per-process resource limits (memory/CPU) via /proc (Linux) / Job Objects (Windows)
     - [ ] 27.16 - Rust: Emit `email_webview_frozen` event to frontend on freeze
-    - [ ] 27.17 - UI: `EmailFreezeNotice` component — overlay with freeze info, resume/keep-frozen buttons
+    - [x] 27.17 - UI: `EmailFreezeNotice` component — overlay with freeze info, resume/keep-frozen buttons
     - [ ] 27.18 - UI: Listen for `email_webview_frozen` in MessageView and show EmailFreezeNotice
     - [ ] 27.19 - Rust: Emit `email_webview_resumed` event after successful resume
     - [ ] 27.20 - UI: Handle resume event — hide notice, reset watchdog state display
