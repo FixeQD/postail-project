@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useThemeStore } from '@/stores/themeStore'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
 import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
 import { openUrl } from '@tauri-apps/plugin-opener'
+import { EmailFreezeNotice, FreezeStats } from './EmailFreezeNotice'
 
 import type { MessageViewBodyProps } from '@/types/components/shared'
 
@@ -26,6 +28,7 @@ export const MessageViewBody = ({
 
 	const [pendingUrl, setPendingUrl] = useState<string | null>(null)
 	const [warningOpen, setWarningOpen] = useState(false)
+	const [frozenStats, setFrozenStats] = useState<FreezeStats | null>(null)
 
 	const effectiveMode = !htmlContent || !htmlContent.trim() ? 'plain' : viewMode
 
@@ -154,6 +157,22 @@ export const MessageViewBody = ({
 		return () => ro.disconnect()
 	}, [effectiveMode])
 
+	// 4. Watchdog freeze/resume listeners
+	useEffect(() => {
+		const unlistenFrozen = listen<FreezeStats>('email_webview_frozen', (event) => {
+			setFrozenStats(event.payload)
+		})
+
+		const unlistenResumed = listen('email_webview_resumed', () => {
+			setFrozenStats(null)
+		})
+
+		return () => {
+			unlistenFrozen.then((fn) => fn())
+			unlistenResumed.then((fn) => fn())
+		}
+	}, [])
+
 	// Render Plain Text
 	if (effectiveMode === 'plain') {
 		return (
@@ -168,10 +187,14 @@ export const MessageViewBody = ({
 	// Render HTML — blank placeholder div that the native child webview overlays
 	return (
 		<>
+			{frozenStats && (
+				<EmailFreezeNotice stats={frozenStats} onDismiss={() => setFrozenStats(null)} />
+			)}
+
 			<div
 				ref={containerRef}
 				id='email-webview-container'
-				className='min-h-[400px] w-full flex-1'
+				className='relative min-h-[400px] w-full flex-1'
 			/>
 
 			<ConfirmationDialog
