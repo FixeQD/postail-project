@@ -22,6 +22,9 @@ pub struct WatchdogData {
 
     /// Timestamp of when the current webview session was created
     pub created_at: Instant,
+
+    /// Timestamp of when the webview was last resumed
+    pub resumed_at: Option<Instant>,
 }
 
 impl Default for WatchdogData {
@@ -32,6 +35,7 @@ impl Default for WatchdogData {
             token: String::new(),
             is_frozen: false,
             created_at: Instant::now(),
+            resumed_at: None,
         }
     }
 }
@@ -99,11 +103,24 @@ pub async fn run_watchdog_loop(app: tauri::AppHandle, state: WatchdogState) {
 
         let now = Instant::now();
 
-        // 3 s grace period for the first 5 s, then tighten to 500 ms (27.12).
-        let threshold = if now.duration_since(data.created_at) < Duration::from_secs(5) {
-            Duration::from_millis(3000)
+        let threshold = if let Some(resumed_at) = data.resumed_at {
+            let since_resume = now.duration_since(resumed_at);
+            if since_resume < Duration::from_secs(10) {
+                // 10s cooldown after unfreeze
+                Duration::from_secs(10)
+            } else if since_resume < Duration::from_secs(15) {
+                // 5s grace period at 3s after the cooldown ends
+                Duration::from_millis(3000)
+            } else {
+                Duration::from_millis(500)
+            }
         } else {
-            Duration::from_millis(500)
+            // 3 s grace period for the first 5 s, then tighten to 500 ms (27.12).
+            if now.duration_since(data.created_at) < Duration::from_secs(5) {
+                Duration::from_millis(3000)
+            } else {
+                Duration::from_millis(500)
+            }
         };
 
         let silent_for = now.duration_since(data.last_heartbeat);
@@ -220,6 +237,7 @@ pub async fn resume_email_webview(
 
     data.is_frozen = false;
     data.last_heartbeat = Instant::now();
+    data.resumed_at = Some(Instant::now());
     drop(data);
 
     if let Err(e) = app.emit("email_webview_resumed", ()) {
