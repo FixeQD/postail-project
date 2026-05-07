@@ -398,7 +398,9 @@ export const MessageView = ({
 				currentMailbox={mailbox}
 			/>
 
-			<div ref={scrollContainerRef} className='message-view-body flex-1 overflow-y-auto'>
+			<div
+				ref={scrollContainerRef}
+				className='message-view-body flex flex-1 flex-col overflow-y-auto'>
 				{threadViewEnabled &&
 				thread &&
 				Array.isArray(thread.messages) &&
@@ -500,13 +502,13 @@ export const MessageView = ({
 							</div>
 						)}
 
-						<div className='border-t border-[var(--border-faint)]'>
+						<div className='flex flex-1 flex-col border-t border-[var(--border-faint)]'>
 							<MessageViewErrorBoundary
 								onFallback={() => toggleViewMode()}
 								title={t('inbox:messageView.renderError.title')}
 								description={t('inbox:messageView.renderError.description')}
 								fallbackText={t('inbox:messageView.renderError.fallback')}>
-								<div className='relative'>
+								<div className='relative flex flex-1 flex-col'>
 									{loadingExternal && (
 										<div className='absolute bottom-8 left-1/2 z-10 -translate-x-1/2'>
 											<div className='flex items-center gap-2 rounded-full bg-[var(--surface-panel)] px-3.5 py-2 shadow-lg ring-1 ring-[var(--border-faint)]'>
