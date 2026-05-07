@@ -18,6 +18,10 @@ pub fn handler<R: Runtime>(
         return serve_email(&context);
     }
 
+    if path == "/message/heartbeat" {
+        return handle_heartbeat(&context, request);
+    }
+
     if path == "/window/maximize" {
         if let Some(window) = context.app_handle().get_webview_window("main") {
             let _ = window.maximize();
@@ -47,16 +51,63 @@ pub fn handler<R: Runtime>(
         .expect("Failed to create response")
 }
 
+fn handle_heartbeat<R: Runtime>(
+    context: &UriSchemeContext<R>,
+    request: Request<Vec<u8>>,
+) -> Response<Cow<'static, [u8]>> {
+    let app = context.app_handle();
+    let state = app.state::<WatchdogState>();
+
+    let query = request.uri().query().unwrap_or("");
+    let mut token = "";
+    for pair in query.split('&') {
+        if let Some((k, v)) = pair.split_once('=') {
+            if k == "token" {
+                token = v;
+                break;
+            }
+        }
+    }
+
+    match crate::cmd::watchdog::email_heartbeat(&state, token) {
+        Ok(next) => Response::builder()
+            .status(200)
+            .header("Content-Type", "application/json")
+            .body(Cow::Owned(
+                serde_json::json!({ "token": next })
+                    .to_string()
+                    .into_bytes(),
+            ))
+            .unwrap(),
+        Err(_) => Response::builder()
+            .status(200)
+            .header("Content-Type", "application/json")
+            .body(Cow::Borrowed(b"{}" as &[u8]))
+            .unwrap(),
+    }
+}
+
 fn serve_email<R: Runtime>(context: &UriSchemeContext<R>) -> Response<Cow<'static, [u8]>> {
     let app = context.app_handle();
 
-    let html = app
+    let mut html = app
         .state::<EmailViewState>()
         .html
         .lock()
         .ok()
         .and_then(|g| g.clone())
         .unwrap_or_default();
+
+    // Strip out any meta CSP tags from the email that could block our injected script
+    // Case-insensitive replacement (hacky but effective for standard meta tags)
+    let lower_html = html.to_lowercase();
+    if let Some(pos) = lower_html.find("<meta http-equiv=\"content-security-policy\"") {
+        let end = lower_html[pos..].find(">").unwrap_or(0) + pos + 1;
+        html.replace_range(pos..end, "<!-- stripped meta csp -->");
+    } else if let Some(pos) = lower_html.find("<meta http-equiv='content-security-policy'") {
+        let end = lower_html[pos..].find(">").unwrap_or(0) + pos + 1;
+        html.replace_range(pos..end, "<!-- stripped meta csp -->");
+    }
 
     // A new token is minted on every serve so stale heartbeats from a previous email load are automatically invalidated
     let token = uuid::Uuid::new_v4().to_string();
@@ -76,11 +127,10 @@ fn serve_email<R: Runtime>(context: &UriSchemeContext<R>) -> Response<Cow<'stati
 (function(){{
   var token = {token_json};
   setInterval(function(){{
-    if (window.__TAURI__ && window.__TAURI__.core) {{
-      window.__TAURI__.core.invoke('email_heartbeat', {{ token: token }})
-        .then(function(next) {{ token = next; }})
-        .catch(function(){{}});
-    }}
+    fetch('/message/heartbeat?token=' + encodeURIComponent(token))
+    .then(function(res) {{ return res.json(); }})
+    .then(function(data) {{ if (data && data.token) token = data.token; }})
+    .catch(function(err){{ console.error('Heartbeat fetch failed:', err); }});
   }}, 100);
 }})();
 </script>"#,
@@ -103,7 +153,7 @@ fn serve_email<R: Runtime>(context: &UriSchemeContext<R>) -> Response<Cow<'stati
                style-src 'unsafe-inline' data:; \
                img-src data: cid: asset: postail: http://postail.localhost; \
                font-src data: asset:; \
-               connect-src 'none';";
+               connect-src 'self' postail: http://postail.localhost;";
 
     Response::builder()
         .status(200)

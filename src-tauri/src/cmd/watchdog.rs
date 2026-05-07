@@ -44,17 +44,12 @@ impl Default for WatchdogData {
 pub struct WatchdogState(pub Arc<Mutex<WatchdogData>>);
 
 // ---------------------------------------------------------------------------
-// Heartbeat command
+// Heartbeat logic
 // ---------------------------------------------------------------------------
 
 const RATE_LIMIT: Duration = Duration::from_millis(50);
 
-/// Called by the injected script every ~100 ms.
-#[tauri::command]
-pub async fn email_heartbeat(
-    state: tauri::State<'_, WatchdogState>,
-    token: String,
-) -> Result<String, ()> {
+pub fn email_heartbeat(state: &WatchdogState, token: &str) -> Result<String, ()> {
     let mut data = state.0.lock().unwrap();
 
     if data.token.is_empty() {

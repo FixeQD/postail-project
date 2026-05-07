@@ -209,7 +209,6 @@ pub fn run() {
             cmd::webview::create_email_webview,
             cmd::webview::update_email_webview_bounds,
             cmd::webview::destroy_email_webview,
-            cmd::watchdog::email_heartbeat,
             cmd::watchdog::resume_email_webview,
             cmd::settings::get_autostart_enabled,
             cmd::settings::set_autostart_enabled,
