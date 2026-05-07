@@ -182,6 +182,88 @@ fn suspend_process_windows(pid: u32) -> Result<(), String> {
 }
 
 // ---------------------------------------------------------------------------
+// Resume command
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub async fn resume_email_webview(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, WatchdogState>,
+) -> Result<(), String> {
+    let mut data = state.0.lock().unwrap();
+
+    if !data.is_frozen {
+        return Ok(());
+    }
+
+    if let Some(pid) = data.pid {
+        #[cfg(target_os = "linux")]
+        {
+            let nix_pid = nix::unistd::Pid::from_raw(pid as i32);
+            if let Err(e) = nix::sys::signal::kill(nix_pid, nix::sys::signal::Signal::SIGCONT) {
+                tracing::error!(pid, err = %e, "SIGCONT failed");
+                return Err(format!("SIGCONT failed: {}", e));
+            } else {
+                tracing::info!(pid, "email webview unfrozen");
+            }
+        }
+        #[cfg(target_os = "windows")]
+        {
+            if let Err(e) = resume_process_windows(pid) {
+                tracing::error!(pid, err = %e, "ResumeThread failed");
+                return Err(e);
+            } else {
+                tracing::info!(pid, "email webview unfrozen");
+            }
+        }
+    }
+
+    data.is_frozen = false;
+    data.last_heartbeat = Instant::now();
+    drop(data);
+
+    if let Err(e) = app.emit("email_webview_resumed", ()) {
+        tracing::error!("failed to emit email_webview_resumed: {e}");
+    }
+
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn resume_process_windows(pid: u32) -> Result<(), String> {
+    use windows::Win32::Foundation::{CloseHandle, FALSE};
+    use windows::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, TH32CS_SNAPTHREAD, THREADENTRY32, Thread32First, Thread32Next,
+    };
+    use windows::Win32::System::Threading::{OpenThread, ResumeThread, THREAD_SUSPEND_RESUME};
+
+    unsafe {
+        let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0).map_err(|e| e.to_string())?;
+        let mut entry = THREADENTRY32 {
+            dwSize: std::mem::size_of::<THREADENTRY32>() as u32,
+            ..Default::default()
+        };
+
+        if Thread32First(snapshot, &mut entry).is_ok() {
+            loop {
+                if entry.th32OwnerProcessID == pid {
+                    if let Ok(thread) = OpenThread(THREAD_SUSPEND_RESUME, FALSE, entry.th32ThreadID)
+                    {
+                        ResumeThread(thread);
+                        let _ = CloseHandle(thread);
+                    }
+                }
+                if Thread32Next(snapshot, &mut entry).is_err() {
+                    break;
+                }
+            }
+        }
+        let _ = CloseHandle(snapshot);
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // Memory stats
 // ---------------------------------------------------------------------------
 

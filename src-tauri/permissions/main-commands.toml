@@ -105,6 +105,7 @@ commands.allow = [
   "rename_tag",
   "reorder_filter_rules",
   "reset_security_setup",
+  "resume_email_webview",
   "retry_sending",
   "run_maintenance",
   "save_attachment",
