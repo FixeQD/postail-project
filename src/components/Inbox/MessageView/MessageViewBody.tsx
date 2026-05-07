@@ -64,7 +64,6 @@ export const MessageViewBody = ({
 <html>
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' data:; img-src data: blob:; font-src data:; connect-src 'none';">
   <style>
     * { box-sizing: border-box; }
     body {

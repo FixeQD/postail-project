@@ -98,17 +98,6 @@ fn serve_email<R: Runtime>(context: &UriSchemeContext<R>) -> Response<Cow<'stati
         .and_then(|g| g.clone())
         .unwrap_or_default();
 
-    // Strip out any meta CSP tags from the email that could block our injected script
-    // Case-insensitive replacement (hacky but effective for standard meta tags)
-    let lower_html = html.to_lowercase();
-    if let Some(pos) = lower_html.find("<meta http-equiv=\"content-security-policy\"") {
-        let end = lower_html[pos..].find(">").unwrap_or(0) + pos + 1;
-        html.replace_range(pos..end, "<!-- stripped meta csp -->");
-    } else if let Some(pos) = lower_html.find("<meta http-equiv='content-security-policy'") {
-        let end = lower_html[pos..].find(">").unwrap_or(0) + pos + 1;
-        html.replace_range(pos..end, "<!-- stripped meta csp -->");
-    }
-
     // A new token is minted on every serve so stale heartbeats from a previous email load are automatically invalidated
     let token = uuid::Uuid::new_v4().to_string();
 
