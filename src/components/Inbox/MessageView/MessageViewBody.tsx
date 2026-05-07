@@ -123,7 +123,7 @@ export const MessageViewBody = ({
 		}
 	}, [effectiveMode])
 
-	// 3. ResizeObserver — sync native webview bounds to the placeholder div
+	// 3. ResizeObserver & Scroll — sync native webview bounds to the placeholder div
 	useEffect(() => {
 		if (effectiveMode !== 'html') return
 		const el = containerRef.current
@@ -134,8 +134,6 @@ export const MessageViewBody = ({
 			const rect = el.getBoundingClientRect()
 			const dpr = window.devicePixelRatio ?? 1
 
-			// Tauri 2 set_position / set_size expect logical coords,
-			// so we divide out the pixel ratio.
 			invoke('update_email_webview_bounds', {
 				x: rect.x / dpr,
 				y: rect.y / dpr,
@@ -151,11 +149,24 @@ export const MessageViewBody = ({
 		})
 
 		ro.observe(el)
-		// Initial sync as soon as the webview is mounted
+
+		// Bind scroll on the closest scrollable container to keep webview synced
+		const scrollParent = el.closest('.overflow-y-auto') || window
+		const onScroll = () => {
+			if (rafPendingRef.current) return
+			rafPendingRef.current = true
+			requestAnimationFrame(syncBounds)
+		}
+		scrollParent.addEventListener('scroll', onScroll, { passive: true })
+
+		// Initial sync as soon as the webview is mounted or when frozenStats changes (since position might shift without size changing)
 		requestAnimationFrame(syncBounds)
 
-		return () => ro.disconnect()
-	}, [effectiveMode])
+		return () => {
+			ro.disconnect()
+			scrollParent.removeEventListener('scroll', onScroll)
+		}
+	}, [effectiveMode, frozenStats])
 
 	// 4. Watchdog freeze/resume listeners
 	useEffect(() => {
@@ -186,9 +197,11 @@ export const MessageViewBody = ({
 
 	// Render HTML — blank placeholder div that the native child webview overlays
 	return (
-		<>
+		<div className='flex h-full w-full flex-1 flex-col'>
 			{frozenStats && (
-				<EmailFreezeNotice stats={frozenStats} onDismiss={() => setFrozenStats(null)} />
+				<div className='z-10 w-full shrink-0'>
+					<EmailFreezeNotice stats={frozenStats} onDismiss={() => setFrozenStats(null)} />
+				</div>
 			)}
 
 			<div
@@ -219,6 +232,6 @@ export const MessageViewBody = ({
 					</p>
 				</div>
 			</ConfirmationDialog>
-		</>
+		</div>
 	)
 }
