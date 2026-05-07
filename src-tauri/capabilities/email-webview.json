@@ -3,5 +3,5 @@
 	"identifier": "email-webview",
 	"description": "Capability for the email-webview",
 	"windows": ["email-webview"],
-	"permissions": []
+	"permissions": ["allow-email-heartbeat"]
 }
