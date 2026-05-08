@@ -124,6 +124,18 @@ export const MessageViewBody = ({
 		}
 	}, [])
 
+	// 5. Listen for link clicks forwarded from the child webview via protocol handler
+	useEffect(() => {
+		const unlisten = listen<{ url: string }>('email_link_clicked', (event) => {
+			setPendingUrl(event.payload.url)
+			setWarningOpen(true)
+		})
+
+		return () => {
+			unlisten.then((fn) => fn())
+		}
+	}, [])
+
 	return (
 		<div className='flex h-full w-full flex-1 flex-col'>
 			{frozenStats && (

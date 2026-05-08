@@ -22,6 +22,10 @@ pub fn handler<R: Runtime>(
         return handle_heartbeat(&context, request);
     }
 
+    if path == "/message/link" {
+        return handle_link_click(&context, request);
+    }
+
     if path == "/window/maximize" {
         if let Some(window) = context.app_handle().get_webview_window("main") {
             let _ = window.maximize();
@@ -85,6 +89,50 @@ fn handle_heartbeat<R: Runtime>(
             .body(Cow::Borrowed(b"{}" as &[u8]))
             .unwrap(),
     }
+}
+
+fn handle_link_click<R: Runtime>(
+    context: &UriSchemeContext<R>,
+    request: Request<Vec<u8>>,
+) -> Response<Cow<'static, [u8]>> {
+    let query = request.uri().query().unwrap_or("");
+
+    // form_urlencoded::parse handles %XX decoding for us
+    let url = url::form_urlencoded::parse(query.as_bytes())
+        .find(|(k, _)| k == "url")
+        .map(|(_, v)| v.into_owned());
+
+    let Some(url) = url else {
+        return Response::builder()
+            .status(400)
+            .header("Content-Type", "text/plain")
+            .body(Cow::Borrowed(b"Missing url" as &[u8]))
+            .unwrap();
+    };
+
+    // Only allow http / https - reject javascript:, data:, file:, etc.
+    let scheme = url::Url::parse(&url)
+        .ok()
+        .map(|u| u.scheme().to_ascii_lowercase());
+
+    if !matches!(scheme.as_deref(), Some("http") | Some("https")) {
+        return Response::builder()
+            .status(403)
+            .header("Content-Type", "text/plain")
+            .body(Cow::Borrowed(b"Disallowed scheme" as &[u8]))
+            .unwrap();
+    }
+
+    // Emit to the main window so React can show the confirmation dialog
+    let _ = context
+        .app_handle()
+        .emit("email_link_clicked", serde_json::json!({ "url": url }));
+
+    Response::builder()
+        .status(200)
+        .header("Content-Type", "text/plain")
+        .body(Cow::Borrowed(b"OK" as &[u8]))
+        .unwrap()
 }
 
 fn serve_email<R: Runtime>(context: &UriSchemeContext<R>) -> Response<Cow<'static, [u8]>> {

@@ -110,10 +110,9 @@ fn build_email_html(
   <script>
     document.addEventListener('click', (e) => {{
       const a = e.target.closest('a');
-      if (a && a.href) {{
-        e.preventDefault();
-        window.parent.postMessage({{ type: 'link', url: a.href }}, '*');
-      }}
+      if (!a || !a.href) return;
+      e.preventDefault();
+      fetch('/message/link?url=' + encodeURIComponent(a.href)).catch(function() {{}});
     }});
   </script>
 </body>
