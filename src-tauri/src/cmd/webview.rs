@@ -126,6 +126,29 @@ pub fn destroy_email_webview(app: AppHandle, state: tauri::State<'_, EmbeddedEma
     }
 }
 
+/// Reloads the email webview URI so it picks up freshly prepared HTML from EmailViewState.
+#[command]
+pub fn reload_email_webview(
+    _app: AppHandle,
+    state: tauri::State<'_, EmbeddedEmailState>,
+) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    return linux::reload(state.inner().clone());
+
+    #[cfg(target_os = "windows")]
+    {
+        let _ = state;
+        return windows::reload(app);
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    {
+        let _ = app;
+        let _ = state;
+        Ok(())
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Linux — GTK overlay
 // ---------------------------------------------------------------------------
@@ -266,6 +289,17 @@ mod linux {
             }
         });
     }
+
+    pub fn reload(state: EmbeddedEmailState) -> Result<(), String> {
+        gtk::glib::MainContext::default().invoke(move || {
+            if let Some(wv) = state.email_wv.lock().unwrap().as_ref() {
+                use webkit2gtk::WebViewExt;
+                wv.0.load_uri("postail://localhost/message/current");
+                info!("email WebView reloaded with new content");
+            }
+        });
+        Ok(())
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -338,6 +372,19 @@ mod windows {
             let _ = wv.close();
             info!("email WebView closed (Windows)");
         }
+    }
+
+    pub fn reload(app: AppHandle) -> Result<(), String> {
+        if let Some(wv) = app.get_webview("email-webview") {
+            wv.navigate(
+                "postail://localhost/message/current"
+                    .parse::<url::Url>()
+                    .map_err(|e| e.to_string())?,
+            )
+            .map_err(|e| e.to_string())?;
+            info!("email WebView reloaded with new content (Windows)");
+        }
+        Ok(())
     }
 
     /// Scans child processes of `parent_pid` for an msedgewebview2.exe renderer.

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -10,12 +10,17 @@ import { EmailFreezeNotice, FreezeStats } from './EmailFreezeNotice'
 
 import type { MessageViewBodyProps } from '@/types/components/shared'
 
+interface PrepareEmailViewResult {
+	hasExternalResources: boolean
+	isPlainOnly: boolean
+}
+
 export const MessageViewBody = ({
-	htmlContent,
-	plainContent,
+	accountId,
+	mailbox,
+	uid,
 	viewMode,
 	allowExternalResources = false,
-	inline_images = [],
 	onExternalDetected,
 	onLoadingChange,
 }: MessageViewBodyProps) => {
@@ -23,108 +28,46 @@ export const MessageViewBody = ({
 	const accentColor = useThemeStore((s) => s.accentColor)
 
 	const containerRef = useRef<HTMLDivElement>(null)
-	// Tracks whether a rAF is already scheduled to avoid stacking frames
 	const rafPendingRef = useRef(false)
 
 	const [pendingUrl, setPendingUrl] = useState<string | null>(null)
 	const [warningOpen, setWarningOpen] = useState(false)
 	const [frozenStats, setFrozenStats] = useState<FreezeStats | null>(null)
 
-	const effectiveMode = !htmlContent || !htmlContent.trim() ? 'plain' : viewMode
-
-	const inlineImagesHash = JSON.stringify(inline_images)
-
-	const mappedImages = useMemo(() => {
-		return inline_images
-			.filter((img) => img.cid && img.cached_path)
-			.map((img) => ({
-				cid: img.cid!,
-				cachedPath: img.cached_path!,
-				mimeType: img.mime_type,
-			}))
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [inlineImagesHash])
-
-	// 1. Push HTML content to the Rust protocol handler
+	// 1. Prepare content in Rust - builds the full HTML, processes inline images, rewrites external resources, and stores it for the protocol handler.
 	useEffect(() => {
-		if (effectiveMode !== 'html') return
-
 		onLoadingChange?.(true)
 
-		const hasDarkMode =
-			htmlContent.includes('prefers-color-scheme: dark') ||
-			htmlContent.includes('data-ogsc') ||
-			htmlContent.includes('data-ogsb')
-
-		const iframeBg = hasDarkMode ? 'transparent' : '#ffffff'
-		const iframeTextColor = hasDarkMode ? 'inherit' : '#1a1a1a'
-		const colorScheme = hasDarkMode ? 'dark light' : 'light'
-
-		const htmlTemplate = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; padding: 24px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: ${iframeTextColor}; background: ${iframeBg};
-      font-size: 14px; line-height: 1.6; word-wrap: break-word;
-      color-scheme: ${colorScheme};
-      overflow-x: hidden;
-    }
-    a { color: ${accentColor}; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    img, table, td, th { max-width: 100% !important; height: auto !important; }
-    pre { overflow-x: auto; max-width: 100%; white-space: pre-wrap; }
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 4px; }
-  </style>
-</head>
-<body>
-  <div id="email-wrapper">${htmlContent}</div>
-  <script>
-    document.addEventListener('click', (e) => {
-      const a = e.target.closest('a');
-      if (a && a.href) {
-        e.preventDefault();
-        window.parent.postMessage({ type: 'link', url: a.href }, '*');
-      }
-    });
-  </script>
-</body>
-</html>`
-
-		invoke<{ hasExternalResources: boolean; processedHtml: string }>('set_email_view_content', {
-			html: htmlTemplate,
-			inlineImages: mappedImages,
+		invoke<PrepareEmailViewResult>('prepare_email_view', {
+			accountId,
+			mailbox,
+			uid,
+			accentColor,
 			allowExternal: allowExternalResources,
+			viewMode,
 		})
 			.then((res) => {
 				if (res.hasExternalResources) onExternalDetected?.()
+				// Tell the native webview to reload so it fetches the freshly prepared HTML
+				invoke('reload_email_webview').catch(console.error)
 			})
 			.catch(console.error)
 			.finally(() => onLoadingChange?.(false))
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [htmlContent, effectiveMode, accentColor, allowExternalResources, mappedImages])
+	}, [accountId, mailbox, uid, viewMode, accentColor, allowExternalResources])
 
-	// 2. Spawn / destroy the child webview for HTML mode
+	// 2. Spawn / destroy the child webview per message
 	useEffect(() => {
-		if (effectiveMode !== 'html') return
-
 		const win = getCurrentWindow()
 		invoke('create_email_webview', { window: win }).catch(console.error)
 
 		return () => {
 			invoke('destroy_email_webview').catch(console.error)
 		}
-	}, [effectiveMode])
+	}, [accountId, mailbox, uid])
 
 	// 3. ResizeObserver & Scroll — sync native webview bounds to the placeholder div
 	useEffect(() => {
-		if (effectiveMode !== 'html') return
 		const el = containerRef.current
 		if (!el) return
 
@@ -149,7 +92,6 @@ export const MessageViewBody = ({
 
 		ro.observe(el)
 
-		// Bind scroll on the closest scrollable container to keep webview synced
 		const scrollParent = el.closest('.overflow-y-auto') || window
 		const onScroll = () => {
 			if (rafPendingRef.current) return
@@ -158,14 +100,13 @@ export const MessageViewBody = ({
 		}
 		scrollParent.addEventListener('scroll', onScroll, { passive: true })
 
-		// Initial sync as soon as the webview is mounted or when frozenStats changes (since position might shift without size changing)
 		requestAnimationFrame(syncBounds)
 
 		return () => {
 			ro.disconnect()
 			scrollParent.removeEventListener('scroll', onScroll)
 		}
-	}, [effectiveMode, frozenStats])
+	}, [frozenStats])
 
 	// 4. Watchdog freeze/resume listeners
 	useEffect(() => {
@@ -183,18 +124,6 @@ export const MessageViewBody = ({
 		}
 	}, [])
 
-	// Render Plain Text
-	if (effectiveMode === 'plain') {
-		return (
-			<div className='px-5 py-5'>
-				<pre className='w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-6 font-mono text-[13px] leading-relaxed break-words whitespace-pre-wrap text-[var(--text-primary)] shadow-sm'>
-					{plainContent || '(No content)'}
-				</pre>
-			</div>
-		)
-	}
-
-	// Render HTML — blank placeholder div that the native child webview overlays
 	return (
 		<div className='flex h-full w-full flex-1 flex-col'>
 			{frozenStats && (

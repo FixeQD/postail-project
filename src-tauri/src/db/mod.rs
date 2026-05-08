@@ -273,6 +273,27 @@ pub struct MessageFull {
     pub read_receipt_to: Option<String>,
 }
 
+/// Frontend-safe view of a message
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MessageMeta {
+    pub header: MailHeader,
+    pub attachments: Vec<AttachmentMeta>,
+    pub inline_images: Vec<AttachmentMeta>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub read_receipt_to: Option<String>,
+}
+
+impl From<MessageFull> for MessageMeta {
+    fn from(m: MessageFull) -> Self {
+        Self {
+            header: m.header,
+            attachments: m.attachments,
+            inline_images: m.inline_images,
+            read_receipt_to: m.read_receipt_to,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ThreadMessage {
     pub header: crate::db::MailHeader,
@@ -281,9 +302,21 @@ pub struct ThreadMessage {
     pub is_current: bool,
 }
 
+/// Frontend-safe thread message — no body content.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ThreadMessageMeta {
+    pub header: crate::db::MailHeader,
+    pub is_current: bool,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ThreadView {
     pub messages: Vec<ThreadMessage>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ThreadViewMeta {
+    pub messages: Vec<ThreadMessageMeta>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -1,5 +1,5 @@
 use crate::db::mail::eml_cache;
-use crate::db::{MessageFull, ThreadMessage, ThreadView};
+use crate::db::{MessageMeta, ThreadMessageMeta, ThreadViewMeta};
 use crate::globals::{get_crypto, get_db_pool};
 use rusqlite::OptionalExtension;
 use tauri::command;
@@ -9,7 +9,7 @@ pub async fn fetch_message_full(
     account_id: String,
     mailbox: String,
     uid: u32,
-) -> Result<MessageFull, String> {
+) -> Result<MessageMeta, String> {
     let pool = get_db_pool().await.map_err(|e| e.to_string())?;
     let conn = pool.get().map_err(|e| e.to_string())?;
 
@@ -18,29 +18,24 @@ pub async fn fetch_message_full(
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Message not found in database".to_string())?;
 
-    // Body lives in encrypted file cache — fetch from IMAP and cache if missing
     let crypto = get_crypto().await?;
     match eml_cache::load_body(&crypto, &account_id, &mailbox, uid) {
         Ok(Some(cached)) => {
-            message.body_html_safe = cached.body_html;
-            message.body_plain = cached.body_plain;
             message.read_receipt_to = cached.read_receipt_to;
         }
         _ => {
-            // Cache miss — pull from IMAP, parse, and populate cache
+            // Cache miss — pull from IMAP and cache
             let imap = crate::globals::IMAP_MANAGER.lock().await;
             if let Ok(Some(full)) = imap
                 .fetch_and_cache_message(&account_id, &mailbox, uid)
                 .await
             {
-                message.body_html_safe = full.body_html_safe;
-                message.body_plain = full.body_plain;
                 message.read_receipt_to = full.read_receipt_to;
             }
         }
     }
 
-    Ok(message)
+    Ok(message.into())
 }
 
 fn fetch_thread_uids(
@@ -77,33 +72,27 @@ pub async fn fetch_thread(
     account_id: String,
     mailbox: String,
     uid: u32,
-) -> Result<ThreadView, String> {
+) -> Result<ThreadViewMeta, String> {
     let pool = get_db_pool().await.map_err(|e| e.to_string())?;
     let conn = pool.get().map_err(|e| e.to_string())?;
 
     let thread_uids =
         fetch_thread_uids(&conn, &account_id, &mailbox, uid).map_err(|e| e.to_string())?;
 
-    let crypto = get_crypto().await?;
-    let mut messages: Vec<ThreadMessage> = Vec::new();
+    // Return only headers
+    let mut messages: Vec<ThreadMessageMeta> = Vec::new();
     for t_uid in thread_uids {
-        if let Ok(Some(mut msg)) =
+        if let Ok(Some(msg)) =
             crate::db::mail::messages::fetch_message_full(&conn, &account_id, &mailbox, t_uid)
         {
-            if let Ok(Some(cached)) = eml_cache::load_body(&crypto, &account_id, &mailbox, t_uid) {
-                msg.body_html_safe = cached.body_html;
-                msg.body_plain = cached.body_plain;
-            }
-            messages.push(ThreadMessage {
+            messages.push(ThreadMessageMeta {
                 header: msg.header,
-                body_html_safe: msg.body_html_safe,
-                body_plain: msg.body_plain,
                 is_current: t_uid == uid,
             });
         }
     }
 
-    Ok(ThreadView { messages })
+    Ok(ThreadViewMeta { messages })
 }
 
 #[command]

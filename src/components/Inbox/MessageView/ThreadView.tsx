@@ -9,6 +9,8 @@ import { useAnimationsEnabled } from '@/hooks/useMotion'
 interface ThreadViewProps {
 	thread: ThreadViewType
 	currentUid: number
+	accountId: string
+	mailbox: string
 	onReply?: () => void
 	onReplyAll?: () => void
 	onForward?: () => void
@@ -19,6 +21,8 @@ interface ThreadViewProps {
 export const ThreadView = ({
 	thread,
 	currentUid,
+	accountId,
+	mailbox,
 	blockExternalImages,
 	viewMode,
 }: ThreadViewProps) => {
@@ -108,11 +112,11 @@ export const ThreadView = ({
 
 								<div className='px-5 py-4'>
 									<MessageViewBody
-										htmlContent={msg.body_html_safe}
-										plainContent={msg.body_plain}
+										accountId={accountId}
+										mailbox={mailbox}
+										uid={msg.header.uid}
 										viewMode={viewMode}
 										allowExternalResources={!blockExternalImages}
-										inline_images={[]}
 										onExternalDetected={() => {}}
 									/>
 								</div>

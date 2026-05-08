@@ -407,6 +407,8 @@ export const MessageView = ({
 				thread.messages.length > 1 &&
 				!threadLoading ? (
 					<ThreadView
+						accountId={accountId}
+						mailbox={mailbox}
 						thread={thread}
 						currentUid={uid}
 						blockExternalImages={blockExternalImages}
@@ -537,11 +539,11 @@ export const MessageView = ({
 										</div>
 									)}
 									<MessageViewBody
-										htmlContent={data.body_html_safe}
-										plainContent={data.body_plain}
+										accountId={accountId}
+										mailbox={mailbox}
+										uid={uid}
 										viewMode={viewMode}
 										allowExternalResources={allowExternalResources}
-										inline_images={data.inline_images}
 										onExternalDetected={() => setHasExternalResources(true)}
 										onLoadingChange={(loading) => setLoadingExternal(loading)}
 									/>

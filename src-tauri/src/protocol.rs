@@ -90,7 +90,7 @@ fn handle_heartbeat<R: Runtime>(
 fn serve_email<R: Runtime>(context: &UriSchemeContext<R>) -> Response<Cow<'static, [u8]>> {
     let app = context.app_handle();
 
-    let mut html = app
+    let html = app
         .state::<EmailViewState>()
         .html
         .lock()

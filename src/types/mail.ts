@@ -42,8 +42,6 @@ export interface AttachmentMeta {
 
 export interface MessageFull {
 	header: MailHeader
-	body_html_safe: string
-	body_plain: string
 	attachments: AttachmentMeta[]
 	inline_images: AttachmentMeta[]
 	read_receipt_to?: string | null
@@ -51,8 +49,6 @@ export interface MessageFull {
 
 export interface ThreadMessage {
 	header: MailHeader
-	body_html_safe: string
-	body_plain: string
 	is_current: boolean
 }
 
