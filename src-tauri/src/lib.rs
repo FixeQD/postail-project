@@ -263,6 +263,7 @@ pub fn run() {
             cmd::utils::show_notification,
             cmd::utils::show_main_window,
             cmd::utils::auto_fix_email_html,
+            cmd::utils::confirm_external_link,
             email_view::prepare_email_view,
             cmd::settings::get_all_settings,
             cmd::settings::get_setting,

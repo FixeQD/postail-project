@@ -108,3 +108,29 @@ pub async fn set_email_view_content(
         processed_html: processed,
     })
 }
+
+/// Shows a native OS confirmation dialog asking the user whether to open an external link.
+#[tauri::command]
+pub async fn confirm_external_link(
+    app: tauri::AppHandle,
+    url: String,
+    title: String,
+    body: String,
+    ok_label: String,
+    cancel_label: String,
+) -> Result<(), String> {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+
+    app.dialog()
+        .message(body)
+        .title(title)
+        .buttons(MessageDialogButtons::OkCancelCustom(ok_label, cancel_label))
+        .show(move |confirmed| {
+            if confirmed {
+                use tauri_plugin_opener::OpenerExt;
+                let _ = app.opener().open_url(&url, None::<&str>);
+            }
+        });
+
+    Ok(())
+}

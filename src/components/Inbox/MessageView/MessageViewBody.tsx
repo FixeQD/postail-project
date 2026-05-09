@@ -4,8 +4,6 @@ import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useThemeStore } from '@/stores/themeStore'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
-import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
-import { openUrl } from '@tauri-apps/plugin-opener'
 import { EmailFreezeNotice, FreezeStats } from './EmailFreezeNotice'
 
 import type { MessageViewBodyProps } from '@/types/components/shared'
@@ -30,8 +28,6 @@ export const MessageViewBody = ({
 	const containerRef = useRef<HTMLDivElement>(null)
 	const rafPendingRef = useRef(false)
 
-	const [pendingUrl, setPendingUrl] = useState<string | null>(null)
-	const [warningOpen, setWarningOpen] = useState(false)
 	const [frozenStats, setFrozenStats] = useState<FreezeStats | null>(null)
 
 	// 1. Prepare content in Rust - builds the full HTML, processes inline images, rewrites external resources, and stores it for the protocol handler.
@@ -108,7 +104,22 @@ export const MessageViewBody = ({
 		}
 	}, [frozenStats])
 
-	// 4. Watchdog freeze/resume listeners
+	// 5. Native OS dialog for external links
+	useEffect(() => {
+		const unlisten = listen<{ url: string }>('email_link_clicked', (event) => {
+			invoke('confirm_external_link', {
+				url: event.payload.url,
+				title: t('security:externalLink.title'),
+				body: `${t('security:externalLink.description')}\n\n${event.payload.url}`,
+				okLabel: t('security:externalLink.open'),
+				cancelLabel: t('security:externalLink.cancel'),
+			}).catch(console.error)
+		})
+
+		return () => {
+			unlisten.then((fn) => fn())
+		}
+	}, [t])
 	useEffect(() => {
 		const unlistenFrozen = listen<FreezeStats>('email_webview_frozen', (event) => {
 			setFrozenStats(event.payload)
@@ -121,18 +132,6 @@ export const MessageViewBody = ({
 		return () => {
 			unlistenFrozen.then((fn) => fn())
 			unlistenResumed.then((fn) => fn())
-		}
-	}, [])
-
-	// 5. Listen for link clicks forwarded from the child webview via protocol handler
-	useEffect(() => {
-		const unlisten = listen<{ url: string }>('email_link_clicked', (event) => {
-			setPendingUrl(event.payload.url)
-			setWarningOpen(true)
-		})
-
-		return () => {
-			unlisten.then((fn) => fn())
 		}
 	}, [])
 
@@ -149,29 +148,6 @@ export const MessageViewBody = ({
 				id='email-webview-container'
 				className='relative min-h-[400px] w-full flex-1'
 			/>
-
-			<ConfirmationDialog
-				open={warningOpen}
-				onOpenChange={setWarningOpen}
-				title={t('security:externalLink.title')}
-				description={t('security:externalLink.description')}
-				cancelLabel={t('security:externalLink.cancel')}
-				confirmLabel={t('security:externalLink.open')}
-				onConfirm={() => {
-					if (pendingUrl) openUrl(pendingUrl)
-					setWarningOpen(false)
-					setPendingUrl(null)
-				}}
-				confirmClassName='w-full border-0 font-semibold shadow-lg bg-sky-500 text-white hover:bg-sky-600'>
-				<div className='flex flex-col gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-3'>
-					<p className='text-[10px] font-bold tracking-wider text-[var(--text-tertiary)] uppercase'>
-						Target URL
-					</p>
-					<p className='font-mono text-xs break-all text-[var(--text-primary)]'>
-						{pendingUrl}
-					</p>
-				</div>
-			</ConfirmationDialog>
 		</div>
 	)
 }
