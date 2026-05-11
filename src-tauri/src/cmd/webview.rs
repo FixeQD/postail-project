@@ -320,9 +320,7 @@ mod windows {
             let _ = wv.close();
         }
 
-        let window = app
-            .get_webview_window("main")
-            .ok_or("main window not found")?;
+        let window = app.get_window("main").ok_or("main window not found")?;
 
         // add_child is the public API for child webviews (requires "unstable" feature)
         let wv = window
