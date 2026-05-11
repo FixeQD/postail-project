@@ -129,7 +129,7 @@ pub fn destroy_email_webview(app: AppHandle, state: tauri::State<'_, EmbeddedEma
 /// Reloads the email webview URI so it picks up freshly prepared HTML from EmailViewState.
 #[command]
 pub fn reload_email_webview(
-    _app: AppHandle,
+    app: AppHandle,
     state: tauri::State<'_, EmbeddedEmailState>,
 ) -> Result<(), String> {
     #[cfg(target_os = "linux")]
@@ -324,15 +324,23 @@ mod windows {
             .get_webview_window("main")
             .ok_or("main window not found")?;
 
-        tauri::WebviewBuilder::new(
-            "email-webview",
-            tauri::WebviewUrl::Custom(
-                "postail://localhost/message/current"
-                    .parse()
-                    .map_err(|e: url::ParseError| e.to_string())?,
-            ),
+        // add_child is the public API for child webviews (requires "unstable" feature)
+        let wv = window
+            .add_child(
+                tauri::WebviewBuilder::new(
+                    "email-webview",
+                    tauri::WebviewUrl::App(Default::default()),
+                ),
+                tauri::LogicalPosition::new(0.0_f64, 0.0_f64),
+                tauri::LogicalSize::new(1.0_f64, 1.0_f64),
+            )
+            .map_err(|e| e.to_string())?;
+
+        wv.navigate(
+            "postail://localhost/message/current"
+                .parse()
+                .map_err(|e: url::ParseError| e.to_string())?,
         )
-        .build(&window)
         .map_err(|e| e.to_string())?;
 
         let our_pid = std::process::id();
@@ -358,9 +366,9 @@ mod windows {
         height: f64,
     ) -> Result<(), String> {
         if let Some(wv) = app.get_webview("email-webview") {
-            wv.set_bounds(tauri::dpi::Rect {
-                position: tauri::dpi::Position::Logical(tauri::dpi::LogicalPosition::new(x, y)),
-                size: tauri::dpi::Size::Logical(tauri::dpi::LogicalSize::new(width, height)),
+            wv.set_bounds(tauri::Rect {
+                position: tauri::Position::Logical(tauri::LogicalPosition::new(x, y)),
+                size: tauri::Size::Logical(tauri::LogicalSize::new(width, height)),
             })
             .map_err(|e| e.to_string())?;
         }
@@ -389,8 +397,8 @@ mod windows {
 
     /// Scans child processes of `parent_pid` for an msedgewebview2.exe renderer.
     fn find_webview2_renderer_pid(parent_pid: u32) -> Option<u32> {
-        use windows::Win32::Foundation::CloseHandle;
-        use windows::Win32::System::Diagnostics::ToolHelp::{
+        use ::windows::Win32::Foundation::CloseHandle;
+        use ::windows::Win32::System::Diagnostics::ToolHelp::{
             CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW,
             TH32CS_SNAPPROCESS,
         };
