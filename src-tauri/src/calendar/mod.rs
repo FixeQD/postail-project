@@ -52,10 +52,16 @@ pub async fn create_calendar_event(
 
 #[cfg(target_os = "windows")]
 async fn list_windows_events(start: i64, end: i64) -> Result<Vec<CalendarEvent>, String> {
+    tokio::task::spawn_blocking(move || list_windows_events_sync(start, end))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[cfg(target_os = "windows")]
+fn list_windows_events_sync(start: i64, end: i64) -> Result<Vec<CalendarEvent>, String> {
     use windows::ApplicationModel::Appointments::{AppointmentManager, AppointmentStoreAccessType};
     use windows::Foundation::{DateTime as WinDateTime, TimeSpan};
 
-    // Convert Unix timestamps to WinRT DateTime (100-nanosecond intervals since Jan 1, 1601)
     let win_start = WinDateTime {
         UniversalTime: (start * 10_000_000) + 116_444_736_000_000_000,
     };
@@ -63,63 +69,70 @@ async fn list_windows_events(start: i64, end: i64) -> Result<Vec<CalendarEvent>,
         UniversalTime: (end * 10_000_000) + 116_444_736_000_000_000,
     };
 
-    let store =
-        AppointmentManager::RequestStoreAsync(AppointmentStoreAccessType::AllCalendarsReadOnly)
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    rt.block_on(async move {
+        let store =
+            AppointmentManager::RequestStoreAsync(AppointmentStoreAccessType::AllCalendarsReadOnly)
+                .map_err(|e| e.to_string())?
+                .await
+                .map_err(|e| e.to_string())?;
+
+        let appointments = store
+            .FindAppointmentsAsync(
+                win_start,
+                TimeSpan {
+                    Duration: (win_end.UniversalTime - win_start.UniversalTime) as i64,
+                },
+            )
             .map_err(|e| e.to_string())?
             .await
             .map_err(|e| e.to_string())?;
 
-    let appointments = store
-        .FindAppointmentsAsync(
-            win_start,
-            TimeSpan {
-                Duration: (win_end.UniversalTime - win_start.UniversalTime) as i64,
-            },
-        )
-        .map_err(|e| e.to_string())?
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let mut events = Vec::new();
-    for appointment in appointments {
-        let start_time = (appointment
-            .StartTime()
-            .map_err(|e| e.to_string())?
-            .UniversalTime
-            - 116_444_736_000_000_000)
-            / 10_000_000;
-        let duration = appointment.Duration().map_err(|e| e.to_string())?.Duration / 10_000_000;
-
-        events.push(CalendarEvent {
-            id: appointment
-                .LocalId()
+        let mut events = Vec::new();
+        for appointment in appointments {
+            let start_time = (appointment
+                .StartTime()
                 .map_err(|e| e.to_string())?
-                .to_string(),
-            title: appointment
-                .Subject()
-                .map_err(|e| e.to_string())?
-                .to_string(),
-            description: Some(
-                appointment
-                    .Details()
+                .UniversalTime
+                - 116_444_736_000_000_000)
+                / 10_000_000;
+            let duration = appointment.Duration().map_err(|e| e.to_string())?.Duration / 10_000_000;
+
+            events.push(CalendarEvent {
+                id: appointment
+                    .LocalId()
                     .map_err(|e| e.to_string())?
                     .to_string(),
-            ),
-            location: Some(
-                appointment
-                    .Location()
+                title: appointment
+                    .Subject()
                     .map_err(|e| e.to_string())?
                     .to_string(),
-            ),
-            start: start_time,
-            end: start_time + duration,
-            is_all_day: appointment.AllDay().map_err(|e| e.to_string())?,
-            calendar_name: "Windows Calendar".to_string(),
-            color: None,
-        });
-    }
+                description: Some(
+                    appointment
+                        .Details()
+                        .map_err(|e| e.to_string())?
+                        .to_string(),
+                ),
+                location: Some(
+                    appointment
+                        .Location()
+                        .map_err(|e| e.to_string())?
+                        .to_string(),
+                ),
+                start: start_time,
+                end: start_time + duration,
+                is_all_day: appointment.AllDay().map_err(|e| e.to_string())?,
+                calendar_name: "Windows Calendar".to_string(),
+                color: None,
+            });
+        }
 
-    Ok(events)
+        Ok(events)
+    })
 }
 
 #[cfg(target_os = "linux")]
@@ -227,74 +240,98 @@ async fn create_windows_event(
     end: i64,
     is_all_day: bool,
 ) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        create_windows_event_sync(title, description, location, start, end, is_all_day)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[cfg(target_os = "windows")]
+fn create_windows_event_sync(
+    title: String,
+    description: Option<String>,
+    location: Option<String>,
+    start: i64,
+    end: i64,
+    is_all_day: bool,
+) -> Result<String, String> {
     use windows::ApplicationModel::Appointments::{
         Appointment, AppointmentCalendar, AppointmentManager, AppointmentStoreAccessType,
     };
     use windows::Foundation::DateTime as WinDateTime;
     use windows::Foundation::TimeSpan;
 
-    let appointment = Appointment::new().map_err(|e| e.to_string())?;
-    appointment
-        .SetSubject(&windows::core::HSTRING::from(title))
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
         .map_err(|e| e.to_string())?;
-    if let Some(desc) = description {
+
+    rt.block_on(async move {
+        let appointment = Appointment::new().map_err(|e| e.to_string())?;
         appointment
-            .SetDetails(&windows::core::HSTRING::from(desc))
+            .SetSubject(&windows::core::HSTRING::from(title))
             .map_err(|e| e.to_string())?;
-    }
-    if let Some(loc) = location {
+        if let Some(desc) = description {
+            appointment
+                .SetDetails(&windows::core::HSTRING::from(desc))
+                .map_err(|e| e.to_string())?;
+        }
+        if let Some(loc) = location {
+            appointment
+                .SetLocation(&windows::core::HSTRING::from(loc))
+                .map_err(|e| e.to_string())?;
+        }
+
+        let win_start = WinDateTime {
+            UniversalTime: (start * 10_000_000) + 116_444_736_000_000_000,
+        };
         appointment
-            .SetLocation(&windows::core::HSTRING::from(loc))
+            .SetStartTime(win_start)
             .map_err(|e| e.to_string())?;
-    }
-
-    let win_start = WinDateTime {
-        UniversalTime: (start * 10_000_000) + 116_444_736_000_000_000,
-    };
-    appointment
-        .SetStartTime(win_start)
-        .map_err(|e| e.to_string())?;
-    appointment
-        .SetDuration(TimeSpan {
-            Duration: (end - start) * 10_000_000,
-        })
-        .map_err(|e| e.to_string())?;
-    appointment
-        .SetAllDay(is_all_day)
-        .map_err(|e| e.to_string())?;
-
-    let store =
-        AppointmentManager::RequestStoreAsync(AppointmentStoreAccessType::AppCalendarsReadWrite)
-            .map_err(|e| e.to_string())?
-            .await
+        appointment
+            .SetDuration(TimeSpan {
+                Duration: (end - start) * 10_000_000,
+            })
+            .map_err(|e| e.to_string())?;
+        appointment
+            .SetAllDay(is_all_day)
             .map_err(|e| e.to_string())?;
 
-    let calendars = store
-        .FindAppointmentCalendarsAsync()
+        let store = AppointmentManager::RequestStoreAsync(
+            AppointmentStoreAccessType::AppCalendarsReadWrite,
+        )
         .map_err(|e| e.to_string())?
         .await
         .map_err(|e| e.to_string())?;
 
-    let calendar = if calendars.Size().map_err(|e| e.to_string())? > 0 {
-        calendars.GetAt(0).map_err(|e| e.to_string())?
-    } else {
-        store
-            .CreateAppointmentCalendarAsync(&windows::core::HSTRING::from("Postail"))
+        let calendars = store
+            .FindAppointmentCalendarsAsync()
             .map_err(|e| e.to_string())?
             .await
+            .map_err(|e| e.to_string())?;
+
+        let calendar = if calendars.Size().map_err(|e| e.to_string())? > 0 {
+            calendars.GetAt(0).map_err(|e| e.to_string())?
+        } else {
+            store
+                .CreateAppointmentCalendarAsync(&windows::core::HSTRING::from("Postail"))
+                .map_err(|e| e.to_string())?
+                .await
+                .map_err(|e| e.to_string())?
+        };
+
+        calendar
+            .SaveAppointmentAsync(&appointment)
             .map_err(|e| e.to_string())?
-    };
+            .await
+            .map_err(|e| e.to_string())?;
 
-    calendar
-        .SaveAppointmentAsync(&appointment)
-        .map_err(|e| e.to_string())?
-        .await
-        .map_err(|e| e.to_string())?;
-
-    Ok(appointment
-        .LocalId()
-        .map_err(|e| e.to_string())?
-        .to_string())
+        Ok(appointment
+            .LocalId()
+            .map_err(|e| e.to_string())?
+            .to_string())
+    })
 }
 
 #[cfg(target_os = "linux")]
@@ -351,3 +388,4 @@ async fn create_linux_event(
 
     Ok("temp-ics-opened".to_string())
 }
+z
