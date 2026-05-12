@@ -388,4 +388,3 @@ async fn create_linux_event(
 
     Ok("temp-ics-opened".to_string())
 }
-z
