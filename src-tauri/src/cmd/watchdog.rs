@@ -177,7 +177,8 @@ fn suspend_process_windows(pid: u32) -> Result<(), String> {
         if Thread32First(snapshot, &mut entry).is_ok() {
             loop {
                 if entry.th32OwnerProcessID == pid {
-                    if let Ok(thread) = OpenThread(THREAD_SUSPEND_RESUME, FALSE, entry.th32ThreadID)
+                    if let Ok(thread) =
+                        OpenThread(THREAD_SUSPEND_RESUME, FALSE.into(), entry.th32ThreadID)
                     {
                         SuspendThread(thread);
                         let _ = CloseHandle(thread);
@@ -260,7 +261,8 @@ fn resume_process_windows(pid: u32) -> Result<(), String> {
         if Thread32First(snapshot, &mut entry).is_ok() {
             loop {
                 if entry.th32OwnerProcessID == pid {
-                    if let Ok(thread) = OpenThread(THREAD_SUSPEND_RESUME, FALSE, entry.th32ThreadID)
+                    if let Ok(thread) =
+                        OpenThread(THREAD_SUSPEND_RESUME, FALSE.into(), entry.th32ThreadID)
                     {
                         ResumeThread(thread);
                         let _ = CloseHandle(thread);
