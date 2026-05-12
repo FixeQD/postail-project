@@ -52,10 +52,8 @@ pub async fn create_calendar_event(
 
 #[cfg(target_os = "windows")]
 async fn list_windows_events(start: i64, end: i64) -> Result<Vec<CalendarEvent>, String> {
-    use windows::ApplicationModel::Appointments::{
-        AppointmentManager, AppointmentStore, AppointmentStoreAccessType,
-    };
-    use windows::Foundation::DateTime as WinDateTime;
+    use windows::ApplicationModel::Appointments::{AppointmentManager, AppointmentStoreAccessType};
+    use windows::Foundation::{DateTime as WinDateTime, TimeSpan};
 
     // Convert Unix timestamps to WinRT DateTime (100-nanosecond intervals since Jan 1, 1601)
     let win_start = WinDateTime {
@@ -74,7 +72,9 @@ async fn list_windows_events(start: i64, end: i64) -> Result<Vec<CalendarEvent>,
     let appointments = store
         .FindAppointmentsAsync(
             win_start,
-            (win_end.UniversalTime - win_start.UniversalTime) as i64,
+            TimeSpan {
+                Duration: (win_end.UniversalTime - win_start.UniversalTime) as i64,
+            },
         )
         .map_err(|e| e.to_string())?
         .await
@@ -228,7 +228,7 @@ async fn create_windows_event(
     is_all_day: bool,
 ) -> Result<String, String> {
     use windows::ApplicationModel::Appointments::{
-        Appointment, AppointmentManager, AppointmentStoreAccessType,
+        Appointment, AppointmentCalendar, AppointmentManager, AppointmentStoreAccessType,
     };
     use windows::Foundation::DateTime as WinDateTime;
     use windows::Foundation::TimeSpan;
@@ -263,14 +263,29 @@ async fn create_windows_event(
         .SetAllDay(is_all_day)
         .map_err(|e| e.to_string())?;
 
-    let store = AppointmentManager::RequestStoreAsync(
-        AppointmentStoreAccessType::AllCalendarsWriteReadOnly,
-    )
-    .map_err(|e| e.to_string())?
-    .await
-    .map_err(|e| e.to_string())?;
+    let store =
+        AppointmentManager::RequestStoreAsync(AppointmentStoreAccessType::AppCalendarsReadWrite)
+            .map_err(|e| e.to_string())?
+            .await
+            .map_err(|e| e.to_string())?;
 
-    store
+    let calendars = store
+        .FindAppointmentCalendarsAsync()
+        .map_err(|e| e.to_string())?
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let calendar = if calendars.Size().map_err(|e| e.to_string())? > 0 {
+        calendars.GetAt(0).map_err(|e| e.to_string())?
+    } else {
+        store
+            .CreateAppointmentCalendarAsync(&windows::core::HSTRING::from("Postail"))
+            .map_err(|e| e.to_string())?
+            .await
+            .map_err(|e| e.to_string())?
+    };
+
+    calendar
         .SaveAppointmentAsync(&appointment)
         .map_err(|e| e.to_string())?
         .await
