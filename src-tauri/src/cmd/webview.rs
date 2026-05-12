@@ -335,7 +335,7 @@ mod windows {
             .map_err(|e| e.to_string())?;
 
         wv.navigate(
-            "postail://localhost/message/current"
+            "http://postail.localhost/message/current"
                 .parse()
                 .map_err(|e: url::ParseError| e.to_string())?,
         )
@@ -383,7 +383,7 @@ mod windows {
     pub fn reload(app: AppHandle) -> Result<(), String> {
         if let Some(wv) = app.get_webview("email-webview") {
             wv.navigate(
-                "postail://localhost/message/current"
+                "http://postail.localhost/message/current"
                     .parse::<url::Url>()
                     .map_err(|e| e.to_string())?,
             )
