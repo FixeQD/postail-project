@@ -3,12 +3,50 @@ use tauri::{AppHandle, Manager, command};
 use tracing::info;
 
 // ---------------------------------------------------------------------------
-// State
+// Send/Sync wrapper for non-Send handles (GTK widgets, COM objects)
 // ---------------------------------------------------------------------------
 
 pub struct SendWidget<T>(pub T);
 unsafe impl<T> Send for SendWidget<T> {}
 unsafe impl<T> Sync for SendWidget<T> {}
+
+// ---------------------------------------------------------------------------
+// Windows COM state
+// ---------------------------------------------------------------------------
+
+#[cfg(target_os = "windows")]
+pub struct WinViewInner {
+    pub comp_ctrl:
+        Option<webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2CompositionController>,
+    pub controller: Option<webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Controller>,
+    pub dcomp_device: Option<windows_wv::Win32::Graphics::DirectComposition::IDCompositionDevice>,
+    pub dcomp_target: Option<windows_wv::Win32::Graphics::DirectComposition::IDCompositionTarget>,
+    pub dcomp_visual: Option<windows_wv::Win32::Graphics::DirectComposition::IDCompositionVisual>,
+    pub main_hwnd: isize,
+}
+
+#[cfg(target_os = "windows")]
+unsafe impl Send for WinViewInner {}
+#[cfg(target_os = "windows")]
+unsafe impl Sync for WinViewInner {}
+
+#[cfg(target_os = "windows")]
+impl Default for WinViewInner {
+    fn default() -> Self {
+        Self {
+            comp_ctrl: None,
+            controller: None,
+            dcomp_device: None,
+            dcomp_target: None,
+            dcomp_visual: None,
+            main_hwnd: 0,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Shared Tauri state
+// ---------------------------------------------------------------------------
 
 #[derive(Clone, Default)]
 pub struct EmbeddedEmailState {
@@ -18,14 +56,20 @@ pub struct EmbeddedEmailState {
     pub overlay: Arc<Mutex<Option<SendWidget<gtk::Overlay>>>>,
     #[cfg(target_os = "linux")]
     pub email_wv: Arc<Mutex<Option<SendWidget<webkit2gtk::WebView>>>>,
+
+    #[cfg(target_os = "windows")]
+    pub win: Arc<Mutex<WinViewInner>>,
 }
+
+// ---------------------------------------------------------------------------
+// Linux helper
+// ---------------------------------------------------------------------------
 
 #[cfg(target_os = "linux")]
 fn find_new_renderer_pid(pids_before: &std::collections::HashSet<sysinfo::Pid>) -> Option<u32> {
     info!("LoadEvent::Started triggered, diffing processes...");
     let mut sys = sysinfo::System::new_all();
     sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-
     let my_pid = sysinfo::Pid::from_u32(std::process::id());
 
     for (pid, process) in sys.processes() {
@@ -43,11 +87,9 @@ fn find_new_renderer_pid(pids_before: &std::collections::HashSet<sysinfo::Pid>) 
                     break;
                 }
             }
-
             let name = format!("{:?}", process.name()).to_lowercase();
             let pid_u32 = pid.as_u32();
             info!(pid = pid_u32, name = ?name, is_child, "new process detected in diff");
-
             if is_child
                 && (name.contains("webkit")
                     || name.contains("webprocess")
@@ -58,7 +100,6 @@ fn find_new_renderer_pid(pids_before: &std::collections::HashSet<sysinfo::Pid>) 
             }
         }
     }
-
     info!("failed to find matching process in diff");
     None
 }
@@ -79,7 +120,7 @@ pub fn create_email_webview(
     #[cfg(target_os = "windows")]
     {
         let _ = state;
-        return windows::create(app, watchdog.inner().clone());
+        return win::create(app, watchdog.inner().clone());
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "windows")))]
@@ -104,7 +145,7 @@ pub fn update_email_webview_bounds(
     #[cfg(target_os = "windows")]
     {
         let _ = state;
-        return windows::update_bounds(app, x, y, width, height);
+        return win::update_bounds(app, x, y, width, height);
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "windows")))]
@@ -122,11 +163,10 @@ pub fn destroy_email_webview(app: AppHandle, state: tauri::State<'_, EmbeddedEma
     #[cfg(target_os = "windows")]
     {
         let _ = state;
-        windows::destroy(app);
+        win::destroy(app);
     }
 }
 
-/// Reloads the email webview URI so it picks up freshly prepared HTML from EmailViewState.
 #[command]
 pub fn reload_email_webview(
     app: AppHandle,
@@ -138,7 +178,7 @@ pub fn reload_email_webview(
     #[cfg(target_os = "windows")]
     {
         let _ = state;
-        return windows::reload(app);
+        return win::reload(app);
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "windows")))]
@@ -195,7 +235,6 @@ mod linux {
 
                 let main_gtk_wv: &webkit2gtk::WebView = &main_wv.inner();
                 let widget = main_gtk_wv.upcast_ref::<gtk::Widget>();
-
                 let toplevel = widget
                     .toplevel()
                     .and_then(|t| t.downcast::<gtk::Window>().ok())
@@ -295,7 +334,7 @@ mod linux {
             if let Some(wv) = state.email_wv.lock().unwrap().as_ref() {
                 use webkit2gtk::WebViewExt;
                 wv.0.load_uri("postail://localhost/message/current");
-                info!("email WebView reloaded with new content");
+                info!("email WebView reloaded");
             }
         });
         Ok(())
@@ -303,113 +342,390 @@ mod linux {
 }
 
 // ---------------------------------------------------------------------------
-// Windows — Tauri native child webview (WebView2)
+// Windows — ICoreWebView2CompositionController + DirectComposition
 // ---------------------------------------------------------------------------
 
 #[cfg(target_os = "windows")]
-mod windows {
+mod win {
     use super::*;
-    use std::time::Duration;
+
+    use windows_core::Interface;
+    use windows_wv::Win32::Foundation::{BOOL, HWND, RECT};
+    use windows_wv::Win32::Graphics::Direct3D::D3D_DRIVER_TYPE_HARDWARE;
+    use windows_wv::Win32::Graphics::Direct3D11::{
+        D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_SDK_VERSION, D3D11CreateDevice,
+    };
+    use windows_wv::Win32::Graphics::DirectComposition::{
+        DCompositionCreateDevice, IDCompositionDevice, IDCompositionTarget, IDCompositionVisual,
+    };
+    use windows_wv::Win32::Graphics::Dxgi::IDXGIDevice; // cast() lives here, shared across windows 0.61/0.62
+
+    use webview2_com::Microsoft::Web::WebView2::Win32::{
+        CreateCoreWebView2EnvironmentWithOptions, ICoreWebView2,
+        ICoreWebView2CompositionController, ICoreWebView2Controller, ICoreWebView2Environment3,
+    };
+    use webview2_com::{
+        CreateCoreWebView2CompositionControllerCompletedHandler,
+        CreateCoreWebView2EnvironmentCompletedHandler,
+    };
+
+    // -----------------------------------------------------------------------
+    // Public entry points
+    // -----------------------------------------------------------------------
 
     pub fn create(
         app: AppHandle,
         watchdog: crate::cmd::watchdog::WatchdogState,
     ) -> Result<(), String> {
-        // Close any existing child webview first
-        if let Some(wv) = app.get_webview("email-webview") {
-            let _ = wv.close();
-        }
-
-        let window = app.get_window("main").ok_or("main window not found")?;
-
-        // add_child is the public API for child webviews (requires "unstable" feature)
-        let wv = window
-            .add_child(
-                tauri::WebviewBuilder::new(
-                    "email-webview",
-                    tauri::WebviewUrl::App(Default::default()),
-                ),
-                tauri::LogicalPosition::new(0.0_f64, 0.0_f64),
-                tauri::LogicalSize::new(1.0_f64, 1.0_f64),
-            )
-            .map_err(|e| e.to_string())?;
-
-        wv.navigate(
-            "http://postail.localhost/message/current"
-                .parse()
-                .map_err(|e: url::ParseError| e.to_string())?,
-        )
-        .map_err(|e| e.to_string())?;
-
-        let our_pid = std::process::id();
-        let watchdog_clone = watchdog.clone();
-        tauri::async_runtime::spawn(async move {
-            tokio::time::sleep(Duration::from_millis(600)).await;
-            if let Some(pid) = find_webview2_renderer_pid(our_pid) {
-                watchdog_clone.0.lock().unwrap().pid = Some(pid);
-                info!(pid, "email renderer PID captured (WebView2)");
-            } else {
-                tracing::warn!("could not resolve WebView2 renderer PID");
-            }
-        });
-
-        Ok(())
+        let app2 = app.clone();
+        app.run_on_main_thread(move || create_on_main(app2, watchdog))
+            .map_err(|e| format!("run_on_main_thread: {e}"))
     }
 
-    pub fn update_bounds(
-        app: AppHandle,
-        x: f64,
-        y: f64,
-        width: f64,
-        height: f64,
-    ) -> Result<(), String> {
-        if let Some(wv) = app.get_webview("email-webview") {
-            wv.set_bounds(tauri::Rect {
-                position: tauri::Position::Logical(tauri::LogicalPosition::new(x, y)),
-                size: tauri::Size::Logical(tauri::LogicalSize::new(width, height)),
-            })
-            .map_err(|e| e.to_string())?;
-        }
-        Ok(())
+    pub fn update_bounds(app: AppHandle, x: f64, y: f64, w: f64, h: f64) -> Result<(), String> {
+        let app2 = app.clone();
+        app.run_on_main_thread(move || update_bounds_on_main(&app2, x, y, w, h))
+            .map_err(|e| format!("run_on_main_thread: {e}"))
     }
 
     pub fn destroy(app: AppHandle) {
-        if let Some(wv) = app.get_webview("email-webview") {
-            let _ = wv.close();
-            info!("email WebView closed (Windows)");
-        }
+        let app2 = app.clone();
+        let _ = app.run_on_main_thread(move || destroy_on_main(&app2));
     }
 
     pub fn reload(app: AppHandle) -> Result<(), String> {
-        if let Some(wv) = app.get_webview("email-webview") {
-            wv.navigate(
-                "http://postail.localhost/message/current"
-                    .parse::<url::Url>()
-                    .map_err(|e| e.to_string())?,
-            )
-            .map_err(|e| e.to_string())?;
-            info!("email WebView reloaded with new content (Windows)");
-        }
-        Ok(())
+        let app2 = app.clone();
+        app.run_on_main_thread(move || reload_on_main(&app2))
+            .map_err(|e| format!("run_on_main_thread: {e}"))
     }
 
-    /// Scans child processes of `parent_pid` for an msedgewebview2.exe renderer.
+    // -----------------------------------------------------------------------
+    // Main-thread implementations
+    // -----------------------------------------------------------------------
+
+    fn create_on_main(app: AppHandle, watchdog: crate::cmd::watchdog::WatchdogState) {
+        let state = app.state::<super::EmbeddedEmailState>();
+
+        if state.win.lock().unwrap().comp_ctrl.is_some() {
+            reload_on_main(&app);
+            return;
+        }
+
+        let window = match app.get_webview_window("main") {
+            Some(w) => w,
+            None => {
+                tracing::error!("[webview/win] main window not found");
+                return;
+            }
+        };
+
+        let hwnd_isize: isize = match window.hwnd() {
+            Ok(h) => h.0 as isize,
+            Err(e) => {
+                tracing::error!("[webview/win] hwnd() failed: {e}");
+                return;
+            }
+        };
+        state.win.lock().unwrap().main_hwnd = hwnd_isize;
+
+        let win_arc = state.win.clone();
+        let wd = watchdog.clone();
+
+        let env_handler =
+            CreateCoreWebView2EnvironmentCompletedHandler::create(Box::new(move |hr, env| {
+                if hr.is_err() {
+                    tracing::error!("[webview/win] env creation failed: {hr:?}");
+                    return Ok(());
+                }
+                let env = match env {
+                    Some(e) => e,
+                    None => {
+                        tracing::error!("[webview/win] env is None");
+                        return Ok(());
+                    }
+                };
+
+                // Reconstruct windows_wv HWND from stored isize
+                let hwnd = HWND(win_arc.lock().unwrap().main_hwnd as *mut _);
+
+                let (dev, tgt, vis) = match setup_dcomp(hwnd) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        tracing::error!("[webview/win] DComp setup: {e}");
+                        return Ok(());
+                    }
+                };
+                {
+                    let mut g = win_arc.lock().unwrap();
+                    g.dcomp_device = Some(dev);
+                    g.dcomp_target = Some(tgt);
+                    g.dcomp_visual = Some(vis);
+                }
+
+                let env3: ICoreWebView2Environment3 = match env.cast() {
+                    Ok(e) => e,
+                    Err(e) => {
+                        tracing::error!("[webview/win] env→env3: {e:?}");
+                        return Ok(());
+                    }
+                };
+
+                let win_for_ctrl = win_arc.clone();
+                let wd_for_ctrl = wd.clone();
+
+                let ctrl_handler = CreateCoreWebView2CompositionControllerCompletedHandler::create(
+                    Box::new(move |hr, comp_ctrl| {
+                        on_ctrl_created(hr, comp_ctrl, &win_for_ctrl, &wd_for_ctrl);
+                        Ok(())
+                    }),
+                );
+
+                unsafe {
+                    if let Err(e) =
+                        env3.CreateCoreWebView2CompositionController(hwnd, &ctrl_handler)
+                    {
+                        tracing::error!("[webview/win] CreateCompositionController: {e:?}");
+                    }
+                }
+                Ok(())
+            }));
+
+        unsafe {
+            if let Err(e) = CreateCoreWebView2EnvironmentWithOptions(
+                windows_core::PCWSTR::null(),
+                windows_core::PCWSTR::null(),
+                None,
+                &env_handler,
+            ) {
+                tracing::error!("[webview/win] CreateEnvironmentWithOptions: {e:?}");
+            }
+        }
+    }
+
+    fn on_ctrl_created(
+        hr: windows_core::HRESULT,
+        comp_ctrl: Option<ICoreWebView2CompositionController>,
+        win_arc: &Arc<Mutex<WinViewInner>>,
+        watchdog: &crate::cmd::watchdog::WatchdogState,
+    ) {
+        if hr.is_err() {
+            tracing::error!("[webview/win] CompositionController failed: {hr:?}");
+            return;
+        }
+        let comp_ctrl = match comp_ctrl {
+            Some(c) => c,
+            None => {
+                tracing::error!("[webview/win] CompositionController is None");
+                return;
+            }
+        };
+
+        unsafe {
+            // Bind WebView2 rendering to our DComp visual
+            if let Some(vis) = win_arc.lock().unwrap().dcomp_visual.clone() {
+                let unknown: windows_core::IUnknown = match vis.cast() {
+                    Ok(u) => u,
+                    Err(e) => {
+                        tracing::error!("[webview/win] visual→IUnknown: {e:?}");
+                        return;
+                    }
+                };
+                // webview2-com 0.38: setter is SetRootVisualTarget, getter is RootVisualTarget()
+                if let Err(e) = comp_ctrl.SetRootVisualTarget(&unknown) {
+                    tracing::error!("[webview/win] SetRootVisualTarget: {e:?}");
+                    return;
+                }
+            }
+
+            // QI to ICoreWebView2Controller for Bounds / IsVisible / Close
+            let controller: ICoreWebView2Controller = match comp_ctrl.cast() {
+                Ok(c) => c,
+                Err(e) => {
+                    tracing::error!("[webview/win] comp_ctrl→controller: {e:?}");
+                    return;
+                }
+            };
+
+            // Start hidden, 1×1
+            let _ = controller.Bounds(RECT {
+                left: 0,
+                top: 0,
+                right: 1,
+                bottom: 1,
+            });
+            let _ = controller.IsVisible(BOOL(0));
+
+            if let Ok(wv) = controller.CoreWebView2() {
+                navigate_to_email(&wv);
+            }
+
+            if let Some(dev) = win_arc.lock().unwrap().dcomp_device.clone() {
+                let _ = dev.Commit();
+            }
+
+            let wd = watchdog.clone();
+            let our_pid = std::process::id();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_millis(700)).await;
+                if let Some(pid) = find_webview2_renderer_pid(our_pid) {
+                    wd.0.lock().unwrap().pid = Some(pid);
+                    info!(pid, "email renderer PID captured (WebView2/DComp)");
+                } else {
+                    tracing::warn!("[webview/win] could not resolve WebView2 renderer PID");
+                }
+            });
+
+            let mut g = win_arc.lock().unwrap();
+            g.controller = Some(controller);
+            g.comp_ctrl = Some(comp_ctrl);
+        }
+
+        info!("[webview/win] ICoreWebView2CompositionController ready");
+    }
+
+    fn update_bounds_on_main(app: &AppHandle, x: f64, y: f64, w: f64, h: f64) {
+        let state = app.state::<super::EmbeddedEmailState>();
+        let guard = state.win.lock().unwrap();
+        let (Some(ctrl), Some(vis), Some(dev)) = (
+            guard.controller.as_ref(),
+            guard.dcomp_visual.as_ref(),
+            guard.dcomp_device.as_ref(),
+        ) else {
+            return;
+        };
+
+        unsafe {
+            let _ = ctrl.Bounds(RECT {
+                left: 0,
+                top: 0,
+                right: w as i32,
+                bottom: h as i32,
+            });
+            let _ = ctrl.IsVisible(BOOL(if w > 0.0 && h > 0.0 { 1 } else { 0 }));
+            let _ = vis.SetOffsetX(x as f32);
+            let _ = vis.SetOffsetY(y as f32);
+            let _ = dev.Commit();
+        }
+    }
+
+    fn destroy_on_main(app: &AppHandle) {
+        let state = app.state::<super::EmbeddedEmailState>();
+        let mut guard = state.win.lock().unwrap();
+        unsafe {
+            if let Some(ctrl) = guard.controller.as_ref() {
+                let _ = ctrl.IsVisible(BOOL(0));
+                let _ = ctrl.Close();
+            }
+            if let Some(dev) = guard.dcomp_device.as_ref() {
+                let _ = dev.Commit();
+            }
+        }
+        guard.comp_ctrl = None;
+        guard.controller = None;
+        guard.dcomp_device = None;
+        guard.dcomp_target = None;
+        guard.dcomp_visual = None;
+        info!("[webview/win] email WebView destroyed (DComp)");
+    }
+
+    fn reload_on_main(app: &AppHandle) {
+        let state = app.state::<super::EmbeddedEmailState>();
+        let guard = state.win.lock().unwrap();
+        if let Some(ctrl) = guard.controller.as_ref() {
+            unsafe {
+                if let Ok(wv) = ctrl.CoreWebView2() {
+                    navigate_to_email(&wv);
+                    info!("[webview/win] email WebView reloaded");
+                }
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // DirectComposition setup
+    // -----------------------------------------------------------------------
+
+    fn setup_dcomp(
+        hwnd: HWND,
+    ) -> Result<
+        (
+            IDCompositionDevice,
+            IDCompositionTarget,
+            IDCompositionVisual,
+        ),
+        String,
+    > {
+        unsafe {
+            let mut d3d_device = None;
+            D3D11CreateDevice(
+                None,
+                D3D_DRIVER_TYPE_HARDWARE,
+                None,
+                D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+                None,
+                D3D11_SDK_VERSION,
+                Some(&mut d3d_device),
+                None,
+                None,
+            )
+            .map_err(|e| format!("D3D11CreateDevice: {e:?}"))?;
+
+            let d3d = d3d_device.ok_or("D3D11 device is None")?;
+            let dxgi: IDXGIDevice = d3d.cast().map_err(|e| format!("IDXGIDevice cast: {e:?}"))?;
+
+            let dev: IDCompositionDevice = DCompositionCreateDevice(Some(&dxgi))
+                .map_err(|e| format!("DCompositionCreateDevice: {e:?}"))?;
+
+            // topmost=true → composites above all HWND children, including Tauri's main WebView2
+            let target: IDCompositionTarget = dev
+                .CreateTargetForHwnd(hwnd, true)
+                .map_err(|e| format!("CreateTargetForHwnd: {e:?}"))?;
+
+            let root: IDCompositionVisual = dev
+                .CreateVisual()
+                .map_err(|e| format!("CreateVisual (root): {e:?}"))?;
+            let email_vis: IDCompositionVisual = dev
+                .CreateVisual()
+                .map_err(|e| format!("CreateVisual (email): {e:?}"))?;
+
+            root.AddVisual(&email_vis, false, None)
+                .map_err(|e| format!("AddVisual: {e:?}"))?;
+            target
+                .SetRoot(&root)
+                .map_err(|e| format!("SetRoot: {e:?}"))?;
+            dev.Commit().map_err(|e| format!("initial Commit: {e:?}"))?;
+
+            Ok((dev, target, email_vis))
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------
+
+    #[inline]
+    unsafe fn navigate_to_email(wv: &ICoreWebView2) {
+        let url: Vec<u16> = "http://postail.localhost/message/current\0"
+            .encode_utf16()
+            .collect();
+        let _ = wv.Navigate(windows_core::PCWSTR(url.as_ptr()));
+    }
+
+    /// Walk ToolHelp snapshot for an msedgewebview2.exe child of `parent_pid`.
     fn find_webview2_renderer_pid(parent_pid: u32) -> Option<u32> {
         use ::windows::Win32::Foundation::CloseHandle;
         use ::windows::Win32::System::Diagnostics::ToolHelp::{
             CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW,
             TH32CS_SNAPPROCESS,
         };
-
         unsafe {
-            let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0).ok()?;
+            let snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0).ok()?;
             let mut entry = PROCESSENTRY32W {
                 dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
                 ..Default::default()
             };
             let mut found = None;
-
-            if Process32FirstW(snapshot, &mut entry).is_ok() {
+            if Process32FirstW(snap, &mut entry).is_ok() {
                 loop {
                     if entry.th32ParentProcessID == parent_pid {
                         let name = String::from_utf16_lossy(
@@ -421,12 +737,12 @@ mod windows {
                             break;
                         }
                     }
-                    if Process32NextW(snapshot, &mut entry).is_err() {
+                    if Process32NextW(snap, &mut entry).is_err() {
                         break;
                     }
                 }
             }
-            let _ = CloseHandle(snapshot);
+            let _ = CloseHandle(snap);
             found
         }
     }
