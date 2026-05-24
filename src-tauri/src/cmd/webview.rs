@@ -503,7 +503,7 @@ mod win {
     }
 
     fn on_ctrl_created(
-        hr: windows_wv::core::HRESULT,
+        hr: windows_wv::core::Result<()>,
         comp_ctrl: Option<ICoreWebView2CompositionController>,
         win_arc: &Arc<Mutex<WinViewInner>>,
         watchdog: &crate::cmd::watchdog::WatchdogState,
@@ -708,7 +708,7 @@ mod win {
         let url: Vec<u16> = "http://postail.localhost/message/current\0"
             .encode_utf16()
             .collect();
-        let _ = wv.Navigate(windows_wv::core::PCWSTR(url.as_ptr()));
+        let _ = unsafe { wv.Navigate(windows_wv::core::PCWSTR(url.as_ptr())) };
     }
 
     /// Walk ToolHelp snapshot for an msedgewebview2.exe child of `parent_pid`.
