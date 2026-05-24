@@ -349,8 +349,7 @@ mod linux {
 mod win {
     use super::*;
 
-    use windows_core::Interface;
-    use windows_wv::Win32::Foundation::{BOOL, HWND, RECT};
+    use windows_wv::Win32::Foundation::{HMODULE, HWND, RECT};
     use windows_wv::Win32::Graphics::Direct3D::D3D_DRIVER_TYPE_HARDWARE;
     use windows_wv::Win32::Graphics::Direct3D11::{
         D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_SDK_VERSION, D3D11CreateDevice,
@@ -358,7 +357,8 @@ mod win {
     use windows_wv::Win32::Graphics::DirectComposition::{
         DCompositionCreateDevice, IDCompositionDevice, IDCompositionTarget, IDCompositionVisual,
     };
-    use windows_wv::Win32::Graphics::Dxgi::IDXGIDevice; // cast() lives here, shared across windows 0.61/0.62
+    use windows_wv::Win32::Graphics::Dxgi::IDXGIDevice;
+    use windows_wv::core::Interface;
 
     use webview2_com::Microsoft::Web::WebView2::Win32::{
         CreateCoreWebView2EnvironmentWithOptions, ICoreWebView2,
@@ -492,8 +492,8 @@ mod win {
 
         unsafe {
             if let Err(e) = CreateCoreWebView2EnvironmentWithOptions(
-                windows_core::PCWSTR::null(),
-                windows_core::PCWSTR::null(),
+                windows_wv::core::PCWSTR::null(),
+                windows_wv::core::PCWSTR::null(),
                 None,
                 &env_handler,
             ) {
@@ -503,7 +503,7 @@ mod win {
     }
 
     fn on_ctrl_created(
-        hr: windows_core::HRESULT,
+        hr: windows_wv::core::HRESULT,
         comp_ctrl: Option<ICoreWebView2CompositionController>,
         win_arc: &Arc<Mutex<WinViewInner>>,
         watchdog: &crate::cmd::watchdog::WatchdogState,
@@ -523,7 +523,7 @@ mod win {
         unsafe {
             // Bind WebView2 rendering to our DComp visual
             if let Some(vis) = win_arc.lock().unwrap().dcomp_visual.clone() {
-                let unknown: windows_core::IUnknown = match vis.cast() {
+                let unknown: windows_wv::core::IUnknown = match vis.cast() {
                     Ok(u) => u,
                     Err(e) => {
                         tracing::error!("[webview/win] visual→IUnknown: {e:?}");
@@ -547,13 +547,13 @@ mod win {
             };
 
             // Start hidden, 1×1
-            let _ = controller.Bounds(RECT {
+            let _ = controller.SetBounds(RECT {
                 left: 0,
                 top: 0,
                 right: 1,
                 bottom: 1,
             });
-            let _ = controller.IsVisible(BOOL(0));
+            let _ = controller.SetIsVisible(false);
 
             if let Ok(wv) = controller.CoreWebView2() {
                 navigate_to_email(&wv);
@@ -595,15 +595,15 @@ mod win {
         };
 
         unsafe {
-            let _ = ctrl.Bounds(RECT {
+            let _ = ctrl.SetBounds(RECT {
                 left: 0,
                 top: 0,
                 right: w as i32,
                 bottom: h as i32,
             });
-            let _ = ctrl.IsVisible(BOOL(if w > 0.0 && h > 0.0 { 1 } else { 0 }));
-            let _ = vis.SetOffsetX(x as f32);
-            let _ = vis.SetOffsetY(y as f32);
+            let _ = ctrl.SetIsVisible(w > 0.0 && h > 0.0);
+            let _ = vis.SetOffsetX2(x as f32);
+            let _ = vis.SetOffsetY2(y as f32);
             let _ = dev.Commit();
         }
     }
@@ -613,7 +613,7 @@ mod win {
         let mut guard = state.win.lock().unwrap();
         unsafe {
             if let Some(ctrl) = guard.controller.as_ref() {
-                let _ = ctrl.IsVisible(BOOL(0));
+                let _ = ctrl.SetIsVisible(false);
                 let _ = ctrl.Close();
             }
             if let Some(dev) = guard.dcomp_device.as_ref() {
@@ -660,7 +660,7 @@ mod win {
             D3D11CreateDevice(
                 None,
                 D3D_DRIVER_TYPE_HARDWARE,
-                None,
+                HMODULE::default(),
                 D3D11_CREATE_DEVICE_BGRA_SUPPORT,
                 None,
                 D3D11_SDK_VERSION,
@@ -708,7 +708,7 @@ mod win {
         let url: Vec<u16> = "http://postail.localhost/message/current\0"
             .encode_utf16()
             .collect();
-        let _ = wv.Navigate(windows_core::PCWSTR(url.as_ptr()));
+        let _ = wv.Navigate(windows_wv::core::PCWSTR(url.as_ptr()));
     }
 
     /// Walk ToolHelp snapshot for an msedgewebview2.exe child of `parent_pid`.
