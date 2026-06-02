@@ -23,6 +23,7 @@ pub struct WinViewInner {
     pub dcomp_target: Option<windows_wv::Win32::Graphics::DirectComposition::IDCompositionTarget>,
     pub dcomp_visual: Option<windows_wv::Win32::Graphics::DirectComposition::IDCompositionVisual>,
     pub main_hwnd: isize,
+    pub pending_bounds: Option<(f64, f64, f64, f64)>,
 }
 
 #[cfg(target_os = "windows")]
@@ -40,6 +41,7 @@ impl Default for WinViewInner {
             dcomp_target: None,
             dcomp_visual: None,
             main_hwnd: 0,
+            pending_bounds: None,
         }
     }
 }
@@ -530,7 +532,6 @@ mod win {
                         return;
                     }
                 };
-                // webview2-com 0.38: setter is SetRootVisualTarget, getter is RootVisualTarget()
                 if let Err(e) = comp_ctrl.SetRootVisualTarget(&unknown) {
                     tracing::error!("[webview/win] SetRootVisualTarget: {e:?}");
                     return;
@@ -578,6 +579,25 @@ mod win {
             let mut g = win_arc.lock().unwrap();
             g.controller = Some(controller);
             g.comp_ctrl = Some(comp_ctrl);
+
+            if let Some((x, y, w, h)) = g.pending_bounds.take() {
+                if let (Some(ctrl), Some(vis), Some(dev)) = (
+                    g.controller.as_ref(),
+                    g.dcomp_visual.as_ref(),
+                    g.dcomp_device.as_ref(),
+                ) {
+                    let _ = ctrl.SetBounds(RECT {
+                        left: 0,
+                        top: 0,
+                        right: w as i32,
+                        bottom: h as i32,
+                    });
+                    let _ = ctrl.SetIsVisible(w > 0.0 && h > 0.0);
+                    let _ = vis.SetOffsetX2(x as f32);
+                    let _ = vis.SetOffsetY2(y as f32);
+                    let _ = dev.Commit();
+                }
+            }
         }
 
         info!("[webview/win] ICoreWebView2CompositionController ready");
@@ -585,12 +605,13 @@ mod win {
 
     fn update_bounds_on_main(app: &AppHandle, x: f64, y: f64, w: f64, h: f64) {
         let state = app.state::<super::EmbeddedEmailState>();
-        let guard = state.win.lock().unwrap();
+        let mut guard = state.win.lock().unwrap();
         let (Some(ctrl), Some(vis), Some(dev)) = (
             guard.controller.as_ref(),
             guard.dcomp_visual.as_ref(),
             guard.dcomp_device.as_ref(),
         ) else {
+            guard.pending_bounds = Some((x, y, w, h));
             return;
         };
 
