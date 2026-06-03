@@ -364,7 +364,8 @@ mod win {
 
     use webview2_com::Microsoft::Web::WebView2::Win32::{
         CreateCoreWebView2EnvironmentWithOptions, ICoreWebView2,
-        ICoreWebView2CompositionController, ICoreWebView2Controller, ICoreWebView2Environment3,
+        ICoreWebView2CompositionController, ICoreWebView2Controller, ICoreWebView2Environment,
+        ICoreWebView2Environment3,
     };
     use webview2_com::{
         CreateCoreWebView2CompositionControllerCompletedHandler,
@@ -432,6 +433,7 @@ mod win {
 
         let win_arc = state.win.clone();
         let wd = watchdog.clone();
+        let app_for_env = app.clone();
 
         let env_handler =
             CreateCoreWebView2EnvironmentCompletedHandler::create(Box::new(move |hr, env| {
@@ -474,10 +476,19 @@ mod win {
 
                 let win_for_ctrl = win_arc.clone();
                 let wd_for_ctrl = wd.clone();
+                let env_for_ctrl = SendWidget(env.clone());
+                let app_for_ctrl = app_for_env.clone();
 
                 let ctrl_handler = CreateCoreWebView2CompositionControllerCompletedHandler::create(
                     Box::new(move |hr, comp_ctrl| {
-                        on_ctrl_created(hr, comp_ctrl, &win_for_ctrl, &wd_for_ctrl);
+                        on_ctrl_created(
+                            hr,
+                            comp_ctrl,
+                            &win_for_ctrl,
+                            &wd_for_ctrl,
+                            &env_for_ctrl.0,
+                            &app_for_ctrl,
+                        );
                         Ok(())
                     }),
                 );
@@ -509,6 +520,8 @@ mod win {
         comp_ctrl: Option<ICoreWebView2CompositionController>,
         win_arc: &Arc<Mutex<WinViewInner>>,
         watchdog: &crate::cmd::watchdog::WatchdogState,
+        env: &ICoreWebView2Environment,
+        app: &AppHandle,
     ) {
         if hr.is_err() {
             tracing::error!("[webview/win] CompositionController failed: {hr:?}");
@@ -557,6 +570,7 @@ mod win {
             let _ = controller.SetIsVisible(false);
 
             if let Ok(wv) = controller.CoreWebView2() {
+                crate::webview_policy::register_webview2_resource_handler(&wv, env, app.clone());
                 navigate_to_email(&wv);
             }
 

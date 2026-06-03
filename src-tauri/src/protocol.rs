@@ -4,7 +4,7 @@ use serde_json;
 use std::borrow::Cow;
 use std::time::Instant;
 use tauri::{
-    Emitter, Manager, Runtime, UriSchemeContext,
+    AppHandle, Emitter, Manager, Runtime, UriSchemeContext,
     http::{Request, Response},
 };
 
@@ -14,16 +14,12 @@ pub fn handler<R: Runtime>(
 ) -> Response<Cow<'static, [u8]>> {
     let path = request.uri().path();
 
-    if path == "/message/current" {
-        return serve_email(&context);
-    }
-
-    if path == "/message/heartbeat" {
-        return handle_heartbeat(&context, request);
-    }
-
-    if path == "/message/link" {
-        return handle_link_click(&context, request);
+    if let Some(response) = handle_message_route(
+        context.app_handle(),
+        path,
+        request.uri().query().unwrap_or(""),
+    ) {
+        return response;
     }
 
     if path == "/window/maximize" {
@@ -55,14 +51,22 @@ pub fn handler<R: Runtime>(
         .expect("Failed to create response")
 }
 
-fn handle_heartbeat<R: Runtime>(
-    context: &UriSchemeContext<R>,
-    request: Request<Vec<u8>>,
-) -> Response<Cow<'static, [u8]>> {
-    let app = context.app_handle();
+pub fn handle_message_route<R: Runtime>(
+    app: &AppHandle<R>,
+    path: &str,
+    query: &str,
+) -> Option<Response<Cow<'static, [u8]>>> {
+    match path {
+        "/message/current" => Some(serve_email(app)),
+        "/message/heartbeat" => Some(handle_heartbeat(app, query)),
+        "/message/link" => Some(handle_link_click(app, query)),
+        _ => None,
+    }
+}
+
+fn handle_heartbeat<R: Runtime>(app: &AppHandle<R>, query: &str) -> Response<Cow<'static, [u8]>> {
     let state = app.state::<WatchdogState>();
 
-    let query = request.uri().query().unwrap_or("");
     let mut token = "";
     for pair in query.split('&') {
         if let Some((k, v)) = pair.split_once('=') {
@@ -91,12 +95,7 @@ fn handle_heartbeat<R: Runtime>(
     }
 }
 
-fn handle_link_click<R: Runtime>(
-    context: &UriSchemeContext<R>,
-    request: Request<Vec<u8>>,
-) -> Response<Cow<'static, [u8]>> {
-    let query = request.uri().query().unwrap_or("");
-
+fn handle_link_click<R: Runtime>(app: &AppHandle<R>, query: &str) -> Response<Cow<'static, [u8]>> {
     let url = url::form_urlencoded::parse(query.as_bytes())
         .find(|(k, _)| k == "url")
         .map(|(_, v)| v.into_owned());
@@ -109,9 +108,7 @@ fn handle_link_click<R: Runtime>(
             .unwrap();
     };
 
-    let _ = context
-        .app_handle()
-        .emit("email_link_clicked", serde_json::json!({ "url": url }));
+    let _ = app.emit("email_link_clicked", serde_json::json!({ "url": url }));
 
     Response::builder()
         .status(200)
@@ -120,9 +117,7 @@ fn handle_link_click<R: Runtime>(
         .unwrap()
 }
 
-fn serve_email<R: Runtime>(context: &UriSchemeContext<R>) -> Response<Cow<'static, [u8]>> {
-    let app = context.app_handle();
-
+fn serve_email<R: Runtime>(app: &AppHandle<R>) -> Response<Cow<'static, [u8]>> {
     let html = app
         .state::<EmailViewState>()
         .html
