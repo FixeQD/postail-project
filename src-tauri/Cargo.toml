@@ -142,10 +142,3 @@ tempfile = "3"
 [features]
 default = []
 tpm = ["tss-esapi"]
-
-[profile.release]
-lto = "thin"
-codegen-units = 1
-strip = true
-opt-level = "s"
-panic = "abort"
