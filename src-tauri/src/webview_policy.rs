@@ -49,7 +49,7 @@ pub fn register_webview2_resource_handler(
     env: &webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment,
     app: tauri::AppHandle,
 ) {
-    use crate::cmd::webview::SendWidget;
+    use crate::cmd::email_webview::SendWidget;
     use webview2_com::Microsoft::Web::WebView2::Win32::{
         COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL, ICoreWebView2WebResourceRequestedEventArgs,
     };

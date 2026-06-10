@@ -42,7 +42,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(email_view::EmailViewState::default())
-        .manage(cmd::webview::EmbeddedEmailState::default())
+        .manage(cmd::email_webview::EmbeddedEmailState::default())
         .manage(cmd::watchdog::WatchdogState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
@@ -206,10 +206,10 @@ pub fn run() {
             cmd::mail::sync::unwatch_all_mailboxes,
             cmd::maintenance::clear_cache,
             cmd::maintenance::backfill_snippets,
-            cmd::webview::create_email_webview,
-            cmd::webview::update_email_webview_bounds,
-            cmd::webview::destroy_email_webview,
-            cmd::webview::reload_email_webview,
+            cmd::email_webview::create_email_webview,
+            cmd::email_webview::update_email_webview_bounds,
+            cmd::email_webview::destroy_email_webview,
+            cmd::email_webview::reload_email_webview,
             cmd::watchdog::resume_email_webview,
             cmd::settings::get_autostart_enabled,
             cmd::settings::set_autostart_enabled,
