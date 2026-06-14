@@ -1,5 +1,4 @@
 use crate::error::{CacheError, NetworkError};
-use crate::globals::SECURITY;
 use crate::network::fetcher::{ResourceFetcher, ResourceResponse};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use indexmap::IndexMap;
@@ -13,9 +12,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{Instant, SystemTime};
 use tracing::{info, warn};
 
-const RAM_LIMIT: usize = 32 * 1024 * 1024; // 32 MB
-const DISK_LIMIT: u64 = 512 * 1024 * 1024; // 512 MB
-const RAM_TIER_MAX: usize = 512 * 1024; // files > 512 KB go disk-only
+const RAM_LIMIT: usize = 32 * 1024 * 1024;
+const DISK_LIMIT: u64 = 512 * 1024 * 1024;
+const RAM_TIER_MAX: usize = 512 * 1024;
 const METADATA_FILE: &str = "resource_cache_meta.json";
 
 pub static RESOURCE_CACHE: OnceLock<ResourceCache> = OnceLock::new();
@@ -49,10 +48,16 @@ pub struct ResourceCache {
     disk_total: AtomicU64,
     cache_dir: PathBuf,
     fetcher: ResourceFetcher,
+    encrypt: Arc<dyn Fn(&[u8]) -> Result<Vec<u8>, String> + Send + Sync>,
+    decrypt: Arc<dyn Fn(&[u8]) -> Result<Vec<u8>, String> + Send + Sync>,
 }
 
 impl ResourceCache {
-    pub fn new(cache_dir: PathBuf) -> Self {
+    pub fn new(
+        cache_dir: PathBuf,
+        encrypt: Arc<dyn Fn(&[u8]) -> Result<Vec<u8>, String> + Send + Sync>,
+        decrypt: Arc<dyn Fn(&[u8]) -> Result<Vec<u8>, String> + Send + Sync>,
+    ) -> Self {
         std::fs::create_dir_all(&cache_dir).ok();
 
         let (disk_entries, disk_total) = Self::load_metadata(&cache_dir);
@@ -64,6 +69,8 @@ impl ResourceCache {
             disk_total: AtomicU64::new(disk_total),
             cache_dir,
             fetcher: ResourceFetcher::new(),
+            encrypt,
+            decrypt,
         }
     }
 
@@ -191,13 +198,7 @@ impl ResourceCache {
 
         self.evict_disk_if_needed(size);
 
-        let security = SECURITY
-            .try_lock()
-            .map_err(|e| CacheError::SecurityUnavailable(e.to_string()))?;
-        let encrypted = security
-            .encrypt(data)
-            .map_err(|e| CacheError::Encryption(e.to_string()))?;
-        drop(security);
+        let encrypted = (self.encrypt)(data).map_err(|e| CacheError::Encryption(e))?;
 
         let file_path = self.cache_dir.join(&hash);
         std::fs::write(&file_path, &encrypted)?;
@@ -241,20 +242,13 @@ impl ResourceCache {
         let file_path = self.cache_dir.join(&hash);
         let encrypted = std::fs::read(&file_path)?;
 
-        let security = SECURITY
-            .try_lock()
-            .map_err(|e| CacheError::SecurityUnavailable(e.to_string()))?;
-        let decrypted = security
-            .decrypt(&encrypted)
-            .map_err(|e| CacheError::Decryption(e.to_string()))?;
-        drop(security);
+        let decrypted = (self.decrypt)(&encrypted).map_err(|e| CacheError::Decryption(e))?;
 
         self.save_metadata();
         Ok(Some((decrypted, mime)))
     }
 
     pub async fn get_or_fetch(&self, url: &str) -> Result<(Arc<Vec<u8>>, String), NetworkError> {
-        // 1. RAM hit
         {
             let mut ram = self.ram.lock().unwrap();
             if let Some(entry) = ram.get_mut(url) {
@@ -264,7 +258,6 @@ impl ResourceCache {
             }
         }
 
-        // 2. Disk hit
         if let Some((bytes, mime)) = self.read_disk(url) {
             info!("resource cache: disk hit url={url}");
             let data = Arc::new(bytes);
@@ -272,7 +265,6 @@ impl ResourceCache {
             return Ok((data, mime));
         }
 
-        // 3. Fetch
         info!("resource cache: cache miss, fetching url={url}");
         let ResourceResponse { bytes, mime_type } = self.fetcher.fetch(url).await?;
 

@@ -4,7 +4,7 @@
 #[cfg(target_os = "linux")]
 use std::env;
 #[cfg(target_os = "linux")]
-use std::process::{exit, Command};
+use std::process::{Command, exit};
 
 #[cfg(target_os = "linux")]
 fn get_executable_path() -> std::path::PathBuf {
@@ -44,6 +44,7 @@ fn main() {
     #[cfg(target_os = "linux")]
     {
         // ── TPM helper mode ──────────────────────────────────────────
+        #[cfg(feature = "tpm")]
         if env::var("POSTAIL_TPM_HELPER").is_ok() {
             match postail_project_lib::tpm_helper_init() {
                 Ok(()) => {

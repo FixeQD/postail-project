@@ -6,7 +6,7 @@ use tracing::{info, warn};
 
 const FETCH_TIMEOUT_SECS: u64 = 30;
 const MAX_REDIRECTS: usize = 5;
-const MAX_RESPONSE_BYTES: usize = 50 * 1024 * 1024; // 50 MB hard cap per resource
+const MAX_RESPONSE_BYTES: usize = 50 * 1024 * 1024;
 
 pub struct ResourceResponse {
     pub bytes: Vec<u8>,
@@ -19,7 +19,6 @@ pub struct ResourceFetcher {
 
 impl ResourceFetcher {
     pub fn new() -> Self {
-        // Damn, tracking systems that use suffixes are cooked 💀
         let suffix: String = rand::rng()
             .sample_iter(Alphanumeric)
             .take(8)

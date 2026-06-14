@@ -179,6 +179,13 @@
 			"description": "This message was sent from a no-reply address. Your reply will most likely never be read.",
 			"cancel": "Cancel",
 			"confirm": "Reply anyway"
+		},
+		"freezeNotice": {
+			"title": "High Resource Usage Detected",
+			"description": "This email has been suspended due to high resource usage.",
+			"memoryStats": "Memory Usage: {{memory}} MB",
+			"resume": "Resume Execution",
+			"readAsStatic": "Read as Static"
 		}
 	}
 }

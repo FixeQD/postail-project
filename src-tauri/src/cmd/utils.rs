@@ -1,6 +1,6 @@
 use crate::email_view::EmailViewState;
 use crate::globals::SECURITY;
-use crate::network::rewriter::rewrite_external_resources;
+use email_network::network::rewriter::rewrite_external_resources;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use html_transpiler::{
     SanitizeResult, auto_fix_email_html as sanitizer_fix, sanitize_email_html_with_details,
@@ -107,4 +107,30 @@ pub async fn set_email_view_content(
         failed_resources: rewrite.failed,
         processed_html: processed,
     })
+}
+
+/// Shows a native OS confirmation dialog asking the user whether to open an external link.
+#[tauri::command]
+pub async fn confirm_external_link(
+    app: tauri::AppHandle,
+    url: String,
+    title: String,
+    body: String,
+    ok_label: String,
+    cancel_label: String,
+) -> Result<(), String> {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+
+    app.dialog()
+        .message(body)
+        .title(title)
+        .buttons(MessageDialogButtons::OkCancelCustom(ok_label, cancel_label))
+        .show(move |confirmed| {
+            if confirmed {
+                use tauri_plugin_opener::OpenerExt;
+                let _ = app.opener().open_url(&url, None::<&str>);
+            }
+        });
+
+    Ok(())
 }

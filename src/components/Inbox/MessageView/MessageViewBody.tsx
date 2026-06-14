@@ -1,218 +1,153 @@
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useThemeStore } from '@/stores/themeStore'
 import { useTypedTranslation } from '@/hooks/useTypedTranslation'
-import { ConfirmationDialog } from '@/components/ui/custom/ConfirmationDialog'
-import { openUrl } from '@tauri-apps/plugin-opener'
+import { EmailFreezeNotice, FreezeStats } from './EmailFreezeNotice'
 
 import type { MessageViewBodyProps } from '@/types/components/shared'
 
+interface PrepareEmailViewResult {
+	hasExternalResources: boolean
+	isPlainOnly: boolean
+}
+
 export const MessageViewBody = ({
-	htmlContent,
-	plainContent,
+	accountId,
+	mailbox,
+	uid,
 	viewMode,
 	allowExternalResources = false,
-	inline_images = [],
 	onExternalDetected,
 	onLoadingChange,
 }: MessageViewBodyProps) => {
 	const { t } = useTypedTranslation(['security', 'common'])
 	const accentColor = useThemeStore((s) => s.accentColor)
 
-	const iframeRef = useRef<HTMLIFrameElement>(null)
-	const isReadyRef = useRef(false)
+	const containerRef = useRef<HTMLDivElement>(null)
+	const rafPendingRef = useRef(false)
 
-	const [iframeSrcDoc, setIframeSrcDoc] = useState<string | null>(null)
+	const [frozenStats, setFrozenStats] = useState<FreezeStats | null>(null)
 
-	const [pendingUrl, setPendingUrl] = useState<string | null>(null)
-	const [warningOpen, setWarningOpen] = useState(false)
-
-	const effectiveMode = !htmlContent || !htmlContent.trim() ? 'plain' : viewMode
-
-	const inlineImagesHash = JSON.stringify(inline_images)
-
-	// Memoize mapped images to prevent unnecessary re-renders
-	const mappedImages = useMemo(() => {
-		return inline_images
-			.filter((img) => img.cid && img.cached_path)
-			.map((img) => ({
-				cid: img.cid!,
-				cachedPath: img.cached_path!,
-				mimeType: img.mime_type,
-			}))
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [inlineImagesHash])
-
-	// 1. Process HTML Content
+	// 1. Prepare content in Rust - builds the full HTML, processes inline images, rewrites external resources, and stores it for the protocol handler.
 	useEffect(() => {
-		if (effectiveMode !== 'html') return
-
-		isReadyRef.current = false
 		onLoadingChange?.(true)
 
-		const hasDarkMode =
-			htmlContent.includes('prefers-color-scheme: dark') ||
-			htmlContent.includes('data-ogsc') ||
-			htmlContent.includes('data-ogsb')
-
-		const iframeBg = hasDarkMode ? 'transparent' : '#ffffff'
-		const iframeTextColor = hasDarkMode ? 'inherit' : '#1a1a1a'
-		const colorScheme = hasDarkMode ? 'dark light' : 'light'
-
-		// Minimalist HTML wrapper relying on ResizeObserver
-		const htmlTemplate = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' data:; img-src data: blob:; font-src data:; connect-src 'none';">
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; padding: 24px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: ${iframeTextColor}; background: ${iframeBg};
-      font-size: 14px; line-height: 1.6; word-wrap: break-word;
-      color-scheme: ${colorScheme};
-      overflow-x: hidden;
-    }
-    a { color: ${accentColor}; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    img, table, td, th { max-width: 100% !important; height: auto !important; }
-    pre { overflow-x: auto; max-width: 100%; white-space: pre-wrap; }
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 4px; }
-  </style>
-</head>
-<body>
-  <div id="email-wrapper">${htmlContent}</div>
-  <script>
-    const post = (msg) => window.parent.postMessage(msg, '*');
-
-    // Efficient resize observer
-    let lastH = 0;
-    let resizeTimer;
-    const checkHeight = () => {
-      const wrapper = document.getElementById('email-wrapper');
-      const h = wrapper ? wrapper.scrollHeight : document.body.scrollHeight;
-      if (Math.abs(h - lastH) > 2) {
-        lastH = h;
-        post({ type: 'resize', height: h });
-      }
-    };
-
-    const ro = new ResizeObserver(() => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(checkHeight, 50);
-    });
-    const wrapper = document.getElementById('email-wrapper');
-    if (wrapper) ro.observe(wrapper);
-    else ro.observe(document.body);
-    window.addEventListener('load', checkHeight);
-    if (document.readyState === 'complete') checkHeight();
-
-    // Link interception
-    document.addEventListener('click', (e) => {
-      const a = e.target.closest('a');
-      if (a && a.href) {
-        e.preventDefault();
-        post({ type: 'link', url: a.href });
-      }
-    });
-  </script>
-</body>
-</html>`
-
-		invoke<{ hasExternalResources: boolean; processedHtml: string }>('set_email_view_content', {
-			html: htmlTemplate,
-			inlineImages: mappedImages,
+		invoke<PrepareEmailViewResult>('prepare_email_view', {
+			accountId,
+			mailbox,
+			uid,
+			accentColor,
 			allowExternal: allowExternalResources,
+			viewMode,
 		})
 			.then((res) => {
 				if (res.hasExternalResources) onExternalDetected?.()
-				setIframeSrcDoc(res.processedHtml)
+				// Tell the native webview to reload so it fetches the freshly prepared HTML
+				invoke('reload_email_webview').catch(console.error)
 			})
 			.catch(console.error)
 			.finally(() => onLoadingChange?.(false))
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [htmlContent, effectiveMode, accentColor, allowExternalResources, mappedImages])
+	}, [accountId, mailbox, uid, viewMode, accentColor, allowExternalResources])
 
-	// 2. Handle Iframe Messages
+	// 2. Spawn / destroy the child webview per message
 	useEffect(() => {
-		const handler = (e: MessageEvent) => {
-			if (e.source !== iframeRef.current?.contentWindow) return
+		const win = getCurrentWindow()
+		invoke('create_email_webview', { window: win }).catch(console.error)
 
-			if (e.data?.type === 'resize' && typeof e.data.height === 'number') {
-				// Bypass React state for height to prevent laggy re-renders
-				if (iframeRef.current) {
-					iframeRef.current.style.height = `${e.data.height}px`
-				}
-			}
+		return () => {
+			invoke('destroy_email_webview').catch(console.error)
+		}
+	}, [accountId, mailbox, uid])
 
-			if (e.data?.type === 'link' && e.data.url) {
-				setPendingUrl(e.data.url)
-				setWarningOpen(true)
-			}
+	// 3. ResizeObserver & Scroll — sync native webview bounds to the placeholder div
+	useEffect(() => {
+		const el = containerRef.current
+		if (!el) return
+
+		const syncBounds = () => {
+			rafPendingRef.current = false
+			const rect = el.getBoundingClientRect()
+			const dpr = window.devicePixelRatio ?? 1
+
+			invoke('update_email_webview_bounds', {
+				x: rect.x / dpr,
+				y: rect.y / dpr,
+				width: rect.width / dpr,
+				height: rect.height / dpr,
+			}).catch(console.error)
 		}
 
-		window.addEventListener('message', handler)
-		return () => window.removeEventListener('message', handler)
+		const ro = new ResizeObserver(() => {
+			if (rafPendingRef.current) return
+			rafPendingRef.current = true
+			requestAnimationFrame(syncBounds)
+		})
+
+		ro.observe(el)
+
+		const scrollParent = el.closest('.overflow-y-auto') || window
+		const onScroll = () => {
+			if (rafPendingRef.current) return
+			rafPendingRef.current = true
+			requestAnimationFrame(syncBounds)
+		}
+		scrollParent.addEventListener('scroll', onScroll, { passive: true })
+
+		requestAnimationFrame(syncBounds)
+
+		return () => {
+			ro.disconnect()
+			scrollParent.removeEventListener('scroll', onScroll)
+		}
+	}, [frozenStats])
+
+	// 5. Native OS dialog for external links
+	useEffect(() => {
+		const unlisten = listen<{ url: string }>('email_link_clicked', (event) => {
+			invoke('confirm_external_link', {
+				url: event.payload.url,
+				title: t('security:externalLink.title'),
+				body: `${t('security:externalLink.description')}\n\n${event.payload.url}`,
+				okLabel: t('security:externalLink.open'),
+				cancelLabel: t('security:externalLink.cancel'),
+			}).catch(console.error)
+		})
+
+		return () => {
+			unlisten.then((fn) => fn())
+		}
+	}, [t])
+	useEffect(() => {
+		const unlistenFrozen = listen<FreezeStats>('email_webview_frozen', (event) => {
+			setFrozenStats(event.payload)
+		})
+
+		const unlistenResumed = listen('email_webview_resumed', () => {
+			setFrozenStats(null)
+		})
+
+		return () => {
+			unlistenFrozen.then((fn) => fn())
+			unlistenResumed.then((fn) => fn())
+		}
 	}, [])
 
-	// 3. Render Plain Text
-	if (effectiveMode === 'plain') {
-		return (
-			<div className='px-5 py-5'>
-				<pre className='w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-6 font-mono text-[13px] leading-relaxed break-words whitespace-pre-wrap text-[var(--text-primary)] shadow-sm'>
-					{plainContent || '(No content)'}
-				</pre>
-			</div>
-		)
-	}
-
-	// 4. Render HTML
 	return (
-		<>
-			<div className='overflow-x-auto px-5 py-5'>
-				<div className='bg-white'>
-					{iframeSrcDoc && (
-						<iframe
-							ref={iframeRef}
-							title='Message Content'
-							srcDoc={iframeSrcDoc}
-							sandbox='allow-scripts'
-							className='block w-full border-none opacity-0 transition-opacity duration-500 ease-in-out'
-							style={{ minHeight: '200px' }}
-							onLoad={(e) => {
-								;(e.target as HTMLIFrameElement).style.opacity = '1'
-							}}
-						/>
-					)}
+		<div className='flex h-full w-full flex-1 flex-col'>
+			{frozenStats && (
+				<div className='z-10 w-full shrink-0'>
+					<EmailFreezeNotice stats={frozenStats} onDismiss={() => setFrozenStats(null)} />
 				</div>
-			</div>
+			)}
 
-			<ConfirmationDialog
-				open={warningOpen}
-				onOpenChange={setWarningOpen}
-				title={t('security:externalLink.title')}
-				description={t('security:externalLink.description')}
-				cancelLabel={t('security:externalLink.cancel')}
-				confirmLabel={t('security:externalLink.open')}
-				onConfirm={() => {
-					if (pendingUrl) openUrl(pendingUrl)
-					setWarningOpen(false)
-					setPendingUrl(null)
-				}}
-				confirmClassName='w-full border-0 font-semibold shadow-lg bg-sky-500 text-white hover:bg-sky-600'>
-				<div className='flex flex-col gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-3'>
-					<p className='text-[10px] font-bold tracking-wider text-[var(--text-tertiary)] uppercase'>
-						Target URL
-					</p>
-					<p className='font-mono text-xs break-all text-[var(--text-primary)]'>
-						{pendingUrl}
-					</p>
-				</div>
-			</ConfirmationDialog>
-		</>
+			<div
+				ref={containerRef}
+				id='email-webview-container'
+				className='relative min-h-[400px] w-full flex-1'
+			/>
+		</div>
 	)
 }

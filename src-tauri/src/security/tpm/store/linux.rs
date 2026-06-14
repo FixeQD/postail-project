@@ -1,11 +1,8 @@
-#[cfg(feature = "tpm")]
-use tss_esapi::{tcti_ldr::TctiNameConf, Context};
-
-#[cfg(feature = "tpm")]
-use std::str::FromStr;
+use tss_esapi::{Context, tcti_ldr::TctiNameConf};
 
 use std::fs;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use crate::error::{Result, SecurityError};
 use crate::security::master_key::MasterKey;
@@ -23,14 +20,12 @@ fn tpm_dev_exists() -> bool {
 
 pub struct LinuxTpmStore {
     storage_path: PathBuf,
-    #[cfg(feature = "tpm")]
     tcti: TctiNameConf,
 }
 
-#[cfg(all(target_os = "linux", feature = "tpm"))]
 mod proxy {
     pub use crate::security::tpm::protocol::{
-        receive_message, send_message, TpmRequest, TpmResponse,
+        TpmRequest, TpmResponse, receive_message, send_message,
     };
     use std::os::unix::net::UnixStream;
     use std::path::PathBuf;
@@ -69,7 +64,6 @@ impl LinuxTpmStore {
     }
 
     pub fn with_storage_path(storage_path: PathBuf) -> Result<Self> {
-        #[cfg(feature = "tpm")]
         {
             let tcti = if std::path::Path::new("/dev/tpmrm0").exists() {
                 TctiNameConf::from_str("device:/dev/tpmrm0").map_err(common::tpm_err)?
@@ -81,11 +75,6 @@ impl LinuxTpmStore {
 
             Ok(Self { storage_path, tcti })
         }
-
-        #[cfg(not(feature = "tpm"))]
-        {
-            Ok(Self { storage_path })
-        }
     }
 
     fn get_sealed_path(&self) -> PathBuf {
@@ -94,12 +83,10 @@ impl LinuxTpmStore {
 
     // ── Context & availability ─────────────────────────────────────
 
-    #[cfg(feature = "tpm")]
     pub fn create_context(&self) -> Result<Context> {
         Context::new(self.tcti.clone()).map_err(common::tpm_err)
     }
 
-    #[cfg(feature = "tpm")]
     pub fn check_context_silent(&self) -> bool {
         self.check_direct_access() || {
             #[cfg(target_os = "linux")]
@@ -114,7 +101,6 @@ impl LinuxTpmStore {
     }
 
     /// Verifies if the current process has direct access to the TPM device by attempting a real (but lightweight) operation.
-    #[cfg(feature = "tpm")]
     pub fn check_direct_access(&self) -> bool {
         if !tpm_dev_exists() {
             return false;
@@ -127,7 +113,6 @@ impl LinuxTpmStore {
     }
 
     /// Returns true if TPM is present but direct access fails AND proxy is not running.
-    #[cfg(feature = "tpm")]
     pub fn check_needs_elevation(&self) -> bool {
         if self.check_direct_access() {
             return false;
@@ -142,16 +127,13 @@ impl LinuxTpmStore {
     }
 
     /// Verifies if the proxy helper is running and responsive.
-    #[cfg(all(target_os = "linux", feature = "tpm"))]
     pub fn verify_proxy(&self) -> bool {
         proxy::call_proxy(proxy::TpmRequest::Ping).is_ok()
     }
 }
 
 // ── SecretStore impl ───────────────────────────────────────────────
-
 impl SecretStore for LinuxTpmStore {
-    #[cfg(feature = "tpm")]
     fn store(&self, key: &MasterKey) -> Result<()> {
         #[cfg(target_os = "linux")]
         {
@@ -202,12 +184,6 @@ impl SecretStore for LinuxTpmStore {
         }
     }
 
-    #[cfg(not(feature = "tpm"))]
-    fn store(&self, _key: &MasterKey) -> Result<()> {
-        Err(SecurityError::Tpm("TPM support not compiled in".into()))
-    }
-
-    #[cfg(feature = "tpm")]
     fn retrieve(&self) -> Result<MasterKey> {
         match self.create_context() {
             Ok(mut ctx) => {
@@ -253,11 +229,6 @@ impl SecretStore for LinuxTpmStore {
         }
     }
 
-    #[cfg(not(feature = "tpm"))]
-    fn retrieve(&self) -> Result<MasterKey> {
-        Err(SecurityError::Tpm("TPM support not compiled in".into()))
-    }
-
     fn delete(&self) -> Result<()> {
         let path = self.get_sealed_path();
 
@@ -279,15 +250,7 @@ impl SecretStore for LinuxTpmStore {
     }
 
     fn is_available(&self) -> bool {
-        #[cfg(feature = "tpm")]
-        {
-            tpm_dev_exists()
-        }
-
-        #[cfg(not(feature = "tpm"))]
-        {
-            false
-        }
+        { tpm_dev_exists() }
     }
 
     fn name(&self) -> &'static str {

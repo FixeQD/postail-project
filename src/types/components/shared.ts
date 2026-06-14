@@ -106,11 +106,11 @@ export interface MessageViewAttachmentsProps {
 }
 
 export interface MessageViewBodyProps {
-	htmlContent: string
-	plainContent: string
+	accountId: string
+	mailbox: string
+	uid: number
 	viewMode: 'html' | 'plain'
 	allowExternalResources?: boolean
-	inline_images?: import('../mail').AttachmentMeta[]
 	onExternalDetected?: () => void
 	onLoadingChange?: (loading: boolean) => void
 }

@@ -31,7 +31,6 @@ struct AnalysisResult {
     pub urls: Vec<String>,
 }
 
-/// CPU-bound: parse HTML once, both detect external resources and collect URLs.
 fn analyze_html(html: &str) -> AnalysisResult {
     let mut urls: Vec<String> = Vec::new();
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -89,7 +88,6 @@ fn collect_css_urls(
     }
 }
 
-/// CPU-bound: string replacement pass. Runs inside spawn_blocking.
 fn apply_replacements(html: String, replacements: HashMap<String, String>) -> String {
     if replacements.is_empty() {
         return html;
@@ -107,7 +105,6 @@ fn apply_replacements(html: String, replacements: HashMap<String, String>) -> St
 }
 
 pub async fn rewrite_external_resources(html: &str, allow_external: bool) -> RewriteResult {
-    // Single analysis pass - parse HTML once to both detect and collect external URLs
     let html_owned = html.to_string();
     let analysis = tokio::task::spawn_blocking(move || analyze_html(&html_owned))
         .await
@@ -138,7 +135,6 @@ pub async fn rewrite_external_resources(html: &str, allow_external: bool) -> Rew
 
     let urls = analysis.urls;
 
-    // Fetch all URLs in parallel — no more sequential waterfall
     let fetch_futures = urls.iter().map(|url| {
         let url = url.clone();
         async move {
@@ -165,7 +161,6 @@ pub async fn rewrite_external_resources(html: &str, allow_external: bool) -> Rew
         }
     }
 
-    // Offload string replacement (potentially large HTML) to blocking thread pool
     let html_owned = html.to_string();
     let rewritten =
         tokio::task::spawn_blocking(move || apply_replacements(html_owned, replacements))

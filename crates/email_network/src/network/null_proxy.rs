@@ -1,4 +1,3 @@
-/// Null proxy server — accepts connections and returns 502 for every request.
 use std::net::SocketAddr;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;

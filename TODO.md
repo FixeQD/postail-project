@@ -255,25 +255,25 @@
     - [ ] 26.8 - UI: Detect dates in emails and suggest "Add to Calendar"
 
 - [ ] 27 - Isolated Webview with Watchdog
-    - [ ] 27.1 - Rust: Replace iframe with native Tauri Child Webview for email rendering
-    - [ ] 27.2 - UI: Create placeholder div in MessageViewBody for Child Webview positioning
-    - [ ] 27.3 - Rust: Position Child Webview as overlay aligned to the React placeholder bounds
-    - [ ] 27.4 - Rust: Serve email HTML to Child Webview via existing `postail://` protocol handler
-    - [ ] 27.5 - ACL: Create `email-webview` capability with zero permissions (deny all IPC)
-    - [ ] 27.6 - ACL: Whitelist only `email_heartbeat` command for the email webview window
-    - [ ] 27.7 - Rust: `email_heartbeat` command — accept token, rate-limit, update last-seen timestamp
-    - [ ] 27.8 - Rust: Inject heartbeat initialization script into Child Webview on creation
-    - [ ] 27.9 - JS: Heartbeat loop in injected script — invoke `email_heartbeat` every 100ms
-    - [ ] 27.10 - Rust: Watchdog task — spawn tokio task monitoring heartbeat timestamps per webview
-    - [ ] 27.11 - Rust: Extract Child Webview renderer PID after creation (platform-specific)
-    - [ ] 27.12 - Rust: Adaptive timeout — dynamically adjust watchdog threshold to avoid false positives
-    - [ ] 27.13 - Rust: Freeze process — SIGSTOP (Linux) / SuspendThread (Windows) on timeout
-    - [ ] 27.14 - Rust: Resume process — SIGCONT (Linux) / ResumeThread (Windows) on user request
-    - [ ] 27.15 - Rust: Optional per-process resource limits (memory/CPU) via /proc (Linux) / Job Objects (Windows)
-    - [ ] 27.16 - Rust: Emit `email_webview_frozen` event to frontend on freeze
-    - [ ] 27.17 - UI: `EmailFreezeNotice` component — overlay with freeze info, resume/keep-frozen buttons
-    - [ ] 27.18 - UI: Listen for `email_webview_frozen` in MessageView and show EmailFreezeNotice
-    - [ ] 27.19 - Rust: Emit `email_webview_resumed` event after successful resume
-    - [ ] 27.20 - UI: Handle resume event — hide notice, reset watchdog state display
-    - [ ] 27.21 - Rust: Cleanup — destroy Child Webview and kill process on message navigation
+    - [x] 27.1 - Rust: Replace iframe with native Tauri Child Webview for email rendering
+    - [x] 27.2 - UI: Create placeholder div in MessageViewBody for Child Webview positioning
+    - [x] 27.3 - Rust: Position Child Webview as overlay aligned to the React placeholder bounds
+    - [x] 27.4 - Rust: Serve email HTML to Child Webview via existing `postail://` protocol handler
+    - [x] 27.5 - ACL: Create `email-webview` capability with zero permissions (deny all IPC)
+    - [x] 27.6 - ACL: Whitelist only `email_heartbeat` command for the email webview window
+    - [x] 27.7 - Rust: `email_heartbeat` command — accept token, rate-limit, update last-seen timestamp
+    - [x] 27.8 - Rust: Inject heartbeat initialization script into Child Webview on creation
+    - [x] 27.9 - JS: Heartbeat loop in injected script — invoke `email_heartbeat` every 100ms
+    - [x] 27.10 - Rust: Watchdog task — spawn tokio task monitoring heartbeat timestamps per webview
+    - [x] 27.11 - Rust: Extract Child Webview renderer PID after creation (platform-specific)
+    - [x] 27.12 - Rust: Adaptive timeout — dynamically adjust watchdog threshold to avoid false positives
+    - [x] 27.13 - Rust: Freeze process — SIGSTOP (Linux) / SuspendThread (Windows) on timeout
+    - [x] 27.14 - Rust: Resume process — SIGCONT (Linux) / ResumeThread (Windows) on user request
+    - [x] 27.15 - Rust: Optional per-process resource limits (memory/CPU) via /proc (Linux) / Job Objects (Windows)
+    - [x] 27.16 - Rust: Emit `email_webview_frozen` event to frontend on freeze
+    - [x] 27.17 - UI: `EmailFreezeNotice` component — overlay with freeze info, resume/keep-frozen buttons
+    - [x] 27.18 - UI: Listen for `email_webview_frozen` in MessageView and show EmailFreezeNotice
+    - [x] 27.19 - Rust: Emit `email_webview_resumed` event after successful resume
+    - [x] 27.20 - UI: Handle resume event — hide notice, reset watchdog state display
+    - [x] 27.21 - Rust: Cleanup — destroy Child Webview and kill process on message navigation
     - [ ] 27.22 - Integration: End-to-end test with heavy HTML email triggering freeze/resume cycle

@@ -1,23 +1,22 @@
-pub mod options;
 pub mod lock;
+pub mod options;
 pub mod recovery;
 
-pub use options::*;
 pub use lock::*;
+pub use options::*;
 pub use recovery::*;
 
-use crate::globals::{get_db_pool, DB_CONN, SECURITY, SMTP_MANAGER, CRYPTO_ACTOR};
+use crate::globals::{CRYPTO_ACTOR, DB_CONN, SECURITY, SMTP_MANAGER, get_db_pool};
 use crate::security::manager::PassphraseSecurityBuilder;
 use crate::security::recovery::RecoveryStore;
-use crate::security::storage::keyring::KeyringStore;
 use crate::security::storage::StorageTier;
+use crate::security::storage::keyring::KeyringStore;
 use crate::security::tpm::store::get_tpm_store;
 use crate::security::{DbEncryption, SecurityManager};
-use crate::utils::config::{load_config, save_config, AppConfig};
+use crate::utils::config::{AppConfig, load_config, save_config};
 use serde::Serialize;
 use std::sync::Arc;
 use tauri::command;
-use tokio::task::spawn_blocking;
 
 #[derive(Serialize)]
 pub struct InitStatus {
@@ -172,11 +171,11 @@ pub async fn initialize_security_and_database(
 
 #[cfg(all(target_os = "linux", feature = "tpm"))]
 async fn initialize_tpm_elevated() -> Result<(), options::TpmInitError> {
-    use std::time::Duration;
-    use tokio::process::Command;
     use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
     use std::os::unix::io::{AsRawFd, RawFd};
+    use std::time::Duration;
     use tokio::io::unix::AsyncFd;
+    use tokio::process::Command;
 
     // Check if we're already running as helper mode to avoid infinite loops
     if std::env::var("POSTAIL_TPM_HELPER").is_ok() {
@@ -216,7 +215,9 @@ async fn initialize_tpm_elevated() -> Result<(), options::TpmInitError> {
             error_type: options::TpmErrorType::Other,
             message: format!("Failed to get executable path: {}", e),
         })?
-    }.to_string_lossy().to_string();
+    }
+    .to_string_lossy()
+    .to_string();
 
     tracing::info!(target: "postail", "Requesting TPM elevation via pkexec (persistent helper)...");
 
@@ -249,11 +250,12 @@ async fn initialize_tpm_elevated() -> Result<(), options::TpmInitError> {
             error_type: options::TpmErrorType::Other,
             message: format!("inotify add_watch failed: {}", e),
         })?;
-    let async_inotify =
-        AsyncFd::new(InotifyWrapper(inotify)).map_err(|e: std::io::Error| options::TpmInitError {
+    let async_inotify = AsyncFd::new(InotifyWrapper(inotify)).map_err(|e: std::io::Error| {
+        options::TpmInitError {
             error_type: options::TpmErrorType::Other,
             message: format!("AsyncFd wrapper failed: {}", e),
-        })?;
+        }
+    })?;
 
     let (tx, mut rx) = tokio::sync::oneshot::channel::<options::TpmInitError>();
 
