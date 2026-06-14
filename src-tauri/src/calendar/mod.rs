@@ -257,7 +257,7 @@ fn create_windows_event_sync(
     is_all_day: bool,
 ) -> Result<String, String> {
     use windows::ApplicationModel::Appointments::{
-        Appointment, AppointmentCalendar, AppointmentManager, AppointmentStoreAccessType,
+        Appointment, AppointmentManager, AppointmentStoreAccessType,
     };
     use windows::Foundation::DateTime as WinDateTime;
     use windows::Foundation::TimeSpan;

@@ -111,6 +111,8 @@ tauri-plugin-notification = { version = "2.3.3", features = [
 ] }
 dunce = "1.0.5"
 windows = { version = "0.62.2", features = [
+    "ApplicationModel",
+    "ApplicationModel_Appointments",
     "Foundation",
     "Win32_Foundation",
 ] }
