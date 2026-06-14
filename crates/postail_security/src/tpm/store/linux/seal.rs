@@ -87,7 +87,8 @@ pub fn compute_pcr_policy_digest(ctx: &mut Context) -> Result<Digest> {
         .map_err(tpm_err)?
         .ok_or_else(|| SecurityError::Tpm("failed to create trial session".into()))?;
 
-    let pcr_selection = super::super::pcr::create_pcr_selection_for_boot_state().map_err(tpm_err)?;
+    let pcr_selection =
+        super::super::pcr::create_pcr_selection_for_boot_state().map_err(tpm_err)?;
 
     let policy_session: PolicySession = trial_session
         .try_into()
@@ -172,8 +173,8 @@ pub fn unseal_data(ctx: &mut Context, primary: KeyHandle, blob: &[u8]) -> Result
             .try_into()
             .map_err(|_| SecurityError::Tpm("failed to extract policy session".into()))?;
 
-        let pcr_selection = super::super::pcr::create_pcr_selection_for_boot_state()
-            .map_err(tpm_err)?;
+        let pcr_selection =
+            super::super::pcr::create_pcr_selection_for_boot_state().map_err(tpm_err)?;
 
         ctx.policy_pcr(policy_session, Digest::default(), pcr_selection)
             .map_err(|e| {
@@ -213,12 +214,11 @@ pub fn parse_sealed_blob(blob: &[u8]) -> Result<(tss_esapi::structures::Private,
     let priv_bytes = &blob[4..4 + priv_len];
     let pub_offset = 4 + priv_len;
 
-    let pub_len = u32::from_le_bytes([
-        blob[pub_offset],
-        blob[pub_offset + 1],
-        blob[pub_offset + 2],
-        blob[pub_offset + 3],
-    ]) as usize;
+    if pub_offset + 4 > blob.len() {
+        return Err(SecurityError::Tpm("corrupted sealed blob".into()));
+    }
+
+    let pub_len = u32::from_le_bytes(blob[pub_offset..pub_offset + 4].try_into().unwrap()) as usize;
 
     if blob.len() < pub_offset + 4 + pub_len {
         return Err(SecurityError::Tpm("corrupted sealed blob".into()));
