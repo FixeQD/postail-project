@@ -1,9 +1,6 @@
 use crate::security::storage::{SecretStore, keyring::KeyringStore};
 use serde::Serialize;
-use std::time::Duration;
 use tauri::command;
-use tokio::task::spawn_blocking;
-use tokio::time::timeout;
 
 // ---------------------------------------------------------------------------
 // TPM error types (Linux + tpm feature only)

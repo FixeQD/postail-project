@@ -1,4 +1,5 @@
 use chrono::Utc;
+use postail_project_lib::security::SecurityManager;
 use rusqlite::{Connection, params};
 use std::fs;
 use tempfile::NamedTempFile;
@@ -9,7 +10,6 @@ use postail_project_lib::db::{
     AccountInput, Credentials, ImapConfig, MessageUpsertData, OAuthCredentials,
     PasswordCredentials, SmtpConfig, add_account, list_accounts, remove_account,
 };
-use postail_project_lib::security::Crypto;
 
 fn init_temp_db() -> Connection {
     let temp_file = NamedTempFile::new().unwrap();
