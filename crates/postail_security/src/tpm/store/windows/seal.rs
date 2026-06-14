@@ -8,6 +8,7 @@ use crate::tpm::store::paths::tpm_err;
 
 use super::proto;
 use super::tbs::TbsContext;
+use zeroize::Zeroizing;
 
 fn submit(tbs: &TbsContext, cmd: &[u8]) -> Result<Vec<u8>> {
     tbs.submit(cmd)
@@ -30,6 +31,34 @@ pub fn flush_context(tbs: &TbsContext, handle: u32) -> Result<()> {
     Ok(())
 }
 
+struct TpmHandleGuard<'a> {
+    tbs: &'a TbsContext,
+    handle: u32,
+    active: bool,
+}
+
+impl<'a> TpmHandleGuard<'a> {
+    fn new(tbs: &'a TbsContext, handle: u32) -> Self {
+        Self {
+            tbs,
+            handle,
+            active: true,
+        }
+    }
+
+    fn dismiss(mut self) {
+        self.active = false;
+    }
+}
+
+impl<'a> Drop for TpmHandleGuard<'a> {
+    fn drop(&mut self) {
+        if self.active {
+            let _ = flush_context(self.tbs, self.handle);
+        }
+    }
+}
+
 /// Run TPM2_PolicyPCR in a trial session, return the resulting policy digest
 fn compute_pcr_policy_digest(tbs: &TbsContext) -> Result<Vec<u8>> {
     let resp = submit(
@@ -38,11 +67,13 @@ fn compute_pcr_policy_digest(tbs: &TbsContext) -> Result<Vec<u8>> {
     )?;
     let (session, _nonce_tpm) = proto::parse_start_auth_session(&resp).map_err(tpm_err)?;
 
-    submit(tbs, &proto::cmd_policy_pcr(session))?;
+    let guard = TpmHandleGuard::new(tbs, session);
 
+    submit(tbs, &proto::cmd_policy_pcr(session))?;
     let resp = submit(tbs, &proto::cmd_policy_get_digest(session))?;
     let digest = proto::parse_policy_get_digest(&resp).map_err(tpm_err)?;
 
+    guard.dismiss();
     flush_context(tbs, session)?;
     Ok(digest)
 }
@@ -74,6 +105,11 @@ fn parse_sealed_blob(blob: &[u8]) -> Result<(Vec<u8>, Vec<u8>)> {
     let priv_bytes = blob[4..4 + priv_len].to_vec();
 
     let pub_offset = 4 + priv_len;
+
+    if pub_offset + 4 > blob.len() {
+        return Err(SecurityError::Tpm("corrupted sealed blob".into()));
+    }
+
     let pub_len = u32::from_le_bytes([
         blob[pub_offset],
         blob[pub_offset + 1],
@@ -89,18 +125,22 @@ fn parse_sealed_blob(blob: &[u8]) -> Result<(Vec<u8>, Vec<u8>)> {
 }
 
 /// Unseal a blob produced by [`seal_data`]
-pub fn unseal_data(tbs: &TbsContext, primary: u32, blob: &[u8]) -> Result<Vec<u8>> {
+pub fn unseal_data(tbs: &TbsContext, primary: u32, blob: &[u8]) -> Result<Zeroizing<Vec<u8>>> {
     let (priv_bytes, pub_bytes) = parse_sealed_blob(blob)?;
 
     let resp = submit(tbs, &proto::cmd_load(primary, &priv_bytes, &pub_bytes))?;
     let item_handle = proto::parse_load(&resp).map_err(tpm_err)?;
 
-    let result: Result<Vec<u8>> = (|| {
+    let handle_guard = TpmHandleGuard::new(tbs, item_handle);
+
+    let result: Result<Zeroizing<Vec<u8>>> = (|| {
         let resp = submit(
             tbs,
             &proto::cmd_start_auth_session(proto::TPM2_SE_POLICY, &fresh_nonce()),
         )?;
         let (session, nonce_tpm) = proto::parse_start_auth_session(&resp).map_err(tpm_err)?;
+
+        let session_guard = TpmHandleGuard::new(tbs, session);
 
         submit(tbs, &proto::cmd_policy_pcr(session)).map_err(|e| {
             SecurityError::Tpm(format!(
@@ -115,10 +155,13 @@ pub fn unseal_data(tbs: &TbsContext, primary: u32, blob: &[u8]) -> Result<Vec<u8
         )
         .map_err(|e| SecurityError::Tpm(format!("Failed to unseal: {e}")))?;
 
-        // policy session is auto-flushed by the TPM (continueSession = 0)
-        proto::parse_unseal(&resp).map_err(tpm_err)
+        session_guard.dismiss();
+
+        let raw_data = proto::parse_unseal(&resp).map_err(tpm_err)?;
+        Ok(Zeroizing::new(raw_data))
     })();
 
+    handle_guard.dismiss();
     let _ = flush_context(tbs, item_handle);
     result
 }
