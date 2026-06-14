@@ -2,7 +2,7 @@ use tokio::sync::mpsc::{self, Sender};
 use tokio::sync::oneshot;
 
 use crate::error::{Result, SecurityError};
-use crate::security::crypto::Crypto;
+use crate::crypto::Crypto;
 
 enum CryptoRequest {
     Encrypt {
@@ -63,7 +63,7 @@ impl CryptoHandle {
                         reply,
                     } => {
                         let result = tokio::task::spawn_blocking(move || {
-                            crate::security::crypto::helpers::encrypt_with_passphrase(
+                            crate::crypto::helpers::encrypt_with_passphrase(
                                 &data, &passphrase,
                             )
                         })
@@ -82,7 +82,7 @@ impl CryptoHandle {
                         reply,
                     } => {
                         let result = tokio::task::spawn_blocking(move || {
-                            crate::security::crypto::helpers::decrypt_with_passphrase(
+                            crate::crypto::helpers::decrypt_with_passphrase(
                                 &data, &passphrase,
                             )
                         })

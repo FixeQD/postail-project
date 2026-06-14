@@ -2,11 +2,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::error::{Result, SecurityError};
-use crate::security::crypto::{decrypt_with_key, encrypt_with_key, Crypto};
-use crate::security::master_key::MasterKey;
-use crate::security::storage::keyring::KeyringStore;
-use crate::security::tpm::store::get_tpm_store;
-use crate::security::storage::{SecretStore, StorageTier};
+use crate::crypto::{decrypt_with_key, encrypt_with_key, Crypto};
+use crate::master_key::MasterKey;
+use crate::storage::keyring::KeyringStore;
+use crate::tpm::store::get_tpm_store;
+use crate::storage::{SecretStore, StorageTier};
 
 struct NoSecureStorageStore;
 
@@ -164,11 +164,11 @@ impl SecurityManager {
     }
 
     pub fn encrypt_with_passphrase(&self, plaintext: &[u8], passphrase: &str) -> Result<Vec<u8>> {
-        crate::security::crypto::helpers::encrypt_with_passphrase(plaintext, passphrase)
+        crate::crypto::helpers::encrypt_with_passphrase(plaintext, passphrase)
     }
 
     pub fn decrypt_with_passphrase(&self, ciphertext: &[u8], passphrase: &str) -> Result<Vec<u8>> {
-        crate::security::crypto::helpers::decrypt_with_passphrase(ciphertext, passphrase)
+        crate::crypto::helpers::decrypt_with_passphrase(ciphertext, passphrase)
     }
 }
 
@@ -186,7 +186,7 @@ impl PassphraseSecurityBuilder {
     }
 
     pub fn build(self) -> SecurityManager {
-        use crate::security::storage::argon2::Argon2Store;
+        use crate::storage::argon2::Argon2Store;
 
         let store = Argon2Store::new(self.storage_path, self.passphrase);
         SecurityManager::with_store(Arc::new(store), StorageTier::Passphrase)

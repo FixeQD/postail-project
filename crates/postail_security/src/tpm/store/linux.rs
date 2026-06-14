@@ -5,18 +5,14 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use crate::error::{Result, SecurityError};
-use crate::security::master_key::MasterKey;
-use crate::security::storage::SecretStore;
+use crate::master_key::MasterKey;
+use crate::storage::SecretStore;
 
 use super::common;
-
-// ── Helpers ────────────────────────────────────────────────────────
 
 fn tpm_dev_exists() -> bool {
     std::path::Path::new("/dev/tpmrm0").exists() || std::path::Path::new("/dev/tpm0").exists()
 }
-
-// ── LinuxTpmStore ──────────────────────────────────────────────────
 
 pub struct LinuxTpmStore {
     storage_path: PathBuf,
@@ -24,7 +20,7 @@ pub struct LinuxTpmStore {
 }
 
 mod proxy {
-    pub use crate::security::tpm::protocol::{
+    pub use crate::tpm::protocol::{
         TpmRequest, TpmResponse, receive_message, send_message,
     };
     use std::os::unix::net::UnixStream;
@@ -64,24 +60,20 @@ impl LinuxTpmStore {
     }
 
     pub fn with_storage_path(storage_path: PathBuf) -> Result<Self> {
-        {
-            let tcti = if std::path::Path::new("/dev/tpmrm0").exists() {
-                TctiNameConf::from_str("device:/dev/tpmrm0").map_err(common::tpm_err)?
-            } else if std::path::Path::new("/dev/tpm0").exists() {
-                TctiNameConf::from_str("device:/dev/tpm0").map_err(common::tpm_err)?
-            } else {
-                TctiNameConf::Tabrmd(Default::default())
-            };
+        let tcti = if std::path::Path::new("/dev/tpmrm0").exists() {
+            TctiNameConf::from_str("device:/dev/tpmrm0").map_err(common::tpm_err)?
+        } else if std::path::Path::new("/dev/tpm0").exists() {
+            TctiNameConf::from_str("device:/dev/tpm0").map_err(common::tpm_err)?
+        } else {
+            TctiNameConf::Tabrmd(Default::default())
+        };
 
-            Ok(Self { storage_path, tcti })
-        }
+        Ok(Self { storage_path, tcti })
     }
 
     fn get_sealed_path(&self) -> PathBuf {
         self.storage_path.join(common::SEALED_FILE_NAME)
     }
-
-    // ── Context & availability ─────────────────────────────────────
 
     pub fn create_context(&self) -> Result<Context> {
         Context::new(self.tcti.clone()).map_err(common::tpm_err)
@@ -100,7 +92,6 @@ impl LinuxTpmStore {
         }
     }
 
-    /// Verifies if the current process has direct access to the TPM device by attempting a real (but lightweight) operation.
     pub fn check_direct_access(&self) -> bool {
         if !tpm_dev_exists() {
             return false;
@@ -112,7 +103,6 @@ impl LinuxTpmStore {
         }
     }
 
-    /// Returns true if TPM is present but direct access fails AND proxy is not running.
     pub fn check_needs_elevation(&self) -> bool {
         if self.check_direct_access() {
             return false;
@@ -126,62 +116,52 @@ impl LinuxTpmStore {
         true
     }
 
-    /// Verifies if the proxy helper is running and responsive.
     pub fn verify_proxy(&self) -> bool {
         proxy::call_proxy(proxy::TpmRequest::Ping).is_ok()
     }
+
+    fn seal_and_write(&self, key: &MasterKey) -> Result<()> {
+        let mut ctx = self.create_context()?;
+        let primary = common::create_primary_key(&mut ctx)?;
+        let sealed = common::seal_data(&mut ctx, primary.key_handle, key.as_bytes())?;
+
+        if let Some(parent) = self.get_sealed_path().parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(self.get_sealed_path(), sealed)?;
+
+        ctx.flush_context(primary.key_handle.into())
+            .map_err(common::tpm_err)?;
+        Ok(())
+    }
 }
 
-// ── SecretStore impl ───────────────────────────────────────────────
 impl SecretStore for LinuxTpmStore {
     fn store(&self, key: &MasterKey) -> Result<()> {
+        if self.create_context().is_ok() {
+            return self.seal_and_write(key);
+        }
+
         #[cfg(target_os = "linux")]
-        {
-            if std::env::var("POSTAIL_TPM_HELPER").is_ok() {
-                let mut ctx = self.create_context()?;
-                let primary = common::create_primary_key(&mut ctx)?;
-                let sealed = common::seal_data(&mut ctx, primary.key_handle, key.as_bytes())?;
+        if proxy::is_socket_alive() {
+            let sealed = proxy::call_proxy(proxy::TpmRequest::Seal {
+                key: key.as_bytes().to_vec(),
+            })
+            .map_err(SecurityError::Tpm)?
+            .ok_or_else(|| {
+                SecurityError::Tpm("No sealed data returned from helper".into())
+            })?;
 
-                fs::write(self.get_sealed_path(), sealed)?;
-
-                ctx.flush_context(primary.key_handle.into())
-                    .map_err(common::tpm_err)?;
-                return Ok(());
+            if let Some(parent) = self.get_sealed_path().parent() {
+                fs::create_dir_all(parent)?;
             }
+            fs::write(self.get_sealed_path(), sealed)?;
+            return Ok(());
         }
 
-        match self.create_context() {
-            Ok(mut ctx) => {
-                let primary = common::create_primary_key(&mut ctx)?;
-                let sealed = common::seal_data(&mut ctx, primary.key_handle, key.as_bytes())?;
-
-                fs::write(self.get_sealed_path(), sealed)?;
-
-                ctx.flush_context(primary.key_handle.into())
-                    .map_err(common::tpm_err)?;
-                Ok(())
-            }
-            Err(_) => {
-                #[cfg(target_os = "linux")]
-                if proxy::is_socket_alive() {
-                    let sealed = proxy::call_proxy(proxy::TpmRequest::Seal {
-                        key: key.as_bytes().to_vec(),
-                    })
-                    .map_err(SecurityError::Tpm)?
-                    .ok_or_else(|| {
-                        SecurityError::Tpm("No sealed data returned from helper".into())
-                    })?;
-
-                    fs::write(self.get_sealed_path(), sealed)?;
-
-                    return Ok(());
-                }
-
-                Err(SecurityError::Tpm(
-                    "TPM context unavailable and no helper running".into(),
-                ))
-            }
-        }
+        Err(SecurityError::Tpm(
+            "TPM context unavailable and no helper running".into(),
+        ))
     }
 
     fn retrieve(&self) -> Result<MasterKey> {
@@ -250,7 +230,7 @@ impl SecretStore for LinuxTpmStore {
     }
 
     fn is_available(&self) -> bool {
-        { tpm_dev_exists() }
+        tpm_dev_exists()
     }
 
     fn name(&self) -> &'static str {

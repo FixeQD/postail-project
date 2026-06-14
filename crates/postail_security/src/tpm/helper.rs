@@ -1,9 +1,9 @@
-use crate::security::storage::SecretStore;
-use crate::security::tpm::protocol::{
+use crate::storage::SecretStore;
+use crate::tpm::protocol::{
     async_io::{receive_message_async, send_message_async},
     TpmRequest, TpmResponse,
 };
-use crate::security::MasterKey;
+use crate::MasterKey;
 use nix::sys::socket::{getsockopt, sockopt};
 use std::fs;
 use std::os::fd::{AsFd, FromRawFd, RawFd};
@@ -21,7 +21,6 @@ fn get_executable_path() -> std::io::Result<PathBuf> {
     std::env::current_exe()
 }
 
-/// TPM helper mode: Initialize TPM with elevated privileges (Linux only)
 #[cfg(all(target_os = "linux", feature = "tpm"))]
 pub fn tpm_helper_init() -> Result<(), String> {
     let rt = tokio::runtime::Builder::new_current_thread()
@@ -36,7 +35,6 @@ pub fn tpm_helper_init() -> Result<(), String> {
         let listener = UnixListener::bind(&socket_path)
             .map_err(|e| format!("Failed to bind socket at {:?}: {}", socket_path, e))?;
 
-        // Set socket permissions so only the user can connect
         let _ = fs::set_permissions(&socket_path, fs::Permissions::from_mode(0o600));
         let _ = nix::unistd::chown(&socket_path, Some(uid), Some(gid));
 
@@ -51,7 +49,7 @@ pub fn tpm_helper_init() -> Result<(), String> {
         }
 
         let storage_path = Arc::new(Mutex::new(
-            crate::security::tpm::store::common::default_storage_path(),
+            crate::tpm::store::common::default_storage_path(),
         ));
 
         while let Ok((mut stream, _)) = listener.accept().await {
@@ -143,8 +141,6 @@ fn start_watchdog(parent_pid: u32) -> Result<(), String> {
     Ok(())
 }
 
-/// Read the APPIMAGE env var from a peer process's /proc/{pid}/environ.
-/// Returns None if the file is unreadable or the variable is not set.
 #[cfg(all(target_os = "linux", feature = "tpm"))]
 fn read_peer_appimage_env(pid: u32) -> Option<String> {
     let environ = std::fs::read(format!("/proc/{}/environ", pid)).ok()?;
@@ -186,7 +182,7 @@ async fn handle_client(
         return Err("Unauthorized: Binary mismatch".to_string());
     }
 
-    use crate::security::tpm::store::linux::LinuxTpmStore;
+    use crate::tpm::store::linux::LinuxTpmStore;
 
     loop {
         let req: TpmRequest = match receive_message_async(stream).await {
@@ -212,7 +208,7 @@ async fn handle_client(
                 }
             }
             TpmRequest::Seal { key } => {
-                use crate::security::tpm::store::common::{self, create_primary_key};
+                use crate::tpm::store::common::{self, create_primary_key};
                 match MasterKey::from_bytes(&key) {
                     Ok(mk) => match store.create_context() {
                         Ok(mut ctx) => {
@@ -245,7 +241,7 @@ async fn handle_client(
                 }
             }
             TpmRequest::Unseal { data } => {
-                use crate::security::tpm::store::common::{self, create_primary_key};
+                use crate::tpm::store::common::{self, create_primary_key};
                 match store.create_context() {
                     Ok(mut ctx) => {
                         let primary = match create_primary_key(&mut ctx) {

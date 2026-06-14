@@ -2,10 +2,6 @@ use std::fs;
 use std::sync::Mutex;
 use tracing;
 
-static TEST_SALT_MUTEX: Mutex<()> = Mutex::new(());
-
-const TEST_DETERMINISTIC_SALT: &[u8] = b"test-salt-for-hkdf-32bytes!";
-
 use hkdf::Hkdf;
 use keyring::Entry;
 use sha2::Sha256;
@@ -34,9 +30,15 @@ pub struct DbEncryptionInner {
     cipher_key: [u8; 32],
 }
 
+static TEST_SALT_MUTEX: Mutex<()> = Mutex::new(());
+const TEST_DETERMINISTIC_SALT: &[u8] = b"test-salt-for-hkdf-32bytes!";
+
 impl DbEncryption {
-    pub fn derive_from_master_key(master_key: &[u8]) -> Result<Self, DbEncryptionError> {
-        let salt = Self::get_or_create_salt()?;
+    pub fn derive_from_master_key_with_data_dir(
+        master_key: &[u8],
+        data_dir: &std::path::Path,
+    ) -> Result<Self, DbEncryptionError> {
+        let salt = Self::get_or_create_salt(data_dir)?;
         Self::derive_with_salt(master_key, &salt)
     }
 
@@ -54,12 +56,11 @@ impl DbEncryption {
         Ok(Self { cipher_key: okm })
     }
 
-    fn get_or_create_salt() -> Result<Vec<u8>, DbEncryptionError> {
-        let salt_file = crate::utils::config::get_data_dir()
+    fn get_or_create_salt(data_dir: &std::path::Path) -> Result<Vec<u8>, DbEncryptionError> {
+        let salt_file = data_dir
             .join("security")
             .join("db_salt");
 
-        // 1. Try Keyring first
         let entry = Entry::new(DB_ENC_SALT_SERVICE, DB_ENC_SALT_KEY)
             .map_err(|e| DbEncryptionError::Keyring(e.to_string()))?;
 
@@ -69,24 +70,19 @@ impl DbEncryption {
             }
         }
 
-        // 2. Try File Fallback
         if salt_file.exists() {
             if let Ok(salt_hex) = fs::read_to_string(&salt_file) {
                 if let Ok(salt) = hex::decode(salt_hex.trim()) {
-                    // Try to restore to keyring if it was missing
                     let _ = entry.set_password(&hex::encode(&salt));
-
                     return Ok(salt);
                 }
             }
         }
 
-        // 3. Generate new salt
         tracing::info!(target: "postail", "[Security] No DB salt found in keyring or file. Generating new salt...");
         let salt: Vec<u8> = (0..32).map(|_| rand::random::<u8>()).collect();
         let salt_hex = hex::encode(&salt);
 
-        // Try to save to both
         if let Err(e) = entry.set_password(&salt_hex) {
             tracing::warn!(target: "postail", "[Security] Failed to save salt to keyring: {}", e);
         }
@@ -115,7 +111,11 @@ impl DbEncryption {
         old_master_key: &[u8],
         new_master_key: &[u8],
     ) -> Result<Self, DbEncryptionError> {
-        let salt = Self::get_or_create_salt()?;
+        let data_dir = dirs::data_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("postail");
+        let salt = Self::get_or_create_salt(&data_dir)?;
+
         let mut okm = [0u8; 32];
 
         let hkdf_old = Hkdf::<Sha256>::new(Some(&salt), old_master_key);
@@ -140,6 +140,35 @@ impl Drop for DbEncryption {
 }
 
 impl DbEncryption {
+    pub fn from_master_key_with_data_dir(
+        master_key: &[u8],
+        data_dir: &std::path::Path,
+    ) -> Result<Self, DbEncryptionError> {
+        if master_key.is_empty() {
+            return Err(DbEncryptionError::Keyring(
+                "Master key not available during encryption initialization".to_string(),
+            ));
+        }
+        Self::derive_from_master_key_with_data_dir(master_key, data_dir)
+    }
+
+    pub fn get_hex_key_with_data_dir(master_key: &[u8], data_dir: &std::path::Path) -> String {
+        Self::from_master_key_with_data_dir(master_key, data_dir)
+            .map(|e| e.hex_key())
+            .unwrap_or_else(|e| {
+                tracing::error!(target: "postail", "[DB] Failed to get encryption key: {}", e);
+                String::new()
+            })
+    }
+
+    // Legacy API — uses dirs::data_dir() for backward compatibility
+    pub fn derive_from_master_key(master_key: &[u8]) -> Result<Self, DbEncryptionError> {
+        let data_dir = dirs::data_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("postail");
+        Self::derive_from_master_key_with_data_dir(master_key, &data_dir)
+    }
+
     pub fn from_master_key(master_key: &[u8]) -> Result<Self, DbEncryptionError> {
         if master_key.is_empty() {
             return Err(DbEncryptionError::Keyring(

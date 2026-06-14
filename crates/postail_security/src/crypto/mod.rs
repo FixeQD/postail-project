@@ -6,7 +6,7 @@ use rand::RngCore;
 use zeroize::Zeroize;
 
 use crate::error::{Result, SecurityError};
-use crate::security::master_key::MasterKey;
+use crate::master_key::MasterKey;
 
 pub mod helpers;
 

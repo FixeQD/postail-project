@@ -37,16 +37,10 @@ sha2 = "0.10"
 indexmap = { version = "2", features = ["serde"] }
 
 # Security
-tss-esapi = { version = "7", optional = true }
-aes-gcm = "0.10"
-argon2 = "0.5"
-keyring = { version = "3", features = ["sync-secret-service", "vendored"] }
-zeroize = { version = "1.8", features = ["derive"] }
+postail_security = { path = "../crates/postail_security" }
 rand = { version = "0.9", features = ["small_rng"] }
 thiserror = "2"
 dirs = "6"
-hkdf = "0.12"
-hex = "0.4"
 
 # Database
 rusqlite = { version = "0.38", features = [
@@ -84,7 +78,6 @@ tokio-native-tls = "0.3.1"
 kuchikiki = "0.8.8-speedreader"
 markup5ever = "0.14"
 
-tiny-bip39 = "2.0.0"
 futures = "0.3.31"
 tokio-util = { version = "0.7.18", features = ["compat"] }
 native-tls = "0.2.16"
@@ -125,4 +118,4 @@ tempfile = "3"
 
 [features]
 default = []
-tpm = ["tss-esapi"]
+tpm = ["postail_security/tpm"]

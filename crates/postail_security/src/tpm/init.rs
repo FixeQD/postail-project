@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use crate::security::tpm::store::get_tpm_store;
-use crate::security::storage::StorageTier;
+use crate::tpm::store::get_tpm_store;
+use crate::storage::StorageTier;
 
 pub enum TpmAvailability {
     Available,
@@ -23,14 +23,12 @@ impl TpmInitializer {
     }
 
     pub fn check_availability(&self) -> TpmAvailability {
-        use crate::security::tpm::store::linux::LinuxTpmStore;
-        use crate::security::storage::SecretStore;
+        use crate::tpm::store::linux::LinuxTpmStore;
+        use crate::storage::SecretStore;
 
         if Path::new("/dev/tpmrm0").exists() || Path::new("/dev/tpm0").exists() {
             if let Ok(store) = LinuxTpmStore::new() {
-                // First check if device exists
                 if store.is_available() {
-                    // Try to actually check direct access to the hardware.
                     if store.check_direct_access() {
                         return TpmAvailability::Available;
                     } else {
@@ -44,7 +42,7 @@ impl TpmInitializer {
         TpmAvailability::NotAvailable
     }
 
-    pub fn get_store(&self) -> Option<Box<dyn crate::security::storage::SecretStore + 'static>> {
+    pub fn get_store(&self) -> Option<Box<dyn crate::storage::SecretStore + 'static>> {
         get_tpm_store()
     }
 

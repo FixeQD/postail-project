@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::security::master_key::MasterKey;
+use crate::master_key::MasterKey;
 
 pub mod argon2;
 pub mod db;

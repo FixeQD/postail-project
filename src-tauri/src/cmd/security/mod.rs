@@ -7,16 +7,16 @@ pub use options::*;
 pub use recovery::*;
 
 use crate::globals::{CRYPTO_ACTOR, DB_CONN, SECURITY, SMTP_MANAGER, get_db_pool};
-use crate::security::manager::PassphraseSecurityBuilder;
 use crate::security::recovery::RecoveryStore;
-use crate::security::storage::StorageTier;
 use crate::security::storage::keyring::KeyringStore;
 use crate::security::tpm::store::get_tpm_store;
-use crate::security::{DbEncryption, SecurityManager};
+use crate::security::{DbEncryption, PassphraseSecurityBuilder, SecurityManager, StorageTier};
 use crate::utils::config::{AppConfig, load_config, save_config};
 use serde::Serialize;
 use std::sync::Arc;
 use tauri::command;
+#[cfg(all(target_os = "linux", feature = "tpm"))]
+use tokio::task::spawn_blocking;
 
 #[derive(Serialize)]
 pub struct InitStatus {

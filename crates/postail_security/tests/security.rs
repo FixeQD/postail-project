@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use postail_project_lib::error::SecurityError;
-use postail_project_lib::security::{
+use postail_security::{
+    SecurityError,
     crypto::{decrypt_with_key, encrypt_with_key},
     manager::{PassphraseSecurityBuilder, SecurityManager},
     master_key::{MasterKey, MASTER_KEY_LENGTH},
@@ -67,7 +67,6 @@ fn crypto_encrypt_produces_different_output_each_time() {
     let encrypted1 = encrypt_with_key(&key, plaintext).unwrap();
     let encrypted2 = encrypt_with_key(&key, plaintext).unwrap();
 
-    // different nonces = different ciphertext
     assert_ne!(encrypted1, encrypted2);
 }
 
@@ -250,7 +249,6 @@ pub fn test_manager() -> SecurityManager {
     let temp_path = temp_dir().join("test_postail_key");
     let store = Argon2Store::new(temp_path, "test_passphrase".to_string());
     let mut manager = SecurityManager::with_store(Arc::new(store), StorageTier::Passphrase);
-    // Initialize with fixed key for tests
     let fixed_key = MasterKey::from_bytes(&[0u8; 32]).unwrap();
     manager.initialize_with_key(fixed_key).unwrap();
     manager.unlock().unwrap();

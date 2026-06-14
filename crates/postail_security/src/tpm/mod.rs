@@ -11,4 +11,3 @@ pub mod store;
 pub use helper::tpm_helper_init;
 #[cfg(all(target_os = "linux", feature = "tpm"))]
 pub use init::{TpmAvailability, TpmInitializer};
-

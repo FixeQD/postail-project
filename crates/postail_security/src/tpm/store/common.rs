@@ -22,29 +22,23 @@ use std::path::PathBuf;
 
 use crate::error::{Result, SecurityError};
 
-// ── Constants ──────────────────────────────────────────────────────
-
 pub const SEALED_FILE_NAME: &str = "master_key.tpm";
-
-// ── Storage path ───────────────────────────────────────────────────
 
 pub fn default_storage_path() -> PathBuf {
     if let Ok(dir) = std::env::var("POSTAIL_DATA_DIR") {
         return PathBuf::from(dir).join("security");
     }
-    crate::utils::config::get_data_dir().join("security")
+    dirs::data_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("postail")
+        .join("security")
 }
-
-// ── Error helper ───────────────────────────────────────────────────
 
 #[cfg(feature = "tpm")]
 pub fn tpm_err(e: impl std::fmt::Display) -> SecurityError {
     SecurityError::Tpm(e.to_string())
 }
 
-// ── Session helpers ────────────────────────────────────────────────
-
-/// Creates an HMAC auth session with AES-128-CFB encryption.
 #[cfg(feature = "tpm")]
 pub fn create_hmac_session(ctx: &mut Context) -> Result<AuthSession> {
     let session = ctx
@@ -69,8 +63,6 @@ pub fn create_hmac_session(ctx: &mut Context) -> Result<AuthSession> {
 
     Ok(session)
 }
-
-// ── Key management ─────────────────────────────────────────────────
 
 #[cfg(feature = "tpm")]
 pub fn create_primary_key(ctx: &mut Context) -> Result<CreatePrimaryKeyResult> {
@@ -103,8 +95,6 @@ pub fn create_primary_key(ctx: &mut Context) -> Result<CreatePrimaryKeyResult> {
     .map_err(tpm_err)
 }
 
-// ── PCR policy ─────────────────────────────────────────────────────
-
 #[cfg(feature = "tpm")]
 pub fn compute_pcr_policy_digest(ctx: &mut Context) -> Result<Digest> {
     let trial_session = ctx
@@ -135,8 +125,6 @@ pub fn compute_pcr_policy_digest(ctx: &mut Context) -> Result<Digest> {
 
     Ok(digest)
 }
-
-// ── Seal / unseal ──────────────────────────────────────────────────
 
 #[cfg(feature = "tpm")]
 pub fn seal_data(ctx: &mut Context, primary: KeyHandle, data: &[u8]) -> Result<Vec<u8>> {
@@ -170,7 +158,6 @@ pub fn seal_data(ctx: &mut Context, primary: KeyHandle, data: &[u8]) -> Result<V
         })
         .map_err(tpm_err)?;
 
-    // Pack private + public into a single blob: [priv_len][priv][pub_len][pub]
     let priv_bytes = result.out_private.to_vec();
     let pub_bytes = result.out_public.marshall().map_err(tpm_err)?;
 
@@ -192,7 +179,6 @@ pub fn unseal_data(ctx: &mut Context, primary: KeyHandle, blob: &[u8]) -> Result
         .execute_with_session(Some(load_session), |ctx| ctx.load(primary, private, public))
         .map_err(tpm_err)?;
 
-    // Run in a closure so we can flush every live handle unconditionally once the closure returns
     let result: Result<Vec<u8>> = (|| {
         let policy_auth_session = ctx
             .start_auth_session(
@@ -206,7 +192,6 @@ pub fn unseal_data(ctx: &mut Context, primary: KeyHandle, blob: &[u8]) -> Result
             .map_err(tpm_err)?
             .ok_or_else(|| SecurityError::Tpm("failed to create policy session".into()))?;
 
-        // policy_session is a view into policy_auth_session — same handle, different type.
         let policy_session: PolicySession = policy_auth_session
             .try_into()
             .map_err(|_| SecurityError::Tpm("failed to extract policy session".into()))?;
@@ -227,22 +212,17 @@ pub fn unseal_data(ctx: &mut Context, primary: KeyHandle, blob: &[u8]) -> Result
             })
             .map_err(|e| SecurityError::Tpm(format!("Failed to unseal: {}", e)))?;
 
-        // Flush policy session — execute_with_session does not flush it for us.
         let _ = ctx.flush_context(SessionHandle::from(policy_auth_session).into());
 
         Ok(unsealed.to_vec())
     })();
 
-    // Always flush the loaded object and the HMAC load session
     let _ = ctx.flush_context(sealed_handle.into());
     let _ = ctx.flush_context(SessionHandle::from(load_session).into());
 
     result
 }
 
-// ── Blob parsing ───────────────────────────────────────────────────
-
-/// Blob format: [priv_len: u32 LE][priv_bytes][pub_len: u32 LE][pub_bytes]
 #[cfg(feature = "tpm")]
 pub fn parse_sealed_blob(blob: &[u8]) -> Result<(tss_esapi::structures::Private, Public)> {
     if blob.len() < 8 {

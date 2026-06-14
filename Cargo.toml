@@ -4,6 +4,7 @@ members = [
   "crates/html_transpiler",
   "crates/email_network",
   "crates/email_webview",
+  "crates/postail_security",
 ]
 resolver = "2"
 

@@ -1,6 +1,12 @@
 use crate::security::storage::{SecretStore, keyring::KeyringStore};
 use serde::Serialize;
 use tauri::command;
+#[cfg(all(target_os = "linux", feature = "tpm"))]
+use std::time::Duration;
+#[cfg(all(target_os = "linux", feature = "tpm"))]
+use tokio::task::spawn_blocking;
+#[cfg(all(target_os = "linux", feature = "tpm"))]
+use tokio::time::timeout;
 
 // ---------------------------------------------------------------------------
 // TPM error types (Linux + tpm feature only)

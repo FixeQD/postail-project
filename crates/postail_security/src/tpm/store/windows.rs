@@ -5,12 +5,10 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use crate::error::{Result, SecurityError};
-use crate::security::master_key::MasterKey;
-use crate::security::storage::SecretStore;
+use crate::master_key::MasterKey;
+use crate::storage::SecretStore;
 
 use super::common;
-
-// ── WindowsTpmStore ────────────────────────────────────────────────
 
 pub struct WindowsTpmStore {
     storage_path: PathBuf,
@@ -23,10 +21,8 @@ impl WindowsTpmStore {
     }
 
     pub fn with_storage_path(storage_path: PathBuf) -> Result<Self> {
-        {
-            let tcti = TctiNameConf::from_str("tbs").map_err(common::tpm_err)?;
-            Ok(Self { storage_path, tcti })
-        }
+        let tcti = TctiNameConf::from_str("tbs").map_err(common::tpm_err)?;
+        Ok(Self { storage_path, tcti })
     }
 
     fn get_sealed_path(&self) -> PathBuf {
@@ -38,7 +34,6 @@ impl WindowsTpmStore {
     }
 }
 
-// ── SecretStore impl ───────────────────────────────────────────────
 impl SecretStore for WindowsTpmStore {
     fn store(&self, key: &MasterKey) -> Result<()> {
         let mut ctx = self.create_context()?;
@@ -87,11 +82,9 @@ impl SecretStore for WindowsTpmStore {
     }
 
     fn is_available(&self) -> bool {
-        {
-            self.create_context()
-                .map(|mut ctx| ctx.get_random(8).is_ok())
-                .unwrap_or(false)
-        }
+        self.create_context()
+            .map(|mut ctx| ctx.get_random(8).is_ok())
+            .unwrap_or(false)
     }
 
     fn name(&self) -> &'static str {

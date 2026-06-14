@@ -1,4 +1,3 @@
-use crate::security::lock::{lock, should_lock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Emitter};
 use tokio::time::{interval, Duration};
@@ -7,7 +6,7 @@ static TIMER_RUNNING: AtomicBool = AtomicBool::new(false);
 
 pub async fn start_lock_timer(app_handle: AppHandle) {
     if TIMER_RUNNING.swap(true, Ordering::SeqCst) {
-        return; // already running
+        return;
     }
 
     let mut interval = interval(Duration::from_secs(10));
@@ -19,8 +18,8 @@ pub async fn start_lock_timer(app_handle: AppHandle) {
             break;
         }
 
-        if should_lock() {
-            lock();
+        if postail_security::lock::should_lock() {
+            postail_security::lock::lock();
             let _ = app_handle.emit("app:locked", ());
         }
     }

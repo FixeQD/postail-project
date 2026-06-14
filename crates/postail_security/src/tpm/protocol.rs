@@ -21,7 +21,6 @@ pub enum TpmResponse {
     Err(String),
 }
 
-/// Send a length-prefixed JSON message over a writer
 pub fn send_message<W: Write>(writer: &mut W, msg: &impl Serialize) -> Result<(), String> {
     let bytes = serde_json::to_vec(msg).map_err(|e| e.to_string())?;
     let len = bytes.len() as u32;
@@ -33,7 +32,6 @@ pub fn send_message<W: Write>(writer: &mut W, msg: &impl Serialize) -> Result<()
     Ok(())
 }
 
-/// Receive a length-prefixed JSON message from a reader
 pub fn receive_message<R: Read, T: for<'a> Deserialize<'a>>(reader: &mut R) -> Result<T, String> {
     let mut len_buf = [0u8; 4];
     reader.read_exact(&mut len_buf).map_err(|e| e.to_string())?;

@@ -2,8 +2,8 @@ use keyring::Entry;
 use std::path::PathBuf;
 
 use crate::error::{Result, SecurityError};
-use crate::security::master_key::MasterKey;
-use crate::security::storage::SecretStore;
+use crate::master_key::MasterKey;
+use crate::storage::SecretStore;
 
 const SERVICE_NAME: &str = "postail";
 const KEY_NAME: &str = "master_key";
@@ -55,7 +55,7 @@ impl Default for KeyringStore {
 
 impl SecretStore for KeyringStore {
     fn store(&self, key: &MasterKey) -> Result<()> {
-        let hex_key = hex_encode(key.as_bytes());
+        let hex_key = hex::encode(key.as_bytes());
         self.entry
             .set_password(&hex_key)
             .map_err(|e| SecurityError::Keyring(e.to_string()))?;
@@ -71,7 +71,8 @@ impl SecretStore for KeyringStore {
             _ => SecurityError::Keyring(e.to_string()),
         })?;
 
-        let bytes = hex_decode(&hex_key)?;
+        let bytes = hex::decode(&hex_key)
+            .map_err(|e| SecurityError::Decryption(format!("hex decode: {}", e)))?;
         MasterKey::from_bytes(&bytes)
     }
 
@@ -87,7 +88,7 @@ impl SecretStore for KeyringStore {
         match self.entry.get_password() {
             Ok(_) => true,
             Err(keyring::Error::NoEntry) => false,
-            _ => true, // locked or other error means it's there
+            _ => true,
         }
     }
 
@@ -98,22 +99,4 @@ impl SecretStore for KeyringStore {
     fn name(&self) -> &'static str {
         "OS Keyring"
     }
-}
-
-pub(crate) fn hex_encode(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{:02x}", b)).collect()
-}
-
-pub(crate) fn hex_decode(hex: &str) -> Result<Vec<u8>> {
-    if !hex.len().is_multiple_of(2) {
-        return Err(SecurityError::Decryption("invalid hex length".into()));
-    }
-
-    (0..hex.len())
-        .step_by(2)
-        .map(|i| {
-            u8::from_str_radix(&hex[i..i + 2], 16)
-                .map_err(|_| SecurityError::Decryption("invalid hex character".into()))
-        })
-        .collect()
 }

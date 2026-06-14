@@ -52,7 +52,7 @@ pub fn encrypt_with_passphrase(
         .hash_password_into(passphrase_trimmed.as_bytes(), salt_bytes, &mut derived_key)
         .map_err(|e| crate::error::SecurityError::KeyDerivation(e.to_string()))?;
 
-    let key = crate::security::master_key::MasterKey::from_bytes(&derived_key)?;
+    let key = crate::master_key::MasterKey::from_bytes(&derived_key)?;
     derived_key.zeroize();
 
     let encrypted = super::encrypt_with_key(&key, plaintext)?;
@@ -96,7 +96,7 @@ pub fn decrypt_with_passphrase(
         .hash_password_into(passphrase_trimmed.as_bytes(), salt, &mut derived_key)
         .map_err(|e| crate::error::SecurityError::KeyDerivation(e.to_string()))?;
 
-    let key = crate::security::master_key::MasterKey::from_bytes(&derived_key)?;
+    let key = crate::master_key::MasterKey::from_bytes(&derived_key)?;
     derived_key.zeroize();
 
     super::decrypt_with_key(&key, encrypted)
@@ -113,7 +113,7 @@ mod tests {
             let slice: &[u8] = &bytes;
             assert_eq!(slice, &[1, 2, 3, 4, 5]);
         }
-        let _ = bytes; // Drop happens here
+        let _ = bytes;
     }
 
     #[test]

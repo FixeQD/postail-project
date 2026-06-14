@@ -4038,9 +4038,7 @@ dependencies = [
 name = "postail"
 version = "0.1.0"
 dependencies = [
- "aes-gcm",
  "ammonia",
- "argon2",
  "async-imap",
  "async-smtp",
  "base64 0.22.1",
@@ -4052,13 +4050,10 @@ dependencies = [
  "email_webview",
  "encoding_rs",
  "futures",
- "hex",
- "hkdf",
  "html_transpiler",
  "icalendar",
  "imap-proto",
  "indexmap 2.13.0",
- "keyring",
  "kuchikiki",
  "lettre",
  "mailparse",
@@ -4066,6 +4061,7 @@ dependencies = [
  "native-tls",
  "nix 0.29.0",
  "portpicker",
+ "postail_security",
  "r2d2",
  "rand 0.9.3",
  "regex",
@@ -4084,20 +4080,42 @@ dependencies = [
  "tauri-plugin-os",
  "tempfile",
  "thiserror 2.0.18",
- "tiny-bip39",
  "tiny_http",
  "tokio",
  "tokio-native-tls",
  "tokio-util",
  "tracing",
  "tracing-subscriber",
- "tss-esapi",
  "url",
  "utf7-imap",
  "uuid",
  "windows 0.62.2",
- "zeroize",
  "zip",
+]
+
+[[package]]
+name = "postail_security"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "argon2",
+ "dirs 6.0.0",
+ "dunce",
+ "hex",
+ "hkdf",
+ "keyring",
+ "nix 0.29.0",
+ "rand 0.9.3",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tiny-bip39",
+ "tokio",
+ "tracing",
+ "tss-esapi",
+ "zeroize",
 ]
 
 [[package]]

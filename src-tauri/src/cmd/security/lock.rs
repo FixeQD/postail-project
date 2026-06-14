@@ -1,8 +1,9 @@
 use tauri::command;
 use crate::globals::SECURITY;
-use crate::security::lock::{
-    get_timeout_minutes, is_locked, is_using_encryption_password, record_activity, set_pin,
-    set_timeout, unlock, use_encryption_password,
+use crate::security::lock_settings;
+use postail_security::lock::{
+    force_unlock, get_timeout_minutes, is_locked, is_using_encryption_password,
+    record_activity, unlock,
 };
 
 #[command]
@@ -35,7 +36,7 @@ pub async fn unlock_app(password: String) -> Result<(), String> {
         }
         drop(security);
 
-        crate::security::lock::force_unlock();
+        force_unlock();
         Ok(())
     } else {
         unlock(&password)
@@ -44,7 +45,7 @@ pub async fn unlock_app(password: String) -> Result<(), String> {
 
 #[command]
 pub async fn set_auto_lock_timeout(minutes: u32) {
-    set_timeout(minutes).await;
+    lock_settings::set_timeout(minutes).await;
 }
 
 #[command]
@@ -54,12 +55,12 @@ pub fn get_auto_lock_timeout() -> u32 {
 
 #[command]
 pub async fn set_auto_lock_pin(pin: String) -> Result<(), String> {
-    set_pin(&pin).await
+    lock_settings::set_pin(&pin).await
 }
 
 #[command]
 pub async fn use_encryption_password_for_lock() {
-    use_encryption_password().await;
+    lock_settings::use_encryption_password().await;
 }
 
 #[command]

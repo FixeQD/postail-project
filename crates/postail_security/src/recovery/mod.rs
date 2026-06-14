@@ -10,9 +10,9 @@ use sha2::Sha256;
 use zeroize::Zeroize;
 
 use crate::error::{Result, SecurityError};
-use crate::security::crypto::{decrypt_with_key, encrypt_with_key};
-use crate::security::master_key::{MASTER_KEY_LENGTH, MasterKey};
-use crate::security::storage::SecretStore;
+use crate::crypto::{decrypt_with_key, encrypt_with_key};
+use crate::master_key::{MASTER_KEY_LENGTH, MasterKey};
+use crate::storage::SecretStore;
 
 pub struct RecoveryKeyHolder {
     key: std::sync::Mutex<Option<MasterKey>>,
@@ -79,7 +79,7 @@ pub fn verify_pending_phrase(indices: &[usize], words: &[String]) -> Result<bool
     let guard = PENDING_PHRASE.lock().unwrap();
     let phrase = match &*guard {
         Some(p) => p,
-        None => return Ok(false), // No pending phrase to verify against
+        None => return Ok(false),
     };
 
     let phrase_words: Vec<&str> = phrase.split_whitespace().collect();
@@ -101,13 +101,11 @@ pub fn verify_pending_phrase(indices: &[usize], words: &[String]) -> Result<bool
 
 const HKDF_INFO: &[u8] = b"postail-recovery-key-v1";
 
-/// Generates a new 12-word BIP39 phrase.
 pub fn generate_phrase() -> String {
     let mnemonic = Mnemonic::new(MnemonicType::Words12, Language::English);
     mnemonic.phrase().to_string()
 }
 
-/// Derives a 32-byte MasterKey from a BIP39 recovery phrase.
 pub fn derive_recovery_key(phrase: &str) -> Result<MasterKey> {
     let phrase_trimmed = phrase.trim();
     let mnemonic = Mnemonic::from_phrase(phrase_trimmed, Language::English)
@@ -139,7 +137,6 @@ impl RecoveryStore {
         self.storage_path.join("recovery.sealed")
     }
 
-    /// Encrypts and saves the master key wit h the recovery phrase.
     pub fn create(&self, master_key: &MasterKey, phrase: &str) -> Result<()> {
         let recovery_key = derive_recovery_key(phrase)?;
         let encrypted = encrypt_with_key(&recovery_key, master_key.as_bytes())?;
@@ -152,7 +149,6 @@ impl RecoveryStore {
         Ok(())
     }
 
-    /// Decrypts and returns the master key with the recovery phrase.
     pub fn unlock(&self, phrase: &str) -> Result<MasterKey> {
         let data = fs::read(self.sealed_path()).map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {

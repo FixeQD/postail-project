@@ -9,9 +9,9 @@ use argon2::{
 use zeroize::Zeroize;
 
 use crate::error::{Result, SecurityError};
-use crate::security::crypto::{decrypt_with_key, encrypt_with_key};
-use crate::security::master_key::{MasterKey, MASTER_KEY_LENGTH};
-use crate::security::storage::SecretStore;
+use crate::crypto::{decrypt_with_key, encrypt_with_key};
+use crate::master_key::{MasterKey, MASTER_KEY_LENGTH};
+use crate::storage::SecretStore;
 
 const ARGON2_TIME_COST: u32 = 3;
 const ARGON2_MEMORY_COST: u32 = 65536;
@@ -73,7 +73,6 @@ impl SecretStore for Argon2Store {
         let derived_key = self.derive_key_from_passphrase(salt_bytes)?;
         let encrypted = encrypt_with_key(&derived_key, key.as_bytes())?;
 
-        // format: salt_len(1) + salt + encrypted
         let mut data = Vec::with_capacity(1 + salt_bytes.len() + encrypted.len());
         data.push(salt_bytes.len() as u8);
         data.extend_from_slice(salt_bytes);
