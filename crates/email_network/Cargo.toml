@@ -1,0 +1,26 @@
+[package]
+name = "email_network"
+version = "0.1.0"
+edition = "2021"
+description = "Network layer for Postail"
+authors = ["FixeQD"]
+
+[dependencies]
+base64 = "0.22"
+futures = "0.3.31"
+hex = "0.4"
+indexmap = { version = "2", features = ["serde"] }
+kuchikiki = "0.8.8-speedreader"
+rand = { version = "0.9", features = ["small_rng"] }
+reqwest = { version = "0.13", default-features = false, features = [
+    "json",
+    "form",
+    "http2",
+    "native-tls",
+] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"

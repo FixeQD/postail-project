@@ -2,13 +2,14 @@
 members = [
   "src-tauri",
   "crates/html_transpiler",
+  "crates/email_network",
 ]
 resolver = "2"
 
 default-members = ["src-tauri"]
 
 [profile.release]
-lto = "thin"
+lto = "fat"
 codegen-units = 1
 strip = true
 opt-level = "s"
