@@ -3,6 +3,7 @@ members = [
   "src-tauri",
   "crates/html_transpiler",
   "crates/email_network",
+  "crates/email_webview",
 ]
 resolver = "2"
 

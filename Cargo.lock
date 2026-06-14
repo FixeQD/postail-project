@@ -1282,6 +1282,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "email_webview"
+version = "0.1.0"
+dependencies = [
+ "email_network",
+ "gdk",
+ "gtk",
+ "nix 0.29.0",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tauri",
+ "tokio",
+ "tracing",
+ "uuid",
+ "webkit2gtk",
+ "webview2-com",
+ "windows 0.61.3",
+ "windows 0.62.2",
+]
+
+[[package]]
 name = "embed-resource"
 version = "3.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
