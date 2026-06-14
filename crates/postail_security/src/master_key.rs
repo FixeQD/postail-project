@@ -1,7 +1,5 @@
 use rand::RngCore;
-use zeroize::{Zeroize, ZeroizeOnDrop};
-
-use crate::error::{Result, SecurityError};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 pub const MASTER_KEY_LENGTH: usize = 32;
 
@@ -15,9 +13,9 @@ impl MasterKey {
         Self(key)
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, crate::error::SecurityError> {
         if bytes.len() != MASTER_KEY_LENGTH {
-            return Err(SecurityError::InvalidKeyLength {
+            return Err(crate::error::SecurityError::InvalidKeyLength {
                 expected: MASTER_KEY_LENGTH,
                 got: bytes.len(),
             });
@@ -32,8 +30,8 @@ impl MasterKey {
         &self.0
     }
 
-    pub fn to_vec(&self) -> Vec<u8> {
-        self.0.to_vec()
+    pub fn to_secure_vec(&self) -> Zeroizing<Vec<u8>> {
+        Zeroizing::new(self.0.to_vec())
     }
 }
 
