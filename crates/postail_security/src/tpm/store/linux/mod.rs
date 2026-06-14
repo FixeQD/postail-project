@@ -1,86 +1,44 @@
-use tss_esapi::{Context, tcti_ldr::TctiNameConf};
+pub mod context;
+pub mod proxy;
+pub mod seal;
 
 use std::fs;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use crate::error::{Result, SecurityError};
 use crate::master_key::MasterKey;
 use crate::storage::SecretStore;
+use crate::tpm::store::paths;
 
-use super::common;
-
-fn tpm_dev_exists() -> bool {
-    std::path::Path::new("/dev/tpmrm0").exists() || std::path::Path::new("/dev/tpm0").exists()
-}
+use context::LinuxTpmContext;
 
 pub struct LinuxTpmStore {
     storage_path: PathBuf,
-    tcti: TctiNameConf,
-}
-
-mod proxy {
-    pub use crate::tpm::protocol::{
-        TpmRequest, TpmResponse, receive_message, send_message,
-    };
-    use std::os::unix::net::UnixStream;
-    use std::path::PathBuf;
-
-    pub fn get_socket_path() -> PathBuf {
-        let uid = unsafe { nix::libc::getuid() };
-        PathBuf::from(format!("/run/user/{}/postail-tpm.sock", uid))
-    }
-
-    pub fn is_socket_alive() -> bool {
-        let path = get_socket_path();
-        if !path.exists() {
-            return false;
-        }
-        std::os::unix::net::UnixStream::connect(&path).is_ok()
-    }
-
-    pub fn call_proxy(req: TpmRequest) -> Result<Option<Vec<u8>>, String> {
-        let path = get_socket_path();
-        let mut stream = UnixStream::connect(&path)
-            .map_err(|e| format!("Failed to connect to TPM helper: {}", e))?;
-
-        send_message(&mut stream, &req)?;
-        let res: TpmResponse = receive_message(&mut stream)?;
-
-        match res {
-            TpmResponse::Ok { key } => Ok(key),
-            TpmResponse::Err(e) => Err(e),
-        }
-    }
+    ctx: LinuxTpmContext,
 }
 
 impl LinuxTpmStore {
     pub fn new() -> Result<Self> {
-        Self::with_storage_path(common::default_storage_path())
+        Self::with_storage_path(paths::default_storage_path())
     }
 
     pub fn with_storage_path(storage_path: PathBuf) -> Result<Self> {
-        let tcti = if std::path::Path::new("/dev/tpmrm0").exists() {
-            TctiNameConf::from_str("device:/dev/tpmrm0").map_err(common::tpm_err)?
-        } else if std::path::Path::new("/dev/tpm0").exists() {
-            TctiNameConf::from_str("device:/dev/tpm0").map_err(common::tpm_err)?
-        } else {
-            TctiNameConf::Tabrmd(Default::default())
-        };
-
-        Ok(Self { storage_path, tcti })
+        Ok(Self {
+            storage_path,
+            ctx: LinuxTpmContext::new()?,
+        })
     }
 
     fn get_sealed_path(&self) -> PathBuf {
-        self.storage_path.join(common::SEALED_FILE_NAME)
+        self.storage_path.join(paths::SEALED_FILE_NAME)
     }
 
-    pub fn create_context(&self) -> Result<Context> {
-        Context::new(self.tcti.clone()).map_err(common::tpm_err)
+    pub fn create_context(&self) -> Result<tss_esapi::Context> {
+        self.ctx.create_context()
     }
 
     pub fn check_context_silent(&self) -> bool {
-        self.check_direct_access() || {
+        self.ctx.check_direct_access() || {
             #[cfg(target_os = "linux")]
             {
                 std::env::var("POSTAIL_TPM_HELPER").is_err() && self.verify_proxy()
@@ -93,18 +51,11 @@ impl LinuxTpmStore {
     }
 
     pub fn check_direct_access(&self) -> bool {
-        if !tpm_dev_exists() {
-            return false;
-        }
-
-        match self.create_context() {
-            Ok(mut ctx) => ctx.get_random(8).is_ok(),
-            Err(_) => false,
-        }
+        self.ctx.check_direct_access()
     }
 
     pub fn check_needs_elevation(&self) -> bool {
-        if self.check_direct_access() {
+        if self.ctx.check_direct_access() {
             return false;
         }
         #[cfg(target_os = "linux")]
@@ -121,9 +72,9 @@ impl LinuxTpmStore {
     }
 
     fn seal_and_write(&self, key: &MasterKey) -> Result<()> {
-        let mut ctx = self.create_context()?;
-        let primary = common::create_primary_key(&mut ctx)?;
-        let sealed = common::seal_data(&mut ctx, primary.key_handle, key.as_bytes())?;
+        let mut ctx = self.ctx.create_context()?;
+        let primary = seal::create_primary_key(&mut ctx)?;
+        let sealed = seal::seal_data(&mut ctx, primary.key_handle, key.as_bytes())?;
 
         if let Some(parent) = self.get_sealed_path().parent() {
             fs::create_dir_all(parent)?;
@@ -131,14 +82,14 @@ impl LinuxTpmStore {
         fs::write(self.get_sealed_path(), sealed)?;
 
         ctx.flush_context(primary.key_handle.into())
-            .map_err(common::tpm_err)?;
+            .map_err(paths::tpm_err)?;
         Ok(())
     }
 }
 
 impl SecretStore for LinuxTpmStore {
     fn store(&self, key: &MasterKey) -> Result<()> {
-        if self.create_context().is_ok() {
+        if self.ctx.create_context().is_ok() {
             return self.seal_and_write(key);
         }
 
@@ -165,7 +116,7 @@ impl SecretStore for LinuxTpmStore {
     }
 
     fn retrieve(&self) -> Result<MasterKey> {
-        match self.create_context() {
+        match self.ctx.create_context() {
             Ok(mut ctx) => {
                 let sealed = fs::read(self.get_sealed_path()).map_err(|e| {
                     if e.kind() == std::io::ErrorKind::NotFound {
@@ -175,11 +126,11 @@ impl SecretStore for LinuxTpmStore {
                     }
                 })?;
 
-                let primary = common::create_primary_key(&mut ctx)?;
-                let unsealed = common::unseal_data(&mut ctx, primary.key_handle, &sealed)?;
+                let primary = seal::create_primary_key(&mut ctx)?;
+                let unsealed = seal::unseal_data(&mut ctx, primary.key_handle, &sealed)?;
 
                 ctx.flush_context(primary.key_handle.into())
-                    .map_err(common::tpm_err)?;
+                    .map_err(paths::tpm_err)?;
 
                 MasterKey::from_bytes(&unsealed)
             }
@@ -230,7 +181,7 @@ impl SecretStore for LinuxTpmStore {
     }
 
     fn is_available(&self) -> bool {
-        tpm_dev_exists()
+        context::tpm_dev_exists()
     }
 
     fn name(&self) -> &'static str {

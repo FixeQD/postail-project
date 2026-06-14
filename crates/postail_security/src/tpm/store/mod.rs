@@ -4,9 +4,6 @@ pub mod linux;
 #[cfg(all(target_os = "windows", feature = "tpm"))]
 pub mod windows;
 
-#[cfg(all(target_os = "linux", feature = "tpm"))]
-pub mod common;
-
 #[cfg(feature = "tpm")]
 pub mod pcr;
 

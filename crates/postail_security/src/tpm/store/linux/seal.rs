@@ -1,4 +1,3 @@
-#[cfg(feature = "tpm")]
 use tss_esapi::{
     Context,
     attributes::SessionAttributesBuilder,
@@ -16,14 +15,11 @@ use tss_esapi::{
     traits::{Marshall, UnMarshall},
 };
 
-#[cfg(feature = "tpm")]
 use std::convert::TryInto;
 
 use crate::error::{Result, SecurityError};
+use crate::tpm::store::paths::tpm_err;
 
-pub use super::paths::{SEALED_FILE_NAME, default_storage_path, tpm_err};
-
-#[cfg(feature = "tpm")]
 pub fn create_hmac_session(ctx: &mut Context) -> Result<AuthSession> {
     let session = ctx
         .start_auth_session(
@@ -48,7 +44,6 @@ pub fn create_hmac_session(ctx: &mut Context) -> Result<AuthSession> {
     Ok(session)
 }
 
-#[cfg(feature = "tpm")]
 pub fn create_primary_key(ctx: &mut Context) -> Result<CreatePrimaryKeyResult> {
     let session = create_hmac_session(ctx)?;
 
@@ -79,7 +74,6 @@ pub fn create_primary_key(ctx: &mut Context) -> Result<CreatePrimaryKeyResult> {
     .map_err(tpm_err)
 }
 
-#[cfg(feature = "tpm")]
 pub fn compute_pcr_policy_digest(ctx: &mut Context) -> Result<Digest> {
     let trial_session = ctx
         .start_auth_session(
@@ -93,7 +87,7 @@ pub fn compute_pcr_policy_digest(ctx: &mut Context) -> Result<Digest> {
         .map_err(tpm_err)?
         .ok_or_else(|| SecurityError::Tpm("failed to create trial session".into()))?;
 
-    let pcr_selection = super::pcr::create_pcr_selection_for_boot_state().map_err(tpm_err)?;
+    let pcr_selection = super::super::pcr::create_pcr_selection_for_boot_state().map_err(tpm_err)?;
 
     let policy_session: PolicySession = trial_session
         .try_into()
@@ -110,7 +104,6 @@ pub fn compute_pcr_policy_digest(ctx: &mut Context) -> Result<Digest> {
     Ok(digest)
 }
 
-#[cfg(feature = "tpm")]
 pub fn seal_data(ctx: &mut Context, primary: KeyHandle, data: &[u8]) -> Result<Vec<u8>> {
     let policy_digest = compute_pcr_policy_digest(ctx)?;
     let session = create_hmac_session(ctx)?;
@@ -154,7 +147,6 @@ pub fn seal_data(ctx: &mut Context, primary: KeyHandle, data: &[u8]) -> Result<V
     Ok(blob)
 }
 
-#[cfg(feature = "tpm")]
 pub fn unseal_data(ctx: &mut Context, primary: KeyHandle, blob: &[u8]) -> Result<Vec<u8>> {
     let (private, public) = parse_sealed_blob(blob)?;
 
@@ -180,7 +172,8 @@ pub fn unseal_data(ctx: &mut Context, primary: KeyHandle, blob: &[u8]) -> Result
             .try_into()
             .map_err(|_| SecurityError::Tpm("failed to extract policy session".into()))?;
 
-        let pcr_selection = super::pcr::create_pcr_selection_for_boot_state().map_err(tpm_err)?;
+        let pcr_selection = super::super::pcr::create_pcr_selection_for_boot_state()
+            .map_err(tpm_err)?;
 
         ctx.policy_pcr(policy_session, Digest::default(), pcr_selection)
             .map_err(|e| {
@@ -207,7 +200,6 @@ pub fn unseal_data(ctx: &mut Context, primary: KeyHandle, blob: &[u8]) -> Result
     result
 }
 
-#[cfg(feature = "tpm")]
 pub fn parse_sealed_blob(blob: &[u8]) -> Result<(tss_esapi::structures::Private, Public)> {
     if blob.len() < 8 {
         return Err(SecurityError::Tpm("corrupted sealed blob".into()));

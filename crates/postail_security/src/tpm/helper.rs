@@ -208,7 +208,7 @@ async fn handle_client(
                 }
             }
             TpmRequest::Seal { key } => {
-                use crate::tpm::store::common::{self, create_primary_key};
+                use crate::tpm::store::linux::seal::{self, create_primary_key};
                 match MasterKey::from_bytes(&key) {
                     Ok(mk) => match store.create_context() {
                         Ok(mut ctx) => {
@@ -241,7 +241,7 @@ async fn handle_client(
                 }
             }
             TpmRequest::Unseal { data } => {
-                use crate::tpm::store::common::{self, create_primary_key};
+                use crate::tpm::store::linux::seal::{self, create_primary_key};
                 match store.create_context() {
                     Ok(mut ctx) => {
                         let primary = match create_primary_key(&mut ctx) {
