@@ -1,6 +1,6 @@
 use crate::db::mail::eml_cache;
 use crate::globals::{IMAP_MANAGER, SECURITY, get_crypto, get_db_pool};
-use crate::network::rewriter::rewrite_external_resources;
+use email_network::network::rewriter::rewrite_external_resources;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde::Serialize;
 use std::sync::Mutex;

@@ -1,4 +1,4 @@
-use crate::cmd::watchdog::WatchdogState;
+use email_webview::watchdog::WatchdogState;
 use crate::email_view::EmailViewState;
 use serde_json;
 use std::borrow::Cow;
@@ -77,7 +77,7 @@ fn handle_heartbeat<R: Runtime>(app: &AppHandle<R>, query: &str) -> Response<Cow
         }
     }
 
-    match crate::cmd::watchdog::email_heartbeat(&state, token) {
+    match email_webview::watchdog::email_heartbeat(&state, token) {
         Ok(next) => Response::builder()
             .status(200)
             .header("Content-Type", "application/json")

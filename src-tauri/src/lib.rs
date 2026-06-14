@@ -7,20 +7,17 @@ pub mod error;
 pub mod globals;
 pub mod imap;
 pub mod maintenance;
-pub mod network;
 pub mod oauth;
 pub mod protocol;
 pub mod security;
 pub mod smtp;
 pub mod utils;
-pub mod webview_policy;
 
 use std::sync::atomic::Ordering;
 
 use crate::globals::SMTP_MANAGER;
 use crate::imap::pool::init_pool;
 use crate::imap::sync_status::set_sync_status_app_handle;
-use crate::network::cache::{RESOURCE_CACHE, ResourceCache};
 use tauri::Manager;
 
 /// TPM helper mode: Initialize TPM with elevated privileges (Linux only)
@@ -42,8 +39,8 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(email_view::EmailViewState::default())
-        .manage(cmd::email_webview::EmbeddedEmailState::default())
-        .manage(cmd::watchdog::WatchdogState::default())
+        .manage(email_webview::state::EmbeddedEmailState::default())
+        .manage(email_webview::watchdog::WatchdogState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init())
@@ -62,8 +59,27 @@ pub fn run() {
                     .app_data_dir()
                     .expect("failed to resolve app data dir")
                     .join("resource_cache");
+
+                use email_network::network::cache::{RESOURCE_CACHE, ResourceCache};
+                use std::sync::Arc;
+
+                let sec = crate::globals::SECURITY.clone();
+                let encrypt = Arc::new(move |data: &[u8]| {
+                    sec.try_lock()
+                        .map_err(|e| format!("encryption lock: {e}"))?
+                        .encrypt(data)
+                        .map_err(|e| e.to_string())
+                });
+                let sec = crate::globals::SECURITY.clone();
+                let decrypt = Arc::new(move |data: &[u8]| {
+                    sec.try_lock()
+                        .map_err(|e| format!("decryption lock: {e}"))?
+                        .decrypt(data)
+                        .map_err(|e| e.to_string())
+                });
+
                 RESOURCE_CACHE
-                    .set(ResourceCache::new(cache_dir))
+                    .set(ResourceCache::new(cache_dir, encrypt, decrypt))
                     .unwrap_or_else(|_| tracing::warn!("resource cache already initialized"));
             }
 
@@ -110,9 +126,9 @@ pub fn run() {
 
             // Watchdog — monitors email webview heartbeat (27.10)
             let watchdog_handle = handle.clone();
-            let watchdog_state = app.state::<cmd::watchdog::WatchdogState>().inner().clone();
+            let watchdog_state = app.state::<email_webview::watchdog::WatchdogState>().inner().clone();
             tauri::async_runtime::spawn(async move {
-                cmd::watchdog::run_watchdog_loop(watchdog_handle, watchdog_state).await;
+                email_webview::watchdog::run_watchdog_loop(watchdog_handle, watchdog_state).await;
             });
 
             // Initialize IMAP connection pool
@@ -127,11 +143,23 @@ pub fn run() {
             let proxy_port: u16 = portpicker::pick_unused_port().unwrap_or(18731);
 
             tauri::async_runtime::spawn(async move {
-                crate::network::null_proxy::start_on_port(proxy_port).await;
+                email_network::network::null_proxy::start_on_port(proxy_port).await;
             });
 
             if let Some(main_window) = app.get_webview_window("main") {
-                webview_policy::install_network_block(&main_window, proxy_port);
+                email_webview::policy::install_network_block(&main_window, proxy_port);
+            }
+
+            // Register route handler for Windows WebView2 resource requests
+            #[cfg(target_os = "windows")]
+            {
+                use std::sync::Arc;
+                let app_for_route = handle.clone();
+                email_webview::policy::set_route_handler(Arc::new(
+                    move |path: &str, query: &str| {
+                        crate::protocol::handle_message_route(&app_for_route, path, query)
+                    },
+                ));
             }
 
             Ok(())
@@ -206,11 +234,11 @@ pub fn run() {
             cmd::mail::sync::unwatch_all_mailboxes,
             cmd::maintenance::clear_cache,
             cmd::maintenance::backfill_snippets,
-            cmd::email_webview::create_email_webview,
-            cmd::email_webview::update_email_webview_bounds,
-            cmd::email_webview::destroy_email_webview,
-            cmd::email_webview::reload_email_webview,
-            cmd::watchdog::resume_email_webview,
+            email_webview::commands::create_email_webview,
+            email_webview::commands::update_email_webview_bounds,
+            email_webview::commands::destroy_email_webview,
+            email_webview::commands::reload_email_webview,
+            email_webview::commands::resume_email_webview,
             cmd::settings::get_autostart_enabled,
             cmd::settings::set_autostart_enabled,
             cmd::maintenance::dev_reset_data,

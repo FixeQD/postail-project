@@ -1,6 +1,6 @@
 use crate::email_view::EmailViewState;
 use crate::globals::SECURITY;
-use crate::network::rewriter::rewrite_external_resources;
+use email_network::network::rewriter::rewrite_external_resources;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use html_transpiler::{
     SanitizeResult, auto_fix_email_html as sanitizer_fix, sanitize_email_html_with_details,

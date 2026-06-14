@@ -14,5 +14,3 @@ pub mod signatures;
 pub mod smtp;
 pub mod templates;
 pub mod utils;
-pub mod watchdog;
-pub mod email_webview;

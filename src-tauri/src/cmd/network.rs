@@ -1,4 +1,4 @@
-use crate::network::cache::RESOURCE_CACHE;
+use email_network::network::cache::RESOURCE_CACHE;
 use serde::Serialize;
 use tauri::command;
 
