@@ -1,4 +1,4 @@
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "tpm"))]
 pub mod linux;
 
 #[cfg(all(target_os = "windows", feature = "tpm"))]
@@ -35,11 +35,11 @@ pub struct NoTpmStore;
 
 impl SecretStore for NoTpmStore {
     fn store(&self, _key: &MasterKey) -> Result<()> {
-        Err(SecurityError::NoSecureStorageAvailable)
+        Err(SecurityError::Tpm("TPM support not compiled in".into()))
     }
 
     fn retrieve(&self) -> Result<MasterKey> {
-        Err(SecurityError::NoSecureStorageAvailable)
+        Err(SecurityError::Tpm("TPM support not compiled in".into()))
     }
 
     fn delete(&self) -> Result<()> {
