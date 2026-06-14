@@ -1,52 +1,49 @@
-use tss_esapi::{Context, tcti_ldr::TctiNameConf};
+mod proto;
+mod seal;
+mod tbs;
 
 use std::fs;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use crate::error::{Result, SecurityError};
 use crate::master_key::MasterKey;
 use crate::storage::SecretStore;
+use crate::tpm::store::paths;
 
-use super::common;
+use tbs::TbsContext;
 
 pub struct WindowsTpmStore {
     storage_path: PathBuf,
-    tcti: TctiNameConf,
 }
 
 impl WindowsTpmStore {
     pub fn new() -> Result<Self> {
-        Self::with_storage_path(common::default_storage_path())
+        Self::with_storage_path(paths::default_storage_path())
     }
 
     pub fn with_storage_path(storage_path: PathBuf) -> Result<Self> {
-        let tcti = TctiNameConf::from_str("tbs").map_err(common::tpm_err)?;
-        Ok(Self { storage_path, tcti })
+        Ok(Self { storage_path })
     }
 
     fn get_sealed_path(&self) -> PathBuf {
-        self.storage_path.join(common::SEALED_FILE_NAME)
-    }
-
-    fn create_context(&self) -> Result<Context> {
-        Context::new(self.tcti.clone()).map_err(common::tpm_err)
+        self.storage_path.join(paths::SEALED_FILE_NAME)
     }
 }
 
 impl SecretStore for WindowsTpmStore {
     fn store(&self, key: &MasterKey) -> Result<()> {
-        let mut ctx = self.create_context()?;
-        let primary = common::create_primary_key(&mut ctx)?;
-        let sealed = common::seal_data(&mut ctx, primary.key_handle, key.as_bytes())?;
+        let tbs = TbsContext::new()?;
+        let primary = seal::create_primary_key(&tbs)?;
+
+        let sealed = seal::seal_data(&tbs, primary, key.as_bytes());
+        let _ = seal::flush_context(&tbs, primary);
+        let sealed = sealed?;
 
         if let Some(parent) = self.get_sealed_path().parent() {
             fs::create_dir_all(parent)?;
         }
         fs::write(self.get_sealed_path(), sealed)?;
 
-        ctx.flush_context(primary.key_handle.into())
-            .map_err(common::tpm_err)?;
         Ok(())
     }
 
@@ -59,14 +56,13 @@ impl SecretStore for WindowsTpmStore {
             }
         })?;
 
-        let mut ctx = self.create_context()?;
-        let primary = common::create_primary_key(&mut ctx)?;
-        let unsealed = common::unseal_data(&mut ctx, primary.key_handle, &sealed)?;
+        let tbs = TbsContext::new()?;
+        let primary = seal::create_primary_key(&tbs)?;
 
-        ctx.flush_context(primary.key_handle.into())
-            .map_err(common::tpm_err)?;
+        let unsealed = seal::unseal_data(&tbs, primary, &sealed);
+        let _ = seal::flush_context(&tbs, primary);
 
-        MasterKey::from_bytes(&unsealed)
+        MasterKey::from_bytes(&unsealed?)
     }
 
     fn delete(&self) -> Result<()> {
@@ -82,9 +78,7 @@ impl SecretStore for WindowsTpmStore {
     }
 
     fn is_available(&self) -> bool {
-        self.create_context()
-            .map(|mut ctx| ctx.get_random(8).is_ok())
-            .unwrap_or(false)
+        TbsContext::new().is_ok()
     }
 
     fn name(&self) -> &'static str {

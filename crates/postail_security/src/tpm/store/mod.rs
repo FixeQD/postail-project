@@ -4,11 +4,14 @@ pub mod linux;
 #[cfg(all(target_os = "windows", feature = "tpm"))]
 pub mod windows;
 
-#[cfg(feature = "tpm")]
+#[cfg(all(target_os = "linux", feature = "tpm"))]
 pub mod common;
 
 #[cfg(feature = "tpm")]
 pub mod pcr;
+
+#[cfg(feature = "tpm")]
+pub mod paths;
 
 use crate::error::{Result, SecurityError};
 use crate::master_key::MasterKey;
@@ -25,7 +28,20 @@ pub fn get_tpm_store() -> Option<Box<dyn SecretStore>> {
     }
 }
 
-#[cfg(not(all(target_os = "linux", feature = "tpm")))]
+#[cfg(all(target_os = "windows", feature = "tpm"))]
+pub fn get_tpm_store() -> Option<Box<dyn SecretStore>> {
+    let store = windows::WindowsTpmStore::new().ok()?;
+    if store.is_available() {
+        Some(Box::new(store) as Box<dyn SecretStore>)
+    } else {
+        None
+    }
+}
+
+#[cfg(not(any(
+    all(target_os = "linux", feature = "tpm"),
+    all(target_os = "windows", feature = "tpm")
+)))]
 pub fn get_tpm_store() -> Option<Box<dyn SecretStore>> {
     None
 }

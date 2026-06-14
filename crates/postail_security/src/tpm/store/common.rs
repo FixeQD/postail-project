@@ -1,5 +1,6 @@
 #[cfg(feature = "tpm")]
 use tss_esapi::{
+    Context,
     attributes::SessionAttributesBuilder,
     constants::SessionType,
     handles::{KeyHandle, SessionHandle},
@@ -13,31 +14,14 @@ use tss_esapi::{
         SensitiveData, SymmetricDefinition, SymmetricDefinitionObject,
     },
     traits::{Marshall, UnMarshall},
-    Context,
 };
 
 #[cfg(feature = "tpm")]
 use std::convert::TryInto;
-use std::path::PathBuf;
 
 use crate::error::{Result, SecurityError};
 
-pub const SEALED_FILE_NAME: &str = "master_key.tpm";
-
-pub fn default_storage_path() -> PathBuf {
-    if let Ok(dir) = std::env::var("POSTAIL_DATA_DIR") {
-        return PathBuf::from(dir).join("security");
-    }
-    dirs::data_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("postail")
-        .join("security")
-}
-
-#[cfg(feature = "tpm")]
-pub fn tpm_err(e: impl std::fmt::Display) -> SecurityError {
-    SecurityError::Tpm(e.to_string())
-}
+pub use super::paths::{SEALED_FILE_NAME, default_storage_path, tpm_err};
 
 #[cfg(feature = "tpm")]
 pub fn create_hmac_session(ctx: &mut Context) -> Result<AuthSession> {

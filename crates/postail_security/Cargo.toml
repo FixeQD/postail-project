@@ -23,17 +23,19 @@ tokio = { version = "1", features = ["full"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 nix = { version = "0.29", features = ["process", "signal", "user", "socket", "fs"] }
+tss-esapi = { version = "7", optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 dunce = "1.0.5"
+windows = { version = "0.61", optional = true, features = [
+    "Win32_System_TpmBaseServices",
+    "Win32_Foundation",
+] }
+hmac = { version = "0.12", optional = true }
 
 [features]
 default = []
-tpm = ["tss-esapi"]
-
-[dependencies.tss-esapi]
-version = "7"
-optional = true
+tpm = ["tss-esapi", "windows", "hmac"]
 
 [dev-dependencies]
 tempfile = "3"

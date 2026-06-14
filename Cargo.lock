@@ -4103,6 +4103,7 @@ dependencies = [
  "dunce",
  "hex",
  "hkdf",
+ "hmac",
  "keyring",
  "nix 0.29.0",
  "rand 0.9.3",
@@ -4115,6 +4116,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tss-esapi",
+ "windows 0.61.3",
  "zeroize",
 ]
 
