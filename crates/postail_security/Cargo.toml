@@ -27,7 +27,7 @@ tss-esapi = { version = "7", optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 dunce = "1.0.5"
-windows = { version = "0.61", optional = true, features = [
+windows = { version = "0.62", optional = true, features = [
     "Win32_System_TpmBaseServices",
     "Win32_Foundation",
 ] }
