@@ -68,7 +68,7 @@ impl LinuxTpmStore {
     }
 
     pub fn verify_proxy(&self) -> bool {
-        proxy::call_proxy(proxy::TpmRequest::Ping).is_ok()
+        proxy::call_proxy(crate::tpm::protocol::TpmRequest::Ping).is_ok()
     }
 
     fn seal_and_write(&self, key: &MasterKey) -> Result<()> {
@@ -95,13 +95,11 @@ impl SecretStore for LinuxTpmStore {
 
         #[cfg(target_os = "linux")]
         if proxy::is_socket_alive() {
-            let sealed = proxy::call_proxy(proxy::TpmRequest::Seal {
+            let sealed = proxy::call_proxy(crate::tpm::protocol::TpmRequest::Seal {
                 key: key.as_bytes().to_vec(),
             })
             .map_err(SecurityError::Tpm)?
-            .ok_or_else(|| {
-                SecurityError::Tpm("No sealed data returned from helper".into())
-            })?;
+            .ok_or_else(|| SecurityError::Tpm("No sealed data returned from helper".into()))?;
 
             if let Some(parent) = self.get_sealed_path().parent() {
                 fs::create_dir_all(parent)?;
@@ -145,11 +143,13 @@ impl SecretStore for LinuxTpmStore {
                         }
                     })?;
 
-                    let key_bytes = proxy::call_proxy(proxy::TpmRequest::Unseal { data: sealed })
-                        .map_err(SecurityError::Tpm)?
-                        .ok_or_else(|| {
-                            SecurityError::Tpm("No unsealed data returned from helper".into())
-                        })?;
+                    let key_bytes = proxy::call_proxy(crate::tpm::protocol::TpmRequest::Unseal {
+                        data: sealed,
+                    })
+                    .map_err(SecurityError::Tpm)?
+                    .ok_or_else(|| {
+                        SecurityError::Tpm("No unsealed data returned from helper".into())
+                    })?;
                     return MasterKey::from_bytes(&key_bytes);
                 }
 
@@ -165,7 +165,9 @@ impl SecretStore for LinuxTpmStore {
 
         #[cfg(target_os = "linux")]
         if std::env::var("POSTAIL_TPM_HELPER").is_err() && proxy::is_socket_alive() {
-            let _ = proxy::call_proxy(proxy::TpmRequest::DeleteFile { path: path.clone() });
+            let _ = proxy::call_proxy(crate::tpm::protocol::TpmRequest::DeleteFile {
+                path: path.clone(),
+            });
             return Ok(());
         }
 

@@ -1,9 +1,9 @@
+use crate::MasterKey;
 use crate::storage::SecretStore;
 use crate::tpm::protocol::{
-    async_io::{receive_message_async, send_message_async},
     TpmRequest, TpmResponse,
+    async_io::{receive_message_async, send_message_async},
 };
-use crate::MasterKey;
 use nix::sys::socket::{getsockopt, sockopt};
 use std::fs;
 use std::os::fd::{AsFd, FromRawFd, RawFd};
@@ -48,9 +48,7 @@ pub fn tpm_helper_init() -> Result<(), String> {
             start_watchdog(parent_pid)?;
         }
 
-        let storage_path = Arc::new(Mutex::new(
-            crate::tpm::store::common::default_storage_path(),
-        ));
+        let storage_path = Arc::new(Mutex::new(crate::tpm::store::paths::default_storage_path()));
 
         while let Ok((mut stream, _)) = listener.accept().await {
             let target_uid = uid.as_raw();
@@ -215,19 +213,25 @@ async fn handle_client(
                             let primary = match create_primary_key(&mut ctx) {
                                 Ok(p) => p,
                                 Err(e) => {
-                                    send_message_async(stream, &TpmResponse::Err(e.to_string())).await?;
+                                    send_message_async(stream, &TpmResponse::Err(e.to_string()))
+                                        .await?;
                                     continue;
                                 }
                             };
-                            match common::seal_data(&mut ctx, primary.key_handle, mk.as_bytes()) {
+                            match seal::seal_data(&mut ctx, primary.key_handle, mk.as_bytes()) {
                                 Ok(sealed) => {
                                     let _ = ctx.flush_context(primary.key_handle.into());
-                                    send_message_async(stream, &TpmResponse::Ok { key: Some(sealed) }).await?;
+                                    send_message_async(
+                                        stream,
+                                        &TpmResponse::Ok { key: Some(sealed) },
+                                    )
+                                    .await?;
                                     continue;
                                 }
                                 Err(e) => {
                                     let _ = ctx.flush_context(primary.key_handle.into());
-                                    send_message_async(stream, &TpmResponse::Err(e.to_string())).await?;
+                                    send_message_async(stream, &TpmResponse::Err(e.to_string()))
+                                        .await?;
                                     continue;
                                 }
                             }
@@ -247,19 +251,27 @@ async fn handle_client(
                         let primary = match create_primary_key(&mut ctx) {
                             Ok(p) => p,
                             Err(e) => {
-                                send_message_async(stream, &TpmResponse::Err(e.to_string())).await?;
+                                send_message_async(stream, &TpmResponse::Err(e.to_string()))
+                                    .await?;
                                 continue;
                             }
                         };
-                        match common::unseal_data(&mut ctx, primary.key_handle, &data) {
+                        match seal::unseal_data(&mut ctx, primary.key_handle, &data) {
                             Ok(unsealed) => {
                                 let _ = ctx.flush_context(primary.key_handle.into());
-                                send_message_async(stream, &TpmResponse::Ok { key: Some(unsealed) }).await?;
+                                send_message_async(
+                                    stream,
+                                    &TpmResponse::Ok {
+                                        key: Some(unsealed),
+                                    },
+                                )
+                                .await?;
                                 continue;
                             }
                             Err(e) => {
                                 let _ = ctx.flush_context(primary.key_handle.into());
-                                send_message_async(stream, &TpmResponse::Err(e.to_string())).await?;
+                                send_message_async(stream, &TpmResponse::Err(e.to_string()))
+                                    .await?;
                                 continue;
                             }
                         }
@@ -291,19 +303,15 @@ async fn handle_client(
                 *storage_path.lock().await = PathBuf::from(&path).join("security");
                 TpmResponse::Ok { key: None }
             }
-            TpmRequest::StoreFile { path, data } => {
-                match fs::write(&path, data) {
-                    Ok(_) => TpmResponse::Ok { key: None },
-                    Err(e) => TpmResponse::Err(e.to_string()),
-                }
-            }
-            TpmRequest::DeleteFile { path } => {
-                match fs::remove_file(&path) {
-                    Ok(_) => TpmResponse::Ok { key: None },
-                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => TpmResponse::Ok { key: None },
-                    Err(e) => TpmResponse::Err(e.to_string()),
-                }
-            }
+            TpmRequest::StoreFile { path, data } => match fs::write(&path, data) {
+                Ok(_) => TpmResponse::Ok { key: None },
+                Err(e) => TpmResponse::Err(e.to_string()),
+            },
+            TpmRequest::DeleteFile { path } => match fs::remove_file(&path) {
+                Ok(_) => TpmResponse::Ok { key: None },
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => TpmResponse::Ok { key: None },
+                Err(e) => TpmResponse::Err(e.to_string()),
+            },
         };
 
         send_message_async(stream, &res).await?;
