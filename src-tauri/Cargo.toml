@@ -76,7 +76,6 @@ lettre = { version = "0.11.19", default-features = false, features = [
 ] }
 tokio-native-tls = "0.3.1"
 kuchikiki = "0.8.8-speedreader"
-markup5ever = "0.14"
 
 futures = "0.3.31"
 tokio-util = { version = "0.7.18", features = ["compat"] }

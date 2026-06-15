@@ -4057,7 +4057,6 @@ dependencies = [
  "kuchikiki",
  "lettre",
  "mailparse",
- "markup5ever 0.14.1",
  "native-tls",
  "nix 0.29.0",
  "portpicker",
