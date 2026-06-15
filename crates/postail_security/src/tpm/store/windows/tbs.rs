@@ -13,6 +13,7 @@ use windows::Win32::System::TpmBaseServices::{
 const TBS_SUCCESS: u32 = 0;
 
 /// TPM version returned by `Tbsi_GetDeviceInfo`.
+#[allow(dead_code)]
 pub const TPM_VERSION_12: u32 = 1;
 pub const TPM_VERSION_20: u32 = 2;
 
