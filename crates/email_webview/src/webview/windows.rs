@@ -25,6 +25,10 @@ use webview2_com::{
     CreateCoreWebView2EnvironmentCompletedHandler,
 };
 
+use windows_wv::Win32::UI::WindowsAndMessaging::{
+    CreateWindowExW, DestroyWindow, WINDOW_EX_STYLE, WINDOW_STYLE, WS_CHILD, WS_VISIBLE,
+};
+
 pub fn create(app: AppHandle, watchdog: WatchdogState) -> Result<(), String> {
     let app2 = app.clone();
     app.run_on_main_thread(move || create_on_main(app2, watchdog))
@@ -73,6 +77,33 @@ fn create_on_main(app: AppHandle, watchdog: WatchdogState) {
     };
     state.win.lock().unwrap().main_hwnd = hwnd_isize;
 
+    let class_name: Vec<u16> = "STATIC\0".encode_utf16().collect();
+    let window_name: Vec<u16> = "\0".encode_utf16().collect();
+
+    let child_hwnd = match unsafe {
+        CreateWindowExW(
+            WINDOW_EX_STYLE::default(),
+            windows_wv::core::PCWSTR(class_name.as_ptr()),
+            windows_wv::core::PCWSTR(window_name.as_ptr()),
+            WS_CHILD | WS_VISIBLE,
+            0,
+            0,
+            1,
+            1,
+            Some(HWND(hwnd_isize as *mut _)),
+            None,
+            None,
+            None,
+        )
+    } {
+        Ok(h) => h,
+        Err(e) => {
+            tracing::error!("[webview/win] CreateWindowExW failed: {e}");
+            return;
+        }
+    };
+    state.win.lock().unwrap().child_hwnd = child_hwnd.0 as isize;
+
     let win_arc = state.win.clone();
     let wd = watchdog.clone();
     let app_for_env = app.clone();
@@ -91,9 +122,9 @@ fn create_on_main(app: AppHandle, watchdog: WatchdogState) {
                 }
             };
 
-            let hwnd = HWND(win_arc.lock().unwrap().main_hwnd as *mut _);
+            let child_hwnd = HWND(win_arc.lock().unwrap().child_hwnd as *mut _);
 
-            let (dev, tgt, vis) = match setup_dcomp(hwnd) {
+            let (dev, tgt, vis) = match setup_dcomp(child_hwnd) {
                 Ok(v) => v,
                 Err(e) => {
                     tracing::error!("[webview/win] DComp setup: {e}");
@@ -135,7 +166,7 @@ fn create_on_main(app: AppHandle, watchdog: WatchdogState) {
             );
 
             unsafe {
-                if let Err(e) = env3.CreateCoreWebView2CompositionController(hwnd, &ctrl_handler) {
+                if let Err(e) = env3.CreateCoreWebView2CompositionController(child_hwnd, &ctrl_handler) {
                     tracing::error!("[webview/win] CreateCompositionController: {e:?}");
                 }
             }
@@ -289,6 +320,10 @@ fn destroy_on_main(app: &AppHandle) {
         }
         if let Some(dev) = guard.dcomp_device.as_ref() {
             let _ = dev.Commit();
+        }
+        if guard.child_hwnd != 0 {
+            let _ = DestroyWindow(HWND(guard.child_hwnd as *mut _));
+            guard.child_hwnd = 0;
         }
     }
     guard.comp_ctrl = None;
