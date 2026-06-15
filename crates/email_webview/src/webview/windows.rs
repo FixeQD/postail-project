@@ -1,5 +1,4 @@
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use crate::state::{EmbeddedEmailState, WinViewInner};
 use crate::watchdog::WatchdogState;
@@ -239,23 +238,19 @@ fn on_ctrl_created(
         if let Ok(wv) = controller.CoreWebView2() {
             crate::policy::register_webview2_resource_handler(&wv, env, app.clone());
             navigate_to_email(&wv);
+
+            let mut pid: u32 = 0;
+            if wv.BrowserProcessId(&mut pid as *mut u32).is_ok() && pid != 0 {
+                watchdog.0.lock().unwrap().pid = Some(pid);
+                tracing::info!(pid, "email renderer PID captured via BrowserProcessId");
+            } else {
+                tracing::warn!("[webview/win] BrowserProcessId failed or returned 0");
+            }
         }
 
         if let Some(dev) = win_arc.lock().unwrap().dcomp_device.clone() {
             let _ = dev.Commit();
         }
-
-        let wd = watchdog.clone();
-        let our_pid = std::process::id();
-        tauri::async_runtime::spawn(async move {
-            tokio::time::sleep(Duration::from_millis(700)).await;
-            if let Some(pid) = find_webview2_renderer_pid(our_pid) {
-                wd.0.lock().unwrap().pid = Some(pid);
-                tracing::info!(pid, "email renderer PID captured (WebView2/DComp)");
-            } else {
-                tracing::warn!("[webview/win] could not resolve WebView2 renderer PID");
-            }
-        });
 
         let mut g = win_arc.lock().unwrap();
         g.controller = Some(controller);
@@ -408,37 +403,3 @@ unsafe fn navigate_to_email(wv: &ICoreWebView2) {
     let _ = wv.Navigate(windows_wv::core::PCWSTR(url.as_ptr()));
 }
 
-fn find_webview2_renderer_pid(parent_pid: u32) -> Option<u32> {
-    use ::windows::Win32::Foundation::CloseHandle;
-    use ::windows::Win32::System::Diagnostics::ToolHelp::{
-        CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
-        TH32CS_SNAPPROCESS,
-    };
-    unsafe {
-        let snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0).ok()?;
-        let mut entry = PROCESSENTRY32W {
-            dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
-            ..Default::default()
-        };
-        let mut found = None;
-        if Process32FirstW(snap, &mut entry).is_ok() {
-            loop {
-                if entry.th32ParentProcessID == parent_pid {
-                    let name = String::from_utf16_lossy(
-                        &entry.szExeFile
-                            [..entry.szExeFile.iter().position(|&c| c == 0).unwrap_or(260)],
-                    );
-                    if name.to_lowercase().contains("msedgewebview2") {
-                        found = Some(entry.th32ProcessID);
-                        break;
-                    }
-                }
-                if Process32NextW(snap, &mut entry).is_err() {
-                    break;
-                }
-            }
-        }
-        let _ = CloseHandle(snap);
-        found
-    }
-}
