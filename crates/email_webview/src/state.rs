@@ -23,6 +23,7 @@ pub struct WinViewInner {
     pub main_hwnd: isize,
     pub child_hwnd: isize,
     pub pending_bounds: Option<(f64, f64, f64, f64)>,
+    pub is_creating: bool,
 }
 
 #[cfg(target_os = "windows")]
@@ -42,6 +43,7 @@ impl Default for WinViewInner {
             main_hwnd: 0,
             child_hwnd: 0,
             pending_bounds: None,
+            is_creating: false,
         }
     }
 }
