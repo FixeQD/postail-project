@@ -141,7 +141,7 @@ fn pcr_selection_boot() -> Vec<u8> {
     write_u16_be(&mut buf, TPM2_ALG_SHA256);
     buf.push(3); // sizeofSelect = 3 bytes = PCRs 0–23
     // PCR_INDEX_BOOT_STATE is bit index within the 3-byte bitmap
-    let byte_idx = PCR_INDEX_BOOT_STATE / 8;
+    let byte_idx = (PCR_INDEX_BOOT_STATE / 8) as usize;
     let bit_idx = PCR_INDEX_BOOT_STATE % 8;
     let mut bitmap = [0u8; 3];
     bitmap[byte_idx] = 1 << bit_idx;
