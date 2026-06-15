@@ -10,7 +10,7 @@ use crate::master_key::MasterKey;
 use crate::storage::SecretStore;
 use crate::tpm::store::paths;
 
-use tbs::TbsContext;
+use tbs::{TPM_VERSION_20, TbsContext};
 
 pub struct WindowsTpmStore {
     storage_path: PathBuf,
@@ -77,8 +77,46 @@ impl SecretStore for WindowsTpmStore {
         self.get_sealed_path().exists()
     }
 
+    /// Checks TPM2 availability
     fn is_available(&self) -> bool {
-        TbsContext::new().is_ok()
+        // ── Layer 1: Tbsi_GetDeviceInfo ────────────────────────────────────
+        let device_info = match TbsContext::get_device_info() {
+            Some(info) => info,
+            None => {
+                tracing::info!("TPM: Tbsi_GetDeviceInfo found no chip");
+                return false;
+            }
+        };
+
+        if device_info.tpm_version != TPM_VERSION_20 {
+            tracing::info!(
+                "TPM: detected chip version {} — 2.0 required",
+                device_info.tpm_version
+            );
+            return false;
+        }
+
+        // ── Layer 2: TbsContext::new() ─────────────────────────────────────
+        let tbs = match TbsContext::new() {
+            Ok(ctx) => ctx,
+            Err(e) => {
+                tracing::warn!("TPM: could not open TBS context: {e}");
+                return false;
+            }
+        };
+
+        // ── Layer 3: TPM2_GetRandom probe ─────────────────────────────────
+        if !tbs.probe() {
+            tracing::warn!("TPM: context opened, but chip did not respond to GetRandom probe");
+            return false;
+        }
+
+        tracing::info!(
+            "TPM2 dostępny (interface_type={}, imp_revision={})",
+            device_info.tpm_interface_type,
+            device_info.tpm_imp_revision,
+        );
+        true
     }
 
     fn name(&self) -> &'static str {

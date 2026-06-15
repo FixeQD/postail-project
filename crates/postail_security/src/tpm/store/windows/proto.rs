@@ -19,6 +19,8 @@ const TPM2_CC_UNSEAL: u32 = 0x0000_015E;
 const TPM2_CC_START_AUTH_SESSION: u32 = 0x0000_0176;
 const TPM2_CC_POLICY_PCR: u32 = 0x0000_017F;
 const TPM2_CC_POLICY_GET_DIGEST: u32 = 0x0000_0189;
+/// TPM2_GetRandom - request random bytes
+const TPM2_CC_GET_RANDOM: u32 = 0x0000_017B;
 
 // ── Handles ──
 const TPM2_RH_OWNER: u32 = 0x4000_0001;
@@ -102,13 +104,12 @@ fn build_command(tag: u16, cc: u32, body: &[u8]) -> Vec<u8> {
     buf
 }
 
-/// TPMS_AUTH_COMMAND for TPM2_RS_PW with an empty password
 fn build_password_auth_area() -> Vec<u8> {
     let mut session = Vec::new();
     write_u32_be(&mut session, TPM2_RS_PW);
     write_tpm2b_empty(&mut session); // nonce
-    session.push(0x01); // continueSession
-    write_tpm2b_empty(&mut session); // hmac (empty password)
+    session.push(0x00); // sessionAttributes
+    write_tpm2b_empty(&mut session); // hmac (empty = no password)
 
     let mut auth_area = Vec::new();
     write_u32_be(&mut auth_area, session.len() as u32);
@@ -116,7 +117,6 @@ fn build_password_auth_area() -> Vec<u8> {
     auth_area
 }
 
-/// Strip the 10-byte header, verify responseCode == 0, return the body
 fn parse_response(data: &[u8]) -> Result<&[u8], String> {
     if data.len() < 10 {
         return Err("response too short".into());
@@ -139,14 +139,15 @@ fn pcr_selection_boot() -> Vec<u8> {
     let mut buf = Vec::new();
     write_u32_be(&mut buf, 1); // count: 1 bank
     write_u16_be(&mut buf, TPM2_ALG_SHA256);
-    buf.push(3); // sizeOfSelect: PCR 0-23
+    buf.push(3); // sizeofSelect = 3 bytes = PCRs 0–23
+    // PCR_INDEX_BOOT_STATE is bit index within the 3-byte bitmap
+    let byte_idx = PCR_INDEX_BOOT_STATE / 8;
+    let bit_idx = PCR_INDEX_BOOT_STATE % 8;
     let mut bitmap = [0u8; 3];
-    bitmap[(PCR_INDEX_BOOT_STATE / 8) as usize] |= 1 << (PCR_INDEX_BOOT_STATE % 8);
+    bitmap[byte_idx] = 1 << bit_idx;
     buf.extend_from_slice(&bitmap);
     buf
 }
-
-// ── Object templates ──
 
 /// AES-128-CFB symmetric storage primary key (restricted decrypt) under Owner
 fn build_primary_template() -> Vec<u8> {
@@ -347,4 +348,19 @@ pub fn parse_unseal(resp: &[u8]) -> Result<Vec<u8>, String> {
     let mut off = 0;
     let _param_size = read_u32_be(body, &mut off).ok_or("short response")?;
     read_tpm2b(body, &mut off).ok_or_else(|| "short response".into())
+}
+
+/// Builds `TPM2_GetRandom { bytesRequested }`
+pub fn cmd_get_random(num_bytes: u16) -> Vec<u8> {
+    let mut body = Vec::new();
+    write_u16_be(&mut body, num_bytes);
+    build_command(TPM2_ST_NO_SESSIONS, TPM2_CC_GET_RANDOM, &body)
+}
+
+/// Parses `TPM2_GetRandom` response and returns the received bytes
+/// Returns error if response_code != 0 or the response is truncated
+pub fn parse_get_random(resp: &[u8]) -> Result<Vec<u8>, String> {
+    let body = parse_response(resp)?; // validates response_code == 0
+    let mut off = 0;
+    read_tpm2b(body, &mut off).ok_or_else(|| "short GetRandom response".into())
 }
