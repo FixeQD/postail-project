@@ -1,15 +1,15 @@
 use crate::security::storage::{SecretStore, keyring::KeyringStore};
 use serde::Serialize;
-use tauri::command;
-#[cfg(all(target_os = "linux", feature = "tpm"))]
+#[cfg(feature = "tpm")]
 use std::time::Duration;
-#[cfg(all(target_os = "linux", feature = "tpm"))]
+use tauri::command;
+#[cfg(feature = "tpm")]
 use tokio::task::spawn_blocking;
-#[cfg(all(target_os = "linux", feature = "tpm"))]
+#[cfg(feature = "tpm")]
 use tokio::time::timeout;
 
 // ---------------------------------------------------------------------------
-// TPM error types (Linux + tpm feature only)
+// TPM error types
 // ---------------------------------------------------------------------------
 
 #[cfg(all(target_os = "linux", feature = "tpm"))]
@@ -45,11 +45,7 @@ impl From<TpmInitError> for String {
     }
 }
 
-// ---------------------------------------------------------------------------
-// TpmStatus — the serializable result exposed to the frontend
-// ---------------------------------------------------------------------------
-
-#[cfg(all(target_os = "linux", feature = "tpm"))]
+#[cfg(feature = "tpm")]
 #[derive(Serialize, Clone, Copy)]
 pub enum TpmStatus {
     Available,
@@ -57,7 +53,7 @@ pub enum TpmStatus {
     NotAvailable,
 }
 
-#[cfg(all(target_os = "linux", feature = "tpm"))]
+#[cfg(feature = "tpm")]
 impl From<crate::security::TpmAvailability> for TpmStatus {
     fn from(availability: crate::security::TpmAvailability) -> Self {
         match availability {
@@ -68,12 +64,7 @@ impl From<crate::security::TpmAvailability> for TpmStatus {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Shared helper — runs TpmInitializer on a blocking thread with a 3 s cap.
-// Falls back to NotAvailable on timeout or join error.
-// ---------------------------------------------------------------------------
-
-#[cfg(all(target_os = "linux", feature = "tpm"))]
+#[cfg(feature = "tpm")]
 async fn tpm_check() -> TpmStatus {
     timeout(
         Duration::from_secs(3),
@@ -91,9 +82,9 @@ async fn tpm_check() -> TpmStatus {
 
 #[derive(Serialize)]
 pub struct SecurityOptions {
-    #[cfg(all(target_os = "linux", feature = "tpm"))]
+    #[cfg(feature = "tpm")]
     pub tpm_available: bool,
-    #[cfg(all(target_os = "linux", feature = "tpm"))]
+    #[cfg(feature = "tpm")]
     pub tpm_requires_elevation: bool,
     pub keyring_available: bool,
     pub argon2_available: bool,
@@ -101,7 +92,7 @@ pub struct SecurityOptions {
 
 #[command]
 pub async fn check_security_options() -> Result<SecurityOptions, String> {
-    #[cfg(all(target_os = "linux", feature = "tpm"))]
+    #[cfg(feature = "tpm")]
     let (tpm_available, tpm_requires_elevation) = match tpm_check().await {
         TpmStatus::Available => (true, false),
         TpmStatus::RequiresElevation => (true, true),
@@ -113,9 +104,9 @@ pub async fn check_security_options() -> Result<SecurityOptions, String> {
         .unwrap_or(false);
 
     Ok(SecurityOptions {
-        #[cfg(all(target_os = "linux", feature = "tpm"))]
+        #[cfg(feature = "tpm")]
         tpm_available,
-        #[cfg(all(target_os = "linux", feature = "tpm"))]
+        #[cfg(feature = "tpm")]
         tpm_requires_elevation,
         keyring_available,
         argon2_available: true,

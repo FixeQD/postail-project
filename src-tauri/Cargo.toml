@@ -116,5 +116,5 @@ tauri-plugin-autostart = "2.5.1"
 tempfile = "3"
 
 [features]
-default = []
+default = ["tpm"]
 tpm = ["postail_security/tpm"]
