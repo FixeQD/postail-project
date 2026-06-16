@@ -24,6 +24,7 @@ pub struct WinViewInner {
     pub child_hwnd: isize,
     pub pending_bounds: Option<(f64, f64, f64, f64)>,
     pub is_creating: bool,
+    pub webview2_thread_id: u32,
 }
 
 #[cfg(target_os = "windows")]
@@ -44,6 +45,7 @@ impl Default for WinViewInner {
             child_hwnd: 0,
             pending_bounds: None,
             is_creating: false,
+            webview2_thread_id: 0,
         }
     }
 }
