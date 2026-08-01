@@ -5,24 +5,16 @@ use crate::watchdog::WatchdogState;
 use tauri::{AppHandle, Manager};
 
 use windows_wv::core::Interface;
-use windows_wv::Win32::Foundation::{HMODULE, HWND, LPARAM, RECT, WPARAM};
-use windows_wv::Win32::Graphics::Direct3D::D3D_DRIVER_TYPE_HARDWARE;
-use windows_wv::Win32::Graphics::Direct3D11::{
-    D3D11CreateDevice, D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_SDK_VERSION,
-};
-use windows_wv::Win32::Graphics::DirectComposition::{
-    DCompositionCreateDevice, IDCompositionDevice, IDCompositionTarget, IDCompositionVisual,
-};
-use windows_wv::Win32::Graphics::Dxgi::IDXGIDevice;
+use windows_wv::Win32::Foundation::{HWND, RECT};
 use windows_wv::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED};
 use windows_wv::Win32::System::Threading::GetCurrentThreadId;
 use windows_wv::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DestroyWindow, DispatchMessageW, GetMessageW, PostThreadMessageW,
-    TranslateMessage, MSG, WINDOW_EX_STYLE, WM_APP, WM_QUIT, WS_CHILD, WS_VISIBLE,
+    CreateWindowExW, DispatchMessageW, GetMessageW, TranslateMessage, MSG, WINDOW_EX_STYLE,
+    WS_CHILD, WS_VISIBLE,
 };
 
 use webview2_com::Microsoft::Web::WebView2::Win32::{
-    CreateCoreWebView2EnvironmentWithOptions, ICoreWebView2, ICoreWebView2CompositionController,
+    CreateCoreWebView2EnvironmentWithOptions, ICoreWebView2CompositionController,
     ICoreWebView2Controller, ICoreWebView2Environment, ICoreWebView2Environment3,
 };
 use webview2_com::{
@@ -30,70 +22,11 @@ use webview2_com::{
     CreateCoreWebView2EnvironmentCompletedHandler,
 };
 
-/// WM_APP is used to post closures to the WebView2 thread's message queue
-/// Thread messages (hwnd == NULL) with this ID carry a boxed FnOnce pointer
-const WV_DISPATCH: u32 = WM_APP;
-
-// ── Public API ───────────────────────────────────────────────────────────────
-
-pub fn create(app: AppHandle, watchdog: WatchdogState) -> Result<(), String> {
-    let app2 = app.clone();
-    app.run_on_main_thread(move || create_on_main(app2, watchdog))
-        .map_err(|e| format!("run_on_main_thread: {e}"))
-}
-
-pub fn update_bounds(app: AppHandle, x: f64, y: f64, w: f64, h: f64) -> Result<(), String> {
-    let state = app.state::<EmbeddedEmailState>();
-    let tid = state.win.lock().unwrap().webview2_thread_id;
-    let win_arc = state.win.clone();
-    dispatch_to_wv_thread(tid, move || {
-        update_bounds_on_wv_thread(&win_arc, x, y, w, h)
-    });
-    Ok(())
-}
-
-pub fn destroy(app: AppHandle) {
-    let state = app.state::<EmbeddedEmailState>();
-    let mut g = state.win.lock().unwrap();
-    let tid = g.webview2_thread_id;
-    // Signal cancellation immediately so any in-flight creation callback bails
-    g.is_creating = false;
-    drop(g);
-
-    let win_arc = state.win.clone();
-    dispatch_to_wv_thread(tid, move || {
-        destroy_on_wv_thread(&win_arc);
-        // Exit the WebView2 thread's message loop
-        unsafe {
-            PostThreadMessageW(GetCurrentThreadId(), WM_QUIT, WPARAM(0), LPARAM(0));
-        }
-    });
-}
-
-pub fn reload(app: AppHandle) -> Result<(), String> {
-    let state = app.state::<EmbeddedEmailState>();
-    let tid = state.win.lock().unwrap().webview2_thread_id;
-    let win_arc = state.win.clone();
-    dispatch_to_wv_thread(tid, move || reload_on_wv_thread(&win_arc));
-    Ok(())
-}
-
-// ── Internal ─────────────────────────────────────────────────────────────────
-
-/// Post a closure to run on the dedicated WebView2 thread
-fn dispatch_to_wv_thread(tid: u32, f: impl FnOnce() + Send + 'static) {
-    if tid == 0 {
-        return;
-    }
-    // Double-box to get a thin pointer we can fit into LPARAM
-    let raw = Box::into_raw(Box::new(Box::new(f) as Box<dyn FnOnce() + Send>));
-    unsafe {
-        PostThreadMessageW(tid, WV_DISPATCH, WPARAM(0), LPARAM(raw as isize));
-    }
-}
+use super::dcomp::{navigate_to_email, setup_dcomp};
+use super::{dispatch_to_wv_thread, WV_DISPATCH};
 
 /// Runs on the main thread only to guard shared state and spawn the WebView2 thread
-fn create_on_main(app: AppHandle, watchdog: WatchdogState) {
+pub(super) fn create_on_main(app: AppHandle, watchdog: WatchdogState) {
     let state = app.state::<EmbeddedEmailState>();
 
     {
@@ -102,7 +35,7 @@ fn create_on_main(app: AppHandle, watchdog: WatchdogState) {
             let tid = g.webview2_thread_id;
             drop(g);
             let win_arc = state.win.clone();
-            dispatch_to_wv_thread(tid, move || reload_on_wv_thread(&win_arc));
+            dispatch_to_wv_thread(tid, move || super::ops::reload_on_wv_thread(&win_arc));
             return;
         }
         if g.is_creating {
@@ -430,129 +363,4 @@ fn on_ctrl_created(
     }
 
     tracing::info!("[webview/win] ICoreWebView2CompositionController ready");
-}
-
-// ── WebView2-thread-local operations ────────────────────────────────────────
-
-fn update_bounds_on_wv_thread(win_arc: &Arc<Mutex<WinViewInner>>, x: f64, y: f64, w: f64, h: f64) {
-    let mut guard = win_arc.lock().unwrap();
-    let (Some(ctrl), Some(vis), Some(dev)) = (
-        guard.controller.as_ref(),
-        guard.dcomp_visual.as_ref(),
-        guard.dcomp_device.as_ref(),
-    ) else {
-        guard.pending_bounds = Some((x, y, w, h));
-        return;
-    };
-    unsafe {
-        let _ = ctrl.SetBounds(RECT {
-            left: 0,
-            top: 0,
-            right: w as i32,
-            bottom: h as i32,
-        });
-        let _ = ctrl.SetIsVisible(w > 0.0 && h > 0.0);
-        let _ = vis.SetOffsetX2(x as f32);
-        let _ = vis.SetOffsetY2(y as f32);
-        let _ = dev.Commit();
-    }
-}
-
-fn destroy_on_wv_thread(win_arc: &Arc<Mutex<WinViewInner>>) {
-    let mut guard = win_arc.lock().unwrap();
-    unsafe {
-        if let Some(ctrl) = guard.controller.as_ref() {
-            let _ = ctrl.SetIsVisible(false);
-            let _ = ctrl.Close();
-        }
-        if let Some(dev) = guard.dcomp_device.as_ref() {
-            let _ = dev.Commit();
-        }
-        if guard.child_hwnd != 0 {
-            let _ = DestroyWindow(HWND(guard.child_hwnd as *mut _));
-            guard.child_hwnd = 0;
-        }
-    }
-    guard.comp_ctrl = None;
-    guard.controller = None;
-    guard.dcomp_device = None;
-    guard.dcomp_target = None;
-    guard.dcomp_visual = None;
-    guard.is_creating = false;
-    guard.webview2_thread_id = 0;
-    tracing::info!("[webview/win] email WebView destroyed (DComp)");
-}
-
-fn reload_on_wv_thread(win_arc: &Arc<Mutex<WinViewInner>>) {
-    let guard = win_arc.lock().unwrap();
-    if let Some(ctrl) = guard.controller.as_ref() {
-        unsafe {
-            if let Ok(wv) = ctrl.CoreWebView2() {
-                navigate_to_email(&wv);
-                tracing::info!("[webview/win] email WebView reloaded");
-            }
-        }
-    }
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-fn setup_dcomp(
-    hwnd: HWND,
-) -> Result<
-    (
-        IDCompositionDevice,
-        IDCompositionTarget,
-        IDCompositionVisual,
-    ),
-    String,
-> {
-    unsafe {
-        let mut d3d_device = None;
-        D3D11CreateDevice(
-            None,
-            D3D_DRIVER_TYPE_HARDWARE,
-            HMODULE::default(),
-            D3D11_CREATE_DEVICE_BGRA_SUPPORT,
-            None,
-            D3D11_SDK_VERSION,
-            Some(&mut d3d_device),
-            None,
-            None,
-        )
-        .map_err(|e| format!("D3D11CreateDevice: {e:?}"))?;
-
-        let d3d = d3d_device.ok_or("D3D11 device is None")?;
-        let dxgi: IDXGIDevice = d3d.cast().map_err(|e| format!("IDXGIDevice: {e:?}"))?;
-        let dev: IDCompositionDevice = DCompositionCreateDevice(Some(&dxgi))
-            .map_err(|e| format!("DCompositionCreateDevice: {e:?}"))?;
-
-        let target: IDCompositionTarget = dev
-            .CreateTargetForHwnd(hwnd, true)
-            .map_err(|e| format!("CreateTargetForHwnd: {e:?}"))?;
-
-        let root: IDCompositionVisual = dev
-            .CreateVisual()
-            .map_err(|e| format!("CreateVisual(root): {e:?}"))?;
-        let email_vis: IDCompositionVisual = dev
-            .CreateVisual()
-            .map_err(|e| format!("CreateVisual(email): {e:?}"))?;
-
-        root.AddVisual(&email_vis, false, None)
-            .map_err(|e| format!("AddVisual: {e:?}"))?;
-        target
-            .SetRoot(&root)
-            .map_err(|e| format!("SetRoot: {e:?}"))?;
-        dev.Commit().map_err(|e| format!("initial Commit: {e:?}"))?;
-
-        Ok((dev, target, email_vis))
-    }
-}
-
-#[inline]
-unsafe fn navigate_to_email(wv: &ICoreWebView2) {
-    let url: Vec<u16> = "http://postail.localhost/message/current\0"
-        .encode_utf16()
-        .collect();
-    let _ = wv.Navigate(windows_wv::core::PCWSTR(url.as_ptr()));
 }
