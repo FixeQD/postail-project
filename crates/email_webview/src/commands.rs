@@ -1,4 +1,4 @@
-use crate::state::EmbeddedEmailState;
+use crate::state::{EmbeddedEmailState, ProxyPort};
 use crate::watchdog::WatchdogState;
 #[cfg(target_os = "linux")]
 use crate::webview::linux;
@@ -11,13 +11,19 @@ pub fn create_email_webview(
     app: AppHandle,
     state: State<'_, EmbeddedEmailState>,
     watchdog: State<'_, WatchdogState>,
+    proxy_port: State<'_, ProxyPort>,
 ) -> Result<(), String> {
     #[cfg(target_os = "linux")]
-    return linux::create(app, state.inner().clone(), watchdog.inner().clone());
+    return linux::create(
+        app,
+        state.inner().clone(),
+        watchdog.inner().clone(),
+        proxy_port.0,
+    );
 
     #[cfg(target_os = "windows")]
     {
-        let _ = state;
+        let _ = (state, proxy_port);
         return windows::create(app, watchdog.inner().clone());
     }
 

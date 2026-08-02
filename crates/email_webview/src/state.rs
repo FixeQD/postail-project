@@ -1,5 +1,9 @@
 use std::sync::{Arc, Mutex};
 
+/// The port the null-proxy listens on
+#[derive(Clone, Copy)]
+pub struct ProxyPort(pub u16);
+
 #[cfg(target_os = "windows")]
 use webview2_com::Microsoft::Web::WebView2::Win32::{
     ICoreWebView2CompositionController, ICoreWebView2Controller,

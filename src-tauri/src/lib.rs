@@ -126,7 +126,10 @@ pub fn run() {
 
             // Watchdog — monitors email webview heartbeat (27.10)
             let watchdog_handle = handle.clone();
-            let watchdog_state = app.state::<email_webview::watchdog::WatchdogState>().inner().clone();
+            let watchdog_state = app
+                .state::<email_webview::watchdog::WatchdogState>()
+                .inner()
+                .clone();
             tauri::async_runtime::spawn(async move {
                 email_webview::watchdog::run_watchdog_loop(watchdog_handle, watchdog_state).await;
             });
@@ -146,12 +149,12 @@ pub fn run() {
                 email_network::network::null_proxy::start_on_port(proxy_port).await;
             });
 
+            app.manage(email_webview::state::ProxyPort(proxy_port));
+
             if let Some(main_window) = app.get_webview_window("main") {
                 email_webview::policy::install_network_block(&main_window, proxy_port);
             }
 
-            // Register route handler for Windows WebView2 resource requests
-            #[cfg(target_os = "windows")]
             {
                 use std::sync::Arc;
                 let app_for_route = handle.clone();

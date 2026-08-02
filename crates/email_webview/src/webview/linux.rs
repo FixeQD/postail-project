@@ -46,6 +46,7 @@ pub fn create(
     app: AppHandle,
     state: EmbeddedEmailState,
     watchdog: WatchdogState,
+    proxy_port: u16,
 ) -> Result<(), String> {
     if state.email_wv.lock().unwrap().is_some() {
         let s = state.clone();
@@ -88,14 +89,19 @@ pub fn create(
             overlay.add(&original_child);
             toplevel.add(&overlay);
 
-            let ctx = main_gtk_wv
-                .web_context()
-                .expect("no WebContext on main webview");
-
             let mut sys = sysinfo::System::new_all();
             sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
             let pids_before: std::collections::HashSet<_> =
                 sys.processes().keys().copied().collect();
+
+            // Must be built not passed in from outside: WebContext isn't Send, and with_webview's closure has to be
+            let ctx = match crate::policy::create_isolated_email_context(proxy_port) {
+                Ok(ctx) => ctx,
+                Err(e) => {
+                    tracing::error!("email webview: refusing to render, sandbox setup failed: {e}");
+                    return;
+                }
+            };
 
             let email_wv = webkit2gtk::WebView::with_context(&ctx);
 
