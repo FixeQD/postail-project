@@ -91,7 +91,7 @@
 
           shellHook = ''
             export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath buildInputs}:$LD_LIBRARY_PATH
-            echo "postail dev shell ready — bun install, then bun run tauri dev"
+            echo "postail dev shell ready!"
           '';
         };
 

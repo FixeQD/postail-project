@@ -58,10 +58,8 @@ fn install_linux<R: Runtime>(window: &WebviewWindow<R>, proxy_port: u16) {
 pub fn create_isolated_email_context(proxy_port: u16) -> Result<webkit2gtk::WebContext, String> {
     use webkit2gtk::{
         NetworkProxyMode, NetworkProxySettings, URISchemeRequestExt, WebContext, WebContextExt,
-        WebContextExtManual,
+        WebsiteDataManager, WebsiteDataManagerExt,
     };
-
-    let ctx = WebContext::new_ephemeral();
 
     let proxy_uri = format!("http://127.0.0.1:{proxy_port}");
     let mut proxy = NetworkProxySettings::new(
@@ -69,7 +67,10 @@ pub fn create_isolated_email_context(proxy_port: u16) -> Result<webkit2gtk::WebC
         &["localhost", "127.0.0.1", "::1", "*.localhost"],
     );
 
-    ctx.set_network_proxy_settings(NetworkProxyMode::Custom, Some(&mut proxy));
+    let manager = WebsiteDataManager::builder().is_ephemeral(true).build();
+    manager.set_network_proxy_settings(NetworkProxyMode::Custom, Some(&mut proxy));
+
+    let ctx = WebContext::builder().website_data_manager(&manager).build();
     info!("email webview: dedicated WebContext created, null proxy set on port {proxy_port}");
 
     ctx.register_uri_scheme("postail", move |request| {
