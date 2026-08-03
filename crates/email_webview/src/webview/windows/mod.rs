@@ -20,6 +20,7 @@ pub(super) const WV_DISPATCH: u32 = WM_APP;
 // ── Public API ───────────────────────────────────────────────────────────────
 
 pub fn create(app: AppHandle, watchdog: WatchdogState) -> Result<(), String> {
+    tracing::info!("[webview/win] create: scheduling create_on_main");
     let app2 = app.clone();
     app.run_on_main_thread(move || create_on_main(app2, watchdog))
         .map_err(|e| format!("run_on_main_thread: {e}"))
@@ -27,7 +28,12 @@ pub fn create(app: AppHandle, watchdog: WatchdogState) -> Result<(), String> {
 
 pub fn update_bounds(app: AppHandle, x: f64, y: f64, w: f64, h: f64) -> Result<(), String> {
     let state = app.state::<EmbeddedEmailState>();
+
+    // Stash the latest desired bounds here unconditionally, before even trying to reach the WebView2 thread
+    state.win.lock().unwrap().pending_bounds = Some((x, y, w, h));
+
     let tid = state.win.lock().unwrap().webview2_thread_id;
+    tracing::info!(x, y, w, h, tid, "[webview/win] update_bounds requested");
     let win_arc = state.win.clone();
     dispatch_to_wv_thread(tid, move || {
         update_bounds_on_wv_thread(&win_arc, x, y, w, h)
@@ -66,6 +72,9 @@ pub fn reload(app: AppHandle) -> Result<(), String> {
 /// Post a closure to run on the dedicated WebView2 thread
 pub(super) fn dispatch_to_wv_thread(tid: u32, f: impl FnOnce() + Send + 'static) {
     if tid == 0 {
+        tracing::info!(
+            "[webview/win] dispatch_to_wv_thread: no thread yet (tid=0), dropping this dispatch"
+        );
         return;
     }
     // Double-box to get a thin pointer we can fit into LPARAM

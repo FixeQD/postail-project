@@ -9,8 +9,9 @@ use windows_wv::Win32::Foundation::{HWND, RECT};
 use windows_wv::Win32::System::Com::{CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED};
 use windows_wv::Win32::System::Threading::GetCurrentThreadId;
 use windows_wv::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DispatchMessageW, GetMessageW, TranslateMessage, MSG, WINDOW_EX_STYLE,
-    WS_CHILD, WS_VISIBLE,
+    CreateWindowExW, DispatchMessageW, GetClientRect, GetMessageW, SetWindowPos, TranslateMessage,
+    HWND_TOP, MSG, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WS_CHILD,
+    WS_EX_NOREDIRECTIONBITMAP, WS_VISIBLE,
 };
 
 use webview2_com::Microsoft::Web::WebView2::Win32::{
@@ -101,15 +102,32 @@ fn webview2_thread(
         // Create child_hwnd ON THIS THREAD so its message queue lives here
         let class_name: Vec<u16> = "STATIC\0".encode_utf16().collect();
         let window_name: Vec<u16> = "\0".encode_utf16().collect();
+
+        // Start child_hwnd at a real, non-degenerate size
+        let (init_w, init_h) = unsafe {
+            let mut rect = RECT::default();
+            if GetClientRect(HWND(main_hwnd_isize as *mut _), &mut rect).is_ok() {
+                (
+                    (rect.right - rect.left).max(1),
+                    (rect.bottom - rect.top).max(1),
+                )
+            } else {
+                tracing::warn!(
+                    "[webview/win] GetClientRect(main_hwnd) failed, falling back to 800x600 initial size"
+                );
+                (800, 600)
+            }
+        };
+
         let child_hwnd = match CreateWindowExW(
-            WINDOW_EX_STYLE::default(),
+            WS_EX_NOREDIRECTIONBITMAP,
             windows_wv::core::PCWSTR(class_name.as_ptr()),
             windows_wv::core::PCWSTR(window_name.as_ptr()),
             WS_CHILD | WS_VISIBLE,
             0,
             0,
-            1,
-            1,
+            init_w,
+            init_h,
             Some(HWND(main_hwnd_isize as *mut _)),
             None,
             None,
@@ -125,6 +143,23 @@ fn webview2_thread(
                 return;
             }
         };
+        // child_hwnd is a sibling of whatever hwnd Tauri's own main webview is parented under
+        unsafe {
+            let _ = SetWindowPos(
+                child_hwnd,
+                Some(HWND_TOP),
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+            );
+        }
+        tracing::info!(
+            init_w,
+            init_h,
+            "[webview/win] child_hwnd created at real initial size (was 1x1 previously)"
+        );
         let child_hwnd_isize = child_hwnd.0 as isize;
         win_arc.lock().unwrap().child_hwnd = child_hwnd_isize;
 
@@ -133,8 +168,8 @@ fn webview2_thread(
         let wd_for_env = watchdog.clone();
         let app_for_env = app.clone();
 
-        let env_handler =
-            CreateCoreWebView2EnvironmentCompletedHandler::create(Box::new(move |hr, env| {
+        let env_handler = CreateCoreWebView2EnvironmentCompletedHandler::create(Box::new(
+            move |hr, env| {
                 if hr.is_err() {
                     tracing::error!("[webview/win] env creation failed: {hr:?}");
                     win_for_env.lock().unwrap().is_creating = false;
@@ -171,8 +206,16 @@ fn webview2_thread(
                 let env_for_ctrl = crate::state::SendWidget(env.clone());
                 let app_for_ctrl = app_for_env.clone();
 
+                // Timing instrumentation: measure the gap between requesting the composition controller and its completion handler actually firing
+                let ctrl_requested_at = std::time::Instant::now();
+
                 let ctrl_handler = CreateCoreWebView2CompositionControllerCompletedHandler::create(
                     Box::new(move |hr, comp_ctrl| {
+                        tracing::info!(
+                            elapsed_ms = ctrl_requested_at.elapsed().as_millis() as u64,
+                            hr = ?hr,
+                            "[webview/win] CreateCoreWebView2CompositionController: completion handler invoked"
+                        );
                         on_ctrl_created(
                             hr,
                             comp_ctrl,
@@ -192,9 +235,14 @@ fn webview2_thread(
                 ) {
                     tracing::error!("[webview/win] CreateCompositionController call: {e:?}");
                     win_for_env.lock().unwrap().is_creating = false;
+                } else {
+                    tracing::info!(
+                        "[webview/win] CreateCoreWebView2CompositionController: call returned OK synchronously, awaiting completion handler"
+                    );
                 }
                 Ok(())
-            }));
+            },
+        ));
 
         if let Err(e) = CreateCoreWebView2EnvironmentWithOptions(
             windows_wv::core::PCWSTR::null(),
@@ -312,13 +360,30 @@ fn on_ctrl_created(
             }
         };
 
+        // see webview2_thread
+        let (cur_w, cur_h) = {
+            let mut rect = RECT::default();
+            if windows_wv::Win32::UI::WindowsAndMessaging::GetClientRect(
+                HWND(child_hwnd_isize as *mut _),
+                &mut rect,
+            )
+            .is_ok()
+            {
+                (
+                    (rect.right - rect.left).max(1),
+                    (rect.bottom - rect.top).max(1),
+                )
+            } else {
+                (1, 1)
+            }
+        };
         let _ = controller.SetBounds(RECT {
             left: 0,
             top: 0,
-            right: 1,
-            bottom: 1,
+            right: cur_w,
+            bottom: cur_h,
         });
-        let _ = controller.SetIsVisible(false);
+        let _ = controller.SetIsVisible(true);
 
         if let Ok(wv) = controller.CoreWebView2() {
             crate::policy::register_webview2_resource_handler(&wv, env, app.clone());
@@ -343,11 +408,30 @@ fn on_ctrl_created(
         g.is_creating = false;
 
         if let Some((x, y, w, h)) = g.pending_bounds.take() {
+            tracing::info!(
+                x,
+                y,
+                w,
+                h,
+                "[webview/win] on_ctrl_created: applying pending_bounds"
+            );
             if let (Some(ctrl), Some(vis), Some(dev)) = (
                 g.controller.as_ref(),
                 g.dcomp_visual.as_ref(),
                 g.dcomp_device.as_ref(),
             ) {
+                // ICoreWebView2CompositionController::SetBounds only sizes WebView2's content within the DirectComposition tree
+                unsafe {
+                    let _ = SetWindowPos(
+                        HWND(child_hwnd_isize as *mut _),
+                        None,
+                        x as i32,
+                        y as i32,
+                        w as i32,
+                        h as i32,
+                        SWP_NOZORDER | SWP_NOACTIVATE,
+                    );
+                }
                 let _ = ctrl.SetBounds(RECT {
                     left: 0,
                     top: 0,
@@ -355,11 +439,31 @@ fn on_ctrl_created(
                     bottom: h as i32,
                 });
                 let _ = ctrl.SetIsVisible(w > 0.0 && h > 0.0);
-                let _ = vis.SetOffsetX2(x as f32);
-                let _ = vis.SetOffsetY2(y as f32);
+                // Content fills the host window from its own local origin now that the host window itself is positioned at (x, y)
+                let _ = vis.SetOffsetX2(0.0);
+                let _ = vis.SetOffsetY2(0.0);
                 let _ = dev.Commit();
+                let _ = ctrl.NotifyParentWindowPositionChanged();
             }
+        } else {
+            tracing::info!(
+                cur_w, cur_h,
+                "[webview/win] on_ctrl_created: no pending_bounds yet, staying at current host size until update_bounds is called"
+            );
         }
+    }
+
+    // the async WebView2 setup between CreateWindowExW and this point took some real wall-clock time, during which the main webview could have repainted/refocused and reclaime the top of the Z-order
+    unsafe {
+        let _ = SetWindowPos(
+            child_hwnd,
+            Some(HWND_TOP),
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+        );
     }
 
     tracing::info!("[webview/win] ICoreWebView2CompositionController ready");

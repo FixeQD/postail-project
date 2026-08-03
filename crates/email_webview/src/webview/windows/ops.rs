@@ -3,7 +3,9 @@ use std::sync::{Arc, Mutex};
 use crate::state::WinViewInner;
 
 use windows_wv::Win32::Foundation::{HWND, RECT};
-use windows_wv::Win32::UI::WindowsAndMessaging::DestroyWindow;
+use windows_wv::Win32::UI::WindowsAndMessaging::{
+    DestroyWindow, SetWindowPos, SWP_NOACTIVATE, SWP_NOZORDER,
+};
 
 use super::dcomp::navigate_to_email;
 
@@ -22,10 +24,49 @@ pub(super) fn update_bounds_on_wv_thread(
         guard.dcomp_visual.as_ref(),
         guard.dcomp_device.as_ref(),
     ) else {
+        tracing::info!(
+            x, y, w, h,
+            "[webview/win] update_bounds_on_wv_thread: no controller yet, resizing host hwnd anyway, stashed in pending_bounds"
+        );
+        // Resize/reposition the actual host window, even without a controller yet, instead of leaving it at the degenerate 1x1 it was created at for the entire async environment/controller setup
+        let child_hwnd = guard.child_hwnd;
+        if child_hwnd != 0 {
+            unsafe {
+                let _ = SetWindowPos(
+                    HWND(child_hwnd as *mut _),
+                    None,
+                    x as i32,
+                    y as i32,
+                    w as i32,
+                    h as i32,
+                    SWP_NOZORDER | SWP_NOACTIVATE,
+                );
+            }
+        }
         guard.pending_bounds = Some((x, y, w, h));
         return;
     };
+    tracing::info!(
+        x,
+        y,
+        w,
+        h,
+        "[webview/win] update_bounds_on_wv_thread: applying directly"
+    );
+    let child_hwnd = guard.child_hwnd;
     unsafe {
+        // See the comment in on_ctrl_created: SetBounds only sizes WebView2's content inside the DComp tree, it never resizes the host Win32 window itself
+        if child_hwnd != 0 {
+            let _ = SetWindowPos(
+                HWND(child_hwnd as *mut _),
+                None,
+                x as i32,
+                y as i32,
+                w as i32,
+                h as i32,
+                SWP_NOZORDER | SWP_NOACTIVATE,
+            );
+        }
         let _ = ctrl.SetBounds(RECT {
             left: 0,
             top: 0,
@@ -33,9 +74,11 @@ pub(super) fn update_bounds_on_wv_thread(
             bottom: h as i32,
         });
         let _ = ctrl.SetIsVisible(w > 0.0 && h > 0.0);
-        let _ = vis.SetOffsetX2(x as f32);
-        let _ = vis.SetOffsetY2(y as f32);
+        let _ = vis.SetOffsetX2(0.0);
+        let _ = vis.SetOffsetY2(0.0);
         let _ = dev.Commit();
+        // Separate from Bounds - tells WebView the host ancestor HWND moved/resized.
+        let _ = ctrl.NotifyParentWindowPositionChanged();
     }
 }
 
