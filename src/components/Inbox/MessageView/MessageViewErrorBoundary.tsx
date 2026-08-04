@@ -30,9 +30,9 @@ export class MessageViewErrorBoundary extends Component<Props, State> {
 	public render() {
 		if (this.state.hasError) {
 			return (
-				<div className='flex min-h-[200px] flex-col items-center justify-center gap-4 rounded-xl border border-red-500/20 bg-red-500/5 p-8 text-center'>
-					<div className='flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10 ring-1 ring-red-500/20'>
-						<AlertCircle className='h-6 w-6 text-red-400' />
+				<div className='flex min-h-[200px] flex-col items-center justify-center gap-4 rounded-xl border border-destructive/30 bg-destructive/15 p-8 text-center'>
+					<div className='flex h-12 w-12 items-center justify-center rounded-full bg-destructive/15 ring-1 ring-destructive/30'>
+						<AlertCircle className='h-6 w-6 text-destructive' />
 					</div>
 					<div className='space-y-1'>
 						<h3 className='font-semibold text-[var(--text-primary)]'>

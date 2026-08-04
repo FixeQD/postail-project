@@ -34,7 +34,7 @@ export const HighlightedText = memo(function HighlightedText({
 				matchRegex.test(part) ? (
 					<mark
 						key={i}
-						className='rounded-[2px] bg-yellow-300/30 text-inherit dark:bg-yellow-500/25'>
+						className='rounded-[2px] bg-status-warning/15 text-inherit dark:bg-status-warning/15'>
 						{part}
 					</mark>
 				) : (

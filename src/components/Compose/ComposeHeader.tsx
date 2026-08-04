@@ -31,7 +31,7 @@ export function ComposeHeader({
 					size='icon'
 					className={
 						isCountingDown
-							? 'h-7 w-7 bg-blue-500/10 text-blue-300 ring-1 ring-blue-400/60 transition-colors hover:bg-blue-500/20 hover:text-blue-200'
+							? 'h-7 w-7 bg-status-info/15 text-status-info ring-1 ring-status-info/30 transition-colors hover:bg-status-info/15 hover:text-status-info'
 							: 'h-7 w-7 text-[var(--compose-text-muted)] hover:text-[var(--compose-text)]'
 					}
 					onClick={onClose}

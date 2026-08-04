@@ -202,7 +202,7 @@ export function FiltersSettings() {
 						setRuleToDelete(null)
 					}
 				}}
-				confirmClassName='bg-red-500 text-white hover:bg-red-600'
+				confirmClassName='bg-destructive text-white hover:bg-destructive'
 			/>
 		</div>
 	)

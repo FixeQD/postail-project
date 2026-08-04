@@ -213,7 +213,7 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 							size="xl"
 							className="rounded-2xl shadow-xl"
 						/>
-						<div className='absolute -right-1 -bottom-1 h-5 w-5 rounded-full border-2 border-[var(--surface-panel)] bg-green-500 shadow-sm' />
+						<div className='absolute -right-1 -bottom-1 h-5 w-5 rounded-full border-2 border-[var(--surface-panel)] bg-status-success shadow-sm' />
 					</motion.div>
 
 					<div className='min-w-0 flex-1 pt-1'>
@@ -296,7 +296,7 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 						<button
 							type='button'
 							onClick={() => setIsDeleteOpen(true)}
-							className='flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--surface-active)] text-[var(--text-tertiary)] transition-all hover:bg-red-500/10 hover:text-red-500'
+							className='flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--surface-active)] text-[var(--text-tertiary)] transition-all hover:bg-destructive/15 hover:text-destructive'
 							title={t('common:actions.delete')}>
 							<Trash2 className='h-4 w-4' />
 						</button>
@@ -447,7 +447,7 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 													<div className='h-2 w-2 rounded-full' style={{ backgroundColor: group.color || 'rgb(var(--accent-rgb))' }} />
 													<span className='truncate'>{group.name}</span>
 												</div>
-												{isMember && <X className='h-3 w-3 text-red-500' />}
+												{isMember && <X className='h-3 w-3 text-destructive' />}
 											</button>
 										)
 									})}
@@ -470,7 +470,7 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 									<span>{group.name}</span>
 									<button
 										onClick={() => handleRemoveFromGroup(group.id)}
-										className='p-0.5 hover:bg-red-500/10 hover:text-red-500 rounded-full transition-colors'
+										className='p-0.5 hover:bg-destructive/15 hover:text-destructive rounded-full transition-colors'
 									>
 										<X className='h-3 w-3' />
 									</button>
@@ -581,7 +581,7 @@ export const ContactCard = memo(function ContactCard({ contact }: ContactCardPro
 				description={t('contacts:delete.description')}
 				confirmLabel={t('common:actions.delete')}
 				cancelLabel={t('common:actions.cancel')}
-				confirmClassName='w-full bg-red-500 text-white hover:bg-red-600'
+				confirmClassName='w-full bg-destructive text-white hover:bg-destructive'
 				onConfirm={async () => {
 					try {
 						await invoke('delete_contact', { id: contact.id })

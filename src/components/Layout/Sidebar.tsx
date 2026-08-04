@@ -198,8 +198,8 @@ function SectionLabel({
 }) {
 	if (collapsed) return null
 	return (
-		<div className='group/sh mt-3 mb-0.5 flex items-center px-[10px]'>
-			<span className='flex-1 text-[10px] font-semibold tracking-[0.08em] text-[var(--text-tertiary)] uppercase opacity-60'>
+		<div className='group/sh mt-4 mb-1 flex items-center px-[10px]'>
+			<span className='flex-1 text-[11px] font-medium tracking-[0.01em] text-[var(--text-tertiary)]'>
 				{label}
 			</span>
 			{onAction && (

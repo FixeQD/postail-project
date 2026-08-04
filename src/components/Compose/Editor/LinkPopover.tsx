@@ -101,7 +101,7 @@ export function LinkInsertPopover({ onInsertLink }: LinkInsertPopoverProps) {
 					<Button
 						variant='ghost'
 						size='icon'
-						className='h-8 w-8 text-green-500 hover:bg-green-500/10'
+						className='h-8 w-8 text-status-success hover:bg-status-success/15'
 						onClick={handleSubmit}
 						disabled={!url.trim()}>
 						<Check className='h-4 w-4' />
@@ -178,7 +178,7 @@ export function LinkEditTooltip({ visible, url, rect, onEdit, onRemove }: LinkEd
 						className='border-input focus:ring-ring h-6 w-48 rounded-sm border bg-transparent px-1.5 outline-none focus:ring-1'
 					/>
 					<button
-						className='rounded p-0.5 text-green-500 transition-colors hover:bg-green-500/10'
+						className='rounded p-0.5 text-status-success transition-colors hover:bg-status-success/15'
 						onClick={handleSave}>
 						<Check className='h-3 w-3' />
 					</button>
@@ -197,7 +197,7 @@ export function LinkEditTooltip({ visible, url, rect, onEdit, onRemove }: LinkEd
 						href={url}
 						target='_blank'
 						rel='noopener noreferrer'
-						className='max-w-48 truncate text-blue-400 underline'
+						className='max-w-48 truncate text-status-info underline'
 						onClick={(e) => e.stopPropagation()}>
 						{url.length > 60 ? url.slice(0, 56) + '…' : url}
 					</a>
@@ -209,7 +209,7 @@ export function LinkEditTooltip({ visible, url, rect, onEdit, onRemove }: LinkEd
 						<Pencil className='h-3 w-3' />
 					</button>
 					<button
-						className='rounded p-0.5 text-red-400 transition-colors hover:bg-red-400/10'
+						className='rounded p-0.5 text-destructive transition-colors hover:bg-red-400/10'
 						onClick={onRemove}
 						title='Remove link'>
 						<Trash2 className='h-3 w-3' />

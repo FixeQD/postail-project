@@ -239,9 +239,9 @@ export function NotificationsSettings() {
 				{off && !prefs.showInCenter && (
 					<motion.div
 						{...fade(0.25)}
-						className='flex items-center gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4'>
-						<BellOff className='h-5 w-5 flex-shrink-0 text-amber-500/70' />
-						<p className='text-sm text-amber-400/80'>
+						className='flex items-center gap-3 rounded-2xl border border-status-warning/30 bg-status-warning/15 p-4'>
+						<BellOff className='h-5 w-5 flex-shrink-0 text-status-warning' />
+						<p className='text-sm text-status-warning'>
 							{t('settings:notifications.allOffHint')}
 						</p>
 					</motion.div>

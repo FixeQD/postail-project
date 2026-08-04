@@ -101,18 +101,18 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 								transition: { type: 'spring', stiffness: 200, damping: 20 },
 							}
 						: {})}>
-					<CheckCircle className='h-3 w-3 text-green-400' />
+					<CheckCircle className='h-3 w-3 text-status-success' />
 				</motion.div>
 			)
 		if (sendingCount > 0)
 			return (
 				<Loader2
-					className={`h-3 w-3 text-amber-400 ${animationsEnabled ? 'animate-spin' : ''}`}
+					className={`h-3 w-3 text-status-warning ${animationsEnabled ? 'animate-spin' : ''}`}
 				/>
 			)
-		if (failedCount > 0) return <AlertCircle className='h-3 w-3 text-red-400' />
-		if (pendingCount > 0) return <Send className='h-3 w-3 text-blue-400' />
-		return <CheckCircle className='h-3 w-3 text-slate-600' />
+		if (failedCount > 0) return <AlertCircle className='h-3 w-3 text-destructive' />
+		if (pendingCount > 0) return <Send className='h-3 w-3 text-status-info' />
+		return <CheckCircle className='h-3 w-3 text-[var(--text-tertiary)]' />
 	}, [sendingCount, failedCount, pendingCount, showSuccess, animationsEnabled])
 
 	const getOutboxStatusText = useCallback(() => {
@@ -147,13 +147,13 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 			case 'syncing':
 				return (
 					<Loader2
-						className={`h-3 w-3 text-blue-400 ${animationsEnabled ? 'animate-spin' : ''}`}
+						className={`h-3 w-3 text-status-info ${animationsEnabled ? 'animate-spin' : ''}`}
 					/>
 				)
 			case 'error':
-				return <AlertCircle className='h-3 w-3 text-red-400' />
+				return <AlertCircle className='h-3 w-3 text-destructive' />
 			default:
-				return <CheckCircle className='h-3 w-3 text-green-500/70' />
+				return <CheckCircle className='h-3 w-3 text-status-success' />
 		}
 	}, [getGlobalSyncStatus, animationsEnabled])
 
@@ -196,7 +196,7 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 				return (
 					<div className='flex items-center gap-2'>
 						<Loader2
-							className={`h-3 w-3 text-blue-400 ${animationsEnabled ? 'animate-spin' : ''}`}
+							className={`h-3 w-3 text-status-info ${animationsEnabled ? 'animate-spin' : ''}`}
 						/>
 						<span className='text-foreground/80'>
 							{status.mailbox
@@ -209,7 +209,7 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 						<Button
 							variant='ghost'
 							size='sm'
-							className='text-tertiary h-4 w-4 p-0 hover:text-red-400'
+							className='text-tertiary h-4 w-4 p-0 hover:text-destructive'
 							onClick={(e) => handleCancelSync(accountId, e)}>
 							<X className='h-3 w-3' />
 						</Button>
@@ -219,14 +219,14 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 			case 'error':
 				return (
 					<div className='flex items-center gap-2'>
-						<AlertCircle className='h-3 w-3 text-red-400' />
-						<span className='max-w-[150px] truncate text-red-400' title={status.error}>
+						<AlertCircle className='h-3 w-3 text-destructive' />
+						<span className='max-w-[150px] truncate text-destructive' title={status.error}>
 							{status.error || t('statusBar.syncFailed')}
 						</span>
 						<Button
 							variant='ghost'
 							size='sm'
-							className='text-tertiary h-4 w-4 p-0 hover:text-blue-400'
+							className='text-tertiary h-4 w-4 p-0 hover:text-status-info'
 							onClick={(e) => handleRetrySync(accountId, e)}>
 							<RefreshCw className='h-3 w-3' />
 						</Button>
@@ -235,7 +235,7 @@ export function StatusBar({ onOpenOutbox }: StatusBarProps) {
 			default:
 				return (
 					<div className='flex items-center gap-2'>
-						<CheckCircle className='h-3 w-3 text-green-500/70' />
+						<CheckCircle className='h-3 w-3 text-status-success' />
 						<span className='text-tertiary'>
 							{t('statusBar.lastSynced', {
 								time: useSyncStore.getState().getFormattedLastSync(accountId),

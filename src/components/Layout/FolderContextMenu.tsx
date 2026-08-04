@@ -107,7 +107,7 @@ export function FolderNameDialog({
 								initial={{ opacity: 0, height: 0, marginTop: 0 }}
 								animate={{ opacity: 1, height: 'auto', marginTop: 8 }}
 								exit={{ opacity: 0, height: 0, marginTop: 0 }}
-								className='text-[11px] leading-snug text-amber-500/80'>
+								className='text-[11px] leading-snug text-status-warning'>
 								{t('inbox:folderMenu.nestedWarning', {
 									defaultValue: `"${separator}" creates a nested folder.`,
 									separator,
@@ -242,10 +242,10 @@ function MenuItem({
 			onClick={onClick}
 			className={`flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-[6px] text-left text-[12px] font-medium transition-colors ${
 				danger
-					? 'text-red-400 hover:bg-red-500/10'
+					? 'text-destructive hover:bg-destructive/15'
 					: 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
 			}`}>
-			<span className={`shrink-0 ${danger ? 'text-red-400' : 'text-[var(--text-tertiary)]'}`}>
+			<span className={`shrink-0 ${danger ? 'text-destructive' : 'text-[var(--text-tertiary)]'}`}>
 				{icon}
 			</span>
 			{label}
@@ -537,7 +537,7 @@ export function FolderContextMenu({
 					deleting ? t('inbox:folderMenu.deleting') : t('inbox:folderMenu.deleteConfirm')
 				}
 				cancelLabel={t('inbox:folderMenu.cancel')}
-				confirmClassName='w-full border-0 bg-red-500 font-medium text-white shadow-lg hover:bg-red-600'
+				confirmClassName='w-full border-0 bg-destructive font-medium text-white shadow-lg hover:bg-destructive'
 				onConfirm={handleDelete}
 			/>
 		</>

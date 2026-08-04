@@ -25,11 +25,11 @@ const ACTION_ICONS: Record<ActionType, React.ReactNode> = {
 }
 
 const ACTION_COLORS: Record<ActionType, string> = {
-	move_to: 'bg-blue-500/10 text-blue-400',
-	add_tag: 'bg-violet-500/10 text-violet-400',
-	star: 'bg-yellow-500/10 text-yellow-400',
-	mark_read: 'bg-green-500/10 text-green-400',
-	delete: 'bg-red-500/10 text-red-400',
+	move_to: 'bg-status-info/15 text-status-info',
+	add_tag: 'bg-status-info/15 text-status-info',
+	star: 'bg-status-warning/15 text-status-warning',
+	mark_read: 'bg-status-success/15 text-status-success',
+	delete: 'bg-destructive/15 text-destructive',
 }
 
 interface RuleItemProps {
@@ -132,7 +132,7 @@ export function RuleItem({ rule, onDelete, onToggle, disabled }: RuleItemProps) 
 									}
 									className={`rounded-lg p-1.5 transition-colors ${
 										rule.enabled
-											? 'text-green-400 hover:bg-green-500/10'
+											? 'text-status-success hover:bg-status-success/15'
 											: 'text-[var(--text-tertiary)] hover:bg-[var(--surface-active)]'
 									}`}>
 									<Power className='h-3.5 w-3.5' />
@@ -146,7 +146,7 @@ export function RuleItem({ rule, onDelete, onToggle, disabled }: RuleItemProps) 
 								<button
 									type='button'
 									onClick={onDelete}
-									className='rounded-lg p-1.5 text-[var(--text-tertiary)] transition-colors hover:bg-red-500/10 hover:text-red-400'>
+									className='rounded-lg p-1.5 text-[var(--text-tertiary)] transition-colors hover:bg-destructive/15 hover:text-destructive'>
 									<Trash2 className='h-3.5 w-3.5' />
 								</button>
 							</div>

@@ -91,7 +91,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 	return (
 		<form onSubmit={handleSubmit} className='space-y-6'>
 			{error && (
-				<div className='flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400'>
+				<div className='flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/15 p-3 text-sm text-destructive'>
 					<AlertCircle className='h-4 w-4 shrink-0' />
 					<span>{error}</span>
 				</div>
@@ -107,7 +107,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 						value={formData.accountName}
 						onChange={(e) => handleChange('accountName', e.target.value)}
 						required
-						className='border-black/10 bg-black/[0.03] dark:border-slate-700 dark:bg-slate-800/50'
+						className='border-[var(--border-subtle)] bg-[var(--surface-panel)]/50'
 					/>
 				</div>
 
@@ -120,7 +120,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 						value={formData.email}
 						onChange={(e) => handleChange('email', e.target.value)}
 						required
-						className='border-black/10 bg-black/[0.03] dark:border-slate-700 dark:bg-slate-800/50'
+						className='border-[var(--border-subtle)] bg-[var(--surface-panel)]/50'
 					/>
 				</div>
 
@@ -130,7 +130,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 						id='useSeparateUsername'
 						checked={formData.useSeparateUsername}
 						onChange={(e) => handleChange('useSeparateUsername', e.target.checked)}
-						className='h-4 w-4 rounded border-black/20 bg-black/[0.03] text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800'
+						className='h-4 w-4 rounded border-[var(--border-subtle)] bg-[var(--surface-panel)] text-status-info focus:ring-status-info'
 					/>
 					<Label
 						htmlFor='useSeparateUsername'
@@ -149,7 +149,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 							value={formData.username}
 							onChange={(e) => handleChange('username', e.target.value)}
 							required={formData.useSeparateUsername}
-							className='border-black/10 bg-black/[0.03] dark:border-slate-700 dark:bg-slate-800/50'
+							className='border-[var(--border-subtle)] bg-[var(--surface-panel)]/50'
 						/>
 					</div>
 				)}
@@ -165,12 +165,12 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 						value={formData.password}
 						onChange={(e) => handleChange('password', e.target.value)}
 						required
-						className='border-black/10 bg-black/[0.03] dark:border-slate-700 dark:bg-slate-800/50'
+						className='border-[var(--border-subtle)] bg-[var(--surface-panel)]/50'
 					/>
 				</div>
 
-				<div className='border-t border-black/[0.08] pt-4 dark:border-slate-800'>
-					<h3 className='mb-4 text-sm font-semibold text-slate-600 dark:text-slate-300'>
+				<div className='border-t border-[var(--border-subtle)] pt-4'>
+					<h3 className='mb-4 text-sm font-semibold text-[var(--text-primary)]'>
 						IMAP Settings
 					</h3>
 					<div className='grid gap-4 sm:grid-cols-2'>
@@ -183,7 +183,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 								value={formData.imapHost}
 								onChange={(e) => handleChange('imapHost', e.target.value)}
 								required
-								className='border-black/10 bg-black/[0.03] dark:border-slate-700 dark:bg-slate-800/50'
+								className='border-[var(--border-subtle)] bg-[var(--surface-panel)]/50'
 							/>
 						</div>
 						<div className='space-y-2'>
@@ -197,7 +197,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 								required
 								min='1'
 								max='65535'
-								className='border-black/10 bg-black/[0.03] dark:border-slate-700 dark:bg-slate-800/50'
+								className='border-[var(--border-subtle)] bg-[var(--surface-panel)]/50'
 							/>
 						</div>
 						<div className='flex items-center gap-2 pt-6'>
@@ -206,7 +206,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 								id='imapTls'
 								checked={formData.imapTls}
 								onChange={(e) => handleChange('imapTls', e.target.checked)}
-								className='h-4 w-4 rounded border-black/20 bg-black/[0.03] text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800'
+								className='h-4 w-4 rounded border-[var(--border-subtle)] bg-[var(--surface-panel)] text-status-info focus:ring-status-info'
 							/>
 							<Label htmlFor='imapTls' className='cursor-pointer text-sm font-normal'>
 								Use TLS
@@ -215,8 +215,8 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 					</div>
 				</div>
 
-				<div className='border-t border-black/[0.08] pt-4 dark:border-slate-800'>
-					<h3 className='mb-4 text-sm font-semibold text-slate-600 dark:text-slate-300'>
+				<div className='border-t border-[var(--border-subtle)] pt-4'>
+					<h3 className='mb-4 text-sm font-semibold text-[var(--text-primary)]'>
 						SMTP Settings
 					</h3>
 					<div className='grid gap-4 sm:grid-cols-2'>
@@ -229,7 +229,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 								value={formData.smtpHost}
 								onChange={(e) => handleChange('smtpHost', e.target.value)}
 								required
-								className='border-black/10 bg-black/[0.03] dark:border-slate-700 dark:bg-slate-800/50'
+								className='border-[var(--border-subtle)] bg-[var(--surface-panel)]/50'
 							/>
 						</div>
 						<div className='space-y-2'>
@@ -243,7 +243,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 								required
 								min='1'
 								max='65535'
-								className='border-black/10 bg-black/[0.03] dark:border-slate-700 dark:bg-slate-800/50'
+								className='border-[var(--border-subtle)] bg-[var(--surface-panel)]/50'
 							/>
 						</div>
 						<div className='flex items-center gap-2 pt-6'>
@@ -252,7 +252,7 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 								id='smtpTls'
 								checked={formData.smtpTls}
 								onChange={(e) => handleChange('smtpTls', e.target.checked)}
-								className='h-4 w-4 rounded border-black/20 bg-black/[0.03] text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800'
+								className='h-4 w-4 rounded border-[var(--border-subtle)] bg-[var(--surface-panel)] text-status-info focus:ring-status-info'
 							/>
 							<Label htmlFor='smtpTls' className='cursor-pointer text-sm font-normal'>
 								Use TLS
@@ -268,13 +268,13 @@ export function ManualAccountForm({ onSuccess, onCancel, editAccount }: ManualAc
 					variant='outline'
 					onClick={onCancel}
 					disabled={isLoading}
-					className='flex-1 border-black/10 bg-black/[0.03] hover:bg-black/[0.06] dark:border-slate-700 dark:bg-slate-800/50 dark:hover:bg-slate-800'>
+					className='flex-1 border-[var(--border-subtle)] bg-[var(--surface-panel)] hover:bg-[var(--surface-hover)]/50 hover:bg-[var(--surface-hover)]'>
 					Cancel
 				</Button>
 				<Button
 					type='submit'
 					disabled={isLoading}
-					className='flex-1 bg-blue-600 hover:bg-blue-500'>
+					className='flex-1 bg-status-info hover:bg-status-info'>
 					{isLoading ? (
 						<>
 							<Loader2 className='mr-2 h-4 w-4 animate-spin' />

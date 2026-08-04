@@ -58,7 +58,7 @@ export const DataDirStep = ({ onBack, onDataDirSet }: DataDirStepProps) => {
 				initial={{ opacity: 0, y: -20 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-				className='glass relative border-b border-black/5 bg-white/10 px-4 py-6 shadow-sm dark:border-white/5 dark:bg-black/20'>
+				className='glass relative border-b border-[var(--border-subtle)] bg-[var(--surface-glass)] px-4 py-6 shadow-sm'>
 				<div className='pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[var(--accent-color)] to-transparent opacity-20' />
 
 				<div className='container mx-auto'>
@@ -101,8 +101,8 @@ export const DataDirStep = ({ onBack, onDataDirSet }: DataDirStepProps) => {
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ delay: 0.1, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}>
 						{/* Info card */}
-						<div className='mb-8 flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-5 shadow-lg'>
-							<AlertTriangle className='mt-0.5 h-5 w-5 shrink-0 text-amber-500' />
+						<div className='mb-8 flex items-start gap-3 rounded-2xl border border-status-warning/30 bg-status-warning/15 p-5 shadow-lg'>
+							<AlertTriangle className='mt-0.5 h-5 w-5 shrink-0 text-status-warning' />
 							<p className='text-foreground/90 text-sm leading-relaxed font-medium'>
 								{t('welcome:dataDir.warning')}
 							</p>
@@ -184,7 +184,7 @@ export const DataDirStep = ({ onBack, onDataDirSet }: DataDirStepProps) => {
 							<motion.p
 								initial={{ opacity: 0, y: -4 }}
 								animate={{ opacity: 1, y: 0 }}
-								className='mt-3 text-sm text-red-400'>
+								className='mt-3 text-sm text-destructive'>
 								{error}
 							</motion.p>
 						)}
@@ -197,7 +197,7 @@ export const DataDirStep = ({ onBack, onDataDirSet }: DataDirStepProps) => {
 				initial={{ opacity: 0, y: 16 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ delay: 0.3, duration: 0.4 }}
-				className='glass relative border-t border-black/[0.06] bg-white/30 px-4 py-5 dark:border-white/[0.06] dark:bg-slate-900/30'>
+				className='glass relative border-t border-[var(--border-subtle)] bg-[var(--surface-glass)] px-4 py-5'>
 				<div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-black/[0.06] to-transparent dark:via-white/[0.06]' />
 				<div className='container mx-auto flex justify-end'>
 					<motion.button

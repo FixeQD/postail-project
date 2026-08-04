@@ -26,11 +26,11 @@ export function ContactAvatar({ name, email, size = 'md', className }: ContactAv
 	}, [email])
 
 	const bgColors = [
-		'bg-blue-500/10 text-blue-500 border-blue-500/20',
-		'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
-		'bg-purple-500/10 text-purple-500 border-purple-500/20',
-		'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
-		'bg-rose-500/10 text-rose-500 border-rose-500/20',
+		'bg-status-info/15 text-status-info border-status-info/30',
+		'bg-status-info/15 text-status-info border-indigo-500/20',
+		'bg-status-info/15 text-status-info border-status-info/30',
+		'bg-status-success/15 text-status-success border-status-success/30',
+		'bg-destructive/15 text-destructive border-destructive/30',
 	]
 
 	const sizeClasses = {

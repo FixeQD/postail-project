@@ -189,7 +189,7 @@ function ShortcutRow({
 				: {})}
 			className={`group relative flex items-center gap-3 overflow-hidden rounded-xl border px-4 py-3 transition-all duration-200 ${
 				conflict
-					? 'border-red-500/40 bg-red-500/5'
+					? 'border-destructive/30 bg-destructive/15'
 					: isModified
 						? 'border-[var(--border-subtle)] bg-[var(--surface-panel)]'
 						: 'border-[var(--border-faint)] bg-[var(--surface-panel)] hover:border-[var(--border-subtle)] hover:bg-[var(--surface-hover)]'
@@ -209,7 +209,7 @@ function ShortcutRow({
 
 			{/* Conflict warning */}
 			{conflict && (
-				<span className='flex items-center gap-1 text-[11px] font-medium text-red-400'>
+				<span className='flex items-center gap-1 text-[11px] font-medium text-destructive'>
 					<AlertTriangle className='h-3 w-3' />
 					Conflict
 				</span>
@@ -302,7 +302,7 @@ function ScopeSection({
 				</div>
 				<div className='flex items-center gap-2'>
 					{conflictCount > 0 && (
-						<span className='flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold text-red-400 ring-1 ring-red-500/30'>
+						<span className='flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold text-destructive ring-1 ring-destructive/30'>
 							<AlertTriangle className='h-3 w-3' />
 							{conflictCount}
 						</span>
@@ -473,7 +473,7 @@ export function KeyboardShortcutsSettings() {
 									animate={{ opacity: 1, y: 0 }}
 									exit={{ opacity: 0, y: -4 }}
 									transition={{ duration: 0.2 }}
-									className='flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold text-green-400 ring-1 ring-green-500/30'>
+									className='flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold text-status-success ring-1 ring-status-success/30'>
 									<Check className='h-3 w-3' />
 									Saved
 								</motion.span>
@@ -484,7 +484,7 @@ export function KeyboardShortcutsSettings() {
 							<button
 								type='button'
 								onClick={handleResetAll}
-								className='flex items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-all duration-150 hover:border-red-500/40 hover:bg-red-500/5 hover:text-red-400'>
+								className='flex items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-all duration-150 hover:border-destructive/30 hover:bg-destructive/15 hover:text-destructive'>
 								<RotateCcw className='h-3 w-3' />
 								Reset all ({totalModified})
 							</button>
@@ -500,9 +500,9 @@ export function KeyboardShortcutsSettings() {
 							animate={{ opacity: 1, height: 'auto' }}
 							exit={{ opacity: 0, height: 0 }}
 							transition={{ duration: 0.2 }}
-							className='flex items-center gap-3 overflow-hidden rounded-2xl border border-red-500/30 bg-red-500/5 px-5 py-4'>
-							<AlertTriangle className='h-4 w-4 shrink-0 text-red-400' />
-							<p className='text-sm text-red-400'>
+							className='flex items-center gap-3 overflow-hidden rounded-2xl border border-destructive/30 bg-destructive/15 px-5 py-4'>
+							<AlertTriangle className='h-4 w-4 shrink-0 text-destructive' />
+							<p className='text-sm text-destructive'>
 								<span className='font-semibold'>
 									{currentConflicts.size} shortcut
 									{currentConflicts.size > 1 ? 's' : ''} conflict.

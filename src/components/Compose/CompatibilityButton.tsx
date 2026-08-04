@@ -27,28 +27,28 @@ export const CompatibilityButton = memo(function CompatibilityButton({
 		if (totalIssues === 0) {
 			return {
 				icon: <CheckCircle2 className='h-4 w-4' />,
-				colorClass: 'text-green-500',
-				badgeClass: 'bg-green-500/20 text-green-500',
+				colorClass: 'text-status-success',
+				badgeClass: 'bg-status-success/15 text-status-success',
 			}
 		}
 		if (issueCounts.error > 0) {
 			return {
 				icon: <AlertTriangle className='h-4 w-4' />,
-				colorClass: 'text-red-500',
-				badgeClass: 'bg-red-500/20 text-red-500',
+				colorClass: 'text-destructive',
+				badgeClass: 'bg-destructive/15 text-destructive',
 			}
 		}
 		if (issueCounts.warning > 0) {
 			return {
 				icon: <AlertTriangle className='h-4 w-4' />,
-				colorClass: 'text-yellow-500',
-				badgeClass: 'bg-yellow-500/20 text-yellow-500',
+				colorClass: 'text-status-warning',
+				badgeClass: 'bg-status-warning/15 text-status-warning',
 			}
 		}
 		return {
 			icon: <Info className='h-4 w-4' />,
-			colorClass: 'text-blue-500',
-			badgeClass: 'bg-blue-500/20 text-blue-500',
+			colorClass: 'text-status-info',
+			badgeClass: 'bg-status-info/15 text-status-info',
 		}
 	}
 

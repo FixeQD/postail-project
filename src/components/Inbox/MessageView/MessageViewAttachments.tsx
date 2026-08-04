@@ -54,16 +54,16 @@ export const MessageViewAttachments = ({
 
 	const getIcon = (mimeType: string) => {
 		if (mimeType.startsWith('image/'))
-			return <FileImageIcon className='size-5 text-purple-400' />
-		if (mimeType.startsWith('text/')) return <FileTextIcon className='size-5 text-blue-400' />
+			return <FileImageIcon className='size-5 text-status-info' />
+		if (mimeType.startsWith('text/')) return <FileTextIcon className='size-5 text-status-info' />
 		if (
 			mimeType.includes('zip') ||
 			mimeType.includes('rar') ||
 			mimeType.includes('tar') ||
 			mimeType.includes('7z')
 		)
-			return <FileArchiveIcon className='size-5 text-amber-400' />
-		return <FileIcon className='size-5 text-slate-400' />
+			return <FileArchiveIcon className='size-5 text-status-warning' />
+		return <FileIcon className='size-5 text-[var(--text-secondary)]' />
 	}
 
 	const container: Variants = {

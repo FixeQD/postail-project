@@ -34,7 +34,7 @@ export function ComposeInputs({
 		<div className='flex flex-col px-4 pt-1'>
 			{replyContext && (
 				<div className='mb-2 flex items-center gap-2 rounded-lg bg-[var(--compose-context-bg)] px-3 py-2 ring-1 ring-[var(--compose-ring-faint)]'>
-					<div className='h-1.5 w-1.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.5)]' />
+					<div className='h-1.5 w-1.5 rounded-full bg-status-info shadow-[0_0_10px_rgb(var(--status-info-rgb)_/_0.35)]' />
 					<span className='text-[11px] font-medium tracking-tight text-[var(--compose-text-muted)] uppercase'>
 						{t('compose.replyingTo')}
 					</span>
@@ -45,7 +45,7 @@ export function ComposeInputs({
 			)}
 			{forwardContext && (
 				<div className='mb-2 flex items-center gap-2 rounded-lg bg-[var(--compose-context-bg)] px-3 py-2 ring-1 ring-[var(--compose-ring-faint)]'>
-					<div className='h-1.5 w-1.5 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]' />
+					<div className='h-1.5 w-1.5 rounded-full bg-status-info shadow-[0_0_10px_rgb(var(--status-info-rgb)_/_0.35)]' />
 					<span className='text-[11px] font-medium tracking-tight text-[var(--compose-text-muted)] uppercase'>
 						{t('compose.forwardingFrom')}
 					</span>

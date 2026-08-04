@@ -12,7 +12,7 @@ export const WelcomeScreen = ({
 	const { t } = useWelcomeTranslation()
 
 	return (
-		<div className="relative flex min-h-full flex-col items-center justify-center p-6 bg-[var(--app-bg)] overflow-hidden">
+		<div className="relative flex min-h-dvh flex-col items-center justify-center p-6 bg-[var(--app-bg)] overflow-hidden">
 			{/* Subtle background glow - simple CSS gradient, no blur */}
 			<div 
 				className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] pointer-events-none opacity-30"
@@ -45,11 +45,11 @@ export const WelcomeScreen = ({
 				</div>
 
 				{/* Clean typography */}
-				<h1 className="mb-3 text-[2.5rem] font-bold tracking-tight text-[var(--text-primary)] leading-none">
+				<h1 className="mb-3 text-[2.5rem] font-semibold tracking-[-0.02em] text-[var(--text-primary)] leading-[1.05]">
 					{t('welcome:title')}
 				</h1>
 
-				<p className="mb-10 text-[1.05rem] leading-relaxed text-[var(--text-secondary)]">
+				<p className="mb-10 max-w-[46ch] text-balance text-[1.05rem] leading-relaxed text-[var(--text-secondary)]">
 					{t('welcome:subtitle')}
 				</p>
 
@@ -58,7 +58,7 @@ export const WelcomeScreen = ({
 					<button
 						type="button"
 						onClick={onGetStarted}
-						className="group relative flex w-full items-center justify-center rounded-xl px-6 py-4 text-[0.95rem] font-semibold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--accent-color)] focus:ring-offset-[var(--app-bg)]"
+						className="group relative flex w-full items-center justify-center rounded-xl px-6 pt-[15px] pb-[17px] text-[0.95rem] font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] focus-visible:-translate-y-0.5"
 						style={{
 							background: 'linear-gradient(180deg, var(--accent-light) 0%, var(--accent-color) 100%)',
 							boxShadow: '0 8px 24px -8px rgba(var(--accent-rgb), 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.25)'
@@ -70,7 +70,7 @@ export const WelcomeScreen = ({
 					<button
 						type="button"
 						onClick={onExistingData}
-						className="rounded-xl px-6 py-3.5 text-[0.9rem] font-medium text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-subtle)]"
+						className="rounded-xl px-6 py-3.5 text-[0.9rem] font-medium text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] transition-colors focus-visible:bg-[var(--surface-hover)] focus-visible:text-[var(--text-primary)]"
 					>
 						{t('welcome:existingData')}
 					</button>

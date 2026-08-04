@@ -198,7 +198,7 @@ const TagPicker = ({
 						{...(animationsEnabled ? { animate: { opacity: 1, y: 0, scale: 1 } } : {})}
 						exit={animationsEnabled ? { opacity: 0, y: -4, scale: 0.96 } : undefined}
 						transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-						className='absolute top-8 left-0 z-50 w-52 overflow-hidden rounded-xl border border-[var(--border-stronger,rgba(255,255,255,0.15))] bg-[#0d1117]/90 shadow-[0_20px_50px_rgba(0,0,0,0.8)] ring-1 ring-white/10'
+						className='absolute top-8 left-0 z-50 w-52 overflow-hidden rounded-xl border border-[var(--border-stronger,rgba(255,255,255,0.15))] bg-[#0d1117]/90 shadow-[0_20px_50px_-12px_rgb(0_0_0_/_0.55)] ring-1 ring-white/10'
 						style={{ backdropFilter: 'blur(12px)' }}>
 						{/* Search / create input */}
 						<div className='flex items-center gap-2 border-b border-[var(--border-faint)] px-3 py-2'>

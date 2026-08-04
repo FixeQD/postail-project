@@ -381,23 +381,19 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 				if (!context?.isFetchingNextPage) return null
 
 				return (
-					<div className='flex items-center justify-center py-4'>
-						<motion.div
-							{...(context.animationsEnabled
-								? {
-										initial: { opacity: 0, scale: 0.9 },
-										animate: { opacity: 1, scale: 1 },
-									}
-								: {})}
-							className='flex items-center gap-2'>
-							<div
-								className='h-4 w-4 animate-spin rounded-full border-2 border-transparent'
-								style={{ borderTopColor: context.accentColor }}
-							/>
-							<span className='text-muted-foreground text-xs'>
-								{context.t('inbox:messageList.loadingMore')}
-							</span>
-						</motion.div>
+					<div className='px-3 py-2' role='status' aria-live='polite'>
+						<div className='flex flex-col gap-2'>
+							{[0.85, 0.65].map((opacity, i) => (
+								<div key={i} className='flex items-center gap-3' style={{ opacity }}>
+									<div className='skeleton h-8 w-8 shrink-0 rounded-full' />
+									<div className='flex min-w-0 flex-1 flex-col gap-1.5'>
+										<div className='skeleton h-2.5 w-3/4' />
+										<div className='skeleton h-2 w-1/2 opacity-70' />
+									</div>
+								</div>
+							))}
+							<span className='sr-only'>{context.t('inbox:messageList.loadingMore')}</span>
+						</div>
 					</div>
 				)
 			},
@@ -457,43 +453,31 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 	// Syncing state
 	if (isSyncing || needsSync) {
 		return (
-			<div className='flex h-full items-center justify-center'>
-				<motion.div
-					{...(animationsEnabled
-						? {
-								initial: { opacity: 0, scale: 0.9 },
-								animate: { opacity: 1, scale: 1 },
-								transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
-							}
-						: {})}
-					className='flex flex-col items-center gap-4'>
-					<div className='relative flex h-16 w-16 items-center justify-center'>
+			<div
+				className='flex h-full flex-col px-3 py-3'
+				role='status'
+				aria-live='polite'>
+				<div className='mb-3 flex items-center gap-2 px-1'>
+					<FolderSync className='h-3.5 w-3.5' style={{ color: accentColor }} />
+					<span className='text-tertiary text-[11px] font-medium'>
+						Syncing {currentMailbox?.display_name || mailbox}…
+					</span>
+				</div>
+				<div className='flex flex-col gap-2.5'>
+					{Array.from({ length: 8 }).map((_, i) => (
 						<div
-							className='absolute inset-0 animate-spin rounded-full border-2 border-transparent'
-							style={{
-								borderTopColor: accentColor,
-								animationDuration: '1.2s',
-							}}
-						/>
-						<div
-							className='absolute inset-2 animate-spin rounded-full border-2 border-transparent'
-							style={{
-								borderBottomColor: `rgba(var(--accent-rgb), 0.3)`,
-								animationDirection: 'reverse',
-								animationDuration: '1.8s',
-							}}
-						/>
-						<FolderSync className='h-6 w-6' style={{ color: accentColor }} />
-					</div>
-					<div className='flex flex-col items-center gap-1'>
-						<span className='text-foreground/80 text-sm font-medium'>
-							Syncing messages...
-						</span>
-						<span className='text-tertiary text-xs'>
-							{currentMailbox?.display_name || mailbox}
-						</span>
-					</div>
-				</motion.div>
+							key={i}
+							className='flex items-center gap-3 rounded-lg px-1'
+							style={{ opacity: Math.max(0.25, 1 - i * 0.09) }}>
+							<div className='skeleton h-9 w-9 shrink-0 rounded-full' />
+							<div className='flex min-w-0 flex-1 flex-col gap-1.5'>
+								<div className='skeleton h-2.5' style={{ width: `${72 - (i % 3) * 12}%` }} />
+								<div className='skeleton h-2 opacity-70' style={{ width: `${48 - (i % 4) * 6}%` }} />
+							</div>
+							<div className='skeleton h-2 w-10 shrink-0' />
+						</div>
+					))}
+				</div>
 			</div>
 		)
 	}
@@ -510,10 +494,10 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 							}
 						: {})}
 					className='flex flex-col items-center gap-3'>
-					<div className='flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10 ring-1 ring-red-500/20'>
-						<FolderSync className='h-5 w-5 text-red-400' />
+					<div className='flex h-12 w-12 items-center justify-center rounded-full bg-destructive/15 ring-1 ring-destructive/30'>
+						<FolderSync className='h-5 w-5 text-destructive' />
 					</div>
-					<p className='text-sm font-medium text-red-400'>Failed to sync mailbox</p>
+					<p className='text-sm font-medium text-destructive'>Failed to sync mailbox</p>
 					<p className='text-tertiary max-w-xs text-center text-xs'>{syncError}</p>
 					<button
 						type='button'
@@ -588,8 +572,8 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 	if (error) {
 		return (
 			<div className='flex h-full items-center justify-center'>
-				<div className='flex flex-col items-center gap-2 text-red-400'>
-					<div className='flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10 ring-1 ring-red-500/20'>
+				<div className='flex flex-col items-center gap-2 text-destructive'>
+					<div className='flex h-12 w-12 items-center justify-center rounded-full bg-destructive/15 ring-1 ring-destructive/30'>
 						<Mail className='h-5 w-5' />
 					</div>
 					<p className='text-sm font-medium'>{t('inbox:messageList.error')}</p>
@@ -642,4 +626,3 @@ export const MessageList = ({ account, mailbox, focusedUid, onMessageClick }: Me
 		</div>
 	)
 }
-

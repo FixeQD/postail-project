@@ -32,7 +32,7 @@ export const AttachmentList = memo(({ attachments, onRemove }: AttachmentListPro
 										e.stopPropagation()
 										onRemove(file.id)
 									}}
-									className='ml-1 rounded-full p-0.5 text-[var(--compose-text-muted)] opacity-0 transition-all group-hover:opacity-100 hover:bg-[var(--compose-hover)] hover:text-red-400'>
+									className='ml-1 rounded-full p-0.5 text-[var(--compose-text-muted)] opacity-0 transition-all group-hover:opacity-100 hover:bg-[var(--compose-hover)] hover:text-destructive'>
 									<X className='h-3.5 w-3.5' />
 								</button>
 							</div>

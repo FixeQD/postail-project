@@ -306,7 +306,7 @@ export function ComposeScreen({ open, onOpenChange, accountId }: ComposeScreenPr
 								transition: { type: 'spring', duration: 0.4, bounce: 0.3 },
 							}
 						: {})}
-					className={`compose-drag-root fixed z-50 flex flex-col rounded-t-xl bg-[var(--compose-bg)] text-[var(--compose-text)] shadow-2xl ring-1 ${isCountingDown ? 'ring-blue-500/30' : 'ring-[var(--compose-ring)]'} ${isDragging ? 'shadow-blue-900/20' : ''}`}
+					className={`compose-drag-root fixed z-50 flex flex-col rounded-t-xl bg-[var(--compose-bg)] text-[var(--compose-text)] shadow-2xl ring-1 ${isCountingDown ? 'ring-status-info/30' : 'ring-[var(--compose-ring)]'} ${isDragging ? 'shadow-blue-900/20' : ''}`}
 					style={{
 						left: `${activePosition.x}px`,
 						top: `${activePosition.y}px`,

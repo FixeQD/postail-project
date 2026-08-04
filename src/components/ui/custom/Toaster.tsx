@@ -13,11 +13,11 @@ import { useToastStore, type Toast, type ToastType } from '@/stores/toastStore'
 export { toast } from '@/stores/toastStore'
 
 const icons: Record<ToastType, React.ReactNode> = {
-	success: <CircleCheckIcon className='size-5 text-emerald-400' />,
-	error: <OctagonXIcon className='size-5 text-rose-400' />,
-	info: <InfoIcon className='size-5 text-blue-400' />,
-	warning: <TriangleAlertIcon className='size-5 text-amber-400' />,
-	loading: <Loader2Icon className='size-5 animate-spin text-slate-400' />,
+	success: <CircleCheckIcon className='size-5 text-status-success' />,
+	error: <OctagonXIcon className='size-5 text-destructive' />,
+	info: <InfoIcon className='size-5 text-status-info' />,
+	warning: <TriangleAlertIcon className='size-5 text-status-warning' />,
+	loading: <Loader2Icon className='size-5 animate-spin text-[var(--text-secondary)]' />,
 }
 
 // ── Live ticking seconds display ──────────────────────────────────────────────
@@ -81,7 +81,7 @@ function ToastItem({ t, onRemove }: { t: Toast; onRemove: (id: string) => void }
 			<div
 				className='absolute inset-0 -z-10 opacity-20'
 				style={{
-					background: `radial-gradient(circle at top left, var(--accent-color, #f97316), transparent 70%)`,
+					background: `radial-gradient(circle at top left, var(--accent-color, #eb6226), transparent 70%)`,
 				}}
 			/>
 

@@ -168,7 +168,7 @@ export const ColorPicker = ({ color, onChange }: CustomColorPickerProps) => {
 				}}>
 				{/* Thumb */}
 				<div
-					className='pointer-events-none absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-slate-900 bg-white shadow-md'
+					className='pointer-events-none absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[var(--border-subtle)] bg-[var(--surface-glass-solid)] shadow-md'
 					style={{ left: `${(hsv.h / 360) * 100}%` }}
 				/>
 			</div>

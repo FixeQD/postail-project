@@ -80,7 +80,7 @@ export const EncryptionChoice = ({
 							}}
 						/>
 					</div>
-					<p className='text-sm text-slate-500 dark:text-slate-400'>
+					<p className='text-sm text-[var(--text-secondary)]'>
 						{t('common:status.loading')}
 					</p>
 				</motion.div>
@@ -110,7 +110,7 @@ export const EncryptionChoice = ({
 					initial={{ opacity: 0, y: -20, filter: 'blur(8px)' }}
 					animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
 					transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-					className='relative border-b border-black/5 bg-white/10 px-4 py-6 shadow-sm backdrop-blur-[32px] dark:border-white/5 dark:bg-black/20'>
+					className='relative border-b border-[var(--border-subtle)] bg-[var(--surface-glass)] px-4 py-6 shadow-sm'>
 					<div className='pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[var(--accent-color)] to-transparent opacity-20' />
 
 					<div className='container mx-auto'>

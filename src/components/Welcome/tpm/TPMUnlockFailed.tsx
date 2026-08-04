@@ -57,7 +57,7 @@ export function TPMUnlockFailed({
 						className='w-full max-w-sm text-center'>
 						<div className='mb-6 flex justify-center'>
 							<div className='flex h-20 w-20 items-center justify-center rounded-2xl bg-[var(--surface-active)] ring-1 ring-[var(--border-subtle)]'>
-								<XCircle className='h-10 w-10 text-slate-400' />
+								<XCircle className='h-10 w-10 text-[var(--text-secondary)]' />
 							</div>
 						</div>
 
@@ -160,9 +160,9 @@ export function TPMUnlockFailed({
 									initial={{ opacity: 0, y: -8, scale: 0.98 }}
 									animate={{ opacity: 1, y: 0, scale: 1 }}
 									transition={{ duration: 0.2 }}
-									className='flex items-center gap-2.5 rounded-xl bg-red-500/10 p-4 ring-1 ring-red-500/20'>
-									<AlertTriangle className='h-4 w-4 shrink-0 text-red-400' />
-									<p className='text-sm text-red-400'>{recoveryError}</p>
+									className='flex items-center gap-2.5 rounded-xl bg-destructive/15 p-4 ring-1 ring-destructive/30'>
+									<AlertTriangle className='h-4 w-4 shrink-0 text-destructive' />
+									<p className='text-sm text-destructive'>{recoveryError}</p>
 								</motion.div>
 							)}
 

@@ -115,7 +115,7 @@ export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDi
 									<DialogTitle className='text-xl font-bold'>
 										{t('settings:accounts.list.edit')}
 									</DialogTitle>
-									<DialogDescription className='text-slate-400'>
+									<DialogDescription className='text-[var(--text-secondary)]'>
 										{isOAuth
 											? t(
 													'settings:accounts.list.editOAuthDesc',
@@ -143,7 +143,7 @@ export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDi
 														id='newName'
 														value={newName}
 														onChange={(e) => setNewName(e.target.value)}
-														className='border-slate-700 bg-slate-800/50'
+														className='border-[var(--border-subtle)] bg-[var(--surface-panel)]'
 													/>
 													<Button
 														size='icon'
@@ -151,7 +151,7 @@ export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDi
 														disabled={
 															isLoading || newName === account.name
 														}
-														className='shrink-0 bg-blue-600 hover:bg-blue-500'>
+														className='shrink-0 bg-status-info hover:bg-status-info'>
 														{isLoading ? (
 															<Loader2 className='h-4 w-4 animate-spin' />
 														) : (
@@ -161,17 +161,17 @@ export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDi
 												</div>
 											</div>
 
-											<div className='rounded-xl border border-blue-500/20 bg-blue-500/5 p-4'>
+											<div className='rounded-xl border border-status-info/30 bg-status-info/15 p-4'>
 												<div className='mb-3 flex items-start gap-3'>
-													<RefreshCw className='mt-0.5 h-5 w-5 text-blue-400' />
+													<RefreshCw className='mt-0.5 h-5 w-5 text-status-info' />
 													<div>
-														<h4 className='text-sm font-semibold text-blue-100'>
+														<h4 className='text-sm font-semibold text-status-info'>
 															{t(
 																'settings:accounts.reauth.title',
 																'Re-authentication Required?'
 															)}
 														</h4>
-														<p className='mt-1 text-xs leading-relaxed text-blue-300/80'>
+														<p className='mt-1 text-xs leading-relaxed text-status-info/80'>
 															{t(
 																'settings:accounts.reauth.description',
 																"If you're having connection issues or your session expired, you can re-link your account."
@@ -182,7 +182,7 @@ export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDi
 												<Button
 													onClick={handleReauth}
 													disabled={isLoading || isReauthing}
-													className='w-full bg-blue-600 hover:bg-blue-500'>
+													className='w-full bg-status-info hover:bg-status-info'>
 													{isReauthing ? (
 														<>
 															<Loader2 className='mr-2 h-4 w-4 animate-spin' />
@@ -205,14 +205,14 @@ export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDi
 												</Button>
 											</div>
 
-											<div className='flex items-center gap-2 rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-3 text-[11px] text-yellow-200/70'>
-												<AlertCircle className='h-4 w-4 shrink-0 text-yellow-500/70' />
+											<div className='flex items-center gap-2 rounded-lg border border-status-warning/30 bg-status-warning/15 p-3 text-[11px] text-status-warning/70'>
+												<AlertCircle className='h-4 w-4 shrink-0 text-status-warning' />
 												<span>
 													{t(
 														'settings:accounts.reauth.notice',
 														'Ensure you log in with the same email address: '
 													)}
-													<strong className='text-yellow-200'>
+													<strong className='text-status-warning'>
 														{account.email}
 													</strong>
 												</span>
@@ -229,7 +229,7 @@ export function EditAccountDialog({ account, open, onOpenChange }: EditAccountDi
 									<button
 										type='button'
 										onClick={handleOpenMailboxRoles}
-										className='flex w-full items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 text-sm text-slate-400 transition-colors hover:border-white/[0.10] hover:bg-white/[0.06] hover:text-slate-200'>
+										className='flex w-full items-center gap-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-4 py-3 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'>
 										<FolderCog className='h-4 w-4 shrink-0' />
 										{t(
 											'settings:accounts.list.manageRoles',

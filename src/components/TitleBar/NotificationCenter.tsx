@@ -33,8 +33,8 @@ const typeIcon: Record<AppNotificationType, React.ReactNode> = {
 }
 
 const typeStyles: Record<AppNotificationType, { icon: string; bg: string }> = {
-	new_mail: { icon: 'text-blue-400', bg: 'bg-blue-500/10' },
-	sync_error: { icon: 'text-red-400', bg: 'bg-red-500/10' },
+	new_mail: { icon: 'text-status-info', bg: 'bg-status-info/15' },
+	sync_error: { icon: 'text-destructive', bg: 'bg-destructive/15' },
 	system: { icon: 'text-[var(--text-tertiary)]', bg: 'bg-[var(--surface-active)]' },
 }
 
@@ -208,7 +208,7 @@ export function NotificationCenter() {
 									<button
 										type='button'
 										onClick={clearAll}
-										className='flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-[var(--text-secondary)] transition-colors hover:bg-red-500/10 hover:text-red-400'>
+										className='flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-[var(--text-secondary)] transition-colors hover:bg-destructive/15 hover:text-destructive'>
 										<Trash2 className='h-3 w-3' />
 									</button>
 								)}

@@ -55,7 +55,7 @@ export const SignatureSelector = memo(function SignatureSelector({}: SignatureSe
 					variant='ghost'
 					size='icon'
 					className={`h-9 w-9 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)] ${
-						hasSignature ? 'text-blue-500' : ''
+						hasSignature ? 'text-status-info' : ''
 					}`}
 					title={t('compose.signature.select')}>
 					<PenLine className='h-4 w-4' />
@@ -68,7 +68,7 @@ export const SignatureSelector = memo(function SignatureSelector({}: SignatureSe
 						onClick={() => handleSelect(null)}
 						className='flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]'>
 						<span>{t('compose.signature.noSignature')}</span>
-						{isSelected(null) && <Check className='h-4 w-4 text-blue-500' />}
+						{isSelected(null) && <Check className='h-4 w-4 text-status-info' />}
 					</button>
 
 					{signatures.length === 0 && (
@@ -84,7 +84,7 @@ export const SignatureSelector = memo(function SignatureSelector({}: SignatureSe
 							onClick={() => handleSelect(sig.htmlContent)}
 							className='flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]'>
 							<span className='truncate'>{sig.name}</span>
-							{isSelected(sig) && <Check className='h-4 w-4 text-blue-500' />}
+							{isSelected(sig) && <Check className='h-4 w-4 text-status-info' />}
 						</button>
 					))}
 				</div>

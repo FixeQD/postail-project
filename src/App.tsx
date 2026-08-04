@@ -225,7 +225,7 @@ function App() {
 							animate={{ opacity: 1, scale: 1 }}
 							transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
 							className='animate-subtle-float'>
-							<div className='relative flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-800/80 shadow-xl ring-1 ring-white/[0.08]'>
+							<div className='relative flex h-16 w-16 items-center justify-center rounded-2xl bg-[#171b26]/80 shadow-xl ring-1 ring-white/[0.08]'>
 								<img src={icon} alt='Postail' className='h-12 w-12' />
 								<div
 									className='animate-glow-breathe absolute -inset-3 -z-10 rounded-3xl blur-xl'
@@ -360,7 +360,7 @@ function App() {
 
 	return (
 		<div
-			className='noise-overlay text-foreground relative flex h-screen flex-col transition-colors duration-200 ease-out'
+			className='noise-overlay text-foreground relative flex h-dvh flex-col transition-colors duration-200 ease-out'
 			style={{ backgroundColor: 'var(--app-bg, #020617)' }}>
 			<TitleBar
 				isDashboard={currentState === 'dashboard'}

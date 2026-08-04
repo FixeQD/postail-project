@@ -87,7 +87,7 @@ export function ConditionRow({ condition, onUpdate, onRemove, isOnly }: Conditio
 				type='button'
 				onClick={onRemove}
 				disabled={isOnly}
-				className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-tertiary)] opacity-0 transition-all group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-400 disabled:pointer-events-none disabled:opacity-0'>
+				className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-tertiary)] opacity-0 transition-all group-hover:opacity-100 hover:bg-destructive/15 hover:text-destructive disabled:pointer-events-none disabled:opacity-0'>
 				<X className='h-3.5 w-3.5' />
 			</button>
 		</div>

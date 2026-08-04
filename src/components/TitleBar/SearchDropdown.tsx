@@ -118,7 +118,7 @@ export function SearchDropdown({
 									<button
 										type='button'
 										onMouseDown={(e) => onDeleteSaved(e, saved)}
-										className='hidden h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--text-tertiary)] transition-colors group-hover:flex hover:text-red-400'>
+										className='hidden h-5 w-5 shrink-0 items-center justify-center rounded text-[var(--text-tertiary)] transition-colors group-hover:flex hover:text-destructive'>
 										<Trash2 className='h-3 w-3' />
 									</button>
 								</div>

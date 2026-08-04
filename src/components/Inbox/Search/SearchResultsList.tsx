@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { format, isToday, isYesterday, isThisYear } from 'date-fns'
-import { Search, Loader2, AlertCircle, Paperclip } from 'lucide-react'
+import { Search, AlertCircle, Paperclip } from 'lucide-react'
 
 import { useAnimationsEnabled } from '@/hooks/useMotion'
 import { useThemeStore } from '@/stores/themeStore'
@@ -104,8 +104,27 @@ export function SearchResultsList({
 			<motion.div
 				initial={animationsEnabled ? { opacity: 0 } : {}}
 				animate={animationsEnabled ? { opacity: 1 } : {}}
-				className='flex h-full flex-col items-center justify-center gap-3 text-[var(--text-tertiary)]'>
-				<Loader2 className='h-6 w-6 animate-spin' style={{ color: accentColor }} />
+				className='flex h-full flex-col gap-2 px-3 py-3'>
+				{Array.from({ length: 6 }).map((_, i) => (
+					<div
+						key={i}
+						className='flex items-center gap-3 rounded-lg px-1'
+						style={{ opacity: Math.max(0.25, 1 - i * 0.1) }}>
+						<div className='skeleton h-9 w-9 shrink-0 rounded-full' />
+						<div className='flex min-w-0 flex-1 flex-col gap-1.5'>
+							<div
+								className='skeleton h-2.5'
+								style={{ width: `${70 - (i % 3) * 14}%` }}
+							/>
+							<div
+								className='skeleton h-2 opacity-70'
+								style={{ width: `${46 - (i % 4) * 7}%` }}
+							/>
+						</div>
+						<div className='skeleton h-2 w-10 shrink-0' />
+					</div>
+				))
+				}
 			</motion.div>
 		)
 	}
@@ -116,8 +135,8 @@ export function SearchResultsList({
 				initial={animationsEnabled ? { opacity: 0 } : {}}
 				animate={animationsEnabled ? { opacity: 1 } : {}}
 				className='flex h-full flex-col items-center justify-center gap-2 p-6 text-center'>
-				<AlertCircle className='h-6 w-6 text-red-400' />
-				<p className='text-sm font-medium text-red-400'>{error}</p>
+				<AlertCircle className='h-6 w-6 text-destructive' />
+				<p className='text-sm font-medium text-destructive'>{error}</p>
 			</motion.div>
 		)
 	}
@@ -172,8 +191,13 @@ export function SearchResultsList({
 				</AnimatePresence>
 
 				{isLoading && results.length > 0 && (
-					<div className='flex justify-center p-4 text-[var(--text-tertiary)]'>
-						<Loader2 className='h-5 w-5 animate-spin' style={{ color: accentColor }} />
+					<div className='flex items-center gap-3 px-3 py-2' role='status'>
+						<div className='skeleton h-8 w-8 shrink-0 rounded-full' />
+						<div className='flex min-w-0 flex-1 flex-col gap-1.5'>
+							<div className='skeleton h-2.5 w-3/4' />
+							<div className='skeleton h-2 w-1/2 opacity-70' />
+						</div>
+						<span className='sr-only'>{t('common:loading')}</span>
 					</div>
 				)}
 			</div>

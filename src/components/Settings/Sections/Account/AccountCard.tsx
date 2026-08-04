@@ -22,15 +22,15 @@ type SyncStatus = 'Idle' | 'Syncing' | { Error: string }
 
 const getProviderIcon = (type: string) => {
 	const lower = type.toLowerCase()
-	if (lower.includes('gmail')) return <Mail className='h-5 w-5 text-red-400' />
-	if (lower.includes('outlook')) return <Mail className='h-5 w-5 text-blue-400' />
-	return <Mail className='h-5 w-5 text-slate-400' />
+	if (lower.includes('gmail')) return <Mail className='h-5 w-5 text-destructive' />
+	if (lower.includes('outlook')) return <Mail className='h-5 w-5 text-status-info' />
+	return <Mail className='h-5 w-5 text-[var(--text-secondary)]' />
 }
 
 const getProviderGlow = (type: string) => {
 	const lower = type.toLowerCase()
-	if (lower.includes('gmail')) return 'group-hover:ring-red-500/20'
-	if (lower.includes('outlook')) return 'group-hover:ring-blue-500/20'
+	if (lower.includes('gmail')) return 'group-hover:ring-destructive/30'
+	if (lower.includes('outlook')) return 'group-hover:ring-status-info/30'
 	return 'group-hover:ring-white/[0.12]'
 }
 
@@ -76,7 +76,7 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 			return (
 				<motion.span
 					{...motionFade}
-					className='inline-flex items-center rounded-full bg-blue-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-blue-400 ring-1 ring-blue-500/20 ring-inset'>
+					className='inline-flex items-center rounded-full bg-status-info/15 px-2.5 py-0.5 text-[11px] font-semibold text-status-info ring-1 ring-status-info/30 ring-inset'>
 					<Loader2 className='mr-1 h-3 w-3 animate-spin' />
 					Syncing...
 				</motion.span>
@@ -87,7 +87,7 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 			return (
 				<motion.span
 					{...motionFade}
-					className='inline-flex items-center rounded-full bg-red-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-red-400 ring-1 ring-red-500/20 ring-inset'>
+					className='inline-flex items-center rounded-full bg-destructive/15 px-2.5 py-0.5 text-[11px] font-semibold text-destructive ring-1 ring-destructive/30 ring-inset'>
 					<AlertTriangle className='mr-1 h-3 w-3' />
 					Error
 				</motion.span>
@@ -95,7 +95,7 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 		}
 
 		return (
-			<span className='inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-400 ring-1 ring-emerald-500/20 ring-inset'>
+			<span className='inline-flex items-center rounded-full bg-status-success/15 px-2.5 py-0.5 text-[11px] font-semibold text-status-success ring-1 ring-status-success/30 ring-inset'>
 				<CheckCircle2 className='mr-1 h-3 w-3' />
 				Synced
 			</span>
@@ -113,7 +113,7 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 						transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
 					}
 				: {})}>
-			<Card className='glass group relative overflow-visible border-[var(--border-subtle)] bg-[var(--surface-panel)] transition-all duration-300 hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:shadow-xl hover:shadow-black/10 dark:hover:shadow-black/30'>
+			<Card className='glass group relative overflow-visible border-[var(--border-subtle)] bg-[var(--surface-panel)] transition-all duration-300 hover:border-[var(--border-subtle)] hover:bg-[var(--surface-hover)] hover:shadow-xl hover:shadow-black/15'>
 				{/* Hover gradient overlay */}
 				<div className='pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-br from-white/[0.04] via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100' />
 
@@ -124,17 +124,17 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 					<div className='flex items-center gap-4'>
 						<div
 							className={cn(
-								'flex h-12 w-12 items-center justify-center rounded-xl bg-black/[0.05] ring-1 ring-black/[0.08] transition-all duration-300 group-hover:scale-105 dark:bg-slate-900/60 dark:ring-white/[0.08]',
+								'flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--surface-panel)] ring-1 ring-[var(--border-subtle)] transition-all duration-300 group-hover:scale-105',
 								getProviderGlow(account.provider_type)
 							)}>
 							{getProviderIcon(account.provider_type)}
 						</div>
 
 						<div className='flex flex-col'>
-							<h3 className='text-[15px] font-semibold text-slate-800 transition-colors group-hover:text-slate-900 dark:text-slate-100 dark:group-hover:text-white'>
+							<h3 className='text-[15px] font-semibold text-[var(--text-primary)] transition-colors'>
 								{account.name}
 							</h3>
-							<p className='text-sm text-slate-500 dark:text-slate-400'>
+							<p className='text-sm text-[var(--text-tertiary)]'>
 								{account.email}
 							</p>
 							<div className='mt-1.5 flex items-center gap-2'>
@@ -148,7 +148,7 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 								) : (
 									<div>{statusBadge}</div>
 								)}
-								<span className='text-[11px] text-slate-400 dark:text-slate-600'>
+								<span className='text-[11px] text-[var(--text-tertiary)]'>
 									{account.auth_type}
 								</span>
 							</div>
@@ -164,7 +164,7 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 								variant='ghost'
 								size='icon'
 								className={cn(
-									'h-8 w-8 text-slate-500 hover:bg-black/[0.06] hover:text-slate-700 dark:hover:bg-white/[0.06] dark:hover:text-slate-200',
+									'h-8 w-8 text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]',
 									status === 'Syncing' && 'animate-spin'
 								)}
 								onClick={() => onSync(account.id)}
@@ -178,7 +178,7 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 							<Button
 								variant='ghost'
 								size='icon'
-								className='h-8 w-8 text-slate-500 hover:bg-black/[0.06] hover:text-slate-700 dark:hover:bg-white/[0.06] dark:hover:text-slate-200'
+								className='h-8 w-8 text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'
 								onClick={() => setMenuOpen((v) => !v)}>
 								<MoreVertical className='h-4 w-4' />
 							</Button>
@@ -191,22 +191,22 @@ export const AccountCard = memo(({ account, onRemove, onSync }: AccountCardProps
 										exit={{ opacity: 0, scaleY: 0.8, y: -4 }}
 										transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
 										style={{ transformOrigin: 'top right' }}
-										className='glass absolute top-full right-0 z-50 mt-1 w-48 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-glass)] py-1 shadow-xl shadow-black/10 dark:shadow-black/40'>
-										<p className='px-3 py-1.5 text-xs font-medium text-slate-400 dark:text-slate-500'>
+										className='glass absolute top-full right-0 z-50 mt-1 w-48 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-glass)] py-1 shadow-xl shadow-black/10 shadow-black/20'>
+										<p className='px-3 py-1.5 text-xs font-medium text-[var(--text-tertiary)]'>
 											Actions
 										</p>
-										<div className='mx-1 my-1 h-px bg-black/[0.06] dark:bg-white/[0.06]' />
+										<div className='mx-1 my-1 h-px bg-[var(--border-subtle)]' />
 										<button
-											className='flex w-full items-center gap-2.5 px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-black/[0.04] hover:text-slate-900 dark:text-slate-200 dark:hover:bg-white/[0.06] dark:hover:text-slate-100'
+											className='flex w-full items-center gap-2.5 px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)]'
 											onClick={() => {
 												setIsEditDialogOpen(true)
 												setMenuOpen(false)
 											}}>
-											<Settings2 className='h-4 w-4 text-slate-400 dark:text-slate-400' />
+											<Settings2 className='h-4 w-4 text-[var(--text-secondary)]' />
 											Edit settings
 										</button>
 										<button
-											className='flex w-full items-center gap-2.5 px-3 py-2 text-sm text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300'
+											className='flex w-full items-center gap-2.5 px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/15 '
 											onClick={() => {
 												onRemove(account.id)
 												setMenuOpen(false)

@@ -54,11 +54,11 @@ const ACTION_ICONS: Record<ActionType, React.ReactNode> = {
 }
 
 const ACTION_COLORS: Record<ActionType, string> = {
-	move_to: 'text-blue-400',
-	add_tag: 'text-violet-400',
-	star: 'text-yellow-400',
-	mark_read: 'text-green-400',
-	delete: 'text-red-400',
+	move_to: 'text-status-info',
+	add_tag: 'text-status-info',
+	star: 'text-status-warning',
+	mark_read: 'text-status-success',
+	delete: 'text-destructive',
 }
 
 export function ActionRow({ action, accountId, onUpdate, onRemove, isOnly }: ActionRowProps) {
@@ -150,7 +150,7 @@ export function ActionRow({ action, accountId, onUpdate, onRemove, isOnly }: Act
 			{!needsValue && (
 				<div className='flex-1'>
 					{action.action_type === 'delete' && (
-						<span className='text-[11px] font-medium text-red-400/70'>
+						<span className='text-[11px] font-medium text-destructive/70'>
 							{t('settings:filters.movesToTrash')}
 						</span>
 					)}
@@ -161,7 +161,7 @@ export function ActionRow({ action, accountId, onUpdate, onRemove, isOnly }: Act
 				type='button'
 				onClick={onRemove}
 				disabled={isOnly}
-				className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-tertiary)] opacity-0 transition-all group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-400 disabled:pointer-events-none disabled:opacity-0'>
+				className='flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--text-tertiary)] opacity-0 transition-all group-hover:opacity-100 hover:bg-destructive/15 hover:text-destructive disabled:pointer-events-none disabled:opacity-0'>
 				<X className='h-3.5 w-3.5' />
 			</button>
 		</div>

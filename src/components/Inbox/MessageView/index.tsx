@@ -350,8 +350,8 @@ export const MessageView = ({
 	if (error) {
 		return (
 			<div className='flex h-full items-center justify-center'>
-				<div className='flex flex-col items-center gap-3 text-red-400'>
-					<div className='flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10 ring-1 ring-red-500/20'>
+				<div className='flex flex-col items-center gap-3 text-destructive'>
+					<div className='flex h-12 w-12 items-center justify-center rounded-full bg-destructive/15 ring-1 ring-destructive/30'>
 						<AlertCircle className='h-5 w-5' />
 					</div>
 					<p className='text-sm font-medium'>{t('inbox:messageView.error')}</p>
@@ -368,7 +368,7 @@ export const MessageView = ({
 	if (!data) {
 		return (
 			<div className='flex h-full items-center justify-center'>
-				<div className='flex flex-col items-center gap-2 text-slate-500'>
+				<div className='flex flex-col items-center gap-2 text-[var(--text-tertiary)]'>
 					<Mail className='h-8 w-8' />
 					<p className='text-sm'>{t('inbox:messageView.notFound')}</p>
 					<button
@@ -437,7 +437,7 @@ export const MessageView = ({
 						{data.read_receipt_to && !blockReadReceipts && !receiptDismissed && (
 							<div className='mx-5 mb-2 flex items-center justify-between gap-2 rounded-lg bg-[var(--surface-active)] px-3 py-2 ring-1 ring-[var(--border-faint)]'>
 								<div className='flex items-center gap-2'>
-									<div className='h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.5)]' />
+									<div className='h-1.5 w-1.5 shrink-0 rounded-full bg-status-info shadow-[0_0_8px_rgb(var(--status-info-rgb)_/_0.35)]' />
 									<span className='text-[11px] font-medium tracking-tight text-[var(--text-tertiary)] uppercase'>
 										{t('inbox:messageView.readReceipt.label')}
 									</span>
@@ -467,7 +467,7 @@ export const MessageView = ({
 												setIsSendingReceipt(false)
 											}
 										}}
-										className='text-[11px] font-medium text-sky-400 transition-colors hover:text-sky-300 disabled:opacity-50'>
+										className='text-[11px] font-medium text-status-info transition-colors hover:text-status-info disabled:opacity-50'>
 										{isSendingReceipt
 											? t('inbox:messageView.readReceipt.sending')
 											: t('inbox:messageView.readReceipt.send')}
@@ -487,7 +487,7 @@ export const MessageView = ({
 						{hasExternalResources && !allowExternalResources && (
 							<div className='mx-5 mb-2 flex items-center justify-between gap-2 rounded-lg bg-[var(--surface-active)] px-3 py-2 ring-1 ring-[var(--border-faint)]'>
 								<div className='flex items-center gap-2'>
-									<div className='h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]' />
+									<div className='h-1.5 w-1.5 shrink-0 rounded-full bg-status-warning shadow-[0_0_8px_rgb(var(--status-warning-rgb)_/_0.35)]' />
 									<span className='text-[11px] font-medium tracking-tight text-[var(--text-tertiary)] uppercase'>
 										{t('inbox:messageView.cspBlocked.label')}
 									</span>

@@ -121,12 +121,12 @@ export function TemplateGallery({ onSelect, onManage }: TemplateGalleryProps) {
 								<button
 									onClick={handleSaveCurrent}
 									disabled={!newName.trim() || saveMutation.isPending}
-									className='flex h-8 w-8 items-center justify-center rounded-lg text-emerald-500 transition-colors hover:bg-emerald-500/10 disabled:opacity-30'>
+									className='flex h-8 w-8 items-center justify-center rounded-lg text-status-success transition-colors hover:bg-status-success/15 disabled:opacity-30'>
 									<Check className='h-4 w-4' />
 								</button>
 								<button
 									onClick={() => setIsSaving(false)}
-									className='flex h-8 w-8 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-500/10'>
+									className='flex h-8 w-8 items-center justify-center rounded-lg text-destructive transition-colors hover:bg-destructive/15'>
 									<X className='h-4 w-4' />
 								</button>
 							</div>

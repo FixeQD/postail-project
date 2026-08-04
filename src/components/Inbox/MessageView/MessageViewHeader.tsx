@@ -49,9 +49,9 @@ const ActionBtn = ({
 					: {})}
 				className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all disabled:opacity-40 ${
 					active
-						? 'bg-sky-500/15 text-sky-400'
+						? 'bg-status-info/15 text-status-info'
 						: destructive
-							? 'text-muted-foreground hover:bg-red-500/10 hover:text-red-400'
+							? 'text-muted-foreground hover:bg-destructive/15 hover:text-destructive'
 							: 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-hover)]'
 				}`}
 				onClick={onClick}
@@ -193,8 +193,8 @@ export const MessageViewHeader = ({
 									: {})}
 								className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
 									isStarred
-										? 'bg-amber-400/10 text-amber-400 hover:text-amber-300'
-										: 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-amber-400'
+										? 'bg-status-warning/15 text-status-warning '
+										: 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-status-warning'
 								}`}
 								onClick={onToggleStar}
 								aria-label={

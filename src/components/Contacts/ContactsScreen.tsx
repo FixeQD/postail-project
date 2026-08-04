@@ -169,7 +169,7 @@ export const ContactsScreen = ({ onBack }: ContactsScreenProps) => {
 					backgroundColor: 'var(--surface-panel)',
 				}}>
 				{/* Right edge fade */}
-				<div className='pointer-events-none absolute top-0 right-0 bottom-0 w-px bg-gradient-to-b from-transparent via-black/[0.06] to-transparent dark:via-white/[0.06]' />
+				<div className='pointer-events-none absolute top-0 right-0 bottom-0 w-px bg-gradient-to-b from-transparent via-[var(--border-subtle)] to-transparent' />
 
 				{/* Header */}
 				<div

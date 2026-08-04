@@ -42,7 +42,7 @@ const ProviderOption = ({
 		onClick={onClick}
 		disabled={disabled}
 		className={cn(
-			'group relative flex w-full items-center justify-between overflow-hidden rounded-xl border border-black/[0.06] bg-black/[0.03] p-4 transition-all hover:border-black/[0.1] hover:bg-black/[0.05] dark:border-white/5 dark:bg-white/5 dark:hover:border-white/10 dark:hover:bg-white/10',
+			'group relative flex w-full items-center justify-between overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] p-4 transition-all hover:border-[var(--text-tertiary)] hover:bg-[var(--surface-hover)]',
 			disabled && 'cursor-not-allowed opacity-50'
 		)}>
 		<div
@@ -54,17 +54,17 @@ const ProviderOption = ({
 		<div className='flex items-center gap-4'>
 			<div
 				className={cn(
-					'flex h-10 w-10 items-center justify-center rounded-lg bg-black/[0.05] ring-1 ring-black/10 dark:bg-slate-950/50 dark:ring-white/10',
+					'flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--surface-hover)] ring-1 ring-[var(--border-subtle)]',
 					brandColor.replace('from-', 'text-')
 				)}>
 				<Icon className='h-5 w-5' />
 			</div>
-			<h3 className='font-medium text-slate-900 dark:text-slate-100'>{title}</h3>
+			<h3 className='font-medium text-[var(--text-primary)]'>{title}</h3>
 		</div>
 		{isLoading ? (
-			<Loader2 className='h-5 w-5 animate-spin text-slate-400 dark:text-slate-400' />
+			<Loader2 className='h-5 w-5 animate-spin text-[var(--text-secondary)]' />
 		) : (
-			<ArrowRight className='h-5 w-5 -translate-x-2 text-slate-400 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100 dark:text-slate-500' />
+			<ArrowRight className='h-5 w-5 -translate-x-2 text-[var(--text-secondary)] opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100 ' />
 		)}
 	</button>
 )
@@ -131,7 +131,7 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogTrigger asChild>
 				{children || (
-					<Button className='gap-2 bg-blue-600 text-white shadow-lg shadow-blue-500/20 hover:bg-blue-500'>
+					<Button className='gap-2 bg-status-info text-white shadow-lg shadow-blue-500/20 hover:bg-status-info'>
 						<Plus className='h-4 w-4' />
 						{t('settings:accounts.list.add')}
 					</Button>
@@ -156,7 +156,7 @@ export function AddAccountDialog({ children, onAccountAdded }: AddAccountDialogP
 									<DialogTitle className='text-xl font-bold'>
 										{t('settings:accounts.title')}
 									</DialogTitle>
-									<DialogDescription className='text-slate-500 dark:text-slate-400'>
+									<DialogDescription className='text-[var(--text-secondary)]'>
 										{t('settings:accounts.subtitle')}
 									</DialogDescription>
 								</DialogHeader>

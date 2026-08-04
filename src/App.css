@@ -1,21 +1,23 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
 
 @property --accent-color {
 	syntax: '<color>';
-	initial-value: #f97316;
+	initial-value: #eb6226;
 	inherits: true;
 }
 
 @property --accent-light {
 	syntax: '<color>';
-	initial-value: #fb923c;
+	initial-value: #f48453;
 	inherits: true;
 }
 
 @property --accent-dark {
 	syntax: '<color>';
-	initial-value: #ea580c;
+	initial-value: #ca4e14;
 	inherits: true;
 }
 
@@ -28,6 +30,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+	--font-sans: 'Geist Variable', 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--font-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 	--radius-sm: calc(var(--radius) - 4px);
 	--radius-md: calc(var(--radius) - 2px);
 	--radius-lg: var(--radius);
@@ -103,14 +107,16 @@
 	--sidebar-ring: oklch(0.708 0 0);
 
 	/* Accent color system - overridden by ThemeProvider via JS */
-	--accent-color: #f97316;
-	--accent-rgb: 249, 115, 22;
-	--accent-light: #fb923c;
-	--accent-light-rgb: 251, 146, 60;
-	--accent-dark: #ea580c;
-	--accent-dark-rgb: 234, 88, 12;
+	--accent-color: #eb6226;
+	--accent-rgb: 235, 98, 38;
+	--accent-light: #f48453;
+	--accent-light-rgb: 244, 132, 83;
+	--accent-dark: #ca4e14;
+	--accent-dark-rgb: 202, 78, 20;
 	--accent-text: #ffffff;
 	--accent-text-rgb: 255, 255, 255;
+	/* Legacy alias */
+	--accent-primary: var(--accent-color);
 
 	/* App background - overridden by ThemeProvider via JS */
 	--app-bg: #020617;
@@ -150,6 +156,14 @@
 	--compose-context-bg: rgba(0, 0, 0, 0.03);
 	--compose-separator: rgba(0, 0, 0, 0.09);
 	--compose-focus-line: #94a3b8;
+
+	/* Semantic status colors */
+	--status-info: #6088b0;
+	--status-info-rgb: 96, 136, 176;
+	--status-success: #4da179;
+	--status-success-rgb: 77, 161, 121;
+	--status-warning: #c19a5b;
+	--status-warning-rgb: 193, 154, 91;
 
 	transition:
 		--accent-color 0.4s ease,
@@ -194,6 +208,15 @@
 	--compose-context-bg: #141a2c;
 	--compose-separator: #1e2436;
 	--compose-focus-line: #64748b;
+
+	/* Semantic status colors */
+	--status-info: #6e9fc9;
+	--status-info-rgb: 110, 159, 201;
+	--status-success: #5cb387;
+	--status-success-rgb: 92, 179, 135;
+	--status-warning: #cea968;
+	--status-warning-rgb: 206, 169, 104;
+
 	--background: oklch(0.145 0 0);
 	--foreground: oklch(0.985 0 0);
 	--card: oklch(0.205 0 0);
@@ -231,30 +254,37 @@
 	* {
 		@apply border-border;
 	}
-	*:focus,
-	*:focus-visible,
-	*:focus-within,
-	button,
-	button:focus,
-	button:focus-visible,
-	[role='button']:focus,
-	[role='button']:focus-visible {
-		outline: 0 !important;
-		outline: none !important;
-		outline-color: transparent !important;
-		outline-style: none !important;
-		box-shadow: none !important;
-		-webkit-tap-highlight-color: transparent !important;
-		-webkit-focus-ring-color: transparent !important;
+	*:focus:not(:focus-visible) {
+		outline: none;
+		box-shadow: none;
+	}
+	*:focus-visible {
+		outline: 2px solid var(--accent-color);
+		outline-offset: 1px;
+	}
+	* {
+		-webkit-tap-highlight-color: transparent;
 	}
 	html {
 		background: #020617;
+		scroll-behavior: smooth;
 	}
 	body {
-		@apply text-foreground;
+		@apply text-foreground bg-background;
+		font-family: var(--font-sans);
 		background: var(--app-bg, #020617);
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
+		font-feature-settings:
+			'cv11' 1,
+			'ss01' 1;
+		text-rendering: optimizeLegibility;
+	}
+	code,
+	kbd,
+	pre,
+	samp {
+		font-family: var(--font-mono);
 	}
 }
 
@@ -510,6 +540,97 @@
 	color: var(--text-tertiary);
 }
 
+/* ─── Semantic status utilities ─── */
+.text-status-info {
+	color: var(--status-info);
+}
+.text-status-success {
+	color: var(--status-success);
+}
+.text-status-warning {
+	color: var(--status-warning);
+}
+
+/* Solid backgrounds */
+.bg-status-info {
+	background-color: var(--status-info);
+}
+.bg-status-success {
+	background-color: var(--status-success);
+}
+.bg-status-warning {
+	background-color: var(--status-warning);
+}
+
+/* Alpha backgrounds (15% surface tint) */
+.bg-status-info\/15 {
+	background-color: rgb(var(--status-info-rgb) / 0.15);
+}
+.bg-status-success\/15 {
+	background-color: rgb(var(--status-success-rgb) / 0.15);
+}
+.bg-status-warning\/15 {
+	background-color: rgb(var(--status-warning-rgb) / 0.15);
+}
+
+/* Alpha backgrounds (10% legacy cleanup targets) */
+.bg-status-info\/10 {
+	background-color: rgb(var(--status-info-rgb) / 0.1);
+}
+.bg-status-success\/10 {
+	background-color: rgb(var(--status-success-rgb) / 0.1);
+}
+.bg-status-warning\/10 {
+	background-color: rgb(var(--status-warning-rgb) / 0.1);
+}
+
+/* Borders */
+.border-status-info {
+	border-color: var(--status-info);
+}
+.border-status-success {
+	border-color: var(--status-success);
+}
+.border-status-warning {
+	border-color: var(--status-warning);
+}
+
+/* Alpha borders */
+.border-status-info\/30 {
+	border-color: rgb(var(--status-info-rgb) / 0.3);
+}
+.border-status-success\/30 {
+	border-color: rgb(var(--status-success-rgb) / 0.3);
+}
+.border-status-warning\/30 {
+	border-color: rgb(var(--status-warning-rgb) / 0.3);
+}
+
+/* Rings (status) */
+.ring-status-info\/30 {
+	--tw-ring-color: rgb(var(--status-info-rgb) / 0.3);
+}
+.ring-status-success\/30 {
+	--tw-ring-color: rgb(var(--status-success-rgb) / 0.3);
+}
+.ring-status-warning\/30 {
+	--tw-ring-color: rgb(var(--status-warning-rgb) / 0.3);
+}
+.ring-status-info {
+	--tw-ring-color: var(--status-info);
+}
+.ring-status-success {
+	--tw-ring-color: var(--status-success);
+}
+.ring-status-warning {
+	--tw-ring-color: var(--status-warning);
+}
+
+/* Balance long headlines */
+.text-balance {
+	text-wrap: balance;
+}
+
 /* ─── Glow effects (accent-aware) ─── */
 .glow-accent {
 	box-shadow:
@@ -740,7 +861,7 @@ input,
 
 /* ─── Prevent FOUC on initial load ─── */
 #root {
-	min-height: 100vh;
+	min-height: 100dvh;
 }
 
 /* ─── Tooltip animations (Radix) ─── */
@@ -826,13 +947,15 @@ input,
 
 /* Plain text view */
 .message-view-plain {
-	font-family: 'Courier New', monospace;
+	font-family: var(--font-mono);
 	font-size: 13px;
-	line-height: 1.6;
+	line-height: 1.65;
+	font-variant-ligatures: common-ligatures;
 	white-space: pre-wrap;
 	word-break: break-word;
-	color: #cbd5e1;
-	padding: 20px;
+	color: var(--text-primary);
+	padding: 20px 24px;
+	max-width: 80ch;
 }
 
 /* Suppress all hover states app-wide during compose drag/resize */

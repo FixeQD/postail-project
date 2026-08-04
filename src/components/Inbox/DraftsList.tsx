@@ -188,7 +188,7 @@ export const DraftsList = ({ accountId, onDraftClick }: DraftsListProps) => {
 											<Button
 												variant='ghost'
 												size='icon'
-												className='text-muted-foreground h-7 w-7 transition-all hover:bg-red-500/10 hover:text-red-400'
+												className='text-muted-foreground h-7 w-7 transition-all hover:bg-destructive/15 hover:text-destructive'
 												onClick={(e) => handleDelete(draft.id!, e)}>
 												<Trash2 className='h-[15px] w-[15px]' />
 											</Button>

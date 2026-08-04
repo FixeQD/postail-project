@@ -215,7 +215,7 @@ export function AddressInput({
 							}}>
 							<div className={cn(
 								'flex h-8 w-8 items-center justify-center rounded-full text-white font-bold text-[10px]',
-								suggestion.isGroup ? 'bg-indigo-500' : 'bg-[var(--compose-chip-bg)] text-[var(--compose-text-muted)]'
+								suggestion.isGroup ? 'bg-status-info' : 'bg-[var(--compose-chip-bg)] text-[var(--compose-text-muted)]'
 							)}
 							style={suggestion.isGroup && suggestion.color ? { backgroundColor: suggestion.color } : undefined}
 							>

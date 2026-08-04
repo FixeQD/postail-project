@@ -335,7 +335,7 @@ export function EditorToolbar({ onAttach, editorRef }: EditorToolbarProps) {
 						variant='ghost'
 						size='icon'
 						title={t('compose.requestReadReceipt')}
-						className={`h-9 w-9 ${requestReadReceipt ? 'bg-[var(--compose-active)] text-sky-400' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
+						className={`h-9 w-9 ${requestReadReceipt ? 'bg-[var(--compose-active)] text-status-info' : 'text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)]'}`}
 						onClick={() =>
 							updateCurrentDraft({ requestReadReceipt: !requestReadReceipt })
 						}>
@@ -350,7 +350,7 @@ export function EditorToolbar({ onAttach, editorRef }: EditorToolbarProps) {
 				variant='ghost'
 				size='icon'
 				title={editorMode === 'rich-text' ? 'Switch to Source' : 'Switch to Rich Text'}
-				className={`h-9 w-9 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)] ${editorMode === 'source' ? 'bg-[var(--compose-active)] text-blue-400' : ''}`}
+				className={`h-9 w-9 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)] ${editorMode === 'source' ? 'bg-[var(--compose-active)] text-status-info' : ''}`}
 				onClick={() => setEditorMode(editorMode === 'rich-text' ? 'source' : 'rich-text')}>
 				{editorMode === 'rich-text' ? (
 					<Code className='h-4 w-4' />

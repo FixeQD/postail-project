@@ -19,20 +19,20 @@ const statusConfig: Record<
 > = {
 	PENDING: {
 		icon: Clock,
-		color: 'text-blue-400',
-		bgColor: 'bg-blue-500/10',
+		color: 'text-status-info',
+		bgColor: 'bg-status-info/15',
 		label: 'Pending',
 	},
 	PROCESSING: {
 		icon: Send,
-		color: 'text-amber-400',
-		bgColor: 'bg-amber-500/10',
+		color: 'text-status-warning',
+		bgColor: 'bg-status-warning/15',
 		label: 'Sending',
 	},
 	SENT: {
 		icon: CheckCircle,
-		color: 'text-green-400',
-		bgColor: 'bg-green-500/10',
+		color: 'text-status-success',
+		bgColor: 'bg-status-success/15',
 		label: 'Sent',
 	},
 	RETRY: {
@@ -43,8 +43,8 @@ const statusConfig: Record<
 	},
 	FAILED: {
 		icon: AlertCircle,
-		color: 'text-red-400',
-		bgColor: 'bg-red-500/10',
+		color: 'text-destructive',
+		bgColor: 'bg-destructive/15',
 		label: 'Failed',
 	},
 }
@@ -168,7 +168,7 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 											{activeItems.length > 0 && (
 												<Badge
 													variant='outline'
-													className='ml-2 border-blue-500/20 bg-blue-500/10 text-xs text-blue-400'>
+													className='ml-2 border-status-info/30 bg-status-info/15 text-xs text-status-info'>
 													{activeItems.length}
 												</Badge>
 											)}
@@ -210,7 +210,7 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 													}}
 												/>
 											</div>
-											<span className='text-sm text-slate-500'>
+											<span className='text-sm text-[var(--text-tertiary)]'>
 												{t('outbox.loading')}
 											</span>
 										</div>
@@ -225,13 +225,13 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 												}
 											: {})}
 										className='flex h-32 flex-col items-center justify-center text-center'>
-										<div className='mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-green-500/[0.08] ring-1 ring-green-500/20'>
-											<CheckCircle className='h-6 w-6 text-green-400/70' />
+										<div className='mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-status-success/[0.08] ring-1 ring-status-success/30'>
+											<CheckCircle className='h-6 w-6 text-status-success' />
 										</div>
-										<p className='text-sm font-medium text-slate-400'>
+										<p className='text-sm font-medium text-[var(--text-secondary)]'>
 											{t('outbox.empty')}
 										</p>
-										<p className='mt-1 text-xs text-slate-600'>
+										<p className='mt-1 text-xs text-[var(--text-tertiary)]'>
 											{t(
 												'outbox.emptyDescription',
 												'No emails waiting to be sent'
@@ -242,7 +242,7 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 									<div className='stagger-children'>
 										{activeItems.length > 0 && (
 											<div className='space-y-2'>
-												<h3 className='ml-1 text-xs font-semibold tracking-wider text-slate-500 uppercase'>
+												<h3 className='ml-1 text-xs font-semibold tracking-wider text-[var(--text-tertiary)] uppercase'>
 													{t('outbox.activeMessages')}
 												</h3>
 												{activeItems.map((item, index) => (
@@ -272,7 +272,7 @@ export function OutboxPanel({ accountId, isOpen, onClose }: OutboxPanelProps) {
 
 										{sentItems.length > 0 && (
 											<div className='space-y-2 border-t border-[var(--border-faint)] pt-4'>
-												<h3 className='ml-1 text-xs font-semibold tracking-wider text-slate-500 uppercase'>
+												<h3 className='ml-1 text-xs font-semibold tracking-wider text-[var(--text-tertiary)] uppercase'>
 													{t('outbox.recentlySent')}
 												</h3>
 												{sentItems.slice(0, 5).map((item, index) => (
@@ -343,7 +343,7 @@ function OutboxItemCard({
 						<p className='truncate text-sm font-medium text-[var(--text-primary)]'>
 							{item.subject || '(No subject)'}
 						</p>
-						<p className='truncate text-xs text-slate-500'>
+						<p className='truncate text-xs text-[var(--text-tertiary)]'>
 							{item.recipient || 'Unknown recipient'}
 						</p>
 					</div>
@@ -371,8 +371,8 @@ function OutboxItemCard({
 			)}
 
 			{item.lastError && item.status === 'FAILED' && (
-				<Alert variant='destructive' className='border-red-500/20 bg-red-500/5 py-2'>
-					<AlertDescription className='text-xs text-red-400'>
+				<Alert variant='destructive' className='border-destructive/30 bg-destructive/15 py-2'>
+					<AlertDescription className='text-xs text-destructive'>
 						{item.lastError}
 					</AlertDescription>
 				</Alert>
@@ -401,7 +401,7 @@ function OutboxItemCard({
 					<Button
 						variant='outline'
 						size='sm'
-						className='h-7 border-red-500/20 bg-red-500/5 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300'
+						className='h-7 border-destructive/30 bg-destructive/15 text-xs text-destructive hover:bg-destructive/15 '
 						onClick={() => onCancel(item.id)}
 						disabled={isRetrying || isCancelling}>
 						{isCancelling ? (

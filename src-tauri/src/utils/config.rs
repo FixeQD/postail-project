@@ -77,7 +77,7 @@ fn default_light_background() -> String {
 impl Default for ThemeConfig {
     fn default() -> Self {
         Self {
-            accent_color: "#f97316".to_string(),
+            accent_color: "#eb6226".to_string(),
             background: "auto".to_string(),
             light_background: "auto".to_string(),
             animations_enabled: true,

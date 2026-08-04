@@ -22,7 +22,7 @@ const ActionBtn = ({
 			{...(animationsEnabled ? { whileHover: { scale: 1.1 }, whileTap: { scale: 0.9 } } : {})}
 			className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all ${
 				destructive
-					? 'text-muted-foreground hover:bg-red-500/10 hover:text-red-400'
+					? 'text-muted-foreground hover:bg-destructive/15 hover:text-destructive'
 					: 'text-muted-foreground hover:text-foreground hover:bg-[var(--surface-active)]'
 			}`}
 			title={tooltip}
@@ -174,8 +174,8 @@ export const MessageRow = memo(
 					{...(animationsEnabled ? { whileTap: { scale: 0.75 } } : {})}
 					className={`rounded-md p-0.5 transition-colors focus:outline-none ${
 						message.starred
-							? 'text-amber-400 hover:text-amber-300'
-							: 'text-muted-foreground/40 hover:text-amber-400'
+							? 'text-status-warning '
+							: 'text-muted-foreground/40 hover:text-status-warning'
 					}`}
 					onClick={(e) => {
 						e.stopPropagation()

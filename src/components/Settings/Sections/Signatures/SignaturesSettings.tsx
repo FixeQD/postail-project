@@ -80,7 +80,7 @@ function SignatureCard({
 				<button
 					type='button'
 					onClick={onDelete}
-					className='flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-tertiary)] transition-colors hover:bg-red-500/10 hover:text-red-400'>
+					className='flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-tertiary)] transition-colors hover:bg-destructive/15 hover:text-destructive'>
 					<Trash2 className='h-3.5 w-3.5' />
 				</button>
 			</div>
@@ -335,7 +335,7 @@ export function SignaturesSettings() {
 				confirmLabel={t('settings:signatures.deleteConfirm.confirm')}
 				cancelLabel={t('settings:signatures.deleteConfirm.cancel')}
 				onConfirm={handleDelete}
-				confirmClassName='bg-red-500 text-white hover:bg-red-600'
+				confirmClassName='bg-destructive text-white hover:bg-destructive'
 			/>
 		</div>
 	)

@@ -174,7 +174,7 @@ export function AppearanceSettings() {
 									style={{
 										background: !isPresetSelected
 											? accentColor
-											: 'conic-gradient(from 0deg, #f43f5e, #f97316, #eab308, #22c55e, #06b6d4, #3b82f6, #a855f7, #f43f5e)',
+											: 'conic-gradient(from 0deg, #f43f5e, #eb6226, #eab308, #22c55e, #06b6d4, #3b82f6, #a855f7, #f43f5e)',
 										boxShadow:
 											showCustomPicker || !isPresetSelected
 												? `0 0 0 2px var(--app-bg, #020617), 0 0 0 4px ${!isPresetSelected ? accentColor : '#6366f1'}`
@@ -300,7 +300,7 @@ export function AppearanceSettings() {
 											backgroundColor: autoBg,
 											boxShadow:
 												backgroundId === 'auto'
-													? `0 0 0 2px var(--accent-color, #f97316)`
+													? `0 0 0 2px var(--accent-color, #eb6226)`
 													: 'none',
 											borderColor:
 												backgroundId === 'auto'
@@ -350,7 +350,7 @@ export function AppearanceSettings() {
 												style={{
 													backgroundColor: preset.bg,
 													boxShadow: isSelected
-														? `0 0 0 2px var(--accent-color, #f97316)`
+														? `0 0 0 2px var(--accent-color, #eb6226)`
 														: 'none',
 													borderColor: isSelected
 														? 'transparent'

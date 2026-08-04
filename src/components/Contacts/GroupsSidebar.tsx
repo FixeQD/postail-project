@@ -165,8 +165,8 @@ export function GroupsSidebar({ selectedGroupId, onSelectGroup }: GroupsSidebarP
                                             }}
                                             className='flex-1 bg-[var(--surface-active)] border border-[var(--border-subtle)] rounded px-2 py-1 text-[13px] outline-none focus:border-rgb(var(--accent-rgb))'
                                         />
-                                        <button onClick={() => handleRename(group.id)} className='text-green-500'><Check className='h-3.5 w-3.5' /></button>
-                                        <button onClick={() => setEditingGroupId(null)} className='text-red-500'><X className='h-3.5 w-3.5' /></button>
+                                        <button onClick={() => handleRename(group.id)} className='text-status-success'><Check className='h-3.5 w-3.5' /></button>
+                                        <button onClick={() => setEditingGroupId(null)} className='text-destructive'><X className='h-3.5 w-3.5' /></button>
                                     </div>
                                 ) : (
                                     <div 
@@ -207,7 +207,7 @@ export function GroupsSidebar({ selectedGroupId, onSelectGroup }: GroupsSidebarP
                                                         deleteMutation.mutate(group.id)
                                                     }
                                                 }}
-                                                className='p-1 hover:bg-[var(--surface-active)] rounded hover:text-red-500'
+                                                className='p-1 hover:bg-[var(--surface-active)] rounded hover:text-destructive'
                                             >
                                                 <Trash2 className='h-3 w-3 text-[var(--text-tertiary)]' />
                                             </button>

@@ -86,10 +86,10 @@ function Tag({
 }) {
 	const colors = {
 		default: 'bg-white/10 text-white/60',
-		green: 'bg-emerald-500/20 text-emerald-400',
-		red: 'bg-red-500/20 text-red-400',
-		yellow: 'bg-amber-500/20 text-amber-400',
-		blue: 'bg-sky-500/20 text-sky-400',
+		green: 'bg-status-success/15 text-status-success',
+		red: 'bg-destructive/15 text-destructive',
+		yellow: 'bg-status-warning/15 text-status-warning',
+		blue: 'bg-status-info/15 text-status-info',
 	}
 	return (
 		<span className={`rounded px-1.5 py-0.5 font-mono text-[10px] ${colors[color]}`}>
@@ -107,7 +107,7 @@ function DevLog({ entries }: { entries: string[] }) {
 	return (
 		<div
 			ref={ref}
-			className='mx-3 mb-2 max-h-24 overflow-y-auto rounded bg-black/40 p-2 font-mono text-[9px] text-emerald-400'>
+			className='mx-3 mb-2 max-h-24 overflow-y-auto rounded bg-black/40 p-2 font-mono text-[9px] text-status-success'>
 			{entries.map((e, i) => (
 				<div key={i}>
 					{'> '}
@@ -250,7 +250,7 @@ export function DevTools({ currentState, setCurrentState }: DevToolsProps) {
 				onChange={(e) => onChange(e.target.checked)}
 				className='h-3 w-3 cursor-pointer accent-sky-500'
 			/>
-			<span className={`text-[10px] ${danger ? 'text-red-400' : 'text-white/50'}`}>
+			<span className={`text-[10px] ${danger ? 'text-destructive' : 'text-white/50'}`}>
 				{label}
 			</span>
 		</label>
@@ -264,7 +264,7 @@ export function DevTools({ currentState, setCurrentState }: DevToolsProps) {
 				onClick={() => setOpen((o) => !o)}
 				whileHover={{ scale: 1.08 }}
 				whileTap={{ scale: 0.92 }}
-				className='fixed right-3 bottom-9 z-[9998] flex h-7 w-7 items-center justify-center rounded-full bg-violet-600/90 shadow-lg ring-1 shadow-violet-900/50 ring-violet-400/30 backdrop-blur-sm transition-opacity'
+				className='fixed right-3 bottom-9 z-[9998] flex h-7 w-7 items-center justify-center rounded-full bg-status-info/15 shadow-lg ring-1 shadow-violet-900/50 ring-status-info/30 backdrop-blur-sm transition-opacity'
 				title='DevTools'>
 				<Bug className='h-3.5 w-3.5 text-white' />
 			</motion.button>
@@ -280,7 +280,7 @@ export function DevTools({ currentState, setCurrentState }: DevToolsProps) {
 						className='fixed top-0 right-0 bottom-0 z-[9999] flex w-72 flex-col overflow-hidden border-l border-white/[0.07] bg-[#0d0d0f]/95 shadow-2xl backdrop-blur-xl'>
 						{/* Header */}
 						<div className='flex shrink-0 items-center gap-2 border-b border-white/[0.07] px-3 py-2.5'>
-							<Bug className='h-3.5 w-3.5 text-violet-400' />
+							<Bug className='h-3.5 w-3.5 text-status-info' />
 							<span className='flex-1 text-[11px] font-bold tracking-widest text-white/70 uppercase'>
 								DevTools
 							</span>
@@ -317,7 +317,7 @@ export function DevTools({ currentState, setCurrentState }: DevToolsProps) {
 												}}
 												className={`rounded px-2 py-1 text-left text-[10px] transition-colors ${
 													s === currentState
-														? 'bg-violet-600/40 text-violet-300 ring-1 ring-violet-500/40'
+														? 'bg-status-info/15 text-status-info ring-1 ring-status-info/30'
 														: 'text-white/40 hover:bg-white/[0.06] hover:text-white/70'
 												}`}>
 												{s}
@@ -334,7 +334,7 @@ export function DevTools({ currentState, setCurrentState }: DevToolsProps) {
 								open={sections.reset}
 								onToggle={() => toggleSection('reset')}>
 								<div className='px-3 pt-0.5 pb-1'>
-									<div className='mb-1 flex items-center gap-1 text-[9px] text-amber-400/70'>
+									<div className='mb-1 flex items-center gap-1 text-[9px] text-status-warning'>
 										<AlertTriangle className='h-2.5 w-2.5' />
 										Irreversible. Restart app after reset.
 									</div>
@@ -383,7 +383,7 @@ export function DevTools({ currentState, setCurrentState }: DevToolsProps) {
 										type='button'
 										disabled={busy}
 										onClick={handleReset}
-										className='flex w-full items-center justify-center gap-1.5 rounded bg-red-600/20 px-3 py-1.5 text-[10px] font-semibold text-red-400 ring-1 ring-red-500/30 transition-colors hover:bg-red-600/30 disabled:opacity-40'>
+										className='flex w-full items-center justify-center gap-1.5 rounded bg-destructive/20 px-3 py-1.5 text-[10px] font-semibold text-destructive ring-1 ring-destructive/30 transition-colors hover:bg-destructive/30 disabled:opacity-40'>
 										<Trash2 className='h-3 w-3' />
 										Run Reset
 									</button>
@@ -451,7 +451,7 @@ export function DevTools({ currentState, setCurrentState }: DevToolsProps) {
 											onClick={() => copy(storeSnapshot)}
 											className='flex w-full items-center justify-center gap-1.5 rounded bg-white/[0.05] px-2 py-1 text-[10px] text-white/40 transition-colors hover:bg-white/[0.09] hover:text-white/70'>
 											{copied ? (
-												<Check className='h-3 w-3 text-emerald-400' />
+												<Check className='h-3 w-3 text-status-success' />
 											) : (
 												<Copy className='h-3 w-3' />
 											)}
@@ -473,7 +473,7 @@ export function DevTools({ currentState, setCurrentState }: DevToolsProps) {
 										disabled={busy}
 										onClick={handleRunMaintenance}
 										className='flex items-center gap-2 rounded bg-white/[0.05] px-3 py-1.5 text-left text-[10px] text-white/50 transition-colors hover:bg-white/[0.09] hover:text-white/70 disabled:opacity-40'>
-										<Zap className='h-3 w-3 text-amber-400' />
+										<Zap className='h-3 w-3 text-status-warning' />
 										run_maintenance()
 									</button>
 									<button
@@ -481,7 +481,7 @@ export function DevTools({ currentState, setCurrentState }: DevToolsProps) {
 										disabled={busy}
 										onClick={handleExportBackup}
 										className='flex items-center gap-2 rounded bg-white/[0.05] px-3 py-1.5 text-left text-[10px] text-white/50 transition-colors hover:bg-white/[0.09] hover:text-white/70 disabled:opacity-40'>
-										<Database className='h-3 w-3 text-sky-400' />
+										<Database className='h-3 w-3 text-status-info' />
 										export_backup()
 									</button>
 									{accounts.map((acc) => (
@@ -491,7 +491,7 @@ export function DevTools({ currentState, setCurrentState }: DevToolsProps) {
 											disabled={busy}
 											onClick={() => handleStartSync(acc.id)}
 											className='flex items-center gap-2 rounded bg-white/[0.05] px-3 py-1.5 text-left text-[10px] text-white/50 transition-colors hover:bg-white/[0.09] hover:text-white/70 disabled:opacity-40'>
-											<RefreshCw className='h-3 w-3 text-emerald-400' />
+											<RefreshCw className='h-3 w-3 text-status-success' />
 											start_sync({acc.email.split('@')[0]})
 										</button>
 									))}
@@ -527,9 +527,9 @@ export function DevTools({ currentState, setCurrentState }: DevToolsProps) {
 						{/* Footer */}
 						<div className='shrink-0 border-t border-white/[0.06] px-3 py-2'>
 							<div className='flex items-center gap-1.5 text-[9px] text-white/20'>
-								<Bug className='h-2.5 w-2.5 text-violet-500/60' />
+								<Bug className='h-2.5 w-2.5 text-status-info' />
 								Only visible in{' '}
-								<code className='text-violet-400/70'>import.meta.env.DEV</code>
+								<code className='text-status-info'>import.meta.env.DEV</code>
 							</div>
 						</div>
 					</motion.div>

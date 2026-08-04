@@ -133,7 +133,7 @@ const TagRow = ({
 							<button
 								type='button'
 								onClick={commitRename}
-								className='text-green-400 hover:text-green-300'>
+								className='text-status-success '>
 								<Check className='h-4 w-4' />
 							</button>
 							<button
@@ -184,7 +184,7 @@ const TagRow = ({
 						<button
 							type='button'
 							onClick={() => setConfirmDelete(true)}
-							className='flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-tertiary)] transition-colors hover:bg-red-500/10 hover:text-red-400'>
+							className='flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-tertiary)] transition-colors hover:bg-destructive/15 hover:text-destructive'>
 							<Trash2 className='h-3.5 w-3.5' />
 						</button>
 					</div>
@@ -199,7 +199,7 @@ const TagRow = ({
 				confirmLabel={t('settings:tags.deleteConfirm.confirm')}
 				cancelLabel={t('settings:tags.deleteConfirm.cancel')}
 				onConfirm={() => deleteTag.mutate()}
-				confirmClassName='bg-red-500 text-white hover:bg-red-600'
+				confirmClassName='bg-destructive text-white hover:bg-destructive'
 			/>
 		</>
 	)

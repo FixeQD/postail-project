@@ -135,7 +135,7 @@ export const ContactList = memo(function ContactList({
 	if (error) {
 		return (
 			<div className='flex flex-1 items-center justify-center p-4'>
-				<p className='text-[12px] text-red-500'>{t('common:errors.loadFailed')}</p>
+				<p className='text-[12px] text-destructive'>{t('common:errors.loadFailed')}</p>
 			</div>
 		)
 	}

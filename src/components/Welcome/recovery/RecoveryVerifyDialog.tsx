@@ -72,7 +72,7 @@ export function RecoveryVerifyDialog({ open, onClose, onVerified }: RecoveryVeri
 			<DialogContent className='border-[var(--border-subtle)] bg-[var(--surface-glass)] text-[var(--text-primary)] backdrop-blur-xl sm:max-w-md'>
 				<DialogHeader>
 					<DialogTitle className='flex items-center gap-2'>
-						<ShieldCheck className='h-5 w-5 text-green-400' />
+						<ShieldCheck className='h-5 w-5 text-status-success' />
 						{t('recovery.verify.title')}
 					</DialogTitle>
 					<DialogDescription className='text-[var(--text-secondary)]'>
@@ -111,7 +111,7 @@ export function RecoveryVerifyDialog({ open, onClose, onVerified }: RecoveryVeri
 						<motion.div
 							initial={{ opacity: 0, y: -5 }}
 							animate={{ opacity: 1, y: 0 }}
-							className='mt-4 flex items-center gap-2 rounded-lg bg-red-500/10 p-3 text-sm text-red-400 ring-1 ring-red-500/20'>
+							className='mt-4 flex items-center gap-2 rounded-lg bg-destructive/15 p-3 text-sm text-destructive ring-1 ring-destructive/30'>
 							<AlertTriangle className='h-4 w-4 shrink-0' />
 							{error}
 						</motion.div>
@@ -127,7 +127,7 @@ export function RecoveryVerifyDialog({ open, onClose, onVerified }: RecoveryVeri
 						<button
 							onClick={handleVerify}
 							disabled={!isComplete || loading}
-							className='flex items-center gap-2 rounded-lg bg-[var(--accent-color)] px-4 py-2 text-sm font-medium text-white shadow-[var(--accent-color)]/20 shadow-lg transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none'
+							className='flex items-center gap-2 rounded-lg bg-[var(--accent-color)] px-4 py-2 text-sm font-medium text-white shadow-lg transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none'
 							style={
 								{
 									'--accent-color': accentColor,

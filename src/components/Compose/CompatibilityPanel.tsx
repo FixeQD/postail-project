@@ -42,22 +42,22 @@ const severityConfig: Record<
 > = {
 	Error: {
 		icon: XCircle,
-		color: 'text-red-500',
-		bgColor: 'bg-red-500/10',
+		color: 'text-destructive',
+		bgColor: 'bg-destructive/15',
 		borderColor: 'border-l-red-500',
 		label: 'Error',
 	},
 	Warning: {
 		icon: AlertTriangle,
-		color: 'text-yellow-500',
-		bgColor: 'bg-yellow-500/10',
+		color: 'text-status-warning',
+		bgColor: 'bg-status-warning/15',
 		borderColor: 'border-l-yellow-500',
 		label: 'Warning',
 	},
 	Info: {
 		icon: Info,
-		color: 'text-blue-500',
-		bgColor: 'bg-blue-500/10',
+		color: 'text-status-info',
+		bgColor: 'bg-status-info/15',
 		borderColor: 'border-l-blue-500',
 		label: 'Info',
 	},
@@ -248,7 +248,7 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 				tabIndex={0}
 				onMouseDown={handleResizeStart}
 				className={`absolute top-0 right-0 bottom-0 z-10 w-1 cursor-col-resize transition-colors ${
-					isResizing ? 'bg-blue-500' : 'hover:bg-blue-500/50'
+					isResizing ? 'bg-status-info' : 'hover:bg-status-info/15'
 				}`}
 			/>
 
@@ -258,7 +258,7 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 						<CardTitle className='flex items-center gap-2 text-sm font-semibold text-[var(--compose-text)]'>
 							{t('compatibilityPanel.title')}
 							{isLoading && (
-								<span className='h-2 w-2 animate-pulse rounded-full bg-blue-500' />
+								<span className='h-2 w-2 animate-pulse rounded-full bg-status-info' />
 							)}
 						</CardTitle>
 						<Button
@@ -275,7 +275,7 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 						{groupedIssues.Error.length > 0 && (
 							<Badge
 								variant='outline'
-								className='border-red-500/30 bg-red-500/10 text-[10px] text-red-500'>
+								className='border-destructive/30 bg-destructive/15 text-[10px] text-destructive'>
 								{t('compatibilityPanel.issues.error', {
 									count: groupedIssues.Error.length,
 								})}
@@ -284,7 +284,7 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 						{groupedIssues.Warning.length > 0 && (
 							<Badge
 								variant='outline'
-								className='border-yellow-500/30 bg-yellow-500/10 text-[10px] text-yellow-500'>
+								className='border-status-warning/30 bg-status-warning/15 text-[10px] text-status-warning'>
 								{t('compatibilityPanel.issues.warning', {
 									count: groupedIssues.Warning.length,
 								})}
@@ -293,14 +293,14 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 						{groupedIssues.Info.length > 0 && (
 							<Badge
 								variant='outline'
-								className='border-blue-500/30 bg-blue-500/10 text-[10px] text-blue-500'>
+								className='border-status-info/30 bg-status-info/15 text-[10px] text-status-info'>
 								{t('compatibilityPanel.issues.info', {
 									count: groupedIssues.Info.length,
 								})}
 							</Badge>
 						)}
 						{!hasIssues && !isLoading && (
-							<span className='flex items-center gap-1 text-[10px] text-green-500'>
+							<span className='flex items-center gap-1 text-[10px] text-status-success'>
 								<Info className='h-3 w-3' />
 								{t('compatibilityPanel.issues.none')}
 							</span>
@@ -317,8 +317,8 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 						</>
 					) : (
 						<div className='flex h-32 flex-col items-center justify-center text-center'>
-							<div className='mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10'>
-								<Info className='h-5 w-5 text-green-500' />
+							<div className='mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-status-success/15'>
+								<Info className='h-5 w-5 text-status-success' />
 							</div>
 							<p className='text-sm text-[var(--compose-text-muted)]'>
 								{t('compatibilityPanel.issues.none')}
@@ -350,7 +350,7 @@ export const CompatibilityPanel = memo(function CompatibilityPanel({
 						size='sm'
 						className={`h-8 w-full border-[var(--compose-ring)] bg-[var(--compose-context-bg)] text-xs hover:bg-[var(--compose-hover)] ${
 							hasIssues
-								? 'text-yellow-400 hover:text-yellow-300'
+								? 'text-status-warning hover:text-status-warning'
 								: 'cursor-not-allowed text-[var(--compose-placeholder)] opacity-50'
 						}`}
 						onClick={handleAutoFix}

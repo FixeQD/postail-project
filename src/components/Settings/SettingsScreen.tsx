@@ -244,7 +244,7 @@ export function SettingsScreen({
 						<motion.button
 							type='button'
 							{...(animationsEnabled ? { whileTap: { scale: 0.97 } } : {})}
-							className='flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-red-400 transition-all hover:bg-red-500/10'>
+							className='flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-destructive transition-all hover:bg-destructive/15'>
 							<LogOut className='h-4 w-4' />
 							<span className='text-sm font-semibold'>{t('settings:logout')}</span>
 						</motion.button>

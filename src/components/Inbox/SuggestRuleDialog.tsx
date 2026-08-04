@@ -32,11 +32,11 @@ const ACTION_ICONS: Record<ActionType, React.ReactNode> = {
 }
 
 const ACTION_COLORS: Record<ActionType, string> = {
-	move_to: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-	add_tag: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
-	star: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-	mark_read: 'bg-green-500/10 text-green-400 border-green-500/20',
-	delete: 'bg-red-500/10 text-red-400 border-red-500/20',
+	move_to: 'bg-status-info/15 text-status-info border-status-info/30',
+	add_tag: 'bg-status-info/15 text-status-info border-status-info/30',
+	star: 'bg-status-warning/15 text-status-warning border-status-warning/30',
+	mark_read: 'bg-status-success/15 text-status-success border-status-success/30',
+	delete: 'bg-destructive/15 text-destructive border-destructive/30',
 }
 
 function RuleCard({ rule, onSaved }: { rule: FilterRule; onSaved: () => void }) {
@@ -92,7 +92,7 @@ function RuleCard({ rule, onSaved }: { rule: FilterRule; onSaved: () => void }) 
 
 					{/* Warning for move_to with no folder set */}
 					{rule.actions.some((a) => a.action_type === 'move_to' && !a.value) && (
-						<p className='text-[11px] text-amber-400/80'>
+						<p className='text-[11px] text-status-warning'>
 							{t('settings:filters.suggest.pickFolder')}
 						</p>
 					)}
@@ -104,7 +104,7 @@ function RuleCard({ rule, onSaved }: { rule: FilterRule; onSaved: () => void }) 
 					disabled={saving || saved}
 					className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all active:scale-95 disabled:opacity-60 ${
 						saved
-							? 'bg-green-500/10 text-green-400'
+							? 'bg-status-success/15 text-status-success'
 							: 'bg-[var(--accent-primary)] text-white hover:opacity-90'
 					}`}>
 					{saved ? (

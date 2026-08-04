@@ -55,7 +55,7 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 				initial={{ opacity: 0, y: -20 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-				className='glass relative border-b border-black/5 bg-white/10 px-4 py-6 shadow-sm dark:border-white/5 dark:bg-black/20'>
+				className='glass relative border-b border-[var(--border-subtle)] bg-[var(--surface-glass)] px-4 py-6 shadow-sm'>
 				<div className='pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[var(--accent-color)] to-transparent opacity-20' />
 
 				<div className='container mx-auto'>
@@ -179,7 +179,7 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 									style={{
 										background: !isPresetSelected
 											? accentColor
-											: 'conic-gradient(from 0deg, #f43f5e, #f97316, #eab308, #22c55e, #06b6d4, #3b82f6, #a855f7, #f43f5e)',
+											: 'conic-gradient(from 0deg, #f43f5e, #eb6226, #eab308, #22c55e, #06b6d4, #3b82f6, #a855f7, #f43f5e)',
 										boxShadow:
 											showCustomPicker || !isPresetSelected
 												? `0 0 0 2px #020617, 0 0 0 4px ${!isPresetSelected ? accentColor : '#6366f1'}`
@@ -488,9 +488,9 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 								className='flex items-center gap-2 border-b px-4 py-2.5'
 								style={{ borderColor: 'var(--border-subtle)' }}>
 								<div className='flex gap-1.5'>
-									<div className='h-2.5 w-2.5 rounded-full bg-red-500/60' />
-									<div className='h-2.5 w-2.5 rounded-full bg-amber-500/60' />
-									<div className='h-2.5 w-2.5 rounded-full bg-green-500/60' />
+									<div className='h-2.5 w-2.5 rounded-full bg-destructive/15' />
+									<div className='h-2.5 w-2.5 rounded-full bg-status-warning/15' />
+									<div className='h-2.5 w-2.5 rounded-full bg-status-success/15' />
 								</div>
 								<div className='flex-1' />
 								<div className='h-5 w-32 rounded-md bg-[var(--surface-panel)]' />
@@ -568,7 +568,7 @@ export const AccentColorStep = ({ onNext, onBack }: AccentColorStepProps) => {
 				initial={{ opacity: 0, y: 16 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ delay: 0.5, duration: 0.4 }}
-				className='glass relative border-t border-black/5 bg-white/10 px-4 py-5 dark:border-white/5 dark:bg-black/20'>
+				className='glass relative border-t border-[var(--border-subtle)] bg-[var(--surface-glass)] px-4 py-5'>
 				<div className='pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-black/[0.05] to-transparent dark:via-white/[0.06]' />
 				<div className='container mx-auto flex justify-end'>
 					<motion.button

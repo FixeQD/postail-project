@@ -73,14 +73,14 @@ export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: Rec
 					{t('recovery.title')}
 				</h2>
 			)}
-			<div className='rounded-xl border border-amber-500/20 bg-amber-500/10 p-4'>
+			<div className='rounded-xl border border-status-warning/30 bg-status-warning/15 p-4'>
 				<div className='flex gap-3'>
-					<ShieldAlert className='h-5 w-5 shrink-0 text-amber-500' />
+					<ShieldAlert className='h-5 w-5 shrink-0 text-status-warning' />
 					<div>
-						<h3 className='font-semibold text-amber-500'>
+						<h3 className='font-semibold text-status-warning'>
 							{t('recovery.warning.title')}
 						</h3>
-						<p className='mt-1 text-sm text-amber-700 dark:text-amber-200/80'>
+						<p className='mt-1 text-sm text-status-warning'>
 							{encryptionMethod === 'tpm'
 								? t('recovery.warning.descriptionTPM')
 								: t('recovery.warning.descriptionArgon2')}
@@ -133,8 +133,8 @@ export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: Rec
 					className='flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--surface-panel)] px-4 py-3 text-sm font-medium text-[var(--text-primary)] ring-1 ring-[var(--border-subtle)] transition-all hover:bg-[var(--surface-hover)] active:scale-[0.98]'>
 					{copied ? (
 						<>
-							<Check className='h-4 w-4 text-green-400' />
-							<span className='text-green-400'>{t('recovery.action.copied')}</span>
+							<Check className='h-4 w-4 text-status-success' />
+							<span className='text-status-success'>{t('recovery.action.copied')}</span>
 						</>
 					) : (
 						<>
@@ -148,8 +148,8 @@ export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: Rec
 					className='flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--surface-panel)] px-4 py-3 text-sm font-medium text-[var(--text-primary)] ring-1 ring-[var(--border-subtle)] transition-all hover:bg-[var(--surface-hover)] active:scale-[0.98]'>
 					{saved ? (
 						<>
-							<Check className='h-4 w-4 text-green-400' />
-							<span className='text-green-400'>{t('recovery.action.saved')}</span>
+							<Check className='h-4 w-4 text-status-success' />
+							<span className='text-status-success'>{t('recovery.action.saved')}</span>
 						</>
 					) : (
 						<>
@@ -196,7 +196,7 @@ export const RecoveryStep = ({ onNext, variant = 'page', encryptionMethod }: Rec
 				initial={{ opacity: 0, y: -20, filter: 'blur(8px)' }}
 				animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
 				transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-				className='relative border-b border-black/5 bg-white/10 px-4 py-6 shadow-sm backdrop-blur-[32px] dark:border-white/5 dark:bg-black/20'>
+				className='relative border-b border-[var(--border-subtle)] bg-[var(--surface-glass)] px-4 py-6 shadow-sm'>
 				<div className='pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[var(--accent-color)] to-transparent opacity-20' />
 				<div className='container mx-auto'>
 					<div className='flex items-center gap-3'>

@@ -139,8 +139,8 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 			case 'checking':
 				return (
 					<div className='flex flex-col items-center py-8'>
-						<Loader2 className='mb-4 h-12 w-12 animate-spin text-blue-400' />
-						<p className='text-slate-600 dark:text-slate-300'>
+						<Loader2 className='mb-4 h-12 w-12 animate-spin text-status-info' />
+						<p className='text-[var(--text-primary)]'>
 							{t('security:tpm.status.checking')}
 						</p>
 					</div>
@@ -151,14 +151,14 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 					<div className='py-4'>
 						<div className='mb-6 flex items-center justify-center'>
 							<div className='flex h-16 w-16 items-center justify-center rounded-full bg-green-900/30 ring-2 ring-green-400/30'>
-								<Shield className='h-8 w-8 text-green-400' />
+								<Shield className='h-8 w-8 text-status-success' />
 							</div>
 						</div>
 						<div className='mb-6 text-center'>
-							<h3 className='mb-2 text-lg font-semibold text-slate-900 dark:text-slate-100'>
+							<h3 className='mb-2 text-lg font-semibold text-[var(--text-primary)]'>
 								{t('security:tpm.available.title')}
 							</h3>
-							<p className='text-sm text-slate-500 dark:text-slate-400'>
+							<p className='text-sm text-[var(--text-secondary)]'>
 								{t('security:tpm.available.description')}
 							</p>
 						</div>
@@ -168,7 +168,7 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 							</Button>
 							<Button
 								onClick={handleInitialize}
-								className='flex-1 bg-green-600 hover:bg-green-500'>
+								className='flex-1 bg-status-success hover:bg-status-success'>
 								{t('security:tpm.available.cta')}
 							</Button>
 						</div>
@@ -179,15 +179,15 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 				return (
 					<div className='py-4'>
 						<div className='mb-6 flex items-center justify-center'>
-							<div className='flex h-16 w-16 items-center justify-center rounded-full bg-amber-900/30 ring-2 ring-amber-400/30'>
-								<Lock className='h-8 w-8 text-amber-400' />
+							<div className='flex h-16 w-16 items-center justify-center rounded-full bg-status-warning/15 ring-2 ring-status-warning/30'>
+								<Lock className='h-8 w-8 text-status-warning' />
 							</div>
 						</div>
 						<div className='mb-6 text-center'>
-							<h3 className='mb-2 text-lg font-semibold text-slate-900 dark:text-slate-100'>
+							<h3 className='mb-2 text-lg font-semibold text-[var(--text-primary)]'>
 								{t('security:tpm.elevation.title')}
 							</h3>
-							<p className='text-sm text-slate-500 dark:text-slate-400'>
+							<p className='text-sm text-[var(--text-secondary)]'>
 								{t('security:tpm.elevation.description')}
 							</p>
 						</div>
@@ -197,7 +197,7 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 							</Button>
 							<Button
 								onClick={handleInitialize}
-								className='flex-1 bg-amber-600 hover:bg-amber-500'>
+								className='flex-1 bg-status-warning hover:brightness-110'>
 								<Shield className='mr-2 h-4 w-4' />
 								{t('security:tpm.elevation.cta')}
 							</Button>
@@ -210,14 +210,14 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 					<div className='py-4'>
 						<div className='mb-6 flex items-center justify-center'>
 							<div className='flex h-16 w-16 items-center justify-center rounded-full bg-red-900/30 ring-2 ring-red-400/30'>
-								<AlertCircle className='h-8 w-8 text-red-400' />
+								<AlertCircle className='h-8 w-8 text-destructive' />
 							</div>
 						</div>
 						<div className='mb-6 text-center'>
-							<h3 className='mb-2 text-lg font-semibold text-slate-900 dark:text-slate-100'>
+							<h3 className='mb-2 text-lg font-semibold text-[var(--text-primary)]'>
 								{t('security:tpm.notAvailable.title')}
 							</h3>
-							<p className='text-sm text-slate-500 dark:text-slate-400'>
+							<p className='text-sm text-[var(--text-secondary)]'>
 								{t('security:tpm.notAvailable.description')}
 							</p>
 						</div>
@@ -230,11 +230,11 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 			case 'initializing':
 				return (
 					<div className='flex flex-col items-center py-8'>
-						<Loader2 className='mb-4 h-12 w-12 animate-spin text-amber-400' />
-						<p className='text-slate-600 dark:text-slate-300'>
+						<Loader2 className='mb-4 h-12 w-12 animate-spin text-status-warning' />
+						<p className='text-[var(--text-primary)]'>
 							{t('security:tpm.status.initializing')}
 						</p>
-						<p className='mt-2 text-sm text-slate-400 dark:text-slate-500'>
+						<p className='mt-2 text-sm text-[var(--text-secondary)]'>
 							{t('security:tpm.status.initializingHint')}
 						</p>
 					</div>
@@ -244,12 +244,12 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 				return (
 					<div className='flex flex-col items-center py-8'>
 						<div className='mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-900/30 ring-2 ring-green-400/30'>
-							<CheckCircle className='h-8 w-8 text-green-400' />
+							<CheckCircle className='h-8 w-8 text-status-success' />
 						</div>
-						<p className='font-medium text-slate-900 dark:text-slate-100'>
+						<p className='font-medium text-[var(--text-primary)]'>
 							{t('security:tpm.status.success')}
 						</p>
-						<p className='mt-2 text-sm text-slate-400 dark:text-slate-500'>
+						<p className='mt-2 text-sm text-[var(--text-secondary)]'>
 							{t('security:tpm.status.redirecting')}
 						</p>
 					</div>
@@ -259,15 +259,15 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 				return (
 					<div className='py-4'>
 						<div className='mb-6 flex items-center justify-center'>
-							<div className='flex h-16 w-16 items-center justify-center rounded-full bg-black/[0.05] ring-2 ring-black/10 dark:bg-slate-800/60 dark:ring-slate-600/30'>
-								<XCircle className='h-8 w-8 text-slate-400' />
+							<div className='flex h-16 w-16 items-center justify-center rounded-full bg-[var(--surface-active)] ring-2 ring-[var(--border-subtle)]'>
+								<XCircle className='h-8 w-8 text-[var(--text-secondary)]' />
 							</div>
 						</div>
 						<div className='mb-6 text-center'>
-							<h3 className='mb-2 text-lg font-semibold text-slate-900 dark:text-slate-100'>
+							<h3 className='mb-2 text-lg font-semibold text-[var(--text-primary)]'>
 								{t('security:tpm.cancelled.title')}
 							</h3>
-							<p className='text-sm text-slate-500 dark:text-slate-400'>
+							<p className='text-sm text-[var(--text-secondary)]'>
 								{t('security:tpm.cancelled.description')}
 							</p>
 						</div>
@@ -277,7 +277,7 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 							</Button>
 							<Button
 								onClick={handleRetryFromCancelled}
-								className='flex-1 bg-amber-600 hover:bg-amber-500'>
+								className='flex-1 bg-status-warning hover:brightness-110'>
 								<Shield className='mr-2 h-4 w-4' />
 								{t('security:tpm.cancelled.retry')}
 							</Button>
@@ -290,15 +290,15 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 					<div className='py-4'>
 						<div className='mb-6 flex items-center justify-center'>
 							<div className='flex h-16 w-16 items-center justify-center rounded-full bg-red-900/30 ring-2 ring-red-400/30'>
-								<AlertCircle className='h-8 w-8 text-red-400' />
+								<AlertCircle className='h-8 w-8 text-destructive' />
 							</div>
 						</div>
 						<div className='mb-6 text-center'>
-							<h3 className='mb-2 text-lg font-semibold text-slate-900 dark:text-slate-100'>
+							<h3 className='mb-2 text-lg font-semibold text-[var(--text-primary)]'>
 								{t('security:tpm.error.title')}
 							</h3>
 							{error && (
-								<p className='mt-1 text-sm text-slate-500 dark:text-slate-400'>
+								<p className='mt-1 text-sm text-[var(--text-secondary)]'>
 									{error}
 								</p>
 							)}
@@ -322,17 +322,17 @@ export function TPMInitDialog({ open, onClose, onSuccess, requiresElevation }: T
 				<DialogContent
 					onAnimationEnd={handleAnimationEnd}
 					className={cn(
-						'overflow-hidden border-black/10 bg-white/95 p-0 text-slate-900 backdrop-blur-xl sm:max-w-md dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-100',
+						'overflow-hidden border-[var(--border-subtle)] bg-[var(--surface-glass-solid)] p-0 text-[var(--text-primary)] sm:max-w-md',
 						showRecoveryStep && 'sm:max-w-2xl'
 					)}>
 					<div ref={shellScope} className='w-full'>
 						<div ref={contentScope} className='p-6'>
 							<DialogHeader className='mb-2'>
 								<DialogTitle className='flex items-center gap-2'>
-									<Shield className='h-5 w-5 text-green-400' />
+									<Shield className='h-5 w-5 text-status-success' />
 									{t('security:tpm.dialog.title')}
 								</DialogTitle>
-								<DialogDescription className='text-slate-500 dark:text-slate-400'>
+								<DialogDescription className='text-[var(--text-secondary)]'>
 									{t('security:tpm.dialog.description')}
 								</DialogDescription>
 							</DialogHeader>

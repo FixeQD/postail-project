@@ -486,7 +486,7 @@ export function GeneralSettings() {
 							<button
 								type='button'
 								onClick={() => setIsClearCacheDialogOpen(true)}
-								className='rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-semibold text-red-400 transition-all hover:border-red-500/50 hover:bg-red-500/20'>
+								className='rounded-lg border border-destructive/30 bg-destructive/15 px-4 py-2 text-xs font-semibold text-destructive transition-all hover:border-destructive/30 hover:bg-destructive/15'>
 								{t('settings:privacy.danger.clearCache.button')}
 							</button>
 						</SettingCard>
@@ -502,8 +502,8 @@ export function GeneralSettings() {
 				cancelLabel={t('common:actions.cancel')}
 				confirmLabel={t('settings:general.storage.migration.start')}
 				onConfirm={handleConfirmMigration}
-				confirmClassName='w-full border-0 font-bold shadow-lg bg-blue-600 text-white hover:bg-blue-500'>
-				<div className='mt-4 rounded-lg border border-blue-500/20 bg-blue-500/10 p-3 text-xs text-blue-400 italic'>
+				confirmClassName='w-full border-0 font-bold shadow-lg bg-status-info text-white hover:bg-status-info'>
+				<div className='mt-4 rounded-lg border border-status-info/30 bg-status-info/15 p-3 text-xs text-status-info italic'>
 					{t('settings:general.storage.migration.newPath')}: <br />
 					<span className='font-mono font-bold break-all'>{pendingPath}</span>
 				</div>
@@ -517,7 +517,7 @@ export function GeneralSettings() {
 				cancelLabel={t('common:actions.cancel')}
 				confirmLabel={t('settings:privacy.danger.clearCache.button')}
 				onConfirm={handleClearCache}
-				confirmClassName='w-full border-0 font-bold shadow-lg bg-red-600 text-white hover:bg-red-500'
+				confirmClassName='w-full border-0 font-bold shadow-lg bg-destructive text-white hover:bg-destructive'
 			/>
 		</div>
 	)

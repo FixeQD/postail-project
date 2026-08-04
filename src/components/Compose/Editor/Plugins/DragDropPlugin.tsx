@@ -167,7 +167,7 @@ export default function DragDropPlugin(): React.ReactNode {
 			style={{ visibility: !isDragging && !isProcessing ? 'hidden' : 'visible' }}>
 			{isProcessing ? (
 				<div className='pointer-events-auto flex flex-col items-center gap-4 text-white'>
-					<div className='h-12 w-12 animate-spin rounded-full border-b-2 border-blue-500'></div>
+					<div className='h-12 w-12 animate-spin rounded-full border-b-2 border-status-info'></div>
 					<p className='text-xl font-medium'>{t('compose.dragDrop.processing')}</p>
 				</div>
 			) : (
@@ -178,16 +178,16 @@ export default function DragDropPlugin(): React.ReactNode {
 						}}
 						className={`flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border-4 border-dashed transition-all duration-200 ${
 							activeZone === 'inline'
-								? 'scale-105 border-blue-500 bg-blue-500/20 shadow-[0_0_30px_rgba(59,130,246,0.3)]'
+								? 'scale-105 border-status-info bg-status-info/15 shadow-[0_0_30px_rgb(var(--status-info-rgb)_/_0.25)]'
 								: 'border-zinc-700 bg-zinc-900/40'
 						}`}>
 						<div
-							className={`rounded-full p-4 ${activeZone === 'inline' ? 'bg-blue-500 text-white' : 'bg-zinc-800 text-zinc-400'}`}>
+							className={`rounded-full p-4 ${activeZone === 'inline' ? 'bg-status-info text-white' : 'bg-zinc-800 text-zinc-400'}`}>
 							<ImageIcon size={48} />
 						</div>
 						<div className='text-center'>
 							<h3
-								className={`text-xl font-bold ${activeZone === 'inline' ? 'text-blue-200' : 'text-zinc-300'}`}>
+								className={`text-xl font-bold ${activeZone === 'inline' ? 'text-status-info' : 'text-zinc-300'}`}>
 								{t('compose.dragDrop.insertInline.title')}
 							</h3>
 							<p className='mt-1 text-zinc-500'>{t('compose.dragDrop.insertInline.description')}</p>
@@ -200,16 +200,16 @@ export default function DragDropPlugin(): React.ReactNode {
 						}}
 						className={`flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border-4 border-dashed transition-all duration-200 ${
 							activeZone === 'attachment'
-								? 'scale-105 border-green-500 bg-green-500/20 shadow-[0_0_30px_rgba(34,197,94,0.3)]'
+								? 'scale-105 border-status-success bg-status-success/15 shadow-[0_0_30px_rgb(var(--status-success-rgb)_/_0.25)]'
 								: 'border-zinc-700 bg-zinc-900/40'
 						}`}>
 						<div
-							className={`rounded-full p-4 ${activeZone === 'attachment' ? 'bg-green-500 text-white' : 'bg-zinc-800 text-zinc-400'}`}>
+							className={`rounded-full p-4 ${activeZone === 'attachment' ? 'bg-status-success text-white' : 'bg-zinc-800 text-zinc-400'}`}>
 							<Paperclip size={48} />
 						</div>
 						<div className='text-center'>
 							<h3
-								className={`text-xl font-bold ${activeZone === 'attachment' ? 'text-green-200' : 'text-zinc-300'}`}>
+								className={`text-xl font-bold ${activeZone === 'attachment' ? 'text-[var(--accent-text)]' : 'text-[var(--text-secondary)]'}`}>
 								{t('compose.dragDrop.addAttachment.title')}
 							</h3>
 							<p className='mt-1 text-zinc-500'>{t('compose.dragDrop.addAttachment.description')}</p>

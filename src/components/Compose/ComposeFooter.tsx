@@ -53,7 +53,7 @@ export const ComposeFooter = memo(({ onSend, onDiscard, isValid, htmlRef }: Comp
 				<div className='flex items-center gap-1'>
 					<Button
 						onClick={onSend}
-						className='h-9 rounded-full bg-blue-600 px-6 font-semibold text-white hover:bg-blue-500'
+						className='h-9 rounded-full bg-status-info px-6 font-semibold text-white hover:bg-status-info'
 						disabled={isSaving || isSending || !isValid}
 						title={!isValid ? t('compose.validation.missingFields') : ''}>
 						{isSaving ? '...' : t('actions.send')}
@@ -83,7 +83,7 @@ export const ComposeFooter = memo(({ onSend, onDiscard, isValid, htmlRef }: Comp
 					<Button
 						variant='ghost'
 						size='icon'
-						className='h-9 w-9 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)] hover:text-red-400'
+						className='h-9 w-9 text-[var(--compose-text-muted)] hover:bg-[var(--compose-hover)] hover:text-destructive'
 						onClick={onDiscard}>
 						<Trash2 className='h-4 w-4' />
 					</Button>
@@ -98,7 +98,7 @@ export const ComposeFooter = memo(({ onSend, onDiscard, isValid, htmlRef }: Comp
 				confirmLabel={t('settings:templates.applyConfirm.confirm')}
 				cancelLabel={t('settings:templates.applyConfirm.cancel')}
 				onConfirm={() => confirmTemplate && applyTemplateToEditor(confirmTemplate)}
-				confirmClassName='bg-blue-600 text-white hover:bg-blue-700'
+				confirmClassName='bg-status-info text-white hover:bg-blue-700'
 			/>
 		</div>
 	)

@@ -15,23 +15,20 @@ export interface BackgroundPreset {
 }
 
 export const ACCENT_PRESETS: AccentPreset[] = [
-	{ id: 'orange', name: 'Orange', hex: '#f97316' },
-	{ id: 'blue', name: 'Blue', hex: '#3b82f6' },
-	{ id: 'purple', name: 'Purple', hex: '#a855f7' },
-	{ id: 'green', name: 'Green', hex: '#22c55e' },
-	{ id: 'rose', name: 'Rose', hex: '#f43f5e' },
-	{ id: 'cyan', name: 'Cyan', hex: '#06b6d4' },
-	{ id: 'indigo', name: 'Indigo', hex: '#6366f1' },
-	{ id: 'amber', name: 'Amber', hex: '#f59e0b' },
-	{ id: 'teal', name: 'Teal', hex: '#14b8a6' },
-	{ id: 'pink', name: 'Pink', hex: '#ec4899' },
+	{ id: 'ember', name: 'Ember', hex: '#eb6226' },
+	{ id: 'blue', name: 'Blue', hex: '#5a94c8' },
+	{ id: 'lavender', name: 'Lavender', hex: '#9d86de' },
+	{ id: 'green', name: 'Green', hex: '#5cb387' },
+	{ id: 'rose', name: 'Rose', hex: '#d06879' },
+	{ id: 'cyan', name: 'Cyan', hex: '#55b3bd' },
+	{ id: 'indigo', name: 'Indigo', hex: '#7a86dd' },
+	{ id: 'amber', name: 'Amber', hex: '#d9a04d' },
+	{ id: 'teal', name: 'Teal', hex: '#4fae9f' },
 ]
 
 export const DARK_BACKGROUND_PRESETS: BackgroundPreset[] = [
 	{ id: 'slate', name: 'Slate', bg: '#020617', class: 'bg-slate-950' },
-	{ id: 'pitch', name: 'Pitch Black', bg: '#000000', class: 'bg-black' },
-	{ id: 'dark', name: 'Pure Dark', bg: '#0a0a0a', class: 'bg-neutral-950' },
-	{ id: 'charcoal', name: 'Charcoal', bg: '#111111', class: 'bg-[#111111]' },
+	{ id: 'dark', name: 'Charcoal', bg: '#0a0a0a', class: 'bg-neutral-950' },
 	{ id: 'zinc', name: 'Zinc', bg: '#09090b', class: 'bg-zinc-950' },
 	{ id: 'midnight', name: 'Midnight', bg: '#0f172a', class: 'bg-slate-900' },
 	{ id: 'navy', name: 'Navy', bg: '#020420', class: 'bg-[#020420]' },
@@ -207,7 +204,7 @@ interface ThemeState {
 	applyTheme: () => void
 }
 
-const DEFAULT_ACCENT = '#f97316'
+const DEFAULT_ACCENT = '#eb6226'
 const DEFAULT_DARK_BG_ID = 'auto'
 const DEFAULT_LIGHT_BG_ID = 'auto'
 

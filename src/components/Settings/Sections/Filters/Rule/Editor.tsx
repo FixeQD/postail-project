@@ -113,12 +113,12 @@ export function RuleEditor({ rule, onSave, onCancel, inline = false }: RuleEdito
 						placeholder={t('settings:filters.editor.nameHint')}
 						className={`flex-1 rounded-lg border bg-[var(--surface-panel)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors placeholder:text-[var(--text-tertiary)] focus:ring-1 focus:outline-none ${
 							nameError
-								? 'border-red-500/50 focus:border-red-500/50 focus:ring-red-500/10'
+								? 'border-destructive/30 focus:border-destructive/30 focus:ring-destructive/30'
 								: 'border-[var(--border-subtle)] focus:border-[var(--accent-primary)] focus:ring-[var(--accent-primary)]/20'
 						}`}
 					/>
 					{nameError && (
-						<div className='flex shrink-0 items-center gap-1 text-xs text-red-400'>
+						<div className='flex shrink-0 items-center gap-1 text-xs text-destructive'>
 							<AlertCircle className='h-3.5 w-3.5' />
 							{t('settings:filters.editor.required')}
 						</div>
@@ -198,7 +198,7 @@ export function RuleEditor({ rule, onSave, onCancel, inline = false }: RuleEdito
 			<div className='border-b border-[var(--border-subtle)]'>
 				<div className='flex items-center justify-between px-5 py-3'>
 					<div className='flex items-center gap-3'>
-						<span className='rounded-md bg-green-500/10 px-2 py-0.5 text-[11px] font-bold tracking-widest text-green-400 uppercase'>
+						<span className='rounded-md bg-status-success/15 px-2 py-0.5 text-[11px] font-bold tracking-widest text-status-success uppercase'>
 							{t('settings:filters.editor.actions')}
 						</span>
 						<span className='text-xs text-[var(--text-tertiary)]'>
