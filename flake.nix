@@ -77,6 +77,7 @@
           sqlite
           libayatana-appindicator
           tpm2-tss
+          gsettings-desktop-schemas
         ];
       in
       {
@@ -90,6 +91,9 @@
           ];
 
           shellHook = ''
+            # Workaround for GTK/WebKitGTK DPI bug in Nix devShells (no schema = broken devicePixelRatio in Wayland)
+            # see https://github.com/tauri-apps/tauri/issues/5600#issuecomment-4871251687
+            export GSETTINGS_SCHEMA_DIR="${pkgs.glib.getSchemaPath pkgs.gsettings-desktop-schemas}"
             export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath buildInputs}:$LD_LIBRARY_PATH
             echo "postail dev shell ready!"
           '';
