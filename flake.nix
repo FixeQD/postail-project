@@ -8,6 +8,12 @@
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    crane.url = "github:ipetkov/crane";
+    crane-tauri.url = "github:JPHutchins/crane-tauri";
+    bun2nix = {
+      url = "github:nix-community/bun2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -16,6 +22,9 @@
       nixpkgs,
       flake-utils,
       rust-overlay,
+      crane,
+      crane-tauri,
+      bun2nix,
     }:
 
     flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" ] (
@@ -25,6 +34,7 @@
           inherit system;
           overlays = [ rust-overlay.overlays.default ];
         };
+        inherit (pkgs) lib;
 
         rustToolchain = pkgs.rust-bin.stable.latest.default.override {
           extensions = [
@@ -36,6 +46,8 @@
 
           targets = [ "x86_64-pc-windows-gnu" ];
         };
+
+        craneLib = (crane.mkLib pkgs).overrideToolchain (_: rustToolchain);
 
         mingw = pkgs.pkgsCross.mingwW64;
 
@@ -77,8 +89,73 @@
           sqlite
           libayatana-appindicator
           tpm2-tss
+          # fixes broken devicePixelRatio in webkitgtk on Wayland when no gsettings schema is discoverable
+          # see the shellHook below and https://github.com/tauri-apps/tauri/issues/5600#issuecomment-4871251687
           gsettings-desktop-schemas
         ];
+
+        bun2nixPkg = bun2nix.packages.${system}.default;
+
+        bunDeps = bun2nixPkg.fetchBunDeps {
+          bunNix = ./bun.nix;
+        };
+
+        frontend = bun2nixPkg.mkDerivation {
+          pname = "postail-frontend";
+          version = "0.1.0";
+          src = lib.fileset.toSource {
+            root = ./.;
+            fileset = lib.fileset.unions [
+              ./package.json
+              ./bun.lock
+              ./tsconfig.json
+              ./tsconfig.node.json
+              ./vite.config.ts
+              ./index.html
+              ./src
+              ./public
+            ];
+          };
+
+          inherit bunDeps;
+
+          buildPhase = ''
+            runHook preBuild
+            bun run build
+            runHook postBuild
+          '';
+
+          installPhase = ''
+            runHook preInstall
+            cp -r dist $out
+            runHook postInstall
+          '';
+        };
+
+        tauri = crane-tauri.lib.buildTauriApp { inherit pkgs craneLib; } {
+          pname = "postail";
+          version = "0.1.0";
+          src = ./.;
+          cargoRoot = ./.;
+          extraFileset = lib.fileset.unions [
+            ./src-tauri/src/utils/oauth_status.html # Bruh -_-
+          ];
+          inherit frontend;
+          extraNativeBuildInputs = nativeBuildInputs;
+          extraBuildInputs = buildInputs;
+        };
+
+        postailWrapped = pkgs.symlinkJoin {
+          name = "postail";
+          paths = [ tauri.app ];
+          nativeBuildInputs = [ pkgs.wrapGAppsHook3 pkgs.makeWrapper ];
+          buildInputs = buildInputs;
+          postBuild = ''
+            wrapProgram $out/bin/postail \
+              --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath buildInputs}"
+          '';
+          meta.mainProgram = "postail";
+        };
       in
       {
         devShells.default = pkgs.mkShell {
@@ -88,6 +165,7 @@
             rustToolchain
             pkgs.bun
             pkgs.cargo-tauri
+            bun2nixPkg
           ];
 
           shellHook = ''
@@ -137,18 +215,18 @@
           '';
         };
 
-        packages.default = pkgs.rustPlatform.buildRustPackage {
-          pname = "postail";
-          version = "0.1.0";
-          src = ./.;
+        packages.default = postailWrapped;
 
-          cargoLock.lockFile = ./Cargo.lock;
-          buildAndTestSubdir = "src-tauri";
-
-          inherit nativeBuildInputs buildInputs;
-
-          # No network access inside the build sandbox
-          doCheck = false;
+        checks = {
+          inherit (tauri) app;
+          clippy = craneLib.cargoClippy (
+            tauri.commonArgs
+            // {
+              cargoArtifacts = tauri.cargoArtifacts;
+              cargoClippyExtraArgs = "--all-targets -- -D warnings";
+              TAURI_CONFIG = tauri.tauriConfig;
+            }
+          );
         };
 
         formatter = pkgs.nixpkgs-fmt;
