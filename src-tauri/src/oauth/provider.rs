@@ -117,15 +117,15 @@ impl ProviderInfo {
 
     pub fn client_id(&self) -> Option<String> {
         match self.kind {
-            ProviderKind::Gmail => option_env!("GMAIL_CLIENT_ID").map(|s| s.to_string()),
-            ProviderKind::Outlook => option_env!("OUTLOOK_CLIENT_ID").map(|s| s.to_string()),
+            ProviderKind::Gmail => option_env!("GMAIL_PKCE_ID").map(|s| s.to_string()),
+            ProviderKind::Outlook => option_env!("OUTLOOK_PKCE_ID").map(|s| s.to_string()),
         }
     }
 
     pub fn client_secret(&self) -> Option<String> {
         match self.kind {
-            ProviderKind::Gmail => option_env!("GMAIL_CLIENT_SECRET").map(|s| s.to_string()),
-            ProviderKind::Outlook => option_env!("OUTLOOK_CLIENT_SECRET").map(|s| s.to_string()),
+            ProviderKind::Gmail => option_env!("GMAIL_PKCE_SECRET").map(|s| s.to_string()),
+            ProviderKind::Outlook => option_env!("OUTLOOK_PKCE_SECRET").map(|s| s.to_string()),
         }
     }
 

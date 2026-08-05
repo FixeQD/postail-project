@@ -3,6 +3,8 @@ use std::process::Command;
 fn main() {
     tauri_build::build();
 
+    bake_dotenv_env();
+
     let timestamp = build_timestamp_unix();
     println!("cargo:rustc-env=BUILD_TIMESTAMP={}", timestamp);
 
@@ -61,4 +63,24 @@ fn rustc_version() -> Option<String> {
     } else {
         None
     }
+}
+
+fn bake_dotenv_env() {
+    let iter = match dotenvy::dotenv_iter() {
+        Ok(iter) => iter,
+        Err(_) => {
+            println!("cargo:warning=No .env file found - no env vars baked into the binary");
+            println!("cargo:rerun-if-changed=../.env");
+            return;
+        }
+    };
+
+    for item in iter {
+        let Ok((key, value)) = item else { continue };
+        if !value.trim().is_empty() {
+            println!("cargo:rustc-env={key}={value}");
+        }
+    }
+
+    println!("cargo:rerun-if-changed=../.env");
 }
