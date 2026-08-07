@@ -1,6 +1,5 @@
 pub mod account;
 pub mod attachments;
-pub mod calendar;
 pub mod contacts;
 pub mod drafts;
 pub mod filters;
@@ -12,5 +11,6 @@ pub mod security;
 pub mod settings;
 pub mod signatures;
 pub mod smtp;
+pub mod system;
 pub mod templates;
 pub mod utils;

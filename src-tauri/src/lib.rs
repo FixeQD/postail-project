@@ -1,5 +1,4 @@
 pub mod build_info;
-pub mod calendar;
 pub mod cmd;
 pub mod db;
 pub mod email_view;
@@ -11,6 +10,7 @@ pub mod oauth;
 pub mod protocol;
 pub mod security;
 pub mod smtp;
+pub mod system;
 pub mod utils;
 
 use std::sync::atomic::Ordering;
@@ -317,8 +317,7 @@ pub fn run() {
             cmd::templates::list_templates,
             cmd::templates::save_template,
             cmd::templates::delete_template,
-            cmd::calendar::list_calendar_events,
-            cmd::calendar::create_calendar_event
+            cmd::system::open_system_calendar
         ])
         .register_uri_scheme_protocol("postail", protocol::handler)
         .build(tauri::generate_context!())

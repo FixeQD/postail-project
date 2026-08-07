@@ -13,7 +13,6 @@ export const APP_STATES = [
 	'tpm-unlock-failed',
 	'reencrypt',
 	'contacts',
-	'calendar',
 ] as const
 
 export type AppState = (typeof APP_STATES)[number]

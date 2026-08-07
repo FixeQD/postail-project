@@ -533,9 +533,13 @@ export const Sidebar = ({
 							<div className='mt-1 mb-0.5'>
 								<button
 									type='button'
-									onClick={() =>
-										window.dispatchEvent(new CustomEvent('app:open-calendar'))
-									}
+									onClick={() => {
+										invoke('open_system_calendar').catch((err) => {
+											toast.error(
+												typeof err === 'string' ? err : 'Could not open your calendar app'
+											)
+										})
+									}}
 									title={isCollapsed ? 'Calendar' : undefined}
 									className='group relative flex w-full items-center rounded-lg transition-all duration-150 hover:bg-[var(--surface-hover)]'
 									style={{
