@@ -109,6 +109,33 @@ pub fn create(
                 use webkit2gtk::SettingsExt;
                 settings.set_javascript_can_open_windows_automatically(false);
                 settings.set_allow_modal_dialogs(false);
+
+                settings.set_enable_javascript(true);
+                settings.set_enable_developer_extras(false);
+                settings.set_enable_media_stream(false);
+                settings.set_enable_mediasource(false);
+                settings.set_enable_media_capabilities(false);
+                settings.set_enable_mock_capture_devices(false);
+                settings.set_enable_webgl(false);
+                settings.set_enable_webaudio(false);
+                settings.set_enable_webrtc(false);
+                settings.set_enable_encrypted_media(false);
+                settings.set_enable_plugins(false);
+                settings.set_enable_java(false);
+                settings.set_enable_fullscreen(false);
+                settings.set_enable_page_cache(false); // one-shot document view, no bfcache to keep around
+                settings.set_enable_offline_web_application_cache(false);
+                settings.set_enable_html5_database(false);
+                settings.set_enable_html5_local_storage(false);
+                settings.set_enable_hyperlink_auditing(false); // tracking pings on link hover/click
+                settings.set_enable_dns_prefetching(false);
+                settings.set_enable_smooth_scrolling(false);
+                settings.set_enable_back_forward_navigation_gestures(false);
+                settings.set_enable_spatial_navigation(false);
+                settings.set_enable_resizable_text_areas(false);
+                settings.set_enable_caret_browsing(false);
+                settings.set_enable_write_console_messages_to_stdout(false);
+                settings.set_javascript_can_access_clipboard(false);
             }
 
             overlay.add_overlay(&email_wv);

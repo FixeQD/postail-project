@@ -57,8 +57,8 @@ fn install_linux<R: Runtime>(window: &WebviewWindow<R>, proxy_port: u16) {
 #[cfg(target_os = "linux")]
 pub fn create_isolated_email_context(proxy_port: u16) -> Result<webkit2gtk::WebContext, String> {
     use webkit2gtk::{
-        NetworkProxyMode, NetworkProxySettings, URISchemeRequestExt, WebContext, WebContextExt,
-        WebsiteDataManager, WebsiteDataManagerExt,
+        CacheModel, NetworkProxyMode, NetworkProxySettings, URISchemeRequestExt, WebContext,
+        WebContextExt, WebsiteDataManager, WebsiteDataManagerExt,
     };
 
     let proxy_uri = format!("http://127.0.0.1:{proxy_port}");
@@ -71,6 +71,12 @@ pub fn create_isolated_email_context(proxy_port: u16) -> Result<webkit2gtk::WebC
     manager.set_network_proxy_settings(NetworkProxyMode::Custom, Some(&mut proxy));
 
     let ctx = WebContext::builder().website_data_manager(&manager).build();
+
+    // DocumentViewer is WebKit's cache profile for "renders one document, isn't a browser" apps: minimal object/page caching instead of the WebBrowser default
+    // which is by far the biggest memory lever WebKit exposes for a view like this one
+    ctx.set_cache_model(CacheModel::DocumentViewer);
+    ctx.set_spell_checking_enabled(false); // no text is ever typed into this view
+
     info!("email webview: dedicated WebContext created, null proxy set on port {proxy_port}");
 
     ctx.register_uri_scheme("postail", move |request| {
