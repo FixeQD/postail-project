@@ -103,6 +103,11 @@ tauri-plugin-notification = { version = "2.3.3", features = [
     "windows-version",
 ] }
 dunce = "1.0.5"
+windows = { version = "0.62", features = [
+    "Win32_System_Console",
+    "Win32_Storage_FileSystem",
+    "Win32_Security",
+] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-autostart = "2.5.1"

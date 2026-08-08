@@ -6,6 +6,61 @@ use std::env;
 #[cfg(target_os = "linux")]
 use std::process::{Command, exit};
 
+/// `postail.exe --debug` on Windows
+#[cfg(target_os = "windows")]
+fn maybe_attach_console() {
+    if !std::env::args().any(|a| a == "--debug") {
+        return;
+    }
+
+    use windows::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole};
+
+    unsafe {
+        // Fails if there's no parent console to attach to, e.g. launched by double-clicking in Explorer rather than from a shell
+        if AttachConsole(ATTACH_PARENT_PROCESS).is_err() {
+            return;
+        }
+    }
+
+    redirect_std_handle(
+        "CONOUT$",
+        windows::Win32::System::Console::STD_OUTPUT_HANDLE,
+    );
+    redirect_std_handle("CONOUT$", windows::Win32::System::Console::STD_ERROR_HANDLE);
+    redirect_std_handle("CONIN$", windows::Win32::System::Console::STD_INPUT_HANDLE);
+}
+
+/// Points one of the process's standard handles at the newly attached console
+#[cfg(target_os = "windows")]
+fn redirect_std_handle(device: &str, std_handle: windows::Win32::System::Console::STD_HANDLE) {
+    use windows::Win32::Storage::FileSystem::{
+        CreateFileW, FILE_GENERIC_READ, FILE_GENERIC_WRITE, FILE_SHARE_READ, FILE_SHARE_WRITE,
+        OPEN_EXISTING,
+    };
+    use windows::Win32::System::Console::SetStdHandle;
+    use windows::core::HSTRING;
+
+    let desired_access = if device == "CONIN$" {
+        FILE_GENERIC_READ.0
+    } else {
+        FILE_GENERIC_WRITE.0
+    };
+
+    unsafe {
+        if let Ok(handle) = CreateFileW(
+            &HSTRING::from(device),
+            desired_access,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            None,
+            OPEN_EXISTING,
+            Default::default(),
+            None,
+        ) {
+            let _ = SetStdHandle(std_handle, handle);
+        }
+    }
+}
+
 #[cfg(target_os = "linux")]
 fn get_executable_path() -> std::path::PathBuf {
     if let Ok(appimage) = env::var("APPIMAGE") {
@@ -41,6 +96,9 @@ fn try_launch(
 }
 
 fn main() {
+    #[cfg(target_os = "windows")]
+    maybe_attach_console();
+
     #[cfg(target_os = "linux")]
     {
         // ── TPM helper mode ──────────────────────────────────────────

@@ -4056,6 +4056,7 @@ dependencies = [
  "utf7-imap",
  "uuid",
  "webkit2gtk",
+ "windows 0.62.2",
  "zip",
 ]
 
