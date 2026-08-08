@@ -95,6 +95,7 @@ nix = { version = "0.29", features = [
     "inotify",
 ] }
 tauri-plugin-notification = { version = "2.3.3" }
+webkit2gtk = { version = "2.0", features = ["v2_32"] }
 
 # Windows-specific deps
 [target.'cfg(target_os = "windows")'.dependencies]

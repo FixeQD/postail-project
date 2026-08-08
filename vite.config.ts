@@ -14,10 +14,10 @@ export default defineConfig(
 		},
 
 		clearScreen: false,
-		server: {
+    server: {
+      host: "127.0.0.1",
 			port: 1420,
 			strictPort: true,
-			host: host || false,
 			hmr: host
 				? {
 						protocol: 'ws',

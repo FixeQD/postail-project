@@ -17,7 +17,9 @@
 				"decorations": false,
 				"transparent": false,
 				"visible": false,
-				"additionalBrowserArgs": "--proxy-server=http://127.0.0.1:18731 --proxy-bypass-list=localhost;127.0.0.1;::1;*.localhost;<local>"
+				"additionalBrowserArgs": "--proxy-server=http://127.0.0.1:18731 --proxy-bypass-list=localhost;127.0.0.1;::1;*.localhost;<local> --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,Translate,OptimizationHints,MediaRouter,DialMediaRouteProvider,CalculateNativeWinOcclusion,AutofillServerCommunication --disable-background-networking --disable-component-update --disable-domain-reliability --disable-breakpad --disable-client-side-phishing-detection --disable-sync --disable-speech-api --no-default-browser-check --no-first-run",
+				"browserExtensionsEnabled": false,
+				"backgroundThrottling": "suspend"
 			}
 		],
 		"security": {

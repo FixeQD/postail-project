@@ -4055,6 +4055,7 @@ dependencies = [
  "url",
  "utf7-imap",
  "uuid",
+ "webkit2gtk",
  "zip",
 ]
 

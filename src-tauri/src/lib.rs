@@ -52,6 +52,42 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
 
+            // Harden the main window's WebKit settings on Linux
+            // Windows equivalent lives in tauri.conf.json's additionalBrowserArgs
+            #[cfg(target_os = "linux")]
+            {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.with_webview(|webview| {
+                        use webkit2gtk::{SettingsExt, WebViewExt};
+                        if let Some(settings) = WebViewExt::settings(&webview.inner()) {
+                            settings.set_enable_webgl(false);
+                            settings.set_enable_webaudio(false);
+                            settings.set_enable_webrtc(false);
+                            settings.set_enable_media_stream(false);
+                            settings.set_enable_mediasource(false);
+                            settings.set_enable_media_capabilities(false);
+                            settings.set_enable_mock_capture_devices(false);
+                            settings.set_enable_encrypted_media(false);
+                            settings.set_enable_plugins(false);
+                            settings.set_enable_java(false);
+                            settings.set_enable_fullscreen(false);
+                            settings.set_enable_page_cache(false); // single-page app, no bfcache to keep
+                            settings.set_enable_offline_web_application_cache(false);
+                            settings.set_enable_html5_database(false); // WebSQL, deprecated, unused
+                            settings.set_enable_hyperlink_auditing(false);
+                            settings.set_enable_dns_prefetching(false);
+                            settings.set_enable_spatial_navigation(false);
+                            settings.set_enable_write_console_messages_to_stdout(false);
+
+                            // Keep devtools available for local dev builds, only strip them from what ships to users
+                            if !cfg!(debug_assertions) {
+                                settings.set_enable_developer_extras(false);
+                            }
+                        }
+                    });
+                }
+            }
+
             // Initialize resource cache
             {
                 let cache_dir = app
