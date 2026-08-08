@@ -54,7 +54,7 @@ pub fn destroy(app: AppHandle) {
         destroy_on_wv_thread(&win_arc);
         // Exit the WebView2 thread's message loop
         unsafe {
-            PostThreadMessageW(GetCurrentThreadId(), WM_QUIT, WPARAM(0), LPARAM(0));
+            let _ = PostThreadMessageW(GetCurrentThreadId(), WM_QUIT, WPARAM(0), LPARAM(0));
         }
     });
 }
@@ -80,6 +80,6 @@ pub(super) fn dispatch_to_wv_thread(tid: u32, f: impl FnOnce() + Send + 'static)
     // Double-box to get a thin pointer we can fit into LPARAM
     let raw = Box::into_raw(Box::new(Box::new(f) as Box<dyn FnOnce() + Send>));
     unsafe {
-        PostThreadMessageW(tid, WV_DISPATCH, WPARAM(0), LPARAM(raw as isize));
+        let _ = PostThreadMessageW(tid, WV_DISPATCH, WPARAM(0), LPARAM(raw as isize));
     }
 }

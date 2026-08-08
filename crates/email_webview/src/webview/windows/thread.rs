@@ -17,11 +17,16 @@ use windows_wv::Win32::UI::WindowsAndMessaging::{
 use webview2_com::Microsoft::Web::WebView2::Win32::{
     CreateCoreWebView2EnvironmentWithOptions, ICoreWebView2CompositionController,
     ICoreWebView2Controller, ICoreWebView2Environment, ICoreWebView2Environment3,
+    ICoreWebView2EnvironmentOptions, ICoreWebView2Settings3, ICoreWebView2Settings4,
+    ICoreWebView2Settings5, ICoreWebView2Settings6,
 };
 use webview2_com::{
-    CreateCoreWebView2CompositionControllerCompletedHandler,
+    CoreWebView2EnvironmentOptions, CreateCoreWebView2CompositionControllerCompletedHandler,
     CreateCoreWebView2EnvironmentCompletedHandler,
 };
+
+/// Chromium/Edge command-line switches applied to the email renderer only-
+const EMAIL_WEBVIEW_BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,msEdgeTranslate,Translate,OptimizationHints,MediaRouter,DialMediaRouteProvider,CalculateNativeWinOcclusion,AutofillServerCommunication,BackForwardCache,PreloadMediaEngagementData,PrivacySandboxSettings4 --disable-background-networking --disable-background-timer-throttling --disable-breakpad --disable-client-side-phishing-detection --disable-component-update --disable-domain-reliability --disable-extensions --disable-default-apps --disable-sync --disable-speech-api --disable-notifications --disable-print-preview --no-default-browser-check --no-first-run --mute-audio --autoplay-policy=user-gesture-required --renderer-process-limit=1 --disk-cache-size=1 --media-cache-size=1";
 
 use super::dcomp::{navigate_to_email, setup_dcomp};
 use super::{dispatch_to_wv_thread, WV_DISPATCH};
@@ -104,7 +109,7 @@ fn webview2_thread(
         let window_name: Vec<u16> = "\0".encode_utf16().collect();
 
         // Start child_hwnd at a real, non-degenerate size
-        let (init_w, init_h) = unsafe {
+        let (init_w, init_h) = {
             let mut rect = RECT::default();
             if GetClientRect(HWND(main_hwnd_isize as *mut _), &mut rect).is_ok() {
                 (
@@ -144,7 +149,7 @@ fn webview2_thread(
             }
         };
         // child_hwnd is a sibling of whatever hwnd Tauri's own main webview is parented under
-        unsafe {
+        {
             let _ = SetWindowPos(
                 child_hwnd,
                 Some(HWND_TOP),
@@ -244,10 +249,17 @@ fn webview2_thread(
             },
         ));
 
+        let env_options: ICoreWebView2EnvironmentOptions =
+            CoreWebView2EnvironmentOptions::default().into();
+        let browser_args = windows_wv::core::HSTRING::from(EMAIL_WEBVIEW_BROWSER_ARGS);
+        if let Err(e) = env_options.SetAdditionalBrowserArguments(&browser_args) {
+            tracing::warn!("[webview/win] SetAdditionalBrowserArguments failed: {e:?}");
+        }
+
         if let Err(e) = CreateCoreWebView2EnvironmentWithOptions(
             windows_wv::core::PCWSTR::null(),
             windows_wv::core::PCWSTR::null(),
-            None,
+            &env_options,
             &env_handler,
         ) {
             tracing::error!("[webview/win] CreateEnvironmentWithOptions: {e:?}");
@@ -273,7 +285,7 @@ fn webview2_thread(
                         let f = Box::from_raw(msg.lParam.0 as *mut Box<dyn FnOnce() + Send>);
                         f();
                     } else {
-                        TranslateMessage(&msg);
+                        let _ = TranslateMessage(&msg);
                         DispatchMessageW(&msg);
                     }
                 }
@@ -283,6 +295,47 @@ fn webview2_thread(
         win_arc.lock().unwrap().webview2_thread_id = 0;
         CoUninitialize();
     }
+}
+
+/// Locks down everything on the WebView2 side that Chromium command-line flags can't reach
+fn harden_email_webview_settings(
+    wv: &webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2,
+) {
+    let settings = match unsafe { wv.Settings() } {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("[webview/win] Settings() failed, skipping hardening: {e:?}");
+            return;
+        }
+    };
+
+    unsafe {
+        let _ = settings.SetIsScriptEnabled(true);
+        let _ = settings.SetIsWebMessageEnabled(false);
+        let _ = settings.SetAreDefaultScriptDialogsEnabled(false);
+        let _ = settings.SetIsStatusBarEnabled(false);
+        let _ = settings.SetAreDevToolsEnabled(false);
+        let _ = settings.SetAreDefaultContextMenusEnabled(false);
+        let _ = settings.SetAreHostObjectsAllowed(false);
+        let _ = settings.SetIsZoomControlEnabled(false);
+        let _ = settings.SetIsBuiltInErrorPageEnabled(false);
+
+        if let Ok(settings3) = settings.cast::<ICoreWebView2Settings3>() {
+            let _ = settings3.SetAreBrowserAcceleratorKeysEnabled(false);
+        }
+        if let Ok(settings4) = settings.cast::<ICoreWebView2Settings4>() {
+            let _ = settings4.SetIsPasswordAutosaveEnabled(false);
+            let _ = settings4.SetIsGeneralAutofillEnabled(false);
+        }
+        if let Ok(settings5) = settings.cast::<ICoreWebView2Settings5>() {
+            let _ = settings5.SetIsPinchZoomEnabled(false);
+        }
+        if let Ok(settings6) = settings.cast::<ICoreWebView2Settings6>() {
+            let _ = settings6.SetIsSwipeNavigationEnabled(false);
+        }
+    }
+
+    tracing::info!("[webview/win] email WebView settings hardened");
 }
 
 fn on_ctrl_created(
@@ -386,6 +439,7 @@ fn on_ctrl_created(
         let _ = controller.SetIsVisible(true);
 
         if let Ok(wv) = controller.CoreWebView2() {
+            harden_email_webview_settings(&wv);
             crate::policy::register_webview2_resource_handler(&wv, env, app.clone());
             navigate_to_email(&wv);
 
@@ -421,7 +475,7 @@ fn on_ctrl_created(
                 g.dcomp_device.as_ref(),
             ) {
                 // ICoreWebView2CompositionController::SetBounds only sizes WebView2's content within the DirectComposition tree
-                unsafe {
+                {
                     let _ = SetWindowPos(
                         HWND(child_hwnd_isize as *mut _),
                         None,
