@@ -192,7 +192,10 @@ pub fn update_bounds(
 
 pub fn destroy(state: EmbeddedEmailState) {
     gtk::glib::MainContext::default().invoke(move || {
-        if let Some(wv) = state.email_wv.lock().unwrap().as_ref() {
+        // Bind the guard BEFORE the if-let, not inline in its condition.
+        // A temporary MutexGuard produced in an if-let/match scrutinee lives for the whole arm...
+        let guard = state.email_wv.lock().unwrap();
+        if let Some(wv) = guard.as_ref() {
             wv.0.hide();
             wv.0.terminate_web_process();
             tracing::info!("embedded email WebView hidden and renderer process terminated");
@@ -202,7 +205,9 @@ pub fn destroy(state: EmbeddedEmailState) {
 
 pub fn reload(state: EmbeddedEmailState) -> Result<(), String> {
     gtk::glib::MainContext::default().invoke(move || {
-        if let Some(wv) = state.email_wv.lock().unwrap().as_ref() {
+        // See destroy() above: guard bound explicitly to avoid the if-let-scrutinee temporary-lifetime-extension deadlock trap
+        let guard = state.email_wv.lock().unwrap();
+        if let Some(wv) = guard.as_ref() {
             wv.0.load_uri("postail://localhost/message/current");
             tracing::info!("email WebView reloaded");
         }
