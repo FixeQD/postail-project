@@ -388,7 +388,10 @@ fn on_ctrl_created(
     }
 
     unsafe {
-        if let Some(vis) = win_arc.lock().unwrap().dcomp_visual.clone() {
+        // NOTE: must extract the value BEFORE the if-let, not inside its condition
+        // A temporary MutexGuard produced in an if-let/match scrutinee lives for the whole arm, not just the condition
+        let dcomp_visual = win_arc.lock().unwrap().dcomp_visual.clone();
+        if let Some(vis) = dcomp_visual {
             let unknown: windows_wv::core::IUnknown = match vis.cast() {
                 Ok(u) => u,
                 Err(e) => {
@@ -452,7 +455,8 @@ fn on_ctrl_created(
             }
         }
 
-        if let Some(dev) = win_arc.lock().unwrap().dcomp_device.clone() {
+        let dcomp_device = win_arc.lock().unwrap().dcomp_device.clone();
+        if let Some(dev) = dcomp_device {
             let _ = dev.Commit();
         }
 
