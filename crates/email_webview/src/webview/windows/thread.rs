@@ -466,11 +466,14 @@ fn on_ctrl_created(
         g.is_creating = false;
 
         if let Some((x, y, w, h)) = g.pending_bounds.take() {
+            let s = super::dpi_scale(g.main_hwnd);
+            let (px, py, pw, ph) = (x * s, y * s, w * s, h * s);
             tracing::info!(
                 x,
                 y,
                 w,
                 h,
+                s,
                 "[webview/win] on_ctrl_created: applying pending_bounds"
             );
             if let (Some(ctrl), Some(vis), Some(dev)) = (
@@ -483,18 +486,18 @@ fn on_ctrl_created(
                     let _ = SetWindowPos(
                         HWND(child_hwnd_isize as *mut _),
                         None,
-                        x as i32,
-                        y as i32,
-                        w as i32,
-                        h as i32,
+                        px as i32,
+                        py as i32,
+                        pw as i32,
+                        ph as i32,
                         SWP_NOZORDER | SWP_NOACTIVATE,
                     );
                 }
                 let _ = ctrl.SetBounds(RECT {
                     left: 0,
                     top: 0,
-                    right: w as i32,
-                    bottom: h as i32,
+                    right: pw as i32,
+                    bottom: ph as i32,
                 });
                 let _ = ctrl.SetIsVisible(w > 0.0 && h > 0.0);
                 // Content fills the host window from its own local origin now that the host window itself is positioned at (x, y)

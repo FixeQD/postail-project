@@ -2,8 +2,9 @@ use crate::state::EmbeddedEmailState;
 use crate::watchdog::WatchdogState;
 use tauri::{AppHandle, Manager};
 
-use windows_wv::Win32::Foundation::{LPARAM, WPARAM};
+use windows_wv::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows_wv::Win32::System::Threading::GetCurrentThreadId;
+use windows_wv::Win32::UI::HiDpi::GetDpiForWindow;
 use windows_wv::Win32::UI::WindowsAndMessaging::{PostThreadMessageW, WM_APP, WM_QUIT};
 
 mod dcomp;
@@ -68,6 +69,24 @@ pub fn reload(app: AppHandle) -> Result<(), String> {
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
+
+/// Physical-pixel scale factor for bounds relative to the main window.
+///
+/// JS sends CSS/logical pixels (from `getBoundingClientRect`); Win32
+/// `SetWindowPos` and WebView2 `SetBounds` expect physical pixels when the
+/// process is per-monitor DPI aware. Multiply logical bounds by this factor at
+/// apply time. Falls back to 1.0 when no usable DPI is available.
+pub(super) fn dpi_scale(main_hwnd: isize) -> f64 {
+    if main_hwnd == 0 {
+        return 1.0;
+    }
+    let dpi = unsafe { GetDpiForWindow(HWND(main_hwnd as *mut _)) };
+    if dpi == 0 {
+        1.0
+    } else {
+        dpi as f64 / 96.0
+    }
+}
 
 /// Post a closure to run on the dedicated WebView2 thread
 pub(super) fn dispatch_to_wv_thread(tid: u32, f: impl FnOnce() + Send + 'static) {

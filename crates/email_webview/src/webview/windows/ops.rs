@@ -19,13 +19,15 @@ pub(super) fn update_bounds_on_wv_thread(
     h: f64,
 ) {
     let mut guard = win_arc.lock().unwrap();
+    let s = super::dpi_scale(guard.main_hwnd);
+    let (px, py, pw, ph) = (x * s, y * s, w * s, h * s);
     let (Some(ctrl), Some(vis), Some(dev)) = (
         guard.controller.as_ref(),
         guard.dcomp_visual.as_ref(),
         guard.dcomp_device.as_ref(),
     ) else {
         tracing::info!(
-            x, y, w, h,
+            x, y, w, h, s,
             "[webview/win] update_bounds_on_wv_thread: no controller yet, resizing host hwnd anyway, stashed in pending_bounds"
         );
         // Resize/reposition the actual host window, even without a controller yet, instead of leaving it at the degenerate 1x1 it was created at for the entire async environment/controller setup
@@ -35,10 +37,10 @@ pub(super) fn update_bounds_on_wv_thread(
                 let _ = SetWindowPos(
                     HWND(child_hwnd as *mut _),
                     None,
-                    x as i32,
-                    y as i32,
-                    w as i32,
-                    h as i32,
+                    px as i32,
+                    py as i32,
+                    pw as i32,
+                    ph as i32,
                     SWP_NOZORDER | SWP_NOACTIVATE,
                 );
             }
@@ -51,6 +53,7 @@ pub(super) fn update_bounds_on_wv_thread(
         y,
         w,
         h,
+        s,
         "[webview/win] update_bounds_on_wv_thread: applying directly"
     );
     let child_hwnd = guard.child_hwnd;
@@ -60,18 +63,18 @@ pub(super) fn update_bounds_on_wv_thread(
             let _ = SetWindowPos(
                 HWND(child_hwnd as *mut _),
                 None,
-                x as i32,
-                y as i32,
-                w as i32,
-                h as i32,
+                px as i32,
+                py as i32,
+                pw as i32,
+                ph as i32,
                 SWP_NOZORDER | SWP_NOACTIVATE,
             );
         }
         let _ = ctrl.SetBounds(RECT {
             left: 0,
             top: 0,
-            right: w as i32,
-            bottom: h as i32,
+            right: pw as i32,
+            bottom: ph as i32,
         });
         let _ = ctrl.SetIsVisible(w > 0.0 && h > 0.0);
         let _ = vis.SetOffsetX2(0.0);

@@ -70,13 +70,12 @@ export const MessageViewBody = ({
 		const syncBounds = () => {
 			rafPendingRef.current = false
 			const rect = el.getBoundingClientRect()
-			const dpr = window.devicePixelRatio ?? 1
 
 			invoke('update_email_webview_bounds', {
-				x: rect.x / dpr,
-				y: rect.y / dpr,
-				width: rect.width / dpr,
-				height: rect.height / dpr,
+				x: rect.x,
+				y: rect.y,
+				width: rect.width,
+				height: rect.height,
 			}).catch(console.error)
 		}
 
