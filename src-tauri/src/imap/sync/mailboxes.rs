@@ -21,6 +21,17 @@ fn detect_mailbox_role_from_attributes(
     None
 }
 
+/// Detects a mailbox role using signals that are guaranteed by the IMAP protocol
+fn detect_mailbox_role(name: &str, attributes: &[async_imap::types::NameAttribute]) -> String {
+    if let Some(role) = detect_mailbox_role_from_attributes(attributes) {
+        return role;
+    }
+    if name.eq_ignore_ascii_case("INBOX") {
+        return "inbox".to_string();
+    }
+    "other".to_string()
+}
+
 impl crate::imap::ImapManager {
     pub async fn fetch_mailboxes_sync(&self, account_id: &str) -> Result<Vec<Mailbox>, String> {
         let pool = get_db_pool().await.map_err(|e| e.to_string())?;
@@ -42,9 +53,9 @@ impl crate::imap::ImapManager {
                 let mb = mb.map_err(|e| e.to_string())?;
                 let name = mb.name().to_string();
 
-                // Detect role from SPECIAL-USE attributes (RFC 6154), default to "other"
-                let role = detect_mailbox_role_from_attributes(mb.attributes())
-                    .unwrap_or_else(|| "other".to_string());
+                // Detect role from SPECIAL-USE attributes (RFC 6154)
+                // falling back to the protocol-reserved "INBOX" name
+                let role = detect_mailbox_role(&name, mb.attributes());
                 let mailbox = Mailbox {
                     name,
                     display_name: mb.name().to_string(),

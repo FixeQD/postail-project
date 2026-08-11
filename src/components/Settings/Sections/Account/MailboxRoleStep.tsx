@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { createPortal } from 'react-dom'
+import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import {
 	Inbox,
@@ -16,6 +15,13 @@ import {
 	ChevronDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/components/ui/custom/Toaster'
+import {
+	DropdownMenu,
+	DropdownMenuTrigger,
+	DropdownMenuContent,
+	DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
 import { useShellTransition } from '@/hooks/useShellTransition'
 import { useSettingsTranslation } from '@/hooks/useTypedTranslation'
 import type { Mailbox } from '@/types/mail'
@@ -42,82 +48,48 @@ function RoleIcon({ role, className }: { role: string; className?: string }) {
 function RoleSelect({ value, onChange }: { value: Role; onChange: (role: Role) => void }) {
 	const { t } = useSettingsTranslation()
 	const [open, setOpen] = useState(false)
-	const [coords, setCoords] = useState({ top: 0, right: 0 })
-	const buttonRef = useRef<HTMLButtonElement>(null)
-	const dropdownRef = useRef<HTMLDivElement>(null)
 	const roles = Object.keys(ROLE_ICONS) as Role[]
 
-	const handleOpen = () => {
-		if (buttonRef.current) {
-			const rect = buttonRef.current.getBoundingClientRect()
-			setCoords({ top: rect.bottom + 6, right: window.innerWidth - rect.right })
-		}
-		setOpen((o) => !o)
-	}
-
-	const handleOutsideClick = useCallback((e: MouseEvent) => {
-		if (
-			dropdownRef.current &&
-			!dropdownRef.current.contains(e.target as Node) &&
-			!buttonRef.current?.contains(e.target as Node)
-		) {
-			setOpen(false)
-		}
-	}, [])
-
-	useEffect(() => {
-		if (!open) return
-		document.addEventListener('mousedown', handleOutsideClick)
-		return () => document.removeEventListener('mousedown', handleOutsideClick)
-	}, [open, handleOutsideClick])
-
 	return (
-		<div className='relative'>
-			<button
-				ref={buttonRef}
-				type='button'
-				onClick={handleOpen}
-			className='flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-3 py-1.5 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--border-subtle)] hover:bg-[var(--surface-hover)]'>
-			<RoleIcon role={value} className='h-3.5 w-3.5 text-[var(--text-tertiary)]' />
-				<span>{t(`settings:mailboxRoles.roles.${value}`)}</span>
-				<ChevronDown
-					className={`h-3.5 w-3.5 text-[var(--text-tertiary)] transition-transform ${open ? 'rotate-180' : ''}`}
-				/>
-			</button>
-
-			{open &&
-				createPortal(
-					<div
-						ref={dropdownRef}
-						className='fixed z-[201] w-44 overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-white shadow-2xl'
-						style={{ top: coords.top, right: coords.right, pointerEvents: 'auto' }}>
-						{roles.map((role) => {
-							const Icon = ROLE_ICONS[role]
-							return (
-								<button
-									key={role}
-									type='button'
-									onClick={() => {
-										onChange(role)
-										setOpen(false)
-									}}
-									className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-[var(--surface-hover)] ${
-										role === value
-											? 'text-[var(--text-primary)]'
-											: 'text-[var(--text-secondary)]'
-									}`}>
-									<Icon className='h-3.5 w-3.5 shrink-0' />
-									<span>{t(`settings:mailboxRoles.roles.${role}`)}</span>
-									{role === value && (
-										<Check className='ml-auto h-3.5 w-3.5 text-status-success' />
-									)}
-								</button>
-							)
-						})}
-					</div>,
-					document.body
-				)}
-		</div>
+		<DropdownMenu open={open} onOpenChange={setOpen}>
+			<DropdownMenuTrigger asChild>
+				<button
+					type='button'
+					className='flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-3 py-1.5 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--border-subtle)] hover:bg-[var(--surface-hover)]'>
+					<RoleIcon role={value} className='h-3.5 w-3.5 text-[var(--text-tertiary)]' />
+					<span>{t(`settings:mailboxRoles.roles.${value}`)}</span>
+					<ChevronDown
+						className={`h-3.5 w-3.5 text-[var(--text-tertiary)] transition-transform ${open ? 'rotate-180' : ''}`}
+					/>
+				</button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent
+				align='end'
+				className='glass w-44 rounded-xl border-[var(--border-subtle)] bg-[var(--surface-glass)] p-1 text-[var(--text-primary)] shadow-2xl backdrop-blur-xl'>
+				{roles.map((role) => {
+					const Icon = ROLE_ICONS[role]
+					return (
+						<DropdownMenuItem
+							key={role}
+							onClick={() => {
+								onChange(role)
+								setOpen(false)
+							}}
+							className={`gap-2.5 rounded-lg px-3 py-2 text-sm hover:bg-[var(--surface-hover)] focus:bg-[var(--surface-hover)] ${
+								role === value
+									? 'text-[var(--text-primary)]'
+									: 'text-[var(--text-secondary)]'
+							}`}>
+							<Icon className='h-3.5 w-3.5 shrink-0' />
+							<span>{t(`settings:mailboxRoles.roles.${role}`)}</span>
+							{role === value && (
+								<Check className='ml-auto h-3.5 w-3.5 text-status-success' />
+							)}
+						</DropdownMenuItem>
+					)
+				})}
+			</DropdownMenuContent>
+		</DropdownMenu>
 	)
 }
 
@@ -171,13 +143,14 @@ export function MailboxRoleStep({ accountId, onDone, initialMailboxes }: Mailbox
 				changed.map((mb) =>
 					invoke('update_mailbox_role', {
 						accountId,
-						mailboxName: mb.name,
+						name: mb.name,
 						role: roles[mb.name],
 					})
 				)
 			)
 		} catch (err) {
 			console.error('Failed to save mailbox roles:', err)
+			toast.error(t('settings:mailboxRoles.saveFailed', 'Failed to save mailbox roles'))
 		} finally {
 			setSaving(false)
 			onDone()
