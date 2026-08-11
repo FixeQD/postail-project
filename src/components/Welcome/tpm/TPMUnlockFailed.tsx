@@ -25,9 +25,13 @@ export function TPMUnlockFailed({
 	const [loading, setLoading] = useState(false)
 	const [recoveryError, setRecoveryError] = useState<string | null>(null)
 
+	// `errorType` is set for classified TPM2 response codes (integrity, policyFail, badAuth, unknown)
+	// falls back to the generic message for anything older/unclassified so this never renders blank
 	const description = error?.cancelled
 		? tSec('security:tpm.unlockFailed.cancelledDescription')
-		: tSec('security:tpm.unlockFailed.errorDescription')
+		: error?.errorType
+			? tSec(`security:tpm.unlockFailed.errors.${error.errorType}`)
+			: tSec('security:tpm.unlockFailed.errorDescription')
 
 	const handleRecoverySubmit = async (e: React.FormEvent) => {
 		e.preventDefault()

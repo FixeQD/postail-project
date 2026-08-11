@@ -75,9 +75,11 @@ pub async fn initialize_security_and_database(
 
     let is_unlocking = security.is_initialized();
     if is_unlocking {
-        security.unlock().map_err(|e| e.to_string())?;
+        // `to_frontend_json` emits `{ errorType, message }` for classified TPM errors
+        // (see `postail_security::TpmErrorKind`) and the plain message for everything else
+        security.unlock().map_err(|e| e.to_frontend_json())?;
     } else {
-        security.initialize().map_err(|e| e.to_string())?;
+        security.initialize().map_err(|e| e.to_frontend_json())?;
     }
 
     {

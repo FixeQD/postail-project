@@ -112,7 +112,7 @@ impl SecretStore for WindowsTpmStore {
         }
 
         tracing::info!(
-            "TPM2 dostępny (interface_type={}, imp_revision={})",
+            "TPM2 available (interface_type={}, imp_revision={})",
             device_info.tpm_interface_type,
             device_info.tpm_imp_revision,
         );

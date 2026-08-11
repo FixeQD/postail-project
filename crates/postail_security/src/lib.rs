@@ -1,5 +1,5 @@
 pub mod error;
-pub use error::{Result, SecurityError};
+pub use error::{Result, SecurityError, TpmErrorKind};
 
 pub mod crypto;
 pub use crypto::helpers::{ZeroizingBytes, secure_zeroize, secure_zeroize_vec};

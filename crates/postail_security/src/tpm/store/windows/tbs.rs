@@ -89,7 +89,7 @@ impl TbsContext {
 
         if result != TBS_SUCCESS {
             tracing::debug!(
-                "Tbsi_GetDeviceInfo returned 0x{:08X} — brak TPM lub TBS niedostępny",
+                "Tbsi_GetDeviceInfo returned 0x{:08X} - no TPM or TBS unavailable",
                 result
             );
             return None;

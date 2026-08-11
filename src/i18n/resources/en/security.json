@@ -104,6 +104,12 @@
 			"title": "TPM Unlock Failed",
 			"cancelledDescription": "The authentication prompt was cancelled. TPM requires administrator access to unlock.",
 			"errorDescription": "Could not unlock with TPM. The hardware state may have changed.",
+			"errors": {
+				"integrity": "Your TPM's storage state has changed since this data was sealed - this usually means the TPM was cleared or reset. Your data can no longer be unlocked with the TPM and can only be restored with your recovery phrase.",
+				"policyFail": "Your device's boot state has changed since this data was sealed (for example, a firmware update or a Secure Boot setting change). Your data is intact - try again after your next restart, or use your recovery phrase now.",
+				"badAuth": "TPM authorization failed unexpectedly. Try again, or use your recovery phrase if this keeps happening.",
+				"unknown": "Could not unlock with TPM for an unrecognized reason. Try again, or use your recovery phrase if this keeps happening."
+			},
 			"retry": "Retry",
 			"useRecovery": "Failing to unlock? Use recovery phrase"
 		}

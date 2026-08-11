@@ -141,19 +141,13 @@ pub fn unseal_data(tbs: &TbsContext, primary: u32, blob: &[u8]) -> Result<Zeroiz
         let (session, nonce_tpm) = proto::parse_start_auth_session(&resp).map_err(tpm_err)?;
 
         let session_guard = TpmHandleGuard::new(tbs, session);
-
-        submit(tbs, &proto::cmd_policy_pcr(session)).map_err(|e| {
-            SecurityError::Tpm(format!(
-                "PCR policy check failed - boot state has changed: {e}"
-            ))
-        })?;
+        submit(tbs, &proto::cmd_policy_pcr(session))?;
 
         let name = proto::object_name(&pub_bytes);
         let resp = submit(
             tbs,
             &proto::cmd_unseal(item_handle, session, &fresh_nonce(), &nonce_tpm, &name),
-        )
-        .map_err(|e| SecurityError::Tpm(format!("Failed to unseal: {e}")))?;
+        )?;
 
         session_guard.dismiss();
 

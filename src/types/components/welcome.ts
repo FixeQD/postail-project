@@ -10,8 +10,15 @@ export interface AccentColorStepProps {
 	onBack: () => void
 }
 
+/**
+ * Mirrors `postail_security::TpmErrorKind`, serialized as camelCase by serde
+ * 'unknown' covers any TPM2 response code we haven't named yet + the Linux pkexec-elevation error
+ * types that reuse this same `{ errorType, message }` shape but aren't TPM2 response codes at all
+ */
+export type TpmUnlockErrorType = 'integrity' | 'policyFail' | 'badAuth' | 'unknown'
+
 export interface TPMUnlockFailedProps {
-	error: { message: string; cancelled: boolean } | null
+	error: { message: string; cancelled: boolean; errorType?: TpmUnlockErrorType } | null
 	onRetry: () => void
 	onUnlock: () => void
 	onRecoveryVerified: () => void
@@ -29,4 +36,3 @@ export interface RecoveryStepProps {
 	variant?: 'page' | 'embedded'
 	encryptionMethod?: 'tpm' | 'argon2'
 }
-

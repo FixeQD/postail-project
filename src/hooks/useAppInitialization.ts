@@ -9,6 +9,7 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useTranslation } from 'react-i18next'
 import type { AppState } from '@/types/hooks'
+import type { TpmUnlockErrorType } from '@/types/components/welcome'
 
 export type { AppState } from '@/types/hooks'
 
@@ -18,6 +19,7 @@ export function useAppInitialization() {
 	const [tpmUnlockError, setTpmUnlockError] = useState<{
 		message: string
 		cancelled: boolean
+		errorType?: TpmUnlockErrorType
 	} | null>(null)
 	const loadSettings = useSettingsStore((s) => s.loadSettings)
 	const { persistTheme } = useThemeStore()
@@ -167,12 +169,22 @@ export function useAppInitialization() {
 							const errorData = String(e)
 							let msg = errorData
 							let cancelled = false
+							let errorType: TpmUnlockErrorType | undefined
 
 							try {
 								if (errorData.startsWith('{') && errorData.endsWith('}')) {
 									const parsed = JSON.parse(errorData)
 									msg = parsed.message || msg
 									cancelled = parsed.errorType === 'cancelled'
+									// TPM2 response-code kinds (integrity/policyFail/badAuth/unknown) vs
+									if (
+										parsed.errorType === 'integrity' ||
+										parsed.errorType === 'policyFail' ||
+										parsed.errorType === 'badAuth' ||
+										parsed.errorType === 'unknown'
+									) {
+										errorType = parsed.errorType
+									}
 								}
 							} catch (err) {
 								console.error('Failed to parse structured error:', err)
@@ -180,7 +192,7 @@ export function useAppInitialization() {
 
 							console.error(`Auto-unlock failed for ${lastMethod}`, msg)
 							hasInitializedRef.current = true
-							setTpmUnlockError({ message: msg, cancelled })
+							setTpmUnlockError({ message: msg, cancelled, errorType })
 							setCurrentState('tpm-unlock-failed')
 						}
 					} else {
